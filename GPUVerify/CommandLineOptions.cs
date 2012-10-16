@@ -18,9 +18,8 @@ namespace GPUVerify
         public static bool OnlyDivergence = false;
         public static bool AdversarialAbstraction = false;
         public static bool EqualityAbstraction = false;
-        public static bool Inference = false;
+        public static bool Inference = true;
         public static bool ArrayEqualities = false;
-        public static string invariantsFile = null;
 
         public static bool ShowStages = false;
 
@@ -32,7 +31,6 @@ namespace GPUVerify
 
         public static bool NoLoopPredicateInvariants = false;
 
-        public static bool Unstructured = true;
         public static bool SmartPredication = true;
 
         public static bool OnlyIntraGroupRaceChecking = false;
@@ -97,15 +95,9 @@ namespace GPUVerify
                     ShowStages = true;
                     break;
 
-                    case "-inference":
-                    case "/inference":
-                    Inference = true;
-                    if (hasColonArgument)
-                    {
-                        Debug.Assert(afterColon != null);
-                        invariantsFile = afterColon;
-                    }
-
+                    case "-noInfer":
+                    case "/noInfer":
+                    Inference = false;
                     break;
 
                     case "-arrayEqualities":
@@ -136,11 +128,6 @@ namespace GPUVerify
                     case "-noLoopPredicateInvariants":
                     case "/noLoopPredicateInvariants":
                     NoLoopPredicateInvariants = true;
-                    break;
-
-                    case "-structured":
-                    case "/structured":
-                    Unstructured = false;
                     break;
 
                     case "-noSmartPredication":
@@ -178,31 +165,52 @@ namespace GPUVerify
             }
             printedHelp = true;
 
-            Console.WriteLine(@"GPUVerify: usage:  GPUVerify [ option ... ] [ filename ... ]
+            Console.WriteLine(@"GPUVerifyVCGen: usage:  GPUVerifyVCGen [ option ... ] [ filename ... ]
   where <option> is one of
 
   /help                         : this message
   /print:file                   : output bpl file
-  /showStages                   :
 
-  /adversarialAbstraction       : apply full state abstraction
-  /equalityAbstraction          : apply equality state abstraction
+  Debugging GPUVerifyVCGen
+  ------------------------
+  /showArrayControlFlowAnalysis : show results of array control flow analysis
+  /showMayBePowerOfTwoAnalysis  : show results of analysis that flags up 
+                                    variables that might be powers of two
+  /showUniformityAnalysis       : show results of uniformity analysis
+  /showStages                   : dump intermediate stages of processing to a
+                                    a series of files
 
-  /inference[:file]             : use automatic invariant inference
-                                  optional file can include manually supplied invariants
+  Optimisations
+  -------------
+  /noSmartPredication           : use simple, general predication instead of 
+                                    default smarter method
+  /noUniformityAnalysis         : do not apply uniformity analysis to restrict
+                                    predication
 
-  /onlyDivergence               : only-check for divergence-freedom, not race-freedom
-  /onlyIntraGroupRaceChecking   : only-check intra-group races
+  Shared state abstraction
+  ------------------------
+  /adversarialAbstraction       : completely abstract shared arrays so that 
+                                    reads are nondeterministic
+  /equalityAbstraction          : make shared arrays nondeterministic, but 
+                                    consistent between threads, at barriers
 
-  /arrayEqualities              :
-  /noLoopPredicateInvariants    :
-  /noSmartPredication           :
-  /noUniformityAnalysis         :
-  /noSourceLocInfer             : turn off source-location tags
-  /showArrayControlFlowAnalysis :
-  /showMayBePowerOfTwoAnalysis  :
-  /showUniformityAnalysis       :
-  /structured                   : work on structured form of program (default: unstructured)
+  Invariant inference
+  -------------------
+  /noInfer                      : turn off automatic invariant inference
+  /noSourceLocInfer             : turn off inference of accurate source
+                                    location information for error reporting,
+                                    which can slow down verification
+  /noLoopPredicateInvariants    : turn off automatic generation of invariants
+                                    about loop predicates.  Occasionally they
+                                    can be wrong, hindering verification
+  /arrayEqualities              : generate equality candidate invariants for
+                                    array variables
+
+  Property checking
+  -----------------
+  /onlyDivergence               : verify freedom from barrier divergence, but 
+                                    not data races
+  /onlyIntraGroupRaceChecking   : do not consider inter-group data races
 
 ");
         }

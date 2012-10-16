@@ -29,8 +29,6 @@ namespace GPUVerify
         internal HashSet<string> OnlyThread1 = new HashSet<string>();
         internal HashSet<string> OnlyThread2 = new HashSet<string>();
 
-        private int TempCounter = 0;
-
         internal const string LOCAL_ID_X_STRING = "local_id_x";
         internal const string LOCAL_ID_Y_STRING = "local_id_y";
         internal const string LOCAL_ID_Z_STRING = "local_id_z";
@@ -67,7 +65,6 @@ namespace GPUVerify
 
         public UniformityAnalyser uniformityAnalyser;
         public MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
-        public LiveVariableAnalyser liveVariableAnalyser;
         public ArrayControlFlowAnalyser arrayControlFlowAnalyser;
         public Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
         public Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
@@ -375,11 +372,7 @@ namespace GPUVerify
 
         internal void preProcess()
         {
-            RemoveRedundantReturns();
-
-            RemoveElseIfs();
-
-            PullOutNonLocalAccesses();
+            //PullOutNonLocalAccesses();
         }
 
         private void MergeBlocksIntoPredecessors()
@@ -391,10 +384,7 @@ namespace GPUVerify
         internal void doit()
         {
             File.Delete(Path.GetFileNameWithoutExtension(CommandLineOptions.inputFiles[0]) + ".loc"); 
-            if (CommandLineOptions.Unstructured)
-            {
-                Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
-            }
+            Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
             if (CommandLineOptions.ShowStages)
             {
@@ -406,8 +396,6 @@ namespace GPUVerify
             if (CommandLineOptions.ShowStages) {
               emitProgram(outputFilename + "_preprocessed");
             }
-
-            DoLiveVariableAnalysis();
 
             DoUniformityAnalysis();
 
@@ -520,15 +508,9 @@ namespace GPUVerify
 
             var nonUniformVars = new Variable[] { _X, _Y, _Z, _GROUP_X, _GROUP_Y, _GROUP_Z };
 
-            uniformityAnalyser = new UniformityAnalyser(Program, CommandLineOptions.DoUniformityAnalysis, CommandLineOptions.Unstructured,
-                                                        entryPoints, nonUniformVars);
+            uniformityAnalyser = new UniformityAnalyser(Program, CommandLineOptions.DoUniformityAnalysis, 
+                                                        true, entryPoints, nonUniformVars);
             uniformityAnalyser.Analyse();
-        }
-
-        private void DoLiveVariableAnalysis()
-        {
-            liveVariableAnalyser = new LiveVariableAnalyser(this);
-            liveVariableAnalyser.Analyse();
         }
 
         private void DoVariableDefinitionAnalysis()
@@ -562,9 +544,7 @@ namespace GPUVerify
 
                     Implementation Impl = Program.TopLevelDeclarations[i] as Implementation;
 
-                    List<Expr> UserSuppliedInvariants = GetUserSuppliedInvariants(Impl.Name);
-
-                    LoopInvariantGenerator.PostInstrument(this, Impl, UserSuppliedInvariants);
+                    LoopInvariantGenerator.PostInstrument(this, Impl);
 
                     Procedure Proc = Impl.Proc;
 
@@ -580,11 +560,9 @@ namespace GPUVerify
 
                     AddCandidateRequires(Proc);
                     RaceInstrumenter.AddRaceCheckingCandidateRequires(Proc);
-                    AddUserSuppliedCandidateRequires(Proc, UserSuppliedInvariants);
 
                     AddCandidateEnsures(Proc);
                     RaceInstrumenter.AddRaceCheckingCandidateEnsures(Proc);
-                    AddUserSuppliedCandidateEnsures(Proc, UserSuppliedInvariants);
 
                 }
 
@@ -679,39 +657,6 @@ namespace GPUVerify
                 ));
         }
 
-
-        private void AddUserSuppliedCandidateRequires(Procedure Proc, List<Expr> UserSuppliedInvariants)
-        {
-            foreach (Expr e in UserSuppliedInvariants)
-            {
-                Requires r = new Requires(false, e);
-                Proc.Requires.Add(r);
-                bool OK = ProgramIsOK(Proc);
-                Proc.Requires.Remove(r);
-                if (OK)
-                {
-                    AddCandidateRequires(Proc, e);
-                }
-            }
-        }
-
-        private void AddUserSuppliedCandidateEnsures(Procedure Proc, List<Expr> UserSuppliedInvariants)
-        {
-            foreach (Expr e in UserSuppliedInvariants)
-            {
-                Ensures ens = new Ensures(false, e);
-                Proc.Ensures.Add(ens);
-                bool OK = ProgramIsOK(Proc);
-                Proc.Ensures.Remove(ens);
-                if (OK)
-                {
-                    AddCandidateEnsures(Proc, e);
-                }
-            }
-        }
-
-
-
         internal void AddCandidateRequires(Procedure Proc, Expr e)
         {
             Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean();
@@ -724,61 +669,6 @@ namespace GPUVerify
             Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean();
             IdentifierExpr ExistentialBoolean = new IdentifierExpr(Proc.tok, ExistentialBooleanConstant);
             Proc.Ensures.Add(new Ensures(false, Expr.Imp(ExistentialBoolean, e)));
-        }
-
-        private List<Expr> GetUserSuppliedInvariants(string ProcedureName)
-        {
-            List<Expr> result = new List<Expr>();
-
-            if (CommandLineOptions.invariantsFile == null)
-            {
-                return result;
-            }
-
-            StreamReader sr = new StreamReader(new FileStream(CommandLineOptions.invariantsFile, FileMode.Open, FileAccess.Read));
-            string line;
-            int lineNumber = 1;
-            while ((line = sr.ReadLine()) != null)
-            {
-                string[] components = line.Split(':');
-
-                if (components.Length != 1 && components.Length != 2)
-                {
-                    Console.WriteLine("Ignoring badly formed candidate invariant '" + line + "' at '" + CommandLineOptions.invariantsFile + "' line " + lineNumber);
-                    continue;
-                }
-
-                if (components.Length == 2)
-                {
-                    if (!components[0].Trim().Equals(ProcedureName))
-                    {
-                        continue;
-                    }
-
-                    line = components[1];
-                }
-
-                string temp_program_text = "axiom (" + line + ");";
-                TokenTextWriter writer = new TokenTextWriter("temp_out.bpl");
-                writer.WriteLine(temp_program_text);
-                writer.Close();
-
-                Program temp_program = GPUVerify.ParseBoogieProgram(new List<string>(new string[] { "temp_out.bpl" }), false);
-
-                if (null == temp_program)
-                {
-                    Console.WriteLine("Ignoring badly formed candidate invariant '" + line + "' at '" + CommandLineOptions.invariantsFile + "' line " + lineNumber);
-                }
-                else
-                {
-                    Debug.Assert(temp_program.TopLevelDeclarations[0] is Axiom);
-                    result.Add((temp_program.TopLevelDeclarations[0] as Axiom).Expr);
-                }
-
-                lineNumber++;
-            }
-
-            return result;
         }
 
         internal bool ContainsNamedVariable(HashSet<Variable> variables, string name)
@@ -1105,8 +995,6 @@ namespace GPUVerify
                     continue;
                 }
 
-                new EnsureDisabledThreadHasNoEffectInstrumenter(this, Impl).instrument();
-
             }
 
         }
@@ -1129,25 +1017,6 @@ namespace GPUVerify
                                         new IdentifierExpr(Token.NoToken, MakeGroupId("Z", 2))
                                         )
                                     );
-        }
-
-        internal static void AddInvariantToAllLoops(Expr Invariant, StmtList stmtList)
-        {
-            foreach (BigBlock bb in stmtList.BigBlocks)
-            {
-                AddInvariantToAllLoops(Invariant, bb);
-            }
-        }
-
-        internal static void AddInvariantToAllLoops(Expr Invariant, BigBlock bb)
-        {
-            if (bb.ec is WhileCmd)
-            {
-                WhileCmd wc = bb.ec as WhileCmd;
-                wc.Invariants.Add(new AssertCmd(wc.tok, Invariant));
-                AddInvariantToAllLoops(Invariant, wc.Body);
-            }
-            Debug.Assert(!(bb.ec is IfCmd));
         }
 
         internal static int GetThreadSuffix(string p)
@@ -1504,8 +1373,7 @@ namespace GPUVerify
                 new Implementation(BarrierProcedure.tok, BarrierProcedure.Name, new TypeVariableSeq(), 
                     BarrierProcedure.InParams, BarrierProcedure.OutParams, new VariableSeq(), statements);
 
-            if (CommandLineOptions.Unstructured)
-                BarrierImplementation.Resolve(ResContext);
+            BarrierImplementation.Resolve(ResContext);
 
             BarrierImplementation.AddAttribute("inline", new object[] { new LiteralExpr(tok, BigNum.FromInt(1)) });
             BarrierProcedure.AddAttribute("inline", new object[] { new LiteralExpr(tok, BigNum.FromInt(1)) });
@@ -1700,260 +1568,6 @@ namespace GPUVerify
             return type.Equals(Microsoft.Boogie.Type.Int) || type.Equals(Microsoft.Boogie.Type.GetBvType(32));
         }
 
-        private void PullOutNonLocalAccesses()
-        {
-            foreach (Declaration d in Program.TopLevelDeclarations)
-            {
-                if (d is Implementation)
-                {
-                    (d as Implementation).StructuredStmts = PullOutNonLocalAccesses((d as Implementation).StructuredStmts, (d as Implementation));
-                }
-            }
-        }
-
-        private void RemoveElseIfs()
-        {
-            foreach (Declaration d in Program.TopLevelDeclarations)
-            {
-                if (d is Implementation)
-                {
-                    (d as Implementation).StructuredStmts = RemoveElseIfs((d as Implementation).StructuredStmts);
-                }
-            }
-        }
-
-        private void RemoveRedundantReturns()
-        {
-            foreach (Declaration d in Program.TopLevelDeclarations)
-            {
-                if (d is Implementation)
-                {
-                    RemoveRedundantReturns((d as Implementation).StructuredStmts);
-                }
-            }
-        }
-
-        private StmtList RemoveElseIfs(StmtList stmtList)
-        {
-            Contract.Requires(stmtList != null);
-
-            StmtList result = new StmtList(new List<BigBlock>(), stmtList.EndCurly);
-
-            foreach (BigBlock bodyBlock in stmtList.BigBlocks)
-            {
-                result.BigBlocks.Add(RemoveElseIfs(bodyBlock));
-            }
-
-            return result;
-        }
-
-        private void RemoveRedundantReturns(StmtList stmtList)
-        {
-            Contract.Requires(stmtList != null);
-
-            BigBlock bb = stmtList.BigBlocks[stmtList.BigBlocks.Count - 1];
-
-            if (bb.tc is ReturnCmd)
-            {
-                bb.tc = null;
-            }
-        }
-
-        private BigBlock RemoveElseIfs(BigBlock bb)
-        {
-            BigBlock result = bb;
-            if (bb.ec is IfCmd)
-            {
-                IfCmd IfCommand = bb.ec as IfCmd;
-
-                Debug.Assert(IfCommand.elseIf == null || IfCommand.elseBlock == null);
-
-                if (IfCommand.elseIf != null)
-                {
-                    IfCommand.elseBlock = new StmtList(new List<BigBlock>(new BigBlock[] {
-                        new BigBlock(bb.tok, null, new CmdSeq(), IfCommand.elseIf, null)
-                    }), bb.tok);
-                    IfCommand.elseIf = null;
-                }
-
-                IfCommand.thn = RemoveElseIfs(IfCommand.thn);
-                if (IfCommand.elseBlock != null)
-                {
-                    IfCommand.elseBlock = RemoveElseIfs(IfCommand.elseBlock);
-                }
-
-            }
-            else if (bb.ec is WhileCmd)
-            {
-                (bb.ec as WhileCmd).Body = RemoveElseIfs((bb.ec as WhileCmd).Body);
-            }
-
-            return result;
-        }
-
-        private StmtList PullOutNonLocalAccesses(StmtList stmtList, Implementation impl)
-        {
-            Contract.Requires(stmtList != null);
-
-            StmtList result = new StmtList(new List<BigBlock>(), stmtList.EndCurly);
-
-            foreach (BigBlock bodyBlock in stmtList.BigBlocks)
-            {
-                result.BigBlocks.Add(PullOutNonLocalAccesses(bodyBlock, impl));
-            }
-
-            return result;
-        }
-
-        private BigBlock PullOutNonLocalAccesses(BigBlock bb, Implementation impl)
-        {
-
-            BigBlock result = new BigBlock(bb.tok, bb.LabelName, new CmdSeq(), null, bb.tc);
-
-            foreach (Cmd c in bb.simpleCmds)
-            {
-
-                if (c is CallCmd)
-                {
-                    CallCmd call = c as CallCmd;
-
-                    if (QKeyValue.FindBoolAttribute(call.Proc.Attributes, "barrier_invariant") ||
-                        QKeyValue.FindBoolAttribute(call.Proc.Attributes, "binary_barrier_invariant")) {
-                      // Do not pull non-local accesses out of barrier invariants
-                      continue;
-                    }
-
-                    List<Expr> newIns = new List<Expr>();
-
-                    for (int i = 0; i < call.Ins.Count; i++)
-                    {
-                        Expr e = call.Ins[i];
-
-                        while (NonLocalAccessCollector.ContainsNonLocalAccess(e, KernelArrayInfo))
-                        {
-                            AssignCmd assignToTemp;
-                            LocalVariable tempDecl;
-                            e = ExtractLocalAccessToTemp(e, out assignToTemp, out tempDecl);
-                            result.simpleCmds.Add(assignToTemp);
-                            impl.LocVars.Add(tempDecl);
-                        }
-
-                        newIns.Add(e);
-
-                    }
-
-                    CallCmd newCall = new CallCmd(call.tok, call.callee, newIns, call.Outs);
-                    newCall.Proc = call.Proc;
-                    result.simpleCmds.Add(newCall);
-                }
-                else if (c is AssignCmd)
-                {
-                    AssignCmd assign = c as AssignCmd;
-
-                    if (assign.Lhss.Zip(assign.Rhss, (lhs, rhs) =>
-                            !NonLocalAccessCollector.ContainsNonLocalAccess(rhs, KernelArrayInfo) || 
-                              (!NonLocalAccessCollector.ContainsNonLocalAccess(lhs, KernelArrayInfo) && 
-                                NonLocalAccessCollector.IsNonLocalAccess(rhs, KernelArrayInfo))).All(b => b))
-                    {
-                        result.simpleCmds.Add(c);
-                    }
-                    else
-                    {
-                        Debug.Assert(assign.Lhss.Count == 1 && assign.Rhss.Count == 1);
-                        AssignLhs lhs = assign.Lhss.ElementAt(0);
-                        Expr rhs = assign.Rhss.ElementAt(0);
-                        rhs = PullOutNonLocalAccessesIntoTemps(result, rhs, impl);
-                        List<AssignLhs> newLhss = new List<AssignLhs>();
-                        newLhss.Add(lhs);
-                        List<Expr> newRhss = new List<Expr>();
-                        newRhss.Add(rhs);
-                        result.simpleCmds.Add(new AssignCmd(assign.tok, newLhss, newRhss));
-                    }
-
-                }
-                else if (c is HavocCmd)
-                {
-                    result.simpleCmds.Add(c);
-                }
-                else if (c is AssertCmd)
-                {
-                  // Do not pull non-local accesses out of assert commands
-                  continue;
-                }
-                else if (c is AssumeCmd)
-                {
-                    result.simpleCmds.Add(new AssumeCmd(c.tok, PullOutNonLocalAccessesIntoTemps(result, (c as AssumeCmd).Expr, impl)));
-                }
-                else
-                {
-                    Console.WriteLine(c);
-                    Debug.Assert(false);
-                }
-            }
-
-            if (bb.ec is WhileCmd)
-            {
-                WhileCmd WhileCommand = bb.ec as WhileCmd;
-                while (NonLocalAccessCollector.ContainsNonLocalAccess(WhileCommand.Guard, KernelArrayInfo))
-                {
-                    AssignCmd assignToTemp;
-                    LocalVariable tempDecl;
-                    WhileCommand.Guard = ExtractLocalAccessToTemp(WhileCommand.Guard, out assignToTemp, out tempDecl);
-                    result.simpleCmds.Add(assignToTemp);
-                    impl.LocVars.Add(tempDecl);
-                }
-                result.ec = new WhileCmd(WhileCommand.tok, WhileCommand.Guard, WhileCommand.Invariants, PullOutNonLocalAccesses(WhileCommand.Body, impl));
-            }
-            else if (bb.ec is IfCmd)
-            {
-                IfCmd IfCommand = bb.ec as IfCmd;
-                Debug.Assert(IfCommand.elseIf == null); // "else if" must have been eliminated by this phase
-                while (NonLocalAccessCollector.ContainsNonLocalAccess(IfCommand.Guard, KernelArrayInfo))
-                {
-                    AssignCmd assignToTemp;
-                    LocalVariable tempDecl;
-                    IfCommand.Guard = ExtractLocalAccessToTemp(IfCommand.Guard, out assignToTemp, out tempDecl);
-                    result.simpleCmds.Add(assignToTemp);
-                    impl.LocVars.Add(tempDecl);
-                }
-                result.ec = new IfCmd(IfCommand.tok, IfCommand.Guard, PullOutNonLocalAccesses(IfCommand.thn, impl), IfCommand.elseIf, IfCommand.elseBlock != null ? PullOutNonLocalAccesses(IfCommand.elseBlock, impl) : null);
-            }
-            else if (bb.ec is BreakCmd)
-            {
-                result.ec = bb.ec;
-            }
-            else
-            {
-                Debug.Assert(bb.ec == null);
-            }
-
-            return result;
-
-        }
-
-        private Expr PullOutNonLocalAccessesIntoTemps(BigBlock result, Expr e, Implementation impl)
-        {
-            while (NonLocalAccessCollector.ContainsNonLocalAccess(e, KernelArrayInfo))
-            {
-                AssignCmd assignToTemp;
-                LocalVariable tempDecl;
-                e = ExtractLocalAccessToTemp(e, out assignToTemp, out tempDecl);
-                result.simpleCmds.Add(assignToTemp);
-                impl.LocVars.Add(tempDecl);
-            }
-            return e;
-        }
-
-        private Expr ExtractLocalAccessToTemp(Expr rhs, out AssignCmd tempAssignment, out LocalVariable tempDeclaration)
-        {
-            NonLocalAccessExtractor extractor = new NonLocalAccessExtractor(TempCounter, KernelArrayInfo);
-            TempCounter++;
-            rhs = extractor.VisitExpr(rhs);
-            tempAssignment = extractor.Assignment;
-            tempDeclaration = extractor.Declaration;
-            return rhs;
-        }
-
         private void MakeKernelDualised()
         {
 
@@ -1977,7 +1591,7 @@ namespace GPUVerify
                 if (d is Implementation)
                 {
 
-                    new KernelDualiser(this).DualiseImplementation(d as Implementation, CommandLineOptions.Unstructured);
+                    new KernelDualiser(this).DualiseImplementation(d as Implementation);
 
                     NewTopLevelDeclarations.Add(d as Implementation);
 
@@ -2023,67 +1637,15 @@ namespace GPUVerify
 
         private void MakeKernelPredicated()
         {
-            if (CommandLineOptions.Unstructured)
+            if (CommandLineOptions.SmartPredication)
             {
-                if (CommandLineOptions.SmartPredication)
-                {
-                    SmartBlockPredicator.Predicate(Program, proc => true, uniformityAnalyser);
-                }
-                else
-                {
-                    BlockPredicator.Predicate(Program, /*createCandidateInvariants=*/CommandLineOptions.Inference);
-                }
-                return;
+                SmartBlockPredicator.Predicate(Program, proc => true, uniformityAnalyser);
             }
-
-            foreach (Declaration d in Program.TopLevelDeclarations)
+            else
             {
-                if (d is Procedure)
-                {
-                    Procedure proc = d as Procedure;
-                    IdentifierExpr enabled = new IdentifierExpr(proc.tok,
-                        new LocalVariable(proc.tok, new TypedIdent(proc.tok, "_P", Microsoft.Boogie.Type.Bool)));
-                    Expr predicateExpr;
-                    if (!uniformityAnalyser.IsUniform(proc.Name))
-                    {
-                        // Add predicate to start of parameter list
-                        VariableSeq NewIns = new VariableSeq();
-                        NewIns.Add(enabled.Decl);
-                        foreach (Variable v in proc.InParams)
-                        {
-                            NewIns.Add(v);
-                        }
-                        proc.InParams = NewIns;
-                        predicateExpr = enabled;
-                    }
-                    else
-                    {
-                        predicateExpr = Expr.True;
-                    }
-
-                    RequiresSeq newRequires = new RequiresSeq();
-                    foreach (Requires r in proc.Requires)
-                    {
-                        newRequires.Add(new Requires(r.Free, Predicator.ProcessEnabledIntrinsics(r.Condition, predicateExpr)));
-                    }
-                    proc.Requires = newRequires;
-
-                    EnsuresSeq newEnsures = new EnsuresSeq();
-                    foreach (Ensures e in proc.Ensures)
-                    {
-                        newEnsures.Add(new Ensures(e.Free, Predicator.ProcessEnabledIntrinsics(e.Condition, predicateExpr)));
-                    }
-                    proc.Ensures = newEnsures;
-
-                }
-                else if (d is Implementation)
-                {
-                    Implementation impl = d as Implementation;
-                    new Predicator(this, !uniformityAnalyser.IsUniform(impl.Name)).transform
-                        (impl);
-                }
+                BlockPredicator.Predicate(Program, /*createCandidateInvariants=*/CommandLineOptions.Inference);
             }
-
+            return;
         }
 
         private void CheckKernelParameters()
@@ -2208,10 +1770,7 @@ namespace GPUVerify
 
         internal IRegion RootRegion(Implementation Impl)
         {
-          if (CommandLineOptions.Unstructured)
-              return new UnstructuredRegion(Program, Impl);
-          else
-              return new StructuredRegion(Impl);
+          return new UnstructuredRegion(Program, Impl);
         }
 
 

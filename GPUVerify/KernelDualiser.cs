@@ -421,17 +421,12 @@ namespace GPUVerify {
     }
 
 
-    internal void DualiseImplementation(Implementation impl, bool unstructured) {
+    internal void DualiseImplementation(Implementation impl) {
       procName = impl.Name;
-
       impl.InParams = DualiseVariableSequence(impl.InParams);
       impl.OutParams = DualiseVariableSequence(impl.OutParams);
       MakeDualLocalVariables(impl);
-      if (unstructured)
-        impl.Blocks = new List<Block>(impl.Blocks.Select(MakeDual));
-      else
-        impl.StructuredStmts = MakeDual(impl.StructuredStmts);
-
+      impl.Blocks = new List<Block>(impl.Blocks.Select(MakeDual));
       procName = null;
     }
 

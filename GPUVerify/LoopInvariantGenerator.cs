@@ -45,11 +45,11 @@ namespace GPUVerify {
       }
     }
 
-    public static void PostInstrument(GPUVerifier verifier, Implementation Impl, List<Expr> UserSuppliedInvariants) {
-      new LoopInvariantGenerator(verifier, Impl).PostInstrument(UserSuppliedInvariants);
+    public static void PostInstrument(GPUVerifier verifier, Implementation Impl) {
+      new LoopInvariantGenerator(verifier, Impl).PostInstrument();
     }
 
-    internal void PostInstrument(List<Expr> UserSuppliedInvariants) {
+    internal void PostInstrument() {
       HashSet<Variable> LocalVars = new HashSet<Variable>();
       foreach (Variable v in Impl.LocVars) {
         LocalVars.Add(v);
@@ -61,7 +61,7 @@ namespace GPUVerify {
         LocalVars.Add(v);
       }
 
-      AddCandidateInvariants(verifier.RootRegion(Impl), LocalVars, UserSuppliedInvariants, Impl);
+      AddCandidateInvariants(verifier.RootRegion(Impl), LocalVars, Impl);
 
     }
 
@@ -211,7 +211,7 @@ namespace GPUVerify {
                 ((IdentifierExpr)nary.Args[1]).Name));
     }
 
-    private void AddCandidateInvariants(IRegion region, HashSet<Variable> LocalVars, List<Expr> UserSuppliedInvariants, Implementation Impl) {
+    private void AddCandidateInvariants(IRegion region, HashSet<Variable> LocalVars, Implementation Impl) {
       foreach (IRegion subregion in region.SubRegions()) {
         foreach (InvariantGenerationRule r in invariantGenerationRules) {
           r.GenerateCandidates(Impl, subregion);
@@ -221,22 +221,6 @@ namespace GPUVerify {
 
         verifier.RaceInstrumenter.AddRaceCheckingCandidateInvariants(Impl, subregion);
 
-        AddUserSuppliedInvariants(subregion, UserSuppliedInvariants, Impl);
-      }
-    }
-
-    private void AddUserSuppliedInvariants(IRegion region, List<Expr> UserSuppliedInvariants, Implementation Impl) {
-      foreach (Expr e in UserSuppliedInvariants) {
-        /*
-          wc.Invariants.Add(new AssertCmd(wc.tok, e));
-          bool OK = verifier.ProgramIsOK(Impl);
-          wc.Invariants.RemoveAt(wc.Invariants.Count - 1);
-          if (OK)
-          {
-              verifier.AddCandidateInvariant(wc, e, "user supplied");
-          }
-        */
-        verifier.AddCandidateInvariant(region, e, "user supplied");
       }
     }
 

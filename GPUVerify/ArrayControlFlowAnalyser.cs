@@ -123,11 +123,8 @@ namespace GPUVerify
 
         private void Analyse(Implementation Impl)
         {
-            if (CommandLineOptions.Unstructured)
-                foreach (var b in Impl.Blocks)
-                    Analyse(Impl, b.Cmds);
-            else
-                Analyse(Impl, Impl.StructuredStmts);
+            foreach (var b in Impl.Blocks)
+                Analyse(Impl, b.Cmds);
         }
 
         private void Analyse(Implementation impl, StmtList stmtList)

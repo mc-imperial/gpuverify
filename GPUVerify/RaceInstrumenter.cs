@@ -345,10 +345,7 @@ namespace GPUVerify {
     }
 
     private void AddRaceCheckCalls(Implementation impl) {
-      if (CommandLineOptions.Unstructured)
-        impl.Blocks = impl.Blocks.Select(AddRaceCheckCalls).ToList();
-      else
-        impl.StructuredStmts = AddRaceCheckCalls(impl.StructuredStmts);
+      impl.Blocks = impl.Blocks.Select(AddRaceCheckCalls).ToList();
     }
 
     private CmdSeq AddRaceCheckCalls(CmdSeq cs) {

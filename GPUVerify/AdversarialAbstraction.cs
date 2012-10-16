@@ -80,10 +80,7 @@ namespace GPUVerify {
 
       impl.LocVars = NewLocVars;
 
-      if (CommandLineOptions.Unstructured)
-        impl.Blocks = impl.Blocks.Select(Abstract).ToList();
-      else
-        impl.StructuredStmts = Abstract(impl.StructuredStmts);
+      impl.Blocks = impl.Blocks.Select(Abstract).ToList();
     }
 
 
