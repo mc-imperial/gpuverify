@@ -19,6 +19,8 @@ namespace GPUVerify
         public Procedure KernelProcedure;
         public Implementation KernelImplementation;
         public Procedure BarrierProcedure;
+        public string BarrierProcedureLocalFenceArgName;
+        public string BarrierProcedureGlobalFenceArgName;
 
         public IKernelArrayInfo KernelArrayInfo = new KernelArrayInfoLists();
 
@@ -973,12 +975,12 @@ namespace GPUVerify
 
         internal static string StripThreadIdentifier(string p, out int id)
         {
-            if (p.EndsWith("$1"))
+            if (p.EndsWith("$1") && !p.Equals("$1"))
             {
                 id = 1;
                 return p.Substring(0, p.Length - 2);
             }
-            if (p.EndsWith("$2"))
+            if (p.EndsWith("$2") && !p.Equals("$2"))
             {
                 id = 2;
                 return p.Substring(0, p.Length - 2);
@@ -1383,16 +1385,64 @@ namespace GPUVerify
             BigBlock barrierEntryBlock = new BigBlock(tok, "__BarrierImpl", new CmdSeq(), null, null);
             bigblocks.Add(barrierEntryBlock);
 
-            Debug.Assert((BarrierProcedure.InParams.Length % 2) == 0);
-            int paramsPerThread = BarrierProcedure.InParams.Length / 2;
-            IdentifierExpr P1 = new IdentifierExpr(tok, new LocalVariable(tok, BarrierProcedure.InParams[0].TypedIdent));
-            IdentifierExpr P2 = new IdentifierExpr(tok, new LocalVariable(tok, BarrierProcedure.InParams[paramsPerThread].TypedIdent));
+            Expr P1 = null, P2 = null, LocalFence1 = null, LocalFence2 = null, GlobalFence1 = null, GlobalFence2 = null;
 
-            Expr LocalFence1 = MakeFenceExpr(BarrierProcedure.InParams[1]);
-            Expr LocalFence2 = MakeFenceExpr(BarrierProcedure.InParams[paramsPerThread + 1]);
+            if (uniformityAnalyser.IsUniform(BarrierProcedure.Name)) {
+              P1 = Expr.True;
+              P2 = Expr.True;
+            }
 
-            Expr GlobalFence1 = MakeFenceExpr(BarrierProcedure.InParams[2]);
-            Expr GlobalFence2 = MakeFenceExpr(BarrierProcedure.InParams[paramsPerThread + 2]);
+            foreach(Formal f in BarrierProcedure.InParams) {
+              int Thread;
+              string name = StripThreadIdentifier(f.Name, out Thread);
+              if(name.Equals(BarrierProcedureLocalFenceArgName)) {
+                if (uniformityAnalyser.IsUniform(BarrierProcedure.Name, name)) {
+                  LocalFence1 = MakeFenceExpr(f);
+                  LocalFence2 = MakeFenceExpr(f);
+                }
+                else {
+                  if (Thread == 1) {
+                    LocalFence1 = MakeFenceExpr(f);
+                  }
+                  else {
+                    Debug.Assert(Thread == 2);
+                    LocalFence2 = MakeFenceExpr(f);
+                  }
+                }
+              }
+              else if (name.Equals(BarrierProcedureGlobalFenceArgName)) {
+                if (uniformityAnalyser.IsUniform(BarrierProcedure.Name, name)) {
+                  GlobalFence1 = MakeFenceExpr(f);
+                  GlobalFence2 = MakeFenceExpr(f);
+                }
+                else {
+                  if (Thread == 1) {
+                    GlobalFence1 = MakeFenceExpr(f);
+                  }
+                  else {
+                    Debug.Assert(Thread == 2);
+                    GlobalFence2 = MakeFenceExpr(f);
+                  }
+                }
+              }
+              else {
+                Debug.Assert(name.Equals("_P"));
+                if (Thread == 1) {
+                  P1 = new IdentifierExpr(Token.NoToken, f);
+                }
+                else {
+                  Debug.Assert(Thread == 2);
+                  P2 = new IdentifierExpr(Token.NoToken, f);
+                }
+              }
+            }
+
+            Debug.Assert(P1 != null);
+            Debug.Assert(P2 != null);
+            Debug.Assert(LocalFence1 != null);
+            Debug.Assert(LocalFence2 != null);
+            Debug.Assert(GlobalFence1 != null);
+            Debug.Assert(GlobalFence2 != null);
 
             Expr DivergenceCondition = Expr.Imp(ThreadsInSameGroup(), Expr.Eq(P1, P2));
 
@@ -2048,6 +2098,8 @@ namespace GPUVerify
         private int Check()
         {
             BarrierProcedure = FindOrCreateBarrierProcedure();
+            BarrierProcedureLocalFenceArgName = BarrierProcedure.InParams[0].Name;
+            BarrierProcedureGlobalFenceArgName = BarrierProcedure.InParams[1].Name;
             KernelProcedure = CheckExactlyOneKernelProcedure();
 
             if (ErrorCount > 0)
@@ -2105,9 +2157,17 @@ namespace GPUVerify
                     return D as Implementation;
                 }
             }
-            Error(Token.NoToken, "No implementation found for procedure \"" + procedureName + "\"");
-            Environment.Exit(1);
             return null;
+        }
+
+        internal Procedure GetProcedure(string procedureName) {
+          foreach (Declaration D in Program.TopLevelDeclarations) {
+            if (D is Procedure && ((D as Procedure).Name == procedureName)) {
+              return D as Procedure;
+            }
+          }
+          Debug.Assert(false);
+          return null;
         }
 
 
@@ -2263,7 +2323,7 @@ namespace GPUVerify
 
         internal Expr MaybeDualise(Expr e, int id, string procName)
         {
-            if (id == 0)
+            if (id == 0 || e == null)
                 return e;
             else
                 return (Expr)new VariableDualiser(id, uniformityAnalyser, procName).Visit(e.Clone());

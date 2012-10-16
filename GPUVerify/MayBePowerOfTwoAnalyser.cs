@@ -158,6 +158,13 @@ namespace GPUVerify
                     );
             }
 
+            if (nary.Fun.FunctionName.Equals(bvPrefix + "LSHR")) {
+              return
+                 (
+                  IsVariable(nary.Args[0], v) && IsConstant(nary.Args[1], 1)
+                  );
+            }
+
             return false;
         }
 

@@ -31,34 +31,58 @@ namespace GPUVerify
                 if (D is Implementation)
                 {
                     Implementation Impl = D as Implementation;
-                    mayBeDerivedFrom.Add(Impl.Name, new Dictionary<string, HashSet<string>>());
+
+                    if(!mayBeDerivedFrom.ContainsKey(Impl.Name)) {
+                      mayBeDerivedFrom.Add(Impl.Name, new Dictionary<string, HashSet<string>>());
+                    }
 
                     SetNotDerivedFromSharedState(Impl.Name, GPUVerifier._X.Name);
                     SetNotDerivedFromSharedState(Impl.Name, GPUVerifier._Y.Name);
                     SetNotDerivedFromSharedState(Impl.Name, GPUVerifier._Z.Name);
-
-                    foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays())
-                    {
-                        SetMayBeDerivedFrom(Impl.Name, v.Name, v.Name);
-                    }
 
                     foreach (Variable v in Impl.LocVars)
                     {
                         SetNotDerivedFromSharedState(Impl.Name, v.Name);
                     }
 
-                    foreach (Variable v in Impl.InParams)
-                    {
-                        SetNotDerivedFromSharedState(Impl.Name, v.Name);
-                    }
-
-                    foreach (Variable v in Impl.OutParams)
-                    {
-                        SetNotDerivedFromSharedState(Impl.Name, v.Name);
-                    }
-
                     ProcedureChanged = true;
                 }
+
+                if (D is Procedure) {
+
+                  Procedure Proc = D as Procedure;
+
+                  if (!mayBeDerivedFrom.ContainsKey(Proc.Name)) {
+                    mayBeDerivedFrom.Add(Proc.Name, new Dictionary<string, HashSet<string>>());
+                  }
+
+                  foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays()) {
+                    SetMayBeDerivedFrom(Proc.Name, v.Name, v.Name);
+                  }
+
+                  foreach (Variable v in Proc.InParams) {
+                    SetNotDerivedFromSharedState(Proc.Name, v.Name);
+                  }
+
+                  foreach (Variable v in Proc.OutParams) {
+                    SetNotDerivedFromSharedState(Proc.Name, v.Name);
+                  }
+
+                  foreach(Requires r in Proc.Requires) {
+                    ExprMayAffectControlFlow(Proc.Name, r.Condition);
+                  }
+
+                  foreach (Ensures e in Proc.Ensures) {
+                    ExprMayAffectControlFlow(Proc.Name, e.Condition);
+                  }
+
+                  foreach (Expr m in Proc.Modifies) {
+                    ExprMayAffectControlFlow(Proc.Name, m);
+                  }
+
+                  ProcedureChanged = true;
+                }
+
             }
 
             while (ProcedureChanged)
@@ -114,17 +138,17 @@ namespace GPUVerify
             }
         }
 
-        private void ExprMayAffectControlFlow(Implementation impl, Expr e)
+        private void ExprMayAffectControlFlow(string proc, Expr e)
         {
             var visitor = new VariablesOccurringInExpressionVisitor();
             visitor.VisitExpr(e);
             foreach (Variable v in visitor.GetVariables())
             {
-                if (!mayBeDerivedFrom[impl.Name].ContainsKey(v.Name))
+                if (!mayBeDerivedFrom[proc].ContainsKey(v.Name))
                 {
                     continue;
                 }
-                foreach (string s in mayBeDerivedFrom[impl.Name][v.Name])
+                foreach (string s in mayBeDerivedFrom[proc][v.Name])
                 {
                     if (!arraysWhichMayAffectControlFlow.Contains(s))
                     {
@@ -175,56 +199,49 @@ namespace GPUVerify
                     if (QKeyValue.FindBoolAttribute(callCmd.Proc.Attributes, "barrier_invariant") ||
                         QKeyValue.FindBoolAttribute(callCmd.Proc.Attributes, "binary_barrier_invariant")) {
                         foreach (Expr param in callCmd.Ins) {
-                            ExprMayAffectControlFlow(impl, param);
+                            ExprMayAffectControlFlow(impl.Name, param);
                         }
                     } else if(callCmd.callee != verifier.BarrierProcedure.Name) {
 
                         Implementation CalleeImplementation = verifier.GetImplementation(callCmd.callee);
-                        for (int i = 0; i < CalleeImplementation.InParams.Length; i++)
-                        {
+                        if (CalleeImplementation != null) {
+                          for (int i = 0; i < CalleeImplementation.InParams.Length; i++) {
                             VariablesOccurringInExpressionVisitor visitor = new VariablesOccurringInExpressionVisitor();
                             visitor.VisitExpr(callCmd.Ins[i]);
 
-                            foreach (Variable v in visitor.GetVariables())
-                            {
-                                if (!mayBeDerivedFrom[impl.Name].ContainsKey(v.Name))
-                                {
-                                    continue;
-                                }
+                            foreach (Variable v in visitor.GetVariables()) {
+                              if (!mayBeDerivedFrom[impl.Name].ContainsKey(v.Name)) {
+                                continue;
+                              }
 
 
-                                foreach (String s in mayBeDerivedFrom[impl.Name][v.Name])
-                                {
-                                    if (!mayBeDerivedFrom[callCmd.callee][CalleeImplementation.InParams[i].Name].Contains(s))
-                                    {
-                                        SetMayBeDerivedFrom(callCmd.callee, CalleeImplementation.InParams[i].Name, s);
-                                    }
+                              foreach (String s in mayBeDerivedFrom[impl.Name][v.Name]) {
+                                if (!mayBeDerivedFrom[callCmd.callee][CalleeImplementation.InParams[i].Name].Contains(s)) {
+                                  SetMayBeDerivedFrom(callCmd.callee, CalleeImplementation.InParams[i].Name, s);
                                 }
+                              }
                             }
 
-                        }
+                          }
 
-                        for (int i = 0; i < CalleeImplementation.OutParams.Length; i++)
-                        {
-                            foreach (String s in mayBeDerivedFrom[callCmd.callee][CalleeImplementation.OutParams[i].Name])
-                            {
-                                if (!mayBeDerivedFrom[impl.Name][callCmd.Outs[i].Name].Contains(s))
-                                {
-                                    SetMayBeDerivedFrom(impl.Name, callCmd.Outs[i].Name, s);
-                                }
+                          for (int i = 0; i < CalleeImplementation.OutParams.Length; i++) {
+                            foreach (String s in mayBeDerivedFrom[callCmd.callee][CalleeImplementation.OutParams[i].Name]) {
+                              if (!mayBeDerivedFrom[impl.Name][callCmd.Outs[i].Name].Contains(s)) {
+                                SetMayBeDerivedFrom(impl.Name, callCmd.Outs[i].Name, s);
+                              }
                             }
+                          }
                         }
-
                     }
                 }
                 else if (c is AssumeCmd)
                 {
                     var assumeCmd = c as AssumeCmd;
-                    ExprMayAffectControlFlow(impl, assumeCmd.Expr);
+                    ExprMayAffectControlFlow(impl.Name, assumeCmd.Expr);
                 }
                 else if (c is AssertCmd) {
                   var assertCmd = c as AssertCmd;
-                  ExprMayAffectControlFlow(impl, assertCmd.Expr);
+                  ExprMayAffectControlFlow(impl.Name, assertCmd.Expr);
                 }
             }
         }
@@ -237,7 +254,7 @@ namespace GPUVerify
             {
                 WhileCmd wc = bb.ec as WhileCmd;
 
-                ExprMayAffectControlFlow(impl, wc.Guard);
+                ExprMayAffectControlFlow(impl.Name, wc.Guard);
 
                 Analyse(impl, wc.Body);
             }
@@ -245,7 +262,7 @@ namespace GPUVerify
             {
                 IfCmd ifCmd = bb.ec as IfCmd;
 
-                ExprMayAffectControlFlow(impl, ifCmd.Guard);
+                ExprMayAffectControlFlow(impl.Name, ifCmd.Guard);
                 
                 Analyse(impl, ifCmd.thn);
                 if (ifCmd.elseBlock != null)

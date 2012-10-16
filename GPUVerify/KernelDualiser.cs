@@ -25,6 +25,7 @@ namespace GPUVerify {
 
       proc.Requires = DualiseRequires(proc.Requires);
       proc.Ensures = DualiseEnsures(proc.Ensures);
+      proc.Modifies = DualiseModifies(proc.Modifies);
 
       proc.InParams = DualiseVariableSequence(proc.InParams);
       proc.OutParams = DualiseVariableSequence(proc.OutParams);
@@ -56,16 +57,31 @@ namespace GPUVerify {
       return newEnsures;
     }
 
+    private IdentifierExprSeq DualiseModifies(IdentifierExprSeq modifiesSeq) {
+      IdentifierExprSeq newModifies = new IdentifierExprSeq();
+      foreach (Expr m in modifiesSeq) {
+        newModifies.Add(MakeThreadSpecificExpr(m, 1));
+        if (!ContainsAsymmetricExpression(m)
+            && !verifier.uniformityAnalyser.IsUniform(procName, m)) {
+          newModifies.Add(MakeThreadSpecificExpr(m, 2));
+        }
+      }
+      return newModifies;
+    }
+
+    private Expr MakeThreadSpecificExpr(Expr e, int Thread) {
+      return new VariableDualiser(Thread, verifier.uniformityAnalyser, procName).
+        VisitExpr(e.Clone() as Expr);
+    }
+
     private Requires MakeThreadSpecificRequires(Requires r, int Thread) {
-      Requires newR = new Requires(r.Free, new VariableDualiser(Thread, verifier.uniformityAnalyser, procName).
-          VisitExpr(r.Condition.Clone() as Expr));
+      Requires newR = new Requires(r.Free, MakeThreadSpecificExpr(r.Condition, Thread));
       newR.Attributes = MakeThreadSpecificAttributes(r.Attributes, Thread);
       return newR;
     }
 
     private Ensures MakeThreadSpecificEnsures(Ensures e, int Thread) {
-      Ensures newE = new Ensures(e.Free, new VariableDualiser(Thread, verifier.uniformityAnalyser, procName).
-          VisitExpr(e.Condition.Clone() as Expr));
+      Ensures newE = new Ensures(e.Free, MakeThreadSpecificExpr(e.Condition, Thread));
       newE.Attributes = MakeThreadSpecificAttributes(e.Attributes, Thread);
       return newE;
     }
@@ -104,14 +120,15 @@ namespace GPUVerify {
         CallCmd Call = c as CallCmd;
 
         if (QKeyValue.FindBoolAttribute(Call.Proc.Attributes, "barrier_invariant")) {
-          // There should be a predicate, an invariant expression, and at least one instantiation
-          Debug.Assert(Call.Ins.Count >= 3);
-          var BIDescriptor = new UnaryBarrierInvariantDescriptor(Call.Ins[0],
-            Expr.Neq(Call.Ins[1], 
+          // There may be a predicate, and there must be an invariant expression and at least one instantiation
+          Debug.Assert(Call.Ins.Count >= (2 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1)));
+          var BIDescriptor = new UnaryBarrierInvariantDescriptor(
+            verifier.uniformityAnalyser.IsUniform(Call.callee) ? Expr.True : Call.Ins[0],
+            Expr.Neq(Call.Ins[verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1], 
               new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 1)),
               Call.Attributes,
               this, procName);
-          for (var i = 2; i < Call.Ins.Count; i++) {
+          for (var i = 1 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1); i < Call.Ins.Count; i++) {
             BIDescriptor.AddInstantiationExpr(Call.Ins[i]);
           }
           BarrierInvariantDescriptors.Add(BIDescriptor);
@@ -119,15 +136,16 @@ namespace GPUVerify {
         }
 
         if (QKeyValue.FindBoolAttribute(Call.Proc.Attributes, "binary_barrier_invariant")) {
-          // There should be a predicate, an invariant expression, and at least one pair of
+          // There may be a predicate, and there must be an invariant expression and at least one pair of
           // instantiation expressions
-          Debug.Assert(Call.Ins.Count >= 4);
-          var BIDescriptor = new BinaryBarrierInvariantDescriptor(Call.Ins[0],
-            Expr.Neq(Call.Ins[1],
+          Debug.Assert(Call.Ins.Count >= (3 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1)));
+          var BIDescriptor = new BinaryBarrierInvariantDescriptor(
+            verifier.uniformityAnalyser.IsUniform(Call.callee) ? Expr.True : Call.Ins[0],
+            Expr.Neq(Call.Ins[verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1],
               new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 1)),
               Call.Attributes,
               this, procName);
-          for (var i = 2; i < Call.Ins.Count; i += 2) {
+          for (var i = 1 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1); i < Call.Ins.Count; i += 2) {
             BIDescriptor.AddInstantiationExprPair(Call.Ins[i], Call.Ins[i + 1]);
           }
           BarrierInvariantDescriptors.Add(BIDescriptor);
@@ -144,6 +162,7 @@ namespace GPUVerify {
 
         List<Expr> uniformNewIns = new List<Expr>();
         List<Expr> nonUniformNewIns = new List<Expr>();
+
         for (int i = 0; i < Call.Ins.Count; i++) {
           if (verifier.uniformityAnalyser.knowsOf(Call.callee) && verifier.uniformityAnalyser.IsUniform(Call.callee, verifier.uniformityAnalyser.GetInParameter(Call.callee, i))) {
             uniformNewIns.Add(Call.Ins[i]);

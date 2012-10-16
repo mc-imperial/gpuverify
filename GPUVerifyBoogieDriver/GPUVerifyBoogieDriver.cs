@@ -23,6 +23,7 @@ namespace Microsoft.Boogie
   using System.Diagnostics;
   using System.Linq;
   using VC;
+  using AI = Microsoft.Boogie.AbstractInterpretation;
   using BoogiePL = Microsoft.Boogie;
   
   /* 
@@ -300,7 +301,7 @@ namespace Microsoft.Boogie
       QKeyValue attrs = GetAttributes(node);
       if (node != null)
       {
-        GetLocInfoFromAttrs(attrs, out failLine, out failCol, out failFile);
+        GetLocInfoFromAttrs(attrs, out failLine, out failCol, out failFile, node.tok);
       }
       
       if (showBplLocation && failLine != -1 && failCol != -1 && failFile != null)
@@ -560,10 +561,8 @@ namespace Microsoft.Boogie
                    * a separate field in the Requires to store this original condition.
                    */
                   Model.Func offsetFunc = ExtractIncarnationFromModel(error.Model, offsetVar.Name);
-                  Debug.Assert(offsetFunc != null, "ProcessOutcome(): Could not extract incarnation.");
                   GetInfoFromVarAndFunc(offsetVar.Attributes, offsetFunc, out byteOffset, out elemOffset, out elemWidth, out arrName);
 
-                  Debug.Assert(error.Model != null, "ProcessOutcome(): null model");
                   GetThreadsAndGroupsFromModel(err.Model, out thread1, out thread2, out group1, out group2, true);
 
                   if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read"))
@@ -759,7 +758,9 @@ namespace Microsoft.Boogie
 
       ConditionGeneration vcgen = null;
       try {
-        if(CommandLineOptions.Clo.StratifiedInlining > 0) {
+        if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
+          Debug.Assert(false);
+        } else if(CommandLineOptions.Clo.StratifiedInlining > 0) {
           vcgen = new StratifiedVCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend);
         } else {
           vcgen = new VCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend);
@@ -919,23 +920,25 @@ namespace Microsoft.Boogie
 
     static Model.Func ExtractIncarnationFromModel(Model m, string varName)
     {
-      Model.Func lastFunc = null;
-      Model.Func penulFunc = null;
-      int currIncarnationNo = -1;
-      foreach (Model.Func f in m.Functions)
-      {
-        if(f.Name.Contains(varName))
-        {
-          string[] tokens = Regex.Split(f.Name, "@");
-          if (tokens.Length == 2 && System.Convert.ToInt32(tokens[1]) > currIncarnationNo)
-          {
-            penulFunc = lastFunc;
-            lastFunc = f;
-            currIncarnationNo = System.Convert.ToInt32(tokens[1]);
+      try {
+        Model.Func lastFunc = null;
+        Model.Func penulFunc = null;
+        int currIncarnationNo = -1;
+        foreach (Model.Func f in m.Functions) {
+          if (f.Name.Contains(varName)) {
+            string[] tokens = Regex.Split(f.Name, "@");
+            if (tokens.Length == 2 && System.Convert.ToInt32(tokens[1]) > currIncarnationNo) {
+              penulFunc = lastFunc;
+              lastFunc = f;
+              currIncarnationNo = System.Convert.ToInt32(tokens[1]);
+            }
           }
         }
+        return (penulFunc == null) ? lastFunc : penulFunc;
       }
-      return (penulFunc == null) ? lastFunc : penulFunc;
+      catch (Exception) {
+        return null;
+      }
     }
 
     static void PrintDetailedTrace(CallCounterexample err, int colOneLength, int colTwoLength, int colThreeLength, int failElemOffset, int elemWidth, string threadOneFailAccess, string threadTwoFailAccess)
@@ -1146,48 +1149,44 @@ namespace Microsoft.Boogie
     }
 
     static QKeyValue GetSourceLocInfo(Counterexample error, string AccessType) {
-      string sourceVarName = null;
-      int sourceLocLineNo = -1;
+      try {
+        string sourceVarName = null;
+        int sourceLocLineNo = -1;
 
-      foreach (Block b in error.Trace)
-      {
-        foreach (Cmd c in b.Cmds)
-        {
-          if (b.tok.val.Equals("_LOG_" + AccessType) && c.ToString().Contains(AccessType + "_SOURCE_")) 
-          {
-            sourceVarName = Regex.Split(c.ToString(), " ")[1];
+        foreach (Block b in error.Trace) {
+          foreach (Cmd c in b.Cmds) {
+            if (b.tok.val.Equals("_LOG_" + AccessType) && c.ToString().Contains(AccessType + "_SOURCE_")) {
+              sourceVarName = Regex.Split(c.ToString(), " ")[1];
+            }
           }
         }
-      }
-      if (sourceVarName != null)
-      {
-        Model.Func f = error.Model.TryGetFunc(sourceVarName);
-        if (f != null)
-        {
-          sourceLocLineNo = f.GetConstant().AsInt();
+        if (sourceVarName != null) {
+          Model.Func f = error.Model.TryGetFunc(sourceVarName);
+          if (f != null) {
+            sourceLocLineNo = f.GetConstant().AsInt();
+          }
         }
-      }
-      
-      if (sourceLocLineNo > 0)
-      {
-        // TODO: Make lines in .loc file be indexed from 1 for consistency.
-        string fileLine = FetchCodeLine(GetSourceLocFileName(), sourceLocLineNo + 1);
-        if (fileLine != null)
-        {
-          string[] slocTokens = Regex.Split(fileLine, "#");
-          return CreateSourceLocQKV(
-                  System.Convert.ToInt32(slocTokens[0]),
-                  System.Convert.ToInt32(slocTokens[1]),
-                  slocTokens[2], 
-                  slocTokens[3]);
+
+        if (sourceLocLineNo > 0) {
+          // TODO: Make lines in .loc file be indexed from 1 for consistency.
+          string fileLine = FetchCodeLine(GetSourceLocFileName(), sourceLocLineNo + 1);
+          if (fileLine != null) {
+            string[] slocTokens = Regex.Split(fileLine, "#");
+            return CreateSourceLocQKV(
+                    System.Convert.ToInt32(slocTokens[0]),
+                    System.Convert.ToInt32(slocTokens[1]),
+                    slocTokens[2],
+                    slocTokens[3]);
+          }
         }
-      }
-      else
-      {
-        Console.WriteLine("sourceLocLineNo is {0}. No sourceloc at that location.\n", sourceLocLineNo);
+        else {
+          return null;
+        }
         return null;
-      } 
-      return null;
+      }
+      catch (Exception) {
+        return null;
+      }
     }
 
     static bool IsRepeatedKV(QKeyValue attrs, List<QKeyValue> alreadySeen)
@@ -1263,20 +1262,12 @@ namespace Microsoft.Boogie
     {
       Console.WriteLine("");
 
-      int failLine = -1, failCol = -1;
-      string failFile = null, locinfo = null;
+      int failLine, failCol;
+      string failFile;
 
-      QKeyValue attrs = GetAttributes(node);
-      Debug.Assert(attrs != null, "ReportFailingAssert(): null attributes.");
+      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
 
-      GetLocInfoFromAttrs(attrs, out failLine, out failCol, out failFile);
-
-      Debug.Assert(failLine != -1 && failCol != -1 && failFile != null, "ReportFailingAssert(): could not get source location.",
-                    "Sourceloc info not found for {0}:{1}:{2}\n", node.tok.filename, node.tok.line, node.tok.col);
-
-      locinfo = failFile + ":" + failLine + ":" + failCol + ":";
-
-      ErrorWriteLine(locinfo, "this assertion might not hold", ErrorMsgType.Error);
+      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "this assertion might not hold", ErrorMsgType.Error);
       ErrorWriteLine(FetchCodeLine(failFile, failLine));
     }
 
@@ -1284,20 +1275,12 @@ namespace Microsoft.Boogie
     {
       Console.WriteLine("");
 
-      int failLine = -1, failCol = -1;
-      string failFile = null, locinfo = null;
+      int failLine, failCol;
+      string failFile;
 
-      QKeyValue attrs = GetAttributes(node);
-      Debug.Assert(attrs != null, "ReportInvariantMaintedFailure(): null attributes.");
+      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
 
-      GetLocInfoFromAttrs(attrs, out failLine, out failCol, out failFile);
-
-      Debug.Assert(failLine != -1 && failCol != -1 && failFile != null, "ReportInvariantMaintedFailure(): could not get source location.",
-                    "Sourceloc info not found for {0}:{1}:{2}\n", node.tok.filename, node.tok.line, node.tok.col);
-
-      locinfo = failFile + ":" + failLine + ":" + failCol + ":";
-
-      ErrorWriteLine(locinfo, "loop invariant might not be maintained by the loop", ErrorMsgType.Error);
+      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "loop invariant might not be maintained by the loop", ErrorMsgType.Error);
       ErrorWriteLine(FetchCodeLine(failFile, failLine));
     }
 
@@ -1305,20 +1288,15 @@ namespace Microsoft.Boogie
     {
       Console.WriteLine("");
 
-      int failLine = -1, failCol = -1;
-      string failFile = null, locinfo = null;
+      int failLine, failCol;
+      string failFile;
 
-      QKeyValue attrs = GetAttributes(node);
-      Debug.Assert(attrs != null, "ReportInvariantEntryFailure(): null attributes.");
-
-      GetLocInfoFromAttrs(attrs, out failLine, out failCol, out failFile);
+      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
 
       Debug.Assert(failLine != -1 && failCol != -1 && failFile != null, "ReportInvariantEntryFailure(): could not get source location.",
                     "Sourceloc info not found for {0}:{1}:{2}\n", node.tok.filename, node.tok.line, node.tok.col);
 
-      locinfo = failFile + ":" + failLine + ":" + failCol + ":";
-
-      ErrorWriteLine(locinfo, "loop invariant might not hold on entry", ErrorMsgType.Error);
+      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "loop invariant might not hold on entry", ErrorMsgType.Error);
       ErrorWriteLine(FetchCodeLine(failFile, failLine));
     }
 
@@ -1326,20 +1304,15 @@ namespace Microsoft.Boogie
     {
       Console.WriteLine("");
 
-      int failLine = -1, failCol = -1;
-      string failFile = null, locinfo = null;
+      int failLine, failCol;
+      string failFile;
 
-      QKeyValue attrs = GetAttributes(node);
-      Debug.Assert(attrs != null, "ReportEnsuresFailure(): null attributes.");
-
-      GetLocInfoFromAttrs(attrs, out failLine, out failCol, out failFile);
+      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
 
       Debug.Assert(failLine != -1 && failCol != -1 && failFile != null, "ReportEnsuresFailure(): could not get source location.",
                     "Sourceloc info not found for {0}:{1}:{2}\n", node.tok.filename, node.tok.line, node.tok.col);
 
-      locinfo = failFile + ":" + failLine + ":" + failCol + ":";
-
-      ErrorWriteLine(locinfo, "postcondition might not hold on all return paths", ErrorMsgType.Error);
+      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "postcondition might not hold on all return paths", ErrorMsgType.Error);
       ErrorWriteLine(FetchCodeLine(failFile, failLine));
     }
 
@@ -1352,16 +1325,8 @@ namespace Microsoft.Boogie
       QKeyValue callAttrs = GetAttributes(callNode);
       QKeyValue reqAttrs = GetAttributes(reqNode);
 
-      Debug.Assert(callAttrs != null, "ReportRace(): null call attributes.");
-      Debug.Assert(reqAttrs != null, "ReportRace(): null req attributes.");
-
-      GetLocInfoFromAttrs(callAttrs, out failLine1, out failCol1, out failFile1);
-      GetLocInfoFromAttrs(reqAttrs,  out failLine2, out failCol2, out failFile2);
-
-      Debug.Assert(failLine1 != -1 && failCol1 != -1 && failFile1 != null, "ReportRace(): could not get source location for thread 1", 
-                    "Sourceloc info not found for {0}:{1}:{2}\n", callNode.tok.filename, callNode.tok.line, callNode.tok.col);
-      Debug.Assert(failLine2 != -1 && failCol2 != -1 && failFile2 != null, "ReportRace(): could not get source location for thread 2", 
-                    "Sourceloc info not found for {0}:{1}:{2}\n", reqNode.tok.filename, reqNode.tok.line, reqNode.tok.col);
+      GetLocInfoFromAttrs(callAttrs, out failLine1, out failCol1, out failFile1, callNode.tok);
+      GetLocInfoFromAttrs(reqAttrs, out failLine2, out failCol2, out failFile2, callNode.tok);
 
       switch (raceType)
       {
@@ -1407,20 +1372,15 @@ namespace Microsoft.Boogie
     {
       Console.WriteLine("");
 
-      int failLine = -1, failCol = -1;
-      string failFile = null, locinfo = null;
+      int failLine, failCol;
+      string failFile;
 
-      QKeyValue attrs = GetAttributes(node);
-      Debug.Assert(attrs != null, "ReportBarrierDivergendce(): null attributes.");
-
-      GetLocInfoFromAttrs(attrs, out failLine, out failCol, out failFile);
+      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
 
       Debug.Assert(failLine != -1 && failCol != -1 && failFile != null, "ReportBarrierDivergence(): could not get source location.", 
                     "Sourceloc info not found for {0}:{1}:{2}\n", node.tok.filename, node.tok.line, node.tok.col);
 
-      locinfo = failFile + ":" + failLine + ":" + failCol + ":";
-
-      ErrorWriteLine(locinfo, "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
+      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
       ErrorWriteLine(FetchCodeLine(failFile, failLine));
     }
 
@@ -1428,59 +1388,49 @@ namespace Microsoft.Boogie
     {
       Console.WriteLine("");
 
-      int failLine1 = -1, failCol1 = -1, failLine2 = -1, failCol2 = -1;
-      string failFile1 = null, locinfo1 = null, failFile2 = null, locinfo2 = null;
+      int failLine1, failCol1, failLine2, failCol2;
+      string failFile1, failFile2;
 
-      QKeyValue callAttrs = GetAttributes(callNode);
-      QKeyValue reqAttrs = GetAttributes(reqNode);
+      GetLocInfoFromAttrs(GetAttributes(callNode), out failLine1, out failCol1, out failFile1, callNode.tok);
+      GetLocInfoFromAttrs(GetAttributes(reqNode), out failLine2, out failCol2, out failFile2, reqNode.tok);
 
-      Debug.Assert(callAttrs != null, "ReportRace(): null call attributes.");
-      Debug.Assert(reqAttrs != null, "ReportRace(): null req attributes.");
-
-      GetLocInfoFromAttrs(callAttrs, out failLine1, out failCol1, out failFile1);
-      GetLocInfoFromAttrs(reqAttrs, out failLine2, out failCol2, out failFile2);
-
-      Debug.Assert(failLine1 != -1 && failCol1 != -1 && failFile1 != null, "ReportRequiresFailure(): could not get source location from call",
-                    "Sourceloc info not found for {0}:{1}:{2}\n", callNode.tok.filename, callNode.tok.line, callNode.tok.col);
-      Debug.Assert(failLine2 != -1 && failCol2 != -1 && failFile2 != null, "ReportRequiresFailure(): could not get source location from requires",
-                    "Sourceloc info not found for {0}:{1}:{2}\n", reqNode.tok.filename, reqNode.tok.line, reqNode.tok.col);
-
-      locinfo1 = failFile1 + ":" + failLine1 + ":" + failCol1 + ":";
-      locinfo2 = failFile2 + ":" + failLine2 + ":" + failCol2 + ":";
-
-      ErrorWriteLine(locinfo1, "a precondition for this call might not hold", ErrorMsgType.Error);
+      ErrorWriteLine(failFile1 + ":" + failLine1 + ":" + failCol1 + ":", "a precondition for this call might not hold", ErrorMsgType.Error);
       ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(failFile1, failLine1), 2));
 
-
-      ErrorWriteLine(locinfo2, "this is the precondition that might not hold", ErrorMsgType.Note);
+      ErrorWriteLine(failFile2 + ":" + failLine2 + ":" + failCol2 + ":", "this is the precondition that might not hold", ErrorMsgType.Note);
       ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(failFile2, failLine2), 2));
     }
 
     private static string FetchCodeLine(string path, int lineNo)
     {
-      TextReader tr = new StreamReader(path);
-      string line = null;
+      try {
+        TextReader tr = new StreamReader(path);
+        string line = null;
 
-      for (int currLineNo = 1; ((line = tr.ReadLine()) != null); currLineNo++)
-      {
-        if (currLineNo == lineNo)
-        {
-          break;
+        for (int currLineNo = 1; ((line = tr.ReadLine()) != null); currLineNo++) {
+          if (currLineNo == lineNo) {
+            break;
+          }
+        }
+        if (line != null) {
+          return line;
+        }
+        else {
+          throw new Exception();
         }
       }
-      if (line != null)
-      {
-        return line;
-      }
-      else
-      {
-        Console.WriteLine("FetchCodeLine(): could not get line {0} from {1}\n", lineNo, path);
-        return null;
+      catch (Exception) {
+        return "<unknown line of code>";
       }
     }
 
-    private static void GetLocInfoFromAttrs(QKeyValue attrs, out int failLine, out int failCol, out string failFile)
+    private static void GetLocInfoFromAttrs(QKeyValue attrs, out int failLine, out int failCol, out string failFile, IToken fallBack)
     {
+      if (attrs == null) {
+        failLine = fallBack.line;
+        failCol = fallBack.col;
+        failFile = fallBack.filename;
+      }
       failLine = QKeyValue.FindIntAttribute(attrs, "line", -1);
       failCol = QKeyValue.FindIntAttribute(attrs, "col", -1);
       failFile = GetFilenamePathPrefix() + QKeyValue.FindStringAttribute(attrs, "fname");
@@ -1585,12 +1535,31 @@ namespace Microsoft.Boogie
 
     private static void GetInfoFromVarAndFunc(QKeyValue attrs, Model.Func f, out int byteOffset, out int elemOffset, out int elemWidth, out string arrName)
     {
-      Debug.Assert(f != null && f.AppCount == 1);
-      elemOffset = f.Apps.FirstOrDefault().Result.AsInt();
-      arrName = ExtractArrName(f.Name);
-      elemWidth = QKeyValue.FindIntAttribute(attrs, "elem_width", -1);
-      Debug.Assert(elemWidth != -1, "GetInfoFromVarAndFunc: Could not find \"elem_width\" attribute.");
-      byteOffset = CalculateByteOffset(elemOffset, elemWidth);
+      if (attrs == null) {
+        elemWidth = -1;
+      }
+      else {
+        elemWidth = QKeyValue.FindIntAttribute(attrs, "elem_width", -1);
+      }
+      if (f == null) {
+        elemOffset = -1;
+        arrName = "<unknown array>";
+      }
+      else {
+        try {
+          elemOffset = f.Apps.FirstOrDefault().Result.AsInt();
+        }
+        catch (System.OverflowException e) {
+          elemOffset = -1;
+        }
+        arrName = ExtractArrName(f.Name);
+      }
+      if (attrs == null || f == null) {
+        byteOffset = -1;
+      }
+      else {
+        byteOffset = CalculateByteOffset(elemOffset, elemWidth);
+      }
     }
 
     private static int CalculateByteOffset(int elemOffset, int elemWidth)

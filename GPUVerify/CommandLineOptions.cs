@@ -37,6 +37,8 @@ namespace GPUVerify
 
         public static bool OnlyIntraGroupRaceChecking = false;
 
+        public static bool InferSourceLocation = true;
+
         public static int Parse(string[] args)
         {
             for (int i = 0; i < args.Length; i++)
@@ -151,6 +153,11 @@ namespace GPUVerify
                     OnlyIntraGroupRaceChecking = true;
                     break;
 
+                    case "-noSourceLocInfer":
+                    case "/noSourceLocInfer":
+                    InferSourceLocation = false;
+                    break;
+
                     default:
                         inputFiles.Add(args[i]);
                         break;
@@ -174,18 +181,28 @@ namespace GPUVerify
             Console.WriteLine(@"GPUVerify: usage:  GPUVerify [ option ... ] [ filename ... ]
   where <option> is one of
 
-  /help            : this message
-  /adversarialAbstraction : apply full state abstraction
-  /onlyDivergence  : only check for divergence-freedom, not race-freedom
-  /symmetry        : apply symmetry breaking
-  /eager           : check races eagerly, rather than waiting for barrier
-  /inference:file  : use automatic invariant inference.  Optional file can include manually supplied candidates
-  /raceCheckingContract : try to infer race-freedom contracts for procedures
-  /setEncoding     : check races using set encoding
-  /divided         : check individual pairs of possibly racing statements separately
-  /dividedArray    : check races on arrays one at a time
-  /dividedElement  : ???
-  /unstructured    : operate on the unstructured form of the program
+  /help                         : this message
+  /print:file                   : output bpl file
+  /showStages                   :
+
+  /adversarialAbstraction       : apply full state abstraction
+  /equalityAbstraction          : apply equality state abstraction
+
+  /inference[:file]             : use automatic invariant inference
+                                  optional file can include manually supplied invariants
+
+  /onlyDivergence               : only-check for divergence-freedom, not race-freedom
+  /onlyIntraGroupRaceChecking   : only-check intra-group races
+
+  /arrayEqualities              :
+  /noLoopPredicateInvariants    :
+  /noSmartPredication           :
+  /noUniformityAnalysis         :
+  /noSourceLocInfer             : turn off source-location tags
+  /showArrayControlFlowAnalysis :
+  /showMayBePowerOfTwoAnalysis  :
+  /showUniformityAnalysis       :
+  /structured                   : work on structured form of program (default: unstructured)
 
 ");
         }
