@@ -1,4 +1,5 @@
-﻿//-----------------------------------------------------------------------------
+﻿using GPUVerifyBoogieDriver;
+//-----------------------------------------------------------------------------
 //
 // Copyright (C) Microsoft Corporation.  All Rights Reserved.
 //
@@ -295,20 +296,15 @@ namespace Microsoft.Boogie
 
     static void ReportBplError(Absy node, string message, bool error, bool showBplLocation)
     {
-      int failLine    = -1, failCol = -1;
-      string failFile = null, locinfo = null;
+      SourceLocationInfo sli = new SourceLocationInfo(GetAttributes(node), node.tok);
 
-      QKeyValue attrs = GetAttributes(node);
-      if (node != null)
+      string locinfo = null;
+
+      if (showBplLocation)
       {
-        GetLocInfoFromAttrs(attrs, out failLine, out failCol, out failFile, node.tok);
-      }
-      
-      if (showBplLocation && failLine != -1 && failCol != -1 && failFile != null)
-      {
-        locinfo = "File: \t"  + failFile +
-                  "\nLine:\t" + failLine +
-                  "\nCol:\t"  + failCol  + "\n";
+        locinfo = "File: \t"  + sli.GetFile() +
+                  "\nLine:\t" + sli.GetLine() +
+                  "\nCol:\t"  + sli.GetColumn() + "\n";
       }
       Contract.Requires(message != null);
       Contract.Requires(node != null);
@@ -988,7 +984,7 @@ namespace Microsoft.Boogie
               bool enabled = (enFunc.Apps.ElementAt(0).Result as Model.Boolean).Value;
               int sourceLocLineNo = (ExtractSourceLineArg((c as AssumeCmd).Expr).Val as BvConst).Value.ToIntSafe;
 
-              string sourceLocLine = FetchCodeLine(GetSourceLocFileName(), sourceLocLineNo + 1);
+              string sourceLocLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), sourceLocLineNo + 1);
 
               string[] slocTokens = Regex.Split(sourceLocLine, "#");
               lineno = System.Convert.ToInt32(slocTokens[0]);
@@ -1169,7 +1165,7 @@ namespace Microsoft.Boogie
 
         if (sourceLocLineNo > 0) {
           // TODO: Make lines in .loc file be indexed from 1 for consistency.
-          string fileLine = FetchCodeLine(GetSourceLocFileName(), sourceLocLineNo + 1);
+          string fileLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), sourceLocLineNo + 1);
           if (fileLine != null) {
             string[] slocTokens = Regex.Split(fileLine, "#");
             return CreateSourceLocQKV(
@@ -1261,72 +1257,43 @@ namespace Microsoft.Boogie
     private static void ReportFailingAssert(Absy node)
     {
       Console.WriteLine("");
+      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
 
-      int failLine, failCol;
-      string failFile;
-
-      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
-
-      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "this assertion might not hold", ErrorMsgType.Error);
-      ErrorWriteLine(FetchCodeLine(failFile, failLine));
+      ErrorWriteLine(sli.ToString(), "this assertion might not hold", ErrorMsgType.Error);
+      ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportInvariantMaintedFailure(Absy node)
     {
       Console.WriteLine("");
-
-      int failLine, failCol;
-      string failFile;
-
-      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
-
-      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "loop invariant might not be maintained by the loop", ErrorMsgType.Error);
-      ErrorWriteLine(FetchCodeLine(failFile, failLine));
+      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
+      ErrorWriteLine(sli.ToString(), "loop invariant might not be maintained by the loop", ErrorMsgType.Error);
+      ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportInvariantEntryFailure(Absy node)
     {
       Console.WriteLine("");
-
-      int failLine, failCol;
-      string failFile;
-
-      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
-
-      Debug.Assert(failLine != -1 && failCol != -1 && failFile != null, "ReportInvariantEntryFailure(): could not get source location.",
-                    "Sourceloc info not found for {0}:{1}:{2}\n", node.tok.filename, node.tok.line, node.tok.col);
-
-      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "loop invariant might not hold on entry", ErrorMsgType.Error);
-      ErrorWriteLine(FetchCodeLine(failFile, failLine));
+      SourceLocationInfo sli = new SourceLocationInfo(GetAttributes(node), node.tok);
+      ErrorWriteLine(sli.ToString(), "loop invariant might not hold on entry", ErrorMsgType.Error);
+      ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportEnsuresFailure(Absy node)
     {
       Console.WriteLine("");
-
-      int failLine, failCol;
-      string failFile;
-
-      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
-
-      Debug.Assert(failLine != -1 && failCol != -1 && failFile != null, "ReportEnsuresFailure(): could not get source location.",
-                    "Sourceloc info not found for {0}:{1}:{2}\n", node.tok.filename, node.tok.line, node.tok.col);
-
-      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "postcondition might not hold on all return paths", ErrorMsgType.Error);
-      ErrorWriteLine(FetchCodeLine(failFile, failLine));
+      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
+      ErrorWriteLine(sli.ToString(), "postcondition might not hold on all return paths", ErrorMsgType.Error);
+      ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportRace(Absy callNode, Absy reqNode, string thread1, string thread2, string group1, string group2, string arrName, int byteOffset, RaceType raceType)
     {
       Console.WriteLine("");
-      int failLine1 = -1, failCol1 = -1, failLine2 = -1, failCol2 = -1;
-      string failFile1 = null, locinfo1 = null, failFile2 = null, locinfo2 = null, raceName, access1, access2;
+      string locinfo1 = null, locinfo2 = null, raceName, access1, access2;
 
-      QKeyValue callAttrs = GetAttributes(callNode);
-      QKeyValue reqAttrs = GetAttributes(reqNode);
-
-      GetLocInfoFromAttrs(callAttrs, out failLine1, out failCol1, out failFile1, callNode.tok);
-      GetLocInfoFromAttrs(reqAttrs, out failLine2, out failCol2, out failFile2, callNode.tok);
+      var CallSLI = new SourceLocationInfo(GetAttributes(callNode), callNode.tok);
+      var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), reqNode.tok);
 
       switch (raceType)
       {
@@ -1352,88 +1319,41 @@ namespace Microsoft.Boogie
           Debug.Assert(false, "ReportRace(): Reached default case in switch over raceType.");
           break;
       }
-      ErrorWriteLine(failFile1 + ":", "possible " + raceName + " race:\n", ErrorMsgType.Error);
+      ErrorWriteLine(CallSLI.GetFile() + ":", "possible " + raceName + " race:\n", ErrorMsgType.Error);
 
-      locinfo1 = failFile1 + ":" + failLine1 + ":" + failCol1 + ":";
-      locinfo2 = failFile2 + ":" + failLine2 + ":" + failCol2 + ":";
+      locinfo1 = CallSLI.ToString();
+      locinfo2 = RequiresSLI.ToString();
 
       AddPadding(ref locinfo1, ref locinfo2);
       AddPadding(ref access1, ref access2);
 
       ErrorWriteLine(locinfo1, "thread " + thread2 + " group " + group2 + " " + access2 + " ((char*)" + arrName + ")[" + byteOffset + "]", ErrorMsgType.NoError);
-      ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(failFile1, failLine1) + "\n", 2));
+      ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
 
 
       ErrorWriteLine(locinfo2, "thread " + thread1 + " group " + group1 + " " + access1 + " ((char*)" + arrName + ")[" + byteOffset + "]", ErrorMsgType.NoError);
-      ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(failFile2, failLine2) + "\n", 2));
+      ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
     }
 
     private static void ReportBarrierDivergence(Absy node)
     {
       Console.WriteLine("");
-
-      int failLine, failCol;
-      string failFile;
-
-      GetLocInfoFromAttrs(GetAttributes(node), out failLine, out failCol, out failFile, node.tok);
-
-      Debug.Assert(failLine != -1 && failCol != -1 && failFile != null, "ReportBarrierDivergence(): could not get source location.", 
-                    "Sourceloc info not found for {0}:{1}:{2}\n", node.tok.filename, node.tok.line, node.tok.col);
-
-      ErrorWriteLine(failFile + ":" + failLine + ":" + failCol + ":", "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
-      ErrorWriteLine(FetchCodeLine(failFile, failLine));
+      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
+      ErrorWriteLine(sli.ToString(), "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
+      ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportRequiresFailure(Absy callNode, Absy reqNode)
     {
       Console.WriteLine("");
+      var CallSLI = new SourceLocationInfo(GetAttributes(callNode), callNode.tok);
+      var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), reqNode.tok);
 
-      int failLine1, failCol1, failLine2, failCol2;
-      string failFile1, failFile2;
+      ErrorWriteLine(CallSLI.ToString(), "a precondition for this call might not hold", ErrorMsgType.Error);
+      ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine(), 2));
 
-      GetLocInfoFromAttrs(GetAttributes(callNode), out failLine1, out failCol1, out failFile1, callNode.tok);
-      GetLocInfoFromAttrs(GetAttributes(reqNode), out failLine2, out failCol2, out failFile2, reqNode.tok);
-
-      ErrorWriteLine(failFile1 + ":" + failLine1 + ":" + failCol1 + ":", "a precondition for this call might not hold", ErrorMsgType.Error);
-      ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(failFile1, failLine1), 2));
-
-      ErrorWriteLine(failFile2 + ":" + failLine2 + ":" + failCol2 + ":", "this is the precondition that might not hold", ErrorMsgType.Note);
-      ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(failFile2, failLine2), 2));
-    }
-
-    private static string FetchCodeLine(string path, int lineNo)
-    {
-      try {
-        TextReader tr = new StreamReader(path);
-        string line = null;
-
-        for (int currLineNo = 1; ((line = tr.ReadLine()) != null); currLineNo++) {
-          if (currLineNo == lineNo) {
-            break;
-          }
-        }
-        if (line != null) {
-          return line;
-        }
-        else {
-          throw new Exception();
-        }
-      }
-      catch (Exception) {
-        return "<unknown line of code>";
-      }
-    }
-
-    private static void GetLocInfoFromAttrs(QKeyValue attrs, out int failLine, out int failCol, out string failFile, IToken fallBack)
-    {
-      if (attrs == null) {
-        failLine = fallBack.line;
-        failCol = fallBack.col;
-        failFile = fallBack.filename;
-      }
-      failLine = QKeyValue.FindIntAttribute(attrs, "line", -1);
-      failCol = QKeyValue.FindIntAttribute(attrs, "col", -1);
-      failFile = GetFilenamePathPrefix() + QKeyValue.FindStringAttribute(attrs, "fname");
+      ErrorWriteLine(RequiresSLI.ToString(), "this is the precondition that might not hold", ErrorMsgType.Note);
+      ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine(), 2));
     }
 
     private static void GetThreadsAndGroupsFromModel(Model model, out string thread1, out string thread2, out string group1, out string group2, bool withSpaces)
