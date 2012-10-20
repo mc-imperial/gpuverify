@@ -20,9 +20,11 @@ namespace GPUVerify
             if (node.TypedIdent.Name.Contains("_READ_HAS_OCCURRED") ||
                 node.TypedIdent.Name.Contains("_READ_OFFSET") ||
                 node.TypedIdent.Name.Contains("_READ_SOURCE") ||
+                node.TypedIdent.Name.Contains("_READ_VALUE") ||
                 node.TypedIdent.Name.Contains("_WRITE_HAS_OCCURRED") ||
                 node.TypedIdent.Name.Contains("_WRITE_OFFSET") ||
-                node.TypedIdent.Name.Contains("_WRITE_SOURCE"))
+                node.TypedIdent.Name.Contains("_WRITE_SOURCE") ||
+                node.TypedIdent.Name.Contains("_WRITE_VALUE"))
             {
                 found = true;
             }

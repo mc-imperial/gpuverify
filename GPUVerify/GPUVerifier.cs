@@ -1494,6 +1494,15 @@ namespace GPUVerify
             Microsoft.Boogie.Type.GetBvType(32)));
         }
 
+        internal static string MakeValueVariableName(string Name, string AccessType) {
+          return "_" + AccessType + "_VALUE_" + Name;
+        }
+
+        internal static GlobalVariable MakeValueVariable(string name, string ReadOrWrite, Microsoft.Boogie.Type Type) {
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeValueVariableName(name, ReadOrWrite),
+            Type));
+        }
+
         internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, string accessType)
         {
             string name = MakeAccessHasOccurredVariableName(varName, accessType) + "$1";
@@ -1547,6 +1556,24 @@ namespace GPUVerify
           return result;
 
         }
+
+        internal GlobalVariable FindOrCreateValueVariable(string varName, string accessType,
+              Microsoft.Boogie.Type Type) {
+          string name = MakeValueVariableName(varName, accessType) + "$1";
+          foreach (Declaration D in Program.TopLevelDeclarations) {
+            if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name)) {
+              return D as GlobalVariable;
+            }
+          }
+
+          GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
+              MakeValueVariable(varName, accessType, Type)) as GlobalVariable;
+
+          Program.TopLevelDeclarations.Add(result);
+          return result;
+
+        }
+
 
         internal static GlobalVariable MakeAccessHasOccurredVariable(string varName, string accessType)
         {

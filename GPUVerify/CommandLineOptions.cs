@@ -37,6 +37,8 @@ namespace GPUVerify
 
         public static bool InferSourceLocation = true;
 
+        public static bool NoBenign = false;
+
         public static int Parse(string[] args)
         {
             for (int i = 0; i < args.Length; i++)
@@ -145,6 +147,11 @@ namespace GPUVerify
                     InferSourceLocation = false;
                     break;
 
+                    case "-noBenign":
+                    case "/noBenign":
+                    NoBenign = true;
+                    break;
+
                     default:
                         inputFiles.Add(args[i]);
                         break;
@@ -211,6 +218,7 @@ namespace GPUVerify
   /onlyDivergence               : verify freedom from barrier divergence, but 
                                     not data races
   /onlyIntraGroupRaceChecking   : do not consider inter-group data races
+  /noBenign                     : do not tolerate benign data races
 
 ");
         }
