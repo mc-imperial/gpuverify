@@ -41,15 +41,16 @@ namespace Microsoft.Boogie
 
     public static void Main(string[] args) {
       Contract.Requires(cce.NonNullElements(args));
-      CommandLineOptions.Install(new CommandLineOptions());
+      CommandLineOptions.Install(new GPUVerifyBoogieDriverCommandLineOptions());
 
-      CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
+      CommandLineOptions.Clo.RunningBoogieFromCommandLine = true; /* NEEDED? */
       if (!CommandLineOptions.Clo.Parse(args)) {
-        goto END;
+        Environment.Exit(1);
       }
+
       if (CommandLineOptions.Clo.Files.Count == 0) {
-        ErrorWriteLine("*** Error: No input files were specified.");
-        goto END;
+        ErrorWriteLine("GPUVerify: error: no input files were specified");
+        Environment.Exit(1);
       }
       if (CommandLineOptions.Clo.XmlSink != null) {
         string errMsg = CommandLineOptions.Clo.XmlSink.Open();
@@ -272,24 +273,7 @@ namespace Microsoft.Boogie
     }
 
     static void WriteTrailer(int verified, int errors, int inconclusives, int timeOuts, int outOfMemories) {
-      Contract.Requires(0 <= errors && 0 <= inconclusives && 0 <= timeOuts && 0 <= outOfMemories);
-      Console.WriteLine();
-      if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-        Console.Write("{0} finished with {1} credible, {2} doomed{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
-      } else {
-        Console.Write("{0} finished with {1} verified, {2} error{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
-      }
-      if (inconclusives != 0) {
-        Console.Write(", {0} inconclusive{1}", inconclusives, inconclusives == 1 ? "" : "s");
-      }
-      if (timeOuts != 0) {
-        Console.Write(", {0} time out{1}", timeOuts, timeOuts == 1 ? "" : "s");
-      }
-      if (outOfMemories != 0) {
-        Console.Write(", {0} out of memory", outOfMemories);
-      }
-      Console.WriteLine();
-      Console.Out.Flush();
+      // Removed: driver script will handle this
     }
 
 
@@ -1299,18 +1283,18 @@ namespace Microsoft.Boogie
       {
         case RaceType.RW:
           raceName = "read-write";
-          access1 = "read from";
-          access2 = "wrote to";
+          access1 = "read";
+          access2 = "write";
           break;
         case RaceType.WR:
           raceName = "write-read";
-          access1 = "wrote to";
-          access2 = "read from";
+          access1 = "write";
+          access2 = "read";
           break;
         case RaceType.WW:
           raceName = "write-write";
-          access1 = "wrote to";
-          access2 = "wrote to";
+          access1 = "write";
+          access2 = "write";
           break;
         default:
           raceName = null;
@@ -1319,7 +1303,7 @@ namespace Microsoft.Boogie
           Debug.Assert(false, "ReportRace(): Reached default case in switch over raceType.");
           break;
       }
-      ErrorWriteLine(CallSLI.GetFile() + ":", "possible " + raceName + " race:\n", ErrorMsgType.Error);
+      ErrorWriteLine(CallSLI.GetFile() + ":", "possible " + raceName + " race on ((char*)" + arrName + ")[" + byteOffset + "]:\n", ErrorMsgType.Error);
 
       locinfo1 = CallSLI.ToString();
       locinfo2 = RequiresSLI.ToString();
@@ -1327,11 +1311,11 @@ namespace Microsoft.Boogie
       AddPadding(ref locinfo1, ref locinfo2);
       AddPadding(ref access1, ref access2);
 
-      ErrorWriteLine(locinfo1, "thread " + thread2 + " group " + group2 + " " + access2 + " ((char*)" + arrName + ")[" + byteOffset + "]", ErrorMsgType.NoError);
+      ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " group " + group2, ErrorMsgType.NoError);
       ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
 
 
-      ErrorWriteLine(locinfo2, "thread " + thread1 + " group " + group1 + " " + access1 + " ((char*)" + arrName + ")[" + byteOffset + "]", ErrorMsgType.NoError);
+      ErrorWriteLine(locinfo2, access1 + " by thread " + thread1 + " group " + group1, ErrorMsgType.NoError);
       ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
     }
 

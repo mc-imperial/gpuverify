@@ -351,14 +351,17 @@ namespace GPUVerify {
     private CmdSeq AddRaceCheckCalls(CmdSeq cs) {
       var result = new CmdSeq();
       foreach (Cmd c in cs) {
-        result.Add(c);
 
         if (c is AssertCmd) {
           AssertCmd assertion = c as AssertCmd;
           if (QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc")) {
             SourceLocationAttributes = assertion.Attributes;
+            // Remove source location assertions
+            continue;
           }
         }
+
+        result.Add(c);
 
         if (c is CallCmd) {
           CallCmd call = c as CallCmd;
@@ -433,6 +436,7 @@ namespace GPUVerify {
 
       CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new IdentifierExprSeq());
       logAccessCallCmd.Proc = logProcedure;
+      logAccessCallCmd.Attributes = SourceLocationAttributes;
 
       CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new IdentifierExprSeq());
       checkAccessCallCmd.Proc = checkProcedure;
