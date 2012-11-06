@@ -116,9 +116,29 @@ def showHelpAndExit():
   print "  -I <value>              Add directory to include search path"
   print "  -D <value>              Define symbol"
   print "  --findbugs              Run tool in bug-finding mode"
-  print "  --noinfer               Turn off invariant inference"
+  print "  --loop-unwind=X         Explore traces that pass through at most X loop heads"
+  print "  --no-benign             Do not tolerate benign data races"
+  print "  --no-infer              Turn off invariant inference"
+  print "  --only-divergence       Only check for barrier divergence, not for races"
+  print "  --only-intra-group      Do not check for inter-group races"
   print "  --verify                Run tool in verification mode"
   print "  --verbose               Show commands to run and use verbose output"
+  print ""
+  print "ADVANCED OPTIONS:"
+  print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
+  print "                          nondeterministic"
+  print "  --array-equalities      Generate equality candidate invariants for array variables"
+  print "  --boogie-opt=...        Specify option to be passed to Boogie"
+  print "  --clang-opt=...         Specify option to be passed to CLANG"
+  print "  --equality-abstraction  Make shared arrays nondeterministic, but consistent between"
+  print "                          threads, at barriers"
+  print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
+  print "                          related to predicates, which can be incorrect"
+  print "  --no-smart-predication  Turn off smart predication"
+  print "  --no-source-loc-infer   Turn off inference of source location information"
+  print "  --no-uniformity-analysis  Turn off uniformity analysis"
+  print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
+  print "                          engine"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"         
@@ -189,6 +209,33 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.inference = False
     if o == "--verbose":
       CommandLineOptions.verbose = True
+    if o == "--loop-unwind":
+      raise(Exception)
+    if o == "--no-benign":
+      raise(Exception)
+    if o == "--only-divergence":
+      raise(Exception)
+    if o == "--only-intra-group":
+      raise(Exception)
+    if o == "--adversarial-abstraction":
+      raise(Exception)
+    if o == "--equality-abstraction":
+      raise(Exception)
+    if o == "--no-loop-predicate-invariants":
+      raise(Exception)
+    if o == "--no-smart-predication":
+      raise(Exception)
+    if o == "--no-source-loc-infer":
+      raise(Exception)
+    if o == "--no-uniformity-analysis":
+      raise(Exception)
+    if o == "--clang-opt":
+      raise(Exception)
+    if o == "--vcgen-opt":
+      raise(Exception)
+    if o == "--boogie-opt":
+      raise(Exception)
+
 
 def processOpenCLOptions(opts, args):
   for o, a in opts:
@@ -214,8 +261,13 @@ def main(argv=None):
   try:
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
              ['help', 'findbugs', 'verify', 'noinfer', 'verbose',
+              'loop-unwind=', 'no-benign', 'only-divergence', 'only-intra-group', 
+              'adversarial-abstraction', 'equality-abstraction', 'no-loop-predicate-invariants',
+              'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
+              'vcgen-opt=', 'boogie-opt=',
               'local_size=', 'num_groups=',
-              'blockDim=', 'gridDim='])
+              'blockDim=', 'gridDim='
+             ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
 

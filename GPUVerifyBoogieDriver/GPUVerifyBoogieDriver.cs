@@ -273,7 +273,25 @@ namespace Microsoft.Boogie
     }
 
     static void WriteTrailer(int verified, int errors, int inconclusives, int timeOuts, int outOfMemories) {
-      // Removed: driver script will handle this
+      Contract.Requires(0 <= errors && 0 <= inconclusives && 0 <= timeOuts && 0 <= outOfMemories);
+      Console.WriteLine();
+      if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
+        Console.Write("{0} finished with {1} credible, {2} doomed{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
+      }
+      else {
+        Console.Write("{0} finished with {1} verified, {2} error{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
+      }
+      if (inconclusives != 0) {
+        Console.Write(", {0} inconclusive{1}", inconclusives, inconclusives == 1 ? "" : "s");
+      }
+      if (timeOuts != 0) {
+        Console.Write(", {0} time out{1}", timeOuts, timeOuts == 1 ? "" : "s");
+      }
+      if (outOfMemories != 0) {
+        Console.Write(", {0} out of memory", outOfMemories);
+      }
+      Console.WriteLine();
+      Console.Out.Flush();
     }
 
 
@@ -1309,7 +1327,6 @@ namespace Microsoft.Boogie
       locinfo2 = RequiresSLI.ToString();
 
       AddPadding(ref locinfo1, ref locinfo2);
-      AddPadding(ref access1, ref access2);
 
       ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " group " + group2, ErrorMsgType.NoError);
       ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
