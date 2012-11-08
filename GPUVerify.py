@@ -68,10 +68,14 @@ class ErrorCodes(object):
   BOOGIE_ERROR = 6
 
 
-bugleDir = "C:\\prog\\bugle"
-libclcDir = "C:\\prog\\libclc"
-llvmBinDir = "C:\\prog\\llvm-build\\bin\\Release"
-bugleBinDir = "C:\\prog\\BugleBuild\Debug"
+bugleDir = sys.path[0] + "/bugle"
+libclcDir = sys.path[0] + "/libclc"
+llvmBinDir = sys.path[0] + "/bin"
+bugleBinDir = sys.path[0] + "/bin"
+gpuVerifyVCGenBinDir = sys.path[0] + "/bin"
+gpuVerifyBoogieDriverBinDir = sys.path[0] + "/bin"
+z3BinDir = sys.path[0] + "/bin"
+
 
 """ Base class to handle the invocation of the various tools of which GPUVerify is comprised """
 class ToolOptions(object):
@@ -199,7 +203,7 @@ def getSourceFiles(args):
         GPUVerifyError("illegal to pass both .cl and .cu files simultaneoulsy", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.SL = SourceLanguage.CUDA
     else:
-      GPUVerifyError("unknown file extension " + ext + ", supported file extensions are .cl (OpenCL) and .cu (CUDA)", ErrorCodes.COMMAND_LINE_ERROR)
+      GPUVerifyError("'" + a + "' has unknown file extension, supported file extensions are .cl (OpenCL) and .cu (CUDA)", ErrorCodes.COMMAND_LINE_ERROR)
     CommandLineOptions.sourceFiles.append(a)
 
 def showHelpIfRequested(opts):
@@ -350,7 +354,7 @@ def main(argv=None):
   if CommandLineOptions.verbose:
     print bugleStdout
 
-  gpuVerifyVCGenOptions = ToolOptions("GPUVerifyVCGen")
+  gpuVerifyVCGenOptions = ToolOptions(gpuVerifyVCGenBinDir + "/GPUVerifyVCGen")
   gpuVerifyVCGenOptions.options += [ "/print:" + filename, filename + ".gbpl" ]
   if CommandLineOptions.adversarialAbstraction:
     gpuVerifyVCGenOptions.options += [ "/adversarialAbstraction" ]
@@ -382,7 +386,7 @@ def main(argv=None):
   if CommandLineOptions.verbose:
     print gpuVerifyVCGenStdout
 
-  gpuVerifyBoogieDriverOptions = ToolOptions("GPUVerifyBoogieDriver")
+  gpuVerifyBoogieDriverOptions = ToolOptions(gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver")
   gpuVerifyBoogieDriverOptions.options += [ "/nologo",
                                             "/typeEncoding:m", 
                                             "/doModSetAnalysis", 
@@ -394,6 +398,7 @@ def main(argv=None):
                                             "/noinfer", 
                                             "/enhancedErrorMessages:1",
                                             "/errorLimit:20",
+                                            "/z3exe:" + z3BinDir + "/z3",
                                             filename + ".bpl" ]
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     gpuVerifyBoogieDriverOptions.options += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
@@ -408,17 +413,22 @@ def main(argv=None):
 
   if CommandLineOptions.verbose:
     print gpuVerifyBoogieDriverStdout
+    print gpuVerifyBoogieDriverStderr
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
-    print "..."
+    print "No defects were found while analysing: " + ", ".join(CommandLineOptions.sourceFiles)
+    print "Notes:"
+    print "- use --loop-unwind=N with N > " + str(CommandLineOptions.loopUnwindDepth) + " to search for deeper bugs"
+    print "- re-run in verification mode to try to prove absence of defects"
   else:
-    sys.stdout.write("Kernels in " + ", ".join(CommandLineOptions.sourceFiles) + " verified to be free from ")
-
-  if not CommandLineOptions.onlyDivergence:
-    if not CommandLineOptions.onlyIntraGroup:
-      sys.stdout.write("inter- and ")
-    sys.stdout.write("intra-group data races, ")
-  sys.stdout.write("barrier divergence, and assertion failures")
+    print "Verified: " + ", ".join(CommandLineOptions.sourceFiles)
+    if not CommandLineOptions.onlyDivergence:
+      print "- no data races within " + ("work groups" if CommandLineOptions.SL == SourceLanguage.OpenCL else "thread blocks")
+      if not CommandLineOptions.onlyIntraGroup:
+        print "- no data races between " + ("work groups" if CommandLineOptions.SL == SourceLanguage.OpenCL else "thread blocks")
+    print "- no barrier divergence"
+    print "- no assertion failures"
+    print "(but absolutely no warranty provided)"
 
 if __name__ == '__main__':
   sys.exit(main())
