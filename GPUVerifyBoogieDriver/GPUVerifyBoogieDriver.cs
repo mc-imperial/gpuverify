@@ -43,73 +43,86 @@ namespace Microsoft.Boogie
       Contract.Requires(cce.NonNullElements(args));
       CommandLineOptions.Install(new GPUVerifyBoogieDriverCommandLineOptions());
 
-      CommandLineOptions.Clo.RunningBoogieFromCommandLine = true; /* NEEDED? */
-      if (!CommandLineOptions.Clo.Parse(args)) {
+      try {
+
+        int exitCode;
+
+        CommandLineOptions.Clo.RunningBoogieFromCommandLine = true; /* NEEDED? */
+        if (!CommandLineOptions.Clo.Parse(args)) {
+          Environment.Exit(1);
+        }
+
+        if (CommandLineOptions.Clo.Files.Count == 0) {
+          ErrorWriteLine("GPUVerify: error: no input files were specified");
+          Environment.Exit(1);
+        }
+        if (CommandLineOptions.Clo.XmlSink != null) {
+          string errMsg = CommandLineOptions.Clo.XmlSink.Open();
+          if (errMsg != null) {
+            ErrorWriteLine("GPUVerify: error: " + errMsg);
+            exitCode = 1;
+            goto END;
+          }
+        }
+        if (!CommandLineOptions.Clo.DontShowLogo) {
+          Console.WriteLine(CommandLineOptions.Clo.Version);
+        }
+        if (CommandLineOptions.Clo.ShowEnv == CommandLineOptions.ShowEnvironment.Always) {
+          Console.WriteLine("---Command arguments");
+          foreach (string arg in args) {
+            Contract.Assert(arg != null);
+            Console.WriteLine(arg);
+          }
+
+          Console.WriteLine("--------------------");
+        }
+
+        Helpers.ExtraTraceInformation("Becoming sentient");
+
+        List<string> fileList = new List<string>();
+        foreach (string file in CommandLineOptions.Clo.Files) {
+          string extension = Path.GetExtension(file);
+          if (extension != null) {
+            extension = extension.ToLower();
+          }
+          if (extension == ".txt") {
+            StreamReader stream = new StreamReader(file);
+            string s = stream.ReadToEnd();
+            fileList.AddRange(s.Split(new char[3] { ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries));
+          }
+          else {
+            fileList.Add(file);
+          }
+        }
+        foreach (string file in fileList) {
+          Contract.Assert(file != null);
+          string extension = Path.GetExtension(file);
+          if (extension != null) {
+            extension = extension.ToLower();
+          }
+          if (extension != ".bpl") {
+            ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
+            exitCode = 1;
+            goto END;
+          }
+        }
+        exitCode = ProcessFiles(fileList);
+
+      END:
+        if (CommandLineOptions.Clo.XmlSink != null) {
+          CommandLineOptions.Clo.XmlSink.Close();
+        }
+        if (CommandLineOptions.Clo.Wait) {
+          Console.WriteLine("Press Enter to exit.");
+          Console.ReadLine();
+        }
+
+        Environment.Exit(exitCode);
+
+      }
+      catch (Exception e) {
+        Console.Error.WriteLine("GPUVerify: an internal error has occurred.  Please report this problem to the development team");
         Environment.Exit(1);
-      }
-
-      if (CommandLineOptions.Clo.Files.Count == 0) {
-        ErrorWriteLine("GPUVerify: error: no input files were specified");
-        Environment.Exit(1);
-      }
-      if (CommandLineOptions.Clo.XmlSink != null) {
-        string errMsg = CommandLineOptions.Clo.XmlSink.Open();
-        if (errMsg != null) {
-          ErrorWriteLine("*** Error: " + errMsg);
-          goto END;
-        }
-      }
-      if (!CommandLineOptions.Clo.DontShowLogo) {
-        Console.WriteLine(CommandLineOptions.Clo.Version);
-      }
-      if (CommandLineOptions.Clo.ShowEnv == CommandLineOptions.ShowEnvironment.Always) {
-        Console.WriteLine("---Command arguments");
-        foreach (string arg in args) {
-          Contract.Assert(arg != null);
-          Console.WriteLine(arg);
-        }
-
-        Console.WriteLine("--------------------");
-      }
-
-      Helpers.ExtraTraceInformation("Becoming sentient");
-
-      List<string> fileList = new List<string>();
-      foreach (string file in CommandLineOptions.Clo.Files) {
-        string extension = Path.GetExtension(file);
-        if (extension != null) {
-          extension = extension.ToLower();
-        }
-        if (extension == ".txt") {
-          StreamReader stream = new StreamReader(file);
-          string s = stream.ReadToEnd();
-          fileList.AddRange(s.Split(new char[3] { ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries));
-        }
-        else {
-          fileList.Add(file);
-        }
-      }
-      foreach (string file in fileList) {
-        Contract.Assert(file != null);
-        string extension = Path.GetExtension(file);
-        if (extension != null) {
-          extension = extension.ToLower();
-        }
-        if (extension != ".bpl") {
-          ErrorWriteLine("*** Error: '{0}': Filename extension '{1}' is not supported. Input files must be BoogiePL programs (.bpl).", file,
-              extension == null ? "" : extension);
-          goto END;
-        }
-      }
-      ProcessFiles(fileList);
-
-    END:
-      if (CommandLineOptions.Clo.XmlSink != null) {
-        CommandLineOptions.Clo.XmlSink.Close();
-      }
-      if (CommandLineOptions.Clo.Wait) {
-        Console.WriteLine("Press Enter to exit.");
-        Console.ReadLine();
       }
     }
 
@@ -117,7 +130,7 @@ namespace Microsoft.Boogie
       Contract.Requires(s != null);
       ConsoleColor col = Console.ForegroundColor;
       Console.ForegroundColor = ConsoleColor.DarkGray;
-      Console.WriteLine(s);
+      Console.Error.WriteLine(s);
       Console.ForegroundColor = col;
     }
 
@@ -127,18 +140,18 @@ namespace Microsoft.Boogie
       ConsoleColor col = Console.ForegroundColor;
       if (!String.IsNullOrEmpty(locInfo))
       {
-        Console.Write(locInfo + " ");
+        Console.Error.Write(locInfo + " ");
       }
 
       switch (msgtype)
       {
         case ErrorMsgType.Error:
           Console.ForegroundColor = ConsoleColor.Red;
-          Console.Write("error: ");
+          Console.Error.Write("error: ");
           break;
         case ErrorMsgType.Note:
           Console.ForegroundColor = ConsoleColor.DarkYellow;
-          Console.Write("note: ");
+          Console.Error.Write("note: ");
           break;
         case ErrorMsgType.NoError:
         default:
@@ -147,7 +160,7 @@ namespace Microsoft.Boogie
         
 
       Console.ForegroundColor = col;
-      Console.WriteLine(message);
+      Console.Error.WriteLine(message);
     }
 
     public static void ErrorWriteLine(string format, params object[] args) {
@@ -185,28 +198,29 @@ namespace Microsoft.Boogie
       WR
     };
 
-    static void ProcessFiles(List<string> fileNames)
+    // Returns 0 if there were no errors, otherwise non-zero
+    static int ProcessFiles(List<string> fileNames)
     {
       Contract.Requires(cce.NonNullElements(fileNames));
       using (XmlFileScope xf = new XmlFileScope(CommandLineOptions.Clo.XmlSink, fileNames[fileNames.Count - 1])) {
         //BoogiePL.Errors.count = 0;
         Program program = ParseBoogieProgram(fileNames, false);
         if (program == null)
-          return;
+          return 1;
         if (CommandLineOptions.Clo.PrintFile != null) {
           PrintBplFile(CommandLineOptions.Clo.PrintFile, program, false);
         }
 
         PipelineOutcome oc = ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
         if (oc != PipelineOutcome.ResolvedAndTypeChecked)
-          return;
+          return 1;
         //BoogiePL.Errors.count = 0;
 
         // Do bitvector analysis
         if (CommandLineOptions.Clo.DoBitVectorAnalysis) {
           Microsoft.Boogie.BitVectorAnalysis.DoBitVectorAnalysis(program);
           PrintBplFile(CommandLineOptions.Clo.BitVectorAnalysisOutputBplFile, program, false);
-          return;
+          return 1;
         }
 
         if (CommandLineOptions.Clo.PrintCFGPrefix != null) {
@@ -229,6 +243,9 @@ namespace Microsoft.Boogie
           default:
             break;
         }
+
+        return errorCount + inconclusives + timeOuts + outOfMemories;
+
       }
     }
 

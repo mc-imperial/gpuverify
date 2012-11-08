@@ -886,16 +886,20 @@ namespace GPUVerify {
       IdentifierExpr ReadAccessOccurred1 = new IdentifierExpr(v.tok, new VariableDualiser(1, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, "READ")));
       IdentifierExpr WriteAccessOccurred1 = new IdentifierExpr(v.tok, new VariableDualiser(1, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, "WRITE")));
 
-      verifier.KernelProcedure.Requires.Add(new Requires(false, Expr.And(Expr.Not(ReadAccessOccurred1), Expr.Not(WriteAccessOccurred1))));
+      foreach (var Proc in verifier.KernelProcedures.Keys) {
+        Proc.Requires.Add(new Requires(false, Expr.And(Expr.Not(ReadAccessOccurred1), Expr.Not(WriteAccessOccurred1))));
+      }
     }
 
     private void AddRequiresSourceAccessZero(Variable v)
     {
       if (CommandLineOptions.InferSourceLocation) {
-        verifier.KernelProcedure.Requires.Add(new Requires(false, Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(v.Name, "READ")),
-                                                                          GPUVerifier.ZeroBV())));
-        verifier.KernelProcedure.Requires.Add(new Requires(false, Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(v.Name, "WRITE")),
-                                                                          GPUVerifier.ZeroBV())));
+        foreach (var Proc in verifier.KernelProcedures.Keys) {
+          Proc.Requires.Add(new Requires(false, Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(v.Name, "READ")),
+                                                                            GPUVerifier.ZeroBV())));
+          Proc.Requires.Add(new Requires(false, Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(v.Name, "WRITE")),
+                                                                            GPUVerifier.ZeroBV())));
+        }
       }
     }
 

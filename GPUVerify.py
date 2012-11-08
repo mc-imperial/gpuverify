@@ -35,6 +35,18 @@ class CommandLineOptions(object):
   verbose = False
   groupSize = []
   numGroups = []
+  adversarialAbstraction = False
+  equalityAbstraction = False
+  loopUnwindDepth = 2
+  noBenign = False
+  onlyDivergence = False
+  onlyIntraGroup = False
+  noLoopPredicateInvariants = False
+  noSmartPredication = False
+  noSourceLocInfer = False
+  noUniformityAnalysis = False
+  vcgenExtraOptions = []
+  
 
 class Timeout(Exception):
     pass
@@ -210,29 +222,39 @@ def processGeneralOptions(opts, args):
     if o == "--verbose":
       CommandLineOptions.verbose = True
     if o == "--loop-unwind":
-      raise(Exception)
+      CommandLineOptions.mode = AnalysisMode.FINDBUGS
+      try:
+        if int(a) < 0:
+          GPUVerifyError("negative value " + a + " provided as argument to --loop-unwind", ErrorCodes.COMMAND_LINE_ERROR) 
+        CommandLineOptions.loopUnwindDepth = int(a)
+      except ValueError:
+        GPUVerifyError("non integer value '" + a + "' provided as argument to --loop-unwind", ErrorCodes.COMMAND_LINE_ERROR) 
     if o == "--no-benign":
-      raise(Exception)
+      CommandLineOptions.noBenign = True
     if o == "--only-divergence":
-      raise(Exception)
+      CommandLineOptions.onlyDivergence = True
     if o == "--only-intra-group":
-      raise(Exception)
+      CommandLineOptions.onlyIntraGroup = True
     if o == "--adversarial-abstraction":
-      raise(Exception)
+      if CommandLineOptions.equalityAbstraction:
+        GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.adversarialAbstraction = True
     if o == "--equality-abstraction":
-      raise(Exception)
+      if CommandLineOptions.adversarialAbstraction:
+        GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.equalityAbstraction = True
     if o == "--no-loop-predicate-invariants":
-      raise(Exception)
+      CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
-      raise(Exception)
+      CommandLineOptions.noSmartPredication = True
     if o == "--no-source-loc-infer":
-      raise(Exception)
+      CommandLineOptions.noSourceLocInfer = True
     if o == "--no-uniformity-analysis":
-      raise(Exception)
+      CommandLineOptions.noUniformityAnalysis = True
     if o == "--clang-opt":
       raise(Exception)
     if o == "--vcgen-opt":
-      raise(Exception)
+      CommandLineOptions.vcgenExtraOptions += str(a).split(" ")
     if o == "--boogie-opt":
       raise(Exception)
 
@@ -241,12 +263,17 @@ def processOpenCLOptions(opts, args):
   for o, a in opts:
     if o == "--local_size":
       if CommandLineOptions.groupSize != []:
-        raise Exception("Must not define local_size twice")
+        GPUVerifyError("illegal to define local_size multiple times", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.groupSize = processVector(a)
     if o == "--num_groups":
       if CommandLineOptions.numGroups != []:
-        raise Exception("Must not define num_groups twice")
+        raise Exception("illegal to define num_groups multiple times", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.numGroups = processVector(a)
+
+  if CommandLineOptions.groupSize == []:
+    GPUVerifyError("work group size must be specified via --local_size==...", ErrorCodes.COMMAND_LINE_ERROR)
+  if CommandLineOptions.numGroups == []:
+    GPUVerifyError("number of work groups must be specified via --num_groups=...", ErrorCodes.COMMAND_LINE_ERROR)
 
 def processCUDAOptions(opts, args):
   return
@@ -302,6 +329,8 @@ def main(argv=None):
   if clangReturn != 0:
     print clangStderr
     exit(ErrorCodes.CLANG_ERROR)
+  if CommandLineOptions.verbose:
+    print clangStdout
 
   optOptions = ToolOptions(llvmBinDir + "/opt");
   optOptions.options += [ "-mem2reg", "-globaldce", "-o", filename + ".opt.bc", filename + ".bc" ]
@@ -309,6 +338,8 @@ def main(argv=None):
   optStdout, optStderr, optReturn = run(optOptions.makeCommand())
   if optReturn != 0:
     raise Exception(optStderr)
+  if CommandLineOptions.verbose:
+    print optStdout
 
   bugleOptions = ToolOptions(bugleBinDir + "/bugle");
   bugleOptions.options += [ "-l", "cl" if ext == ".cl" else "cu", "-o", filename + ".gbpl", filename + ".opt.bc"]
@@ -316,17 +347,40 @@ def main(argv=None):
   bugleStdout, bugleStderr, bugleReturn = run(bugleOptions.makeCommand())
   if bugleReturn != 0:
     raise Exception(bugleStderr)
+  if CommandLineOptions.verbose:
+    print bugleStdout
 
   gpuVerifyVCGenOptions = ToolOptions("GPUVerifyVCGen")
   gpuVerifyVCGenOptions.options += [ "/print:" + filename, filename + ".gbpl" ]
-
+  if CommandLineOptions.adversarialAbstraction:
+    gpuVerifyVCGenOptions.options += [ "/adversarialAbstraction" ]
+  if CommandLineOptions.equalityAbstraction:
+    gpuVerifyVCGenOptions.options += [ "/equalityAbstraction" ]
+  if CommandLineOptions.noBenign:
+    gpuVerifyVCGenOptions.options += [ "/noBenign" ]
+  if CommandLineOptions.onlyDivergence:
+    gpuVerifyVCGenOptions.options += [ "/onlyDivergence" ]
+  if CommandLineOptions.onlyIntraGroup:
+    gpuVerifyVCGenOptions.options += [ "/onlyIntraGroupRaceChecking" ]
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS or (not CommandLineOptions.inference):
     gpuVerifyVCGenOptions.options += [ "/noInfer" ]
+  if CommandLineOptions.noLoopPredicateInvariants:
+    gpuVerifyVCGenOptions.options += [ "/noLoopPredicateInvariants" ]
+  if CommandLineOptions.noSmartPredication:
+    gpuVerifyVCGenOptions.options += [ "/noSmartPredication" ]
+  if CommandLineOptions.noSourceLocInfer:
+    gpuVerifyVCGenOptions.options += [ "/noSourceLocInfer" ]
+  if CommandLineOptions.noUniformityAnalysis:
+    gpuVerifyVCGenOptions.options += [ "/noUniformityAnalysis" ]
+  gpuVerifyVCGenOptions.options += CommandLineOptions.vcgenExtraOptions
 
   Verbose("Running gpuverifyvcgen")
   gpuVerifyVCGenStdout, gpuVerifyVCGenStderr, gpuVerifyVCGenReturn = run(gpuVerifyVCGenOptions.makeCommand())
   if gpuVerifyVCGenReturn != 0:
-    raise Exception(gpuVerifyVCGenStderr)
+    print gpuVerifyVCGenStdout + gpuVerifyVCGenStderr
+    exit(ErrorCodes.GPUVERFYVCGEN_ERROR)
+  if CommandLineOptions.verbose:
+    print gpuVerifyVCGenStdout
 
   gpuVerifyBoogieDriverOptions = ToolOptions("GPUVerifyBoogieDriver")
   gpuVerifyBoogieDriverOptions.options += [ "/nologo",
@@ -342,18 +396,29 @@ def main(argv=None):
                                             "/errorLimit:20",
                                             filename + ".bpl" ]
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
-    gpuVerifyBoogieDriverOptions.options += [ "/loopUnroll:2" ]
-  elif not CommandLineOptions.inference:
+    gpuVerifyBoogieDriverOptions.options += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
+  elif CommandLineOptions.inference:
     gpuVerifyBoogieDriverOptions.options += [ "/contractInfer" ]
 
   Verbose("Running gpuverifyboogiedriver")
   gpuVerifyBoogieDriverStdout, gpuVerifyBoogieDriverStderr, gpuVerifyBoogieDriverReturn = run(gpuVerifyBoogieDriverOptions.makeCommand())
   if gpuVerifyBoogieDriverReturn != 0:
-    raise Exception(gpuVerifyBoogieDriverStderr)
+    print gpuVerifyBoogieDriverStderr
+    exit(ErrorCodes.BOOGIE_ERROR)
 
-  print gpuVerifyBoogieDriverStdout + gpuVerifyBoogieDriverStderr
+  if CommandLineOptions.verbose:
+    print gpuVerifyBoogieDriverStdout
 
+  if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
+    print "..."
+  else:
+    sys.stdout.write("Kernels in " + ", ".join(CommandLineOptions.sourceFiles) + " verified to be free from ")
 
+  if not CommandLineOptions.onlyDivergence:
+    if not CommandLineOptions.onlyIntraGroup:
+      sys.stdout.write("inter- and ")
+    sys.stdout.write("intra-group data races, ")
+  sys.stdout.write("barrier divergence, and assertion failures")
 
 if __name__ == '__main__':
   sys.exit(main())

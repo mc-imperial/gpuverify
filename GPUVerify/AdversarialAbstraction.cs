@@ -38,7 +38,6 @@ namespace GPUVerify {
 
       verifier.Program.TopLevelDeclarations = NewTopLevelDeclarations;
 
-      AbstractRequiresClauses(verifier.KernelProcedure);
     }
 
 
@@ -56,6 +55,7 @@ namespace GPUVerify {
 
     private void Abstract(Procedure proc) {
       AbstractModifiesSet(proc);
+      AbstractRequiresClauses(proc);
     }
 
     private void AbstractModifiesSet(Procedure proc) {

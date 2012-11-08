@@ -16,8 +16,10 @@ namespace GPUVerify
         public Program Program;
         public ResolutionContext ResContext;
 
-        public Procedure KernelProcedure;
-        public Implementation KernelImplementation;
+        public Dictionary<Procedure, Implementation> KernelProcedures;
+
+//        public Procedure KernelProcedure;
+//        public Implementation KernelImplementation;
         public Procedure BarrierProcedure;
         public string BarrierProcedureLocalFenceArgName;
         public string BarrierProcedureGlobalFenceArgName;
@@ -99,15 +101,22 @@ namespace GPUVerify
             }
         }
 
-        private Procedure CheckExactlyOneKernelProcedure()
+        private Dictionary<Procedure, Implementation> GetKernelProcedures()
         {
-            var p = CheckSingleInstanceOfAttributedProcedure("kernel");
-            if (p == null)
-            {
-                Error(Program, "\"kernel\" attribute has not been specified for any procedure.  You must mark exactly one procedure with this attribute");
+          var Result = new Dictionary<Procedure, Implementation>();
+          foreach (Declaration D in Program.TopLevelDeclarations) {
+            if (QKeyValue.FindBoolAttribute(D.Attributes, "kernel")) {
+              if (D is Implementation) {
+                Result[(D as Implementation).Proc] = D as Implementation;
+              }
+              if (D is Procedure) {
+                if (!Result.ContainsKey(D as Procedure)) {
+                  Result[D as Procedure] = null;
+                }
+              }
             }
-
-            return p;
+          }
+          return Result;
         }
 
         private Procedure FindOrCreateBarrierProcedure()
@@ -201,18 +210,6 @@ namespace GPUVerify
 
             return attributedProcedure;
         }
-
-        private void CheckLocalVariables()
-        {
-            foreach (LocalVariable LV in KernelImplementation.LocVars)
-            {
-                if (QKeyValue.FindBoolAttribute(LV.Attributes, "group_shared"))
-                {
-                    Error(LV.tok, "Local variable must not be marked 'group_shared' -- promote the variable to global scope");
-                }
-            }
-        }
-
 
         private void ReportMultipleAttributeError(string attribute, IToken first, IToken second)
         {
@@ -321,53 +318,6 @@ namespace GPUVerify
             {
                 Error(C.tok, "Special constant '" + C.Name + "' must have type 'int' or 'bv32'");
             }
-        }
-
-        private void GetKernelImplementation()
-        {
-            foreach (Declaration decl in Program.TopLevelDeclarations)
-            {
-                if (!(decl is Implementation))
-                {
-                    continue;
-                }
-
-                Implementation Impl = decl as Implementation;
-
-                if (Impl.Proc == KernelProcedure)
-                {
-                    KernelImplementation = Impl;
-                    break;
-                }
-
-            }
-
-            if (KernelImplementation == null)
-            {
-                Error(Token.NoToken, "*** Error: no implementation of kernel procedure");
-            }
-        }
-
-
-
-
-        protected virtual void CheckKernelImplementation()
-        {
-            CheckKernelParameters();
-            GetKernelImplementation();
-
-            if (KernelImplementation == null)
-            {
-                return;
-            }
-
-            CheckLocalVariables();
-            CheckNoReturns();
-        }
-
-        private void CheckNoReturns()
-        {
-            // TODO!
         }
 
         internal void preProcess()
@@ -503,7 +453,11 @@ namespace GPUVerify
         {
             var entryPoints = new HashSet<Implementation>();
             if (CommandLineOptions.DoUniformityAnalysis) {
-              entryPoints.Add(KernelImplementation);
+              foreach (Implementation i in KernelProcedures.Values) {
+                if (i != null) {
+                  entryPoints.Add(i);
+                }
+              }
             }
 
             var nonUniformVars = new Variable[] { _X, _Y, _Z, _GROUP_X, _GROUP_Y, _GROUP_Z };
@@ -553,7 +507,7 @@ namespace GPUVerify
                         continue;
                     }
 
-                    if (Proc == KernelProcedure)
+                    if (KernelProcedures.ContainsKey(Proc))
                     {
                         continue;
                     }
@@ -890,11 +844,9 @@ namespace GPUVerify
         {
             RaceInstrumenter.AddKernelPrecondition();
 
-            IToken tok = KernelImplementation.tok;
-
-            GeneratePreconditionsForDimension(tok, "X");
-            GeneratePreconditionsForDimension(tok, "Y");
-            GeneratePreconditionsForDimension(tok, "Z");
+            GeneratePreconditionsForDimension("X");
+            GeneratePreconditionsForDimension("Y");
+            GeneratePreconditionsForDimension("Z");
 
             RaceInstrumenter.AddStandardSourceVariablePreconditions();
             RaceInstrumenter.AddStandardSourceVariablePostconditions();
@@ -915,17 +867,17 @@ namespace GPUVerify
                     Expr.Or(
                         Expr.Or(
                             Expr.Neq(
-                            new IdentifierExpr(tok, MakeThreadId("X", 1)),
-                            new IdentifierExpr(tok, MakeThreadId("X", 2))
+                            new IdentifierExpr(Token.NoToken, MakeThreadId("X", 1)),
+                            new IdentifierExpr(Token.NoToken, MakeThreadId("X", 2))
                             ),
                             Expr.Neq(
-                            new IdentifierExpr(tok, MakeThreadId("Y", 1)),
-                            new IdentifierExpr(tok, MakeThreadId("Y", 2))
+                            new IdentifierExpr(Token.NoToken, MakeThreadId("Y", 1)),
+                            new IdentifierExpr(Token.NoToken, MakeThreadId("Y", 2))
                             )
                         ),
                         Expr.Neq(
-                        new IdentifierExpr(tok, MakeThreadId("Z", 1)),
-                        new IdentifierExpr(tok, MakeThreadId("Z", 2))
+                        new IdentifierExpr(Token.NoToken, MakeThreadId("Z", 1)),
+                        new IdentifierExpr(Token.NoToken, MakeThreadId("Z", 2))
                         )
                     );
 
@@ -936,7 +888,7 @@ namespace GPUVerify
                     Proc.Requires.Add(new Requires(false, ThreadsInSameGroup()));
                 }
 
-                if (Proc == KernelProcedure)
+                if (KernelProcedures.ContainsKey(Proc))
                 {
                     bool foundNonUniform = false;
                     int indexOfFirstNonUniformParameter;
@@ -978,25 +930,6 @@ namespace GPUVerify
               }
             }
 
-            foreach (Declaration D in Program.TopLevelDeclarations)
-            {
-                if (!(D is Implementation))
-                {
-                    continue;
-                }
-                Implementation Impl = D as Implementation;
-
-                if (QKeyValue.FindIntAttribute(Impl.Proc.Attributes, "inline", -1) == 1)
-                {
-                    continue;
-                }
-                if (Impl.Proc == KernelProcedure)
-                {
-                    continue;
-                }
-
-            }
-
         }
 
         internal static Expr ThreadsInSameGroup()
@@ -1024,7 +957,7 @@ namespace GPUVerify
             return Int32.Parse(p.Substring(p.IndexOf("$") + 1, p.Length - (p.IndexOf("$") + 1)));
         }
 
-        private void GeneratePreconditionsForDimension(IToken tok, String dimension)
+        private void GeneratePreconditionsForDimension(String dimension)
         {
             foreach (Declaration D in Program.TopLevelDeclarations.ToList())
             {
@@ -1045,17 +978,17 @@ namespace GPUVerify
 
                 if (GetTypeOfId(dimension).Equals(Microsoft.Boogie.Type.GetBvType(32)))
                 {
-                    GroupSizePositive = MakeBVSgt(new IdentifierExpr(tok, GetGroupSize(dimension)), ZeroBV());
-                    NumGroupsPositive = MakeBVSgt(new IdentifierExpr(tok, GetNumGroups(dimension)), ZeroBV());
-                    GroupIdNonNegative = MakeBVSge(new IdentifierExpr(tok, GetGroupId(dimension)), ZeroBV());
-                    GroupIdLessThanNumGroups = MakeBVSlt(new IdentifierExpr(tok, GetGroupId(dimension)), new IdentifierExpr(tok, GetNumGroups(dimension)));
+                  GroupSizePositive = MakeBVSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), ZeroBV());
+                  NumGroupsPositive = MakeBVSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), ZeroBV());
+                  GroupIdNonNegative = MakeBVSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), ZeroBV());
+                  GroupIdLessThanNumGroups = MakeBVSlt(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)));
                 }
                 else
                 {
-                    GroupSizePositive = Expr.Gt(new IdentifierExpr(tok, GetGroupSize(dimension)), Zero());
-                    NumGroupsPositive = Expr.Gt(new IdentifierExpr(tok, GetNumGroups(dimension)), Zero());
-                    GroupIdNonNegative = Expr.Ge(new IdentifierExpr(tok, GetGroupId(dimension)), Zero());
-                    GroupIdLessThanNumGroups = Expr.Lt(new IdentifierExpr(tok, GetGroupId(dimension)), new IdentifierExpr(tok, GetNumGroups(dimension)));
+                  GroupSizePositive = Expr.Gt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), Zero());
+                  NumGroupsPositive = Expr.Gt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), Zero());
+                  GroupIdNonNegative = Expr.Ge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), Zero());
+                  GroupIdLessThanNumGroups = Expr.Lt(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)));
                 }
 
                 Proc.Requires.Add(new Requires(false, GroupSizePositive));
@@ -1067,14 +1000,14 @@ namespace GPUVerify
 
                 Expr ThreadIdNonNegative =
                     GetTypeOfId(dimension).Equals(Microsoft.Boogie.Type.GetBvType(32)) ?
-                            MakeBVSge(new IdentifierExpr(tok, MakeThreadId(dimension)), ZeroBV())
+                            MakeBVSge(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), ZeroBV())
                     :
-                            Expr.Ge(new IdentifierExpr(tok, MakeThreadId(dimension)), Zero());
+                            Expr.Ge(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), Zero());
                 Expr ThreadIdLessThanGroupSize =
                     GetTypeOfId(dimension).Equals(Microsoft.Boogie.Type.GetBvType(32)) ?
-                            MakeBVSlt(new IdentifierExpr(tok, MakeThreadId(dimension)), new IdentifierExpr(tok, GetGroupSize(dimension)))
+                            MakeBVSlt(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)))
                     :
-                            Expr.Lt(new IdentifierExpr(tok, MakeThreadId(dimension)), new IdentifierExpr(tok, GetGroupSize(dimension)));
+                            Expr.Lt(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)));
 
                 Proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(ThreadIdNonNegative)));
                 Proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(ThreadIdNonNegative)));
@@ -1675,21 +1608,12 @@ namespace GPUVerify
             return;
         }
 
-        private void CheckKernelParameters()
-        {
-            if (KernelProcedure.OutParams.Length != 0)
-            {
-                Error(KernelProcedure.tok, "Kernel should not take return anything");
-            }
-        }
-
-
         private int Check()
         {
             BarrierProcedure = FindOrCreateBarrierProcedure();
             BarrierProcedureLocalFenceArgName = BarrierProcedure.InParams[0].Name;
             BarrierProcedureGlobalFenceArgName = BarrierProcedure.InParams[1].Name;
-            KernelProcedure = CheckExactlyOneKernelProcedure();
+            KernelProcedures = GetKernelProcedures();
 
             if (ErrorCount > 0)
             {
@@ -1718,7 +1642,6 @@ namespace GPUVerify
                 return ErrorCount;
             }
 
-            CheckKernelImplementation();
             return ErrorCount;
         }
 

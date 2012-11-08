@@ -18,34 +18,38 @@ namespace GPUVerify
 
         public static void Main(string[] args)
         {
+          try {
+
             int showHelp = CommandLineOptions.Parse(args);
 
-            if (showHelp == -1)
-            {
-                CommandLineOptions.Usage();
-                System.Environment.Exit(0);
+            if (showHelp == -1) {
+              CommandLineOptions.Usage();
+              System.Environment.Exit(0);
             }
 
-            if (CommandLineOptions.inputFiles.Count < 1)
-            {
-                Console.WriteLine("*** Error: No input files were specified.");
+            if (CommandLineOptions.inputFiles.Count < 1) {
+              Console.WriteLine("*** Error: No input files were specified.");
+              Environment.Exit(1);
+            }
+
+            foreach (string file in CommandLineOptions.inputFiles) {
+              string extension = Path.GetExtension(file);
+              if (extension != null) {
+                extension = extension.ToLower();
+              }
+              if (extension != ".gbpl") {
+                Console.WriteLine("GPUVerify: error: {0} is not a .gbpl file", file);
                 Environment.Exit(1);
-            }
-
-            foreach (string file in CommandLineOptions.inputFiles)
-            {
-                string extension = Path.GetExtension(file);
-                if (extension != null)
-                {
-                    extension = extension.ToLower();
-                }
-                if (extension != ".gbpl")
-                {
-                    Console.WriteLine("Warning '{0}': Should only pass filename with extension .gbpl. Input must be GBoogie programs.", file);
-                }
+              }
             }
 
             parseProcessOutput();
+
+          }
+          catch (Exception e) {
+            Console.Error.WriteLine("GPUVerify: an internal error has occurred.  Please report this problem to the development team");
+            Environment.Exit(1);
+          }
         }
 
         public static Program parse(out ResolutionContext rc)
@@ -180,7 +184,7 @@ namespace GPUVerify
                 }
                 catch (IOException e)
                 {
-                    Console.WriteLine("Error opening file \"{0}\": {1}", bplFileName, e.Message);
+                    Console.WriteLine("GPUVerify: error opening file \"{0}\": {1}", bplFileName, e.Message);
                     okay = false;
                     continue;
                 }
