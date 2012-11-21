@@ -1,6 +1,6 @@
 @echo off
 
-set INSTALL_DIR=C:\Temp\NewGPUVerifyInstall
+set INSTALL_DIR=C:\temp\CharlesDemo
 
 set LIBCLC_DIR=C:\prog\libclc
 set BUGLE_DIR=C:\prog\bugle
@@ -9,7 +9,7 @@ set LLVM_BUILD_DIR=C:\prog\llvm-build
 set LLVM_BIN_DIR=C:\prog\llvm-build\bin\Release
 set GPUVERIFY_DIR=C:\prog\GPUVerify
 set GPUVERIFY_VCGEN_BIN_DIR=C:\prog\GPUVerify\GPUVerify\bin\Debug
-set Z3_BIN_DIR="C:\Program Files (x86)\Microsoft Research Temp\Z3-4.0\bin"
+set Z3_BIN_DIR="C:\Program Files (x86)\Microsoft Research\Z3-4.0\bin"
 
 md %INSTALL_DIR%
 
@@ -23,9 +23,8 @@ xcopy /Y /E /I %BUGLE_DIR%\include-blang %INSTALL_DIR%\bugle\include-blang
 xcopy /Y /E /I %LLVM_BUILD_DIR%\bin\lib %INSTALL_DIR%\lib
 
 
-
-xcopy /Y GPUVerify.py %INSTALL_DIR%
-xcopy /Y GPUVerify.bat %INSTALL_DIR%
+xcopy /Y %~dp0GPUVerify.py %INSTALL_DIR%
+xcopy /Y %~dp0GPUVerify.bat %INSTALL_DIR%
 
 md %INSTALL_DIR%\bin
 
