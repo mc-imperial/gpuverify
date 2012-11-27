@@ -106,9 +106,9 @@ clangOpenCLDefines = [ "cl_khr_fp64",
                        "__OPENCL_VERSION__"
                      ]
 
-clangCUDAOptions = []
+clangCUDAOptions = [ "-Xclang", "-fcuda-is-device" ]
 clangCUDAIncludes = []
-clangCUDADefines = []
+clangCUDADefines = [ "__CUDA_ARCH__" ]
 
 class ClangOptions(ToolOptions):
   def __init__(self):
@@ -275,12 +275,25 @@ def processOpenCLOptions(opts, args):
       CommandLineOptions.numGroups = processVector(a)
 
   if CommandLineOptions.groupSize == []:
-    GPUVerifyError("work group size must be specified via --local_size==...", ErrorCodes.COMMAND_LINE_ERROR)
+    GPUVerifyError("work group size must be specified via --local_size=...", ErrorCodes.COMMAND_LINE_ERROR)
   if CommandLineOptions.numGroups == []:
     GPUVerifyError("number of work groups must be specified via --num_groups=...", ErrorCodes.COMMAND_LINE_ERROR)
 
 def processCUDAOptions(opts, args):
-  return
+  for o, a in opts:
+    if o == "--blockDim":
+      if CommandLineOptions.groupSize != []:
+        GPUVerifyError("illegal to define blockDim multiple times", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.groupSize = processVector(a)
+    if o == "--gridDim":
+      if CommandLineOptions.numGroups != []:
+        raise Exception("illegal to define gridDim multiple times", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.numGroups = processVector(a)
+
+  if CommandLineOptions.groupSize == []:
+    GPUVerifyError("thread block size must be specified via --blockDim=...", ErrorCodes.COMMAND_LINE_ERROR)
+  if CommandLineOptions.numGroups == []:
+    GPUVerifyError("grid size must be specified via --gridDim=...", ErrorCodes.COMMAND_LINE_ERROR)
 
 def main(argv=None):
   if argv is None:
@@ -323,7 +336,13 @@ def main(argv=None):
 
   else:
     assert(ext == ".cu")
-    GPUVerifyError("support for CUDA not yet complete; please contact the developers", ErrorCodes.COMMAND_LINE_ERROR)
+    clangOptions.options += clangCUDAOptions
+    clangOptions.includes += clangCUDAIncludes
+    clangOptions.defines += clangCUDADefines
+    clangOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
+    clangOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+    clangOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+    clangOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
   clangOptions.options.append("-o")
   clangOptions.options.append(filename + ".bc")
@@ -346,7 +365,9 @@ def main(argv=None):
     print optStdout
 
   bugleOptions = ToolOptions(bugleBinDir + "/bugle");
+
   bugleOptions.options += [ "-l", "cl" if ext == ".cl" else "cu", "-o", filename + ".gbpl", filename + ".opt.bc"]
+
   Verbose("Running bugle")
   bugleStdout, bugleStderr, bugleReturn = run(bugleOptions.makeCommand())
   if bugleReturn != 0:
