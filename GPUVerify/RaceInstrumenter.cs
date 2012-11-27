@@ -452,7 +452,7 @@ namespace GPUVerify {
 
     private void TryWriteSourceLocToFile() {
       if (QKeyValue.FindStringAttribute(SourceLocationAttributes, "fname") != null) {
-        writeSourceLocToFile(SourceLocationAttributes, Path.GetFileNameWithoutExtension(CommandLineOptions.inputFiles[0]) + ".loc");
+        writeSourceLocToFile(SourceLocationAttributes, GPUVerifier.GetSourceLocFileName());
       }
     }
 

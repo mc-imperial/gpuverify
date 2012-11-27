@@ -1170,8 +1170,20 @@ namespace Microsoft.Boogie
 
         foreach (Block b in error.Trace) {
           foreach (Cmd c in b.Cmds) {
-            if (b.tok.val.Equals("_LOG_" + AccessType) && c.ToString().Contains(AccessType + "_SOURCE_")) {
-              sourceVarName = Regex.Split(c.ToString(), " ")[1];
+            // We are looking for an assume equating the SOURCE variable with something
+            if (c is AssumeCmd) {
+              var a = c as AssumeCmd;
+              if (a.Expr is NAryExpr && (((NAryExpr)a.Expr).Fun is BinaryOperator) &&
+                ((BinaryOperator)((NAryExpr)a.Expr).Fun).Op == BinaryOperator.Opcode.Eq) {
+                  var LHS = (a.Expr as NAryExpr).Args[0];
+                  var RHS = (a.Expr as NAryExpr).Args[1];
+                  if (LHS is IdentifierExpr && ((IdentifierExpr)LHS).Decl.Name.StartsWith("_" + AccessType + "_SOURCE_")) {
+                    if (RHS.ToString().Contains("_LOG_" + AccessType + "_")) {
+                      sourceVarName = ((IdentifierExpr)LHS).Decl.Name;
+                      break;
+                    }
+                  }
+              }
             }
           }
         }

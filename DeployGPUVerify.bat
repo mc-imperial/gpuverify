@@ -1,6 +1,6 @@
 @echo off
 
-set INSTALL_DIR=C:\temp\CharlesDemo
+set INSTALL_DIR=C:\prog\GPUVerifyInstall
 
 set LIBCLC_DIR=C:\prog\libclc
 set BUGLE_DIR=C:\prog\bugle

@@ -331,9 +331,23 @@ namespace GPUVerify
                 UniformityAnalyser.MergeBlocksIntoPredecessors(Program, impl, uniformityAnalyser);
         }
 
+        internal static string GetSourceLocFileName() {
+          return GetFilenamePathPrefix() + GetFileName() + ".loc";
+        }
+
+        private static string GetFileName() {
+          return Path.GetFileNameWithoutExtension(CommandLineOptions.inputFiles[0]);
+        }
+
+        private static string GetFilenamePathPrefix() {
+          string directoryName = Path.GetDirectoryName(CommandLineOptions.inputFiles[0]);
+          return ((!String.IsNullOrEmpty(directoryName) && directoryName != ".") ? (directoryName + Path.DirectorySeparatorChar) : "");
+        }
+
+
         internal void doit()
         {
-            File.Delete(Path.GetFileNameWithoutExtension(CommandLineOptions.inputFiles[0]) + ".loc"); 
+            File.Delete(GetSourceLocFileName()); 
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
             if (CommandLineOptions.ShowStages)
