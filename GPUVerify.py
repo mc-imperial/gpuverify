@@ -269,10 +269,16 @@ def processOpenCLOptions(opts, args):
       if CommandLineOptions.groupSize != []:
         GPUVerifyError("illegal to define local_size multiple times", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.groupSize = processVector(a)
+      for i in range(0, len(CommandLineOptions.groupSize)):
+        if CommandLineOptions.groupSize[i] <= 0:
+          GPUVerifyError("values specified for local_size dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--num_groups":
       if CommandLineOptions.numGroups != []:
         raise Exception("illegal to define num_groups multiple times", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.numGroups = processVector(a)
+      for i in range(0, len(CommandLineOptions.numGroups)):
+        if CommandLineOptions.numGroups[i] <= 0:
+          GPUVerifyError("values specified for num_groups dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
 
   if CommandLineOptions.groupSize == []:
     GPUVerifyError("work group size must be specified via --local_size=...", ErrorCodes.COMMAND_LINE_ERROR)
@@ -285,10 +291,16 @@ def processCUDAOptions(opts, args):
       if CommandLineOptions.groupSize != []:
         GPUVerifyError("illegal to define blockDim multiple times", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.groupSize = processVector(a)
+      for i in range(0, len(CommandLineOptions.groupSize)):
+        if CommandLineOptions.groupSize[i] <= 0:
+          GPUVerifyError("values specified for blockDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--gridDim":
       if CommandLineOptions.numGroups != []:
         raise Exception("illegal to define gridDim multiple times", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.numGroups = processVector(a)
+      for i in range(0, len(CommandLineOptions.numGroups)):
+        if CommandLineOptions.numGroups[i] <= 0:
+          GPUVerifyError("values specified for gridDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
 
   if CommandLineOptions.groupSize == []:
     GPUVerifyError("thread block size must be specified via --blockDim=...", ErrorCodes.COMMAND_LINE_ERROR)

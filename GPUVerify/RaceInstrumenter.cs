@@ -776,8 +776,9 @@ namespace GPUVerify {
         WriteReadGuard = Expr.Not(WriteReadGuard);
 
         Requires NoWriteReadRaceRequires = new Requires(false, WriteReadGuard);
-        QKeyValue kv = new QKeyValue(Token.NoToken, "write_read", new List<object>(), null);
-        NoWriteReadRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), kv);
+        NoWriteReadRaceRequires.Attributes = new QKeyValue(Token.NoToken, "write_read", new List<object>(), null);
+        NoWriteReadRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), NoWriteReadRaceRequires.Attributes);
+        NoWriteReadRaceRequires.Attributes = new QKeyValue(Token.NoToken, "array", new List<object>() { v.Name }, NoWriteReadRaceRequires.Attributes);
         CheckAccessProcedure.Requires.Add(NoWriteReadRaceRequires);
       }
       else {
@@ -805,8 +806,9 @@ namespace GPUVerify {
 
         WriteWriteGuard = Expr.Not(WriteWriteGuard);
         Requires NoWriteWriteRaceRequires = new Requires(false, WriteWriteGuard);
-        QKeyValue kv = new QKeyValue(Token.NoToken, "write_write", new List<object>(), null);
-        NoWriteWriteRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), kv);
+        NoWriteWriteRaceRequires.Attributes = new QKeyValue(Token.NoToken, "write_write", new List<object>(), null);
+        NoWriteWriteRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), NoWriteWriteRaceRequires.Attributes);
+        NoWriteWriteRaceRequires.Attributes = new QKeyValue(Token.NoToken, "array", new List<object>() { v.Name }, NoWriteWriteRaceRequires.Attributes);
         CheckAccessProcedure.Requires.Add(NoWriteWriteRaceRequires);
 
         // Check write by thread 2 does not conflict with read by thread 1
@@ -830,8 +832,9 @@ namespace GPUVerify {
 
         ReadWriteGuard = Expr.Not(ReadWriteGuard);
         Requires NoReadWriteRaceRequires = new Requires(false, ReadWriteGuard);
-        kv = new QKeyValue(Token.NoToken, "read_write", new List<object>(), null);
-        NoReadWriteRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), kv);
+        NoReadWriteRaceRequires.Attributes = new QKeyValue(Token.NoToken, "read_write", new List<object>(), null);
+        NoReadWriteRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), NoReadWriteRaceRequires.Attributes);
+        NoReadWriteRaceRequires.Attributes = new QKeyValue(Token.NoToken, "array", new List<object>() { v.Name }, NoReadWriteRaceRequires.Attributes);
         CheckAccessProcedure.Requires.Add(NoReadWriteRaceRequires);
 
       }

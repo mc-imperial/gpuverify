@@ -582,14 +582,14 @@ namespace Microsoft.Boogie
 
                   if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read"))
                   {
-                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "WRITE");
+                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "WRITE", QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
                     threadOneFailAccess = "WRITE";
                     threadTwoFailAccess = "READ";
                     ReportRace(err.FailingCall, err.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WR);
                   }
                   else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write"))
                   {
-                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "READ");
+                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "READ", QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
                     threadOneFailAccess = "READ";
                     threadTwoFailAccess = "WRITE";
                     ReportRace(err.FailingCall, err.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RW);
@@ -597,7 +597,7 @@ namespace Microsoft.Boogie
                   }
                   else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write"))
                   {
-                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "WRITE");
+                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "WRITE", QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
                     threadOneFailAccess = "WRITE";
                     threadTwoFailAccess = "WRITE";
                     ReportRace(err.FailingCall, err.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WW);
@@ -633,15 +633,15 @@ namespace Microsoft.Boogie
                 AssertCounterexample err = (AssertCounterexample)error;
                 if (err.FailingAssert is LoopInitAssertCmd)
                 {
-                  ReportInvariantEntryFailure(err.FailingAssert);
+                  ReportInvariantEntryFailure(err);
                 }
                 else if (err.FailingAssert is LoopInvMaintainedAssertCmd)
                 {
-                  ReportInvariantMaintedFailure(err.FailingAssert);
+                  ReportInvariantMaintedFailure(err);
                 }
                 else
                 {
-                  ReportFailingAssert(err.FailingAssert);
+                  ReportFailingAssert(err);
                 }
               }
               errorCount++;
@@ -1163,7 +1163,7 @@ namespace Microsoft.Boogie
       return linekv;
     }
 
-    static QKeyValue GetSourceLocInfo(Counterexample error, string AccessType) {
+    static QKeyValue GetSourceLocInfo(Counterexample error, string AccessType, string ArrayName) {
       try {
         string sourceVarName = null;
         int sourceLocLineNo = -1;
@@ -1177,8 +1177,8 @@ namespace Microsoft.Boogie
                 ((BinaryOperator)((NAryExpr)a.Expr).Fun).Op == BinaryOperator.Opcode.Eq) {
                   var LHS = (a.Expr as NAryExpr).Args[0];
                   var RHS = (a.Expr as NAryExpr).Args[1];
-                  if (LHS is IdentifierExpr && ((IdentifierExpr)LHS).Decl.Name.StartsWith("_" + AccessType + "_SOURCE_")) {
-                    if (RHS.ToString().Contains("_LOG_" + AccessType + "_")) {
+                  if (LHS is IdentifierExpr && ((IdentifierExpr)LHS).Decl.Name.StartsWith("_" + AccessType + "_SOURCE_" + ArrayName)) {
+                    if (RHS.ToString().Contains("_LOG_" + AccessType + "_" + ArrayName)) {
                       sourceVarName = ((IdentifierExpr)LHS).Decl.Name;
                       break;
                     }
@@ -1187,6 +1187,7 @@ namespace Microsoft.Boogie
             }
           }
         }
+
         if (sourceVarName != null) {
           Model.Func f = error.Model.TryGetFunc(sourceVarName);
           if (f != null) {
@@ -1285,29 +1286,36 @@ namespace Microsoft.Boogie
       */
     }
 
-    private static void ReportFailingAssert(Absy node)
-    {
-      Console.WriteLine("");
-      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
+    private static void ReportThreadSpecificFailure(AssertCounterexample err, string messagePrefix) {
+      string thread1, thread2, group1, group2;
+      GetThreadsAndGroupsFromModel(err.Model, out thread1, out thread2, out group1, out group2, true);
 
-      ErrorWriteLine(sli.ToString(), "this assertion might not hold", ErrorMsgType.Error);
+      AssertCmd failingAssert = err.FailingAssert;
+
+      Console.WriteLine("");
+      var sli = new SourceLocationInfo(GetAttributes(failingAssert), failingAssert.tok);
+
+      int relevantThread = QKeyValue.FindIntAttribute(GetAttributes(failingAssert), "thread", -1);
+      Debug.Assert(relevantThread == 1 || relevantThread == 2);
+
+      ErrorWriteLine(sli.ToString(), messagePrefix + " for thread " +
+        (relevantThread == 1 ? thread1 : thread2) + " group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
       ErrorWriteLine(sli.FetchCodeLine());
     }
 
-    private static void ReportInvariantMaintedFailure(Absy node)
+    private static void ReportFailingAssert(AssertCounterexample err)
     {
-      Console.WriteLine("");
-      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
-      ErrorWriteLine(sli.ToString(), "loop invariant might not be maintained by the loop", ErrorMsgType.Error);
-      ErrorWriteLine(sli.FetchCodeLine());
+      ReportThreadSpecificFailure(err, "this assertion might not hold");
     }
 
-    private static void ReportInvariantEntryFailure(Absy node)
+    private static void ReportInvariantMaintedFailure(AssertCounterexample err)
     {
-      Console.WriteLine("");
-      SourceLocationInfo sli = new SourceLocationInfo(GetAttributes(node), node.tok);
-      ErrorWriteLine(sli.ToString(), "loop invariant might not hold on entry", ErrorMsgType.Error);
-      ErrorWriteLine(sli.FetchCodeLine());
+      ReportThreadSpecificFailure(err, "loop invariant might not be maintained by the loop");
+    }
+
+    private static void ReportInvariantEntryFailure(AssertCounterexample err)
+    {
+      ReportThreadSpecificFailure(err, "loop invariant might not hold on entry");
     }
 
     private static void ReportEnsuresFailure(Absy node)
