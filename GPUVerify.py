@@ -118,6 +118,8 @@ class ClangOptions(ToolOptions):
               [("-I" + str(o)) for o in self.includes] +
               [("-D" + str(o)) for o in self.defines])
 
+clangOptions = ClangOptions();
+
 
 def showHelpAndExit():
   print "OVERVIEW: GPUVerify driver"
@@ -309,8 +311,6 @@ def main(argv=None):
     argv = sys.argv
   progname = argv[0]
 
-  clangOptions = ClangOptions();
-
   try:
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
              ['help', 'findbugs', 'verify', 'noinfer', 'verbose',
@@ -357,7 +357,11 @@ def main(argv=None):
   clangOptions.options.append(filename + ".bc")
   clangOptions.options.append(filename + ext)
   Verbose("Running clang")
-  clangStdout, clangStderr, clangReturn = run(clangOptions.makeCommand())
+  try:
+    clangStdout, clangStderr, clangReturn = run(clangOptions.makeCommand())
+  except WindowsError as windowsError:
+    print "Error while invoking clang: " + str(windowsError)
+    exit(ErrorCodes.CLANG_ERROR)
   if clangReturn != 0:
     print clangStderr
     exit(ErrorCodes.CLANG_ERROR)

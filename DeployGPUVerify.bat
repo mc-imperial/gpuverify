@@ -4,7 +4,7 @@ set INSTALL_DIR=C:\prog\GPUVerifyInstall
 
 set LIBCLC_DIR=C:\prog\libclc
 set BUGLE_DIR=C:\prog\bugle
-set BUGLE_BIN_DIR=C:\prog\BugleBuild\Debug
+set BUGLE_BIN_DIR=C:\prog\BugleBuild\Release
 set LLVM_BUILD_DIR=C:\prog\llvm-build
 set LLVM_BIN_DIR=C:\prog\llvm-build\bin\Release
 set GPUVERIFY_DIR=C:\prog\GPUVerify

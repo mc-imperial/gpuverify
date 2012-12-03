@@ -1164,41 +1164,42 @@ namespace Microsoft.Boogie
     }
 
     static QKeyValue GetSourceLocInfo(Counterexample error, string AccessType, string ArrayName) {
+      List<int> sourceLocLineNos = new List<int>();
+      string SourceVarPrefix = "_" + AccessType + "_SOURCE_" + ArrayName + "$1";
+      Model.Func f = error.Model.TryGetFunc(SourceVarPrefix);
+      if (f != null) {
+        try {
+          int temp = f.GetConstant().AsInt();
+          sourceLocLineNos.Add(temp);
+        } catch(System.OverflowException) {
+
+        }
+      }
+      int SSAIndex = 0;
+      do {
+        f = error.Model.TryGetFunc(SourceVarPrefix + "@" + SSAIndex);
+        if (f != null) {
+          try {
+            int temp = f.GetConstant().AsInt();
+            sourceLocLineNos.Add(temp);
+          }
+          catch (System.OverflowException) {
+
+          }
+        }
+        SSAIndex++;
+      } while (f != null);
+
       try {
-        string sourceVarName = null;
-        int sourceLocLineNo = -1;
-
-        foreach (Block b in error.Trace) {
-          foreach (Cmd c in b.Cmds) {
-            // We are looking for an assume equating the SOURCE variable with something
-            if (c is AssumeCmd) {
-              var a = c as AssumeCmd;
-              if (a.Expr is NAryExpr && (((NAryExpr)a.Expr).Fun is BinaryOperator) &&
-                ((BinaryOperator)((NAryExpr)a.Expr).Fun).Op == BinaryOperator.Opcode.Eq) {
-                  var LHS = (a.Expr as NAryExpr).Args[0];
-                  var RHS = (a.Expr as NAryExpr).Args[1];
-                  if (LHS is IdentifierExpr && ((IdentifierExpr)LHS).Decl.Name.StartsWith("_" + AccessType + "_SOURCE_" + ArrayName)) {
-                    if (RHS.ToString().Contains("_LOG_" + AccessType + "_" + ArrayName)) {
-                      sourceVarName = ((IdentifierExpr)LHS).Decl.Name;
-                      break;
-                    }
-                  }
-              }
+        int index = sourceLocLineNos.Count - 1;
+        while(index >= 0) {
+          if (sourceLocLineNos[index] > 0) {
+            // TODO: Make lines in .loc file be indexed from 1 for consistency.
+            string fileLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), sourceLocLineNos[index] + 1);
+            if(fileLine.Equals("<unknown line of code>")) {
+              index--;
+              continue;
             }
-          }
-        }
-
-        if (sourceVarName != null) {
-          Model.Func f = error.Model.TryGetFunc(sourceVarName);
-          if (f != null) {
-            sourceLocLineNo = f.GetConstant().AsInt();
-          }
-        }
-
-        if (sourceLocLineNo > 0) {
-          // TODO: Make lines in .loc file be indexed from 1 for consistency.
-          string fileLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), sourceLocLineNo + 1);
-          if (fileLine != null) {
             string[] slocTokens = Regex.Split(fileLine, "#");
             return CreateSourceLocQKV(
                     System.Convert.ToInt32(slocTokens[0]),
@@ -1206,9 +1207,6 @@ namespace Microsoft.Boogie
                     slocTokens[2],
                     slocTokens[3]);
           }
-        }
-        else {
-          return null;
         }
         return null;
       }
