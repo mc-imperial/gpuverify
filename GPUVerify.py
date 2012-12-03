@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 
-"""
-Generate a prefix sum for a given array length [N]
-"""
-
 import getopt
 import sys
 import os
@@ -87,8 +83,9 @@ class ToolOptions(object):
 
 """ Options to be passed to 'clang' when processing a kernel """
 
-clangCoreOptions = [ "-ccc-host-triple", "nvptx--bugle",
+clangCoreOptions = [ "-target", "nvptx--bugle",
                      "-g",
+                     "-gcolumn-info",
                      "-emit-llvm",
                      "-c" ]
 clangCoreIncludes = [ bugleDir + "/include-blang" ]

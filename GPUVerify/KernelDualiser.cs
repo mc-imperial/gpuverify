@@ -470,7 +470,11 @@ namespace GPUVerify {
         return new VariableDualiser(Thread, Uni, ProcName).VisitIdentifierExpr(node);
       }
 
-      Debug.Assert(false);
+      Console.WriteLine("Expression " + node + " is not valid as part of a barrier invariant: it cannot be instantiated by arbitrary threads.");
+      Console.WriteLine("Check that it is not a thread local variable, or a thread local (rather than __local or __global) array.");
+      Console.WriteLine("In particular, if you have a local variable called tid, which you initialise to e.g. get_local_id(0), this will not work:");
+      Console.WriteLine("  you need to use get_local_id(0) directly.");
+      Environment.Exit(1);
       return null;
     }
 
