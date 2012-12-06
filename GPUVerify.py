@@ -60,7 +60,7 @@ class ErrorCodes(object):
   CLANG_ERROR = 2
   OPT_ERROR = 3
   BUGLE_ERROR = 4
-  GPUVERFYVCGEN_ERROR = 5
+  GPUVERIFYVCGEN_ERROR = 5
   BOOGIE_ERROR = 6
 
 
@@ -107,19 +107,18 @@ clangCUDAOptions = [ "-Xclang", "-fcuda-is-device" ]
 clangCUDAIncludes = []
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
-class ClangOptions(ToolOptions):
+class ClangCommand(ToolOptions):
   def __init__(self):
-    super(ClangOptions, self).__init__(llvmBinDir + "/clang")
+    super(ClangCommand, self).__init__(llvmBinDir + "/clang")
     self.options = clangCoreOptions
     self.includes = clangCoreIncludes
     self.defines = clangCoreDefines
   def makeCommand(self):
-    return (super(ClangOptions, self).makeCommand() + 
+    return (super(ClangCommand, self).makeCommand() + 
               [("-I" + str(o)) for o in self.includes] +
               [("-D" + str(o)) for o in self.defines])
 
-clangOptions = ClangOptions();
-
+clangCmd = ClangCommand();
 
 def showHelpAndExit():
   print "OVERVIEW: GPUVerify driver"
@@ -213,9 +212,9 @@ def showHelpIfRequested(opts):
 def processGeneralOptions(opts, args):
   for o, a in opts:
     if o == "-D":
-      clangOptions.defines.append(a)
+      clangCmd.defines.append(a)
     if o == "-I":
-      clangOptions.includes.append(a)
+      clangCmd.includes.append(a)
     if o == "--findbugs":
       CommandLineOptions.mode = AnalysisMode.FINDBUGS
     if o == "--verify":
@@ -335,30 +334,30 @@ def main(argv=None):
   filename, ext = os.path.splitext(args[0])
 
   if ext == ".cl":
-    clangOptions.options += clangOpenCLOptions
-    clangOptions.includes += clangOpenCLIncludes
-    clangOptions.defines += clangOpenCLDefines
-    clangOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
-    clangOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-    clangOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-    clangOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    clangCmd.options += clangOpenCLOptions
+    clangCmd.includes += clangOpenCLIncludes
+    clangCmd.defines += clangOpenCLDefines
+    clangCmd.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
+    clangCmd.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+    clangCmd.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+    clangCmd.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
   else:
     assert(ext == ".cu")
-    clangOptions.options += clangCUDAOptions
-    clangOptions.includes += clangCUDAIncludes
-    clangOptions.defines += clangCUDADefines
-    clangOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
-    clangOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-    clangOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-    clangOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    clangCmd.options += clangCUDAOptions
+    clangCmd.includes += clangCUDAIncludes
+    clangCmd.defines += clangCUDADefines
+    clangCmd.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
+    clangCmd.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+    clangCmd.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+    clangCmd.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
-  clangOptions.options.append("-o")
-  clangOptions.options.append(filename + ".bc")
-  clangOptions.options.append(filename + ext)
+  clangCmd.options.append("-o")
+  clangCmd.options.append(filename + ".bc")
+  clangCmd.options.append(filename + ext)
   Verbose("Running clang")
   try:
-    clangStdout, clangStderr, clangReturn = run(clangOptions.makeCommand())
+    clangStdout, clangStderr, clangReturn = run(clangCmd.makeCommand())
   except WindowsError as windowsError:
     print "Error while invoking clang: " + str(windowsError)
     exit(ErrorCodes.CLANG_ERROR)
@@ -371,9 +370,15 @@ def main(argv=None):
   optOptions = ToolOptions(llvmBinDir + "/opt");
   optOptions.options += [ "-mem2reg", "-globaldce", "-o", filename + ".opt.bc", filename + ".bc" ]
   Verbose("Running opt")
-  optStdout, optStderr, optReturn = run(optOptions.makeCommand())
+
+  try:
+    optStdout, optStderr, optReturn = run(optOptions.makeCommand())
+  except WindowsError as windowsError:
+    print "Error while invoking opt: " + str(windowsError)
+    exit(ErrorCodes.OPT_ERROR)
   if optReturn != 0:
-    raise Exception(optStderr)
+    print optStderr
+    exit(ErrorCodes.OPT_ERROR)
   if CommandLineOptions.verbose:
     print optStdout
 
@@ -382,9 +387,14 @@ def main(argv=None):
   bugleOptions.options += [ "-l", "cl" if ext == ".cl" else "cu", "-o", filename + ".gbpl", filename + ".opt.bc"]
 
   Verbose("Running bugle")
-  bugleStdout, bugleStderr, bugleReturn = run(bugleOptions.makeCommand())
+  try:
+    bugleStdout, bugleStderr, bugleReturn = run(bugleOptions.makeCommand())
+  except WindowsError as windowsError:
+    print "Error while invoking bugle: " + str(windowsError)
+    exit(ErrorCodes.BUGLE_ERROR)
   if bugleReturn != 0:
-    raise Exception(bugleStderr)
+    print bugleStderr
+    exit(ErrorCodes.BUGLE_ERROR)
   if CommandLineOptions.verbose:
     print bugleStdout
 
@@ -413,10 +423,14 @@ def main(argv=None):
   gpuVerifyVCGenOptions.options += CommandLineOptions.vcgenExtraOptions
 
   Verbose("Running gpuverifyvcgen")
-  gpuVerifyVCGenStdout, gpuVerifyVCGenStderr, gpuVerifyVCGenReturn = run(gpuVerifyVCGenOptions.makeCommand())
+  try:
+    gpuVerifyVCGenStdout, gpuVerifyVCGenStderr, gpuVerifyVCGenReturn = run(gpuVerifyVCGenOptions.makeCommand())
+  except WindowsError as windowsError:
+    print "Error while invoking GPUVerifyVCGen: " + str(windowsError)
+    exit(ErrorCodes.GPUVERIFYVCGEN_ERROR)
   if gpuVerifyVCGenReturn != 0:
     print gpuVerifyVCGenStdout + gpuVerifyVCGenStderr
-    exit(ErrorCodes.GPUVERFYVCGEN_ERROR)
+    exit(ErrorCodes.GPUVERIFYVCGEN_ERROR)
   if CommandLineOptions.verbose:
     print gpuVerifyVCGenStdout
 
@@ -440,7 +454,11 @@ def main(argv=None):
     gpuVerifyBoogieDriverOptions.options += [ "/contractInfer" ]
 
   Verbose("Running gpuverifyboogiedriver")
-  gpuVerifyBoogieDriverStdout, gpuVerifyBoogieDriverStderr, gpuVerifyBoogieDriverReturn = run(gpuVerifyBoogieDriverOptions.makeCommand())
+  try:
+    gpuVerifyBoogieDriverStdout, gpuVerifyBoogieDriverStderr, gpuVerifyBoogieDriverReturn = run(gpuVerifyBoogieDriverOptions.makeCommand())
+  except WindowsError as windowsError:
+    print "Error while invoking GPUVerifyBoogieDriver: " + str(windowsError)
+    exit(ErrorCodes.BOOGIE_ERROR)
   if gpuVerifyBoogieDriverReturn != 0:
     print gpuVerifyBoogieDriverStderr
     exit(ErrorCodes.BOOGIE_ERROR)
