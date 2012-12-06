@@ -111,6 +111,9 @@ def RunTool(ToolName, Command, ErrorCode):
   Verbose("Running " + ToolName)
   try:
     stdout, stderr, returnCode = run(Command)
+  except OSError as osError:
+    print "Error while invoking " + ToolName + ": " + str(osError)
+    exit(ErrorCode)
   except WindowsError as windowsError:
     print "Error while invoking " + ToolName + ": " + str(windowsError)
     exit(ErrorCode)
@@ -420,13 +423,15 @@ def main(argv=None):
 
   """ RUN GPUVERIFYVCGEN """
   RunTool("gpuverifyvcgen",
-          [gpuVerifyVCGenBinDir + "/GPUVerifyVCGen"] +
+          (["mono"] if os.name == "posix" else []) +
+          [gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
           CommandLineOptions.gpuVerifyVCGenOptions,
           ErrorCodes.GPUVERIFYVCGEN_ERROR)
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
   RunTool("gpuverifyboogiedriver",
-          [gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver"] +
+          (["mono"] if os.name == "posix" else []) +
+          [gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver.exe"] +
           CommandLineOptions.gpuVerifyBoogieDriverOptions,
           ErrorCodes.BOOGIE_ERROR)
 

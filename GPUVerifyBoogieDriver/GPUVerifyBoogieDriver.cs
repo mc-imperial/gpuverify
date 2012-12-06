@@ -121,8 +121,9 @@ namespace Microsoft.Boogie
 
       }
       catch (Exception e) {
-        Console.Error.WriteLine("GPUVerify: an internal error has occurred.  Please report this problem to the development team");
-        Environment.Exit(1);
+        throw e;
+        //Console.Error.WriteLine("GPUVerify: an internal error has occurred.  Please report this problem to the development team");
+        //Environment.Exit(1);
       }
     }
 
