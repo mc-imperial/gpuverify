@@ -6,7 +6,7 @@ BUGLE_DIR=/vol/multicore/afd/bugle
 BUGLE_BIN_DIR=/vol/multicore/afd/bugle-build
 LLVM_BUILD_DIR=/vol/multicore/afd/llvm-build
 LLVM_BIN_DIR=/vol/multicore/afd/llvm-build/Release+Asserts/bin
-GPUVERIFY_VCGEN_BIN_DIR=/vol/multicore/afd/gpuverify/GPUVerify/bin/Release
+GPUVERIFY_VCGEN_BIN_DIR=/vol/multicore/afd/gpuverify/GPUVerifyVCGen/bin/Release
 GPUVERIFY_BOOGIE_DRIVER_BIN_DIR=/vol/multicore/afd/gpuverify/GPUVerifyBoogieDriver/bin/Release
 Z3_BIN_DIR=/vol/multicore/afd/z3/bin
 
@@ -21,6 +21,7 @@ cp -r $BUGLE_DIR/include-blang $INSTALL_DIR/bugle/include-blang
 cp -r $LLVM_BUILD_DIR/Release+Asserts/lib $INSTALL_DIR/lib
 
 cp GPUVerify.py $INSTALL_DIR
+cp gpuverify $INSTALL_DIR
 
 mkdir $INSTALL_DIR/bin
 

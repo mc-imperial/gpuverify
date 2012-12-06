@@ -1,1 +1,0 @@
-GPUVerifyBoogieDriver /typeEncoding:m /doModSetAnalysis /proverOpt:OPTIMIZE_FOR_BV=true /useArrayTheory /z3opt:RELEVANCY=0 /z3opt:SOLVER=true /doNotUseLabels /noinfer /enhancedErrorMessages:1 /errorLimit:20 %*

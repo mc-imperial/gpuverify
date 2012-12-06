@@ -279,14 +279,20 @@ def processOpenCLOptions(opts, args):
     if o == "--local_size":
       if CommandLineOptions.groupSize != []:
         GPUVerifyError("illegal to define local_size multiple times", ErrorCodes.COMMAND_LINE_ERROR)
-      CommandLineOptions.groupSize = processVector(a)
+      try:
+        CommandLineOptions.groupSize = processVector(a)
+      except ValueError:
+        GPUVerifyError("argument to --local_size must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR) 
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
           GPUVerifyError("values specified for local_size dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--num_groups":
       if CommandLineOptions.numGroups != []:
         GPUVerifyError("illegal to define num_groups multiple times", ErrorCodes.COMMAND_LINE_ERROR)
-      CommandLineOptions.numGroups = processVector(a)
+      try:
+        CommandLineOptions.numGroups = processVector(a)
+      except ValueError:
+        GPUVerifyError("argument to --num_groups must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR) 
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for num_groups dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
@@ -301,14 +307,20 @@ def processCUDAOptions(opts, args):
     if o == "--blockDim":
       if CommandLineOptions.groupSize != []:
         GPUVerifyError("illegal to define blockDim multiple times", ErrorCodes.COMMAND_LINE_ERROR)
-      CommandLineOptions.groupSize = processVector(a)
+      try:
+        CommandLineOptions.groupSize = processVector(a)
+      except ValueError:
+        GPUVerifyError("argument to --blockDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR) 
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
           GPUVerifyError("values specified for blockDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--gridDim":
       if CommandLineOptions.numGroups != []:
         GPUVerifyError("illegal to define gridDim multiple times", ErrorCodes.COMMAND_LINE_ERROR)
-      CommandLineOptions.numGroups = processVector(a)
+      try:
+        CommandLineOptions.numGroups = processVector(a)
+      except ValueError:
+        GPUVerifyError("argument to --gridDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR) 
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for gridDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
