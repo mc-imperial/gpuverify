@@ -104,7 +104,10 @@ def run(command):
   if CommandLineOptions.verbose:
     print " ".join(command)
   proc = subprocess.Popen(command, bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-  stdout, stderr = proc.communicate()
+  try:
+    stdout, stderr = proc.communicate()
+  except KeyboardInterrupt:
+    exit(1)
   return stdout, stderr, proc.returncode
 
 def RunTool(ToolName, Command, ErrorCode):

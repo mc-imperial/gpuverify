@@ -9,7 +9,7 @@ set LLVM_BUILD_DIR=C:\prog\llvm-build
 set LLVM_BIN_DIR=C:\prog\llvm-build\bin\Release
 set GPUVERIFY_DIR=C:\prog\GPUVerify
 set GPUVERIFY_VCGEN_BIN_DIR=C:\prog\GPUVerify\GPUVerifyVCGen\bin\Debug
-set Z3_BIN_DIR="C:\Program Files (x86)\Microsoft Research\Z3-4.0\bin"
+set Z3_BIN_DIR="C:\prog\GPUVerify\Binaries"
 
 md %INSTALL_DIR%
 
