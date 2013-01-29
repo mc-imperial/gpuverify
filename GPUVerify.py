@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
+import atexit
 import getopt
-import sys
 import os
-
 import subprocess
+import sys
 import time
 
 bugleDir = sys.path[0] + "/bugle"
@@ -102,6 +102,7 @@ class CommandLineOptions(object):
   stopAtGbpl = False
   stopAtBpl = False
   time = False
+  keepTemps = False
 
 class Timeout(Exception):
     pass
@@ -171,6 +172,7 @@ def showHelpAndExit():
   print "  --clang-opt=...         Specify option to be passed to CLANG"
   print "  --equality-abstraction  Make shared arrays nondeterministic, but consistent between"
   print "                          threads, at barriers"
+  print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
@@ -272,6 +274,8 @@ def processGeneralOptions(opts, args):
       if CommandLineOptions.adversarialAbstraction:
         GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.equalityAbstraction = True
+    if o == "--keep-temps":
+      CommandLineOptions.keepTemps = True
     if o == "--no-loop-predicate-invariants":
       CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
@@ -364,7 +368,7 @@ def main(argv=None):
               'vcgen-opt=', 'boogie-opt=',
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
-              'stop-at-gbpl', 'stop-at-bpl', 'time',
+              'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps'
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -398,13 +402,28 @@ def main(argv=None):
     CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
     CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
+  # Intermediate filenames
+  bcFilename = filename + '.bc'
+  optFilename = filename + '.opt.bc'
+  gbplFilename = filename + '.gbpl'
+  bplFilename = filename + '.bpl'
+  if not CommandLineOptions.keepTemps:
+    def DeleteFile(filename):
+      """ Delete the filename if it exists """
+      try: os.remove(filename)
+      except OSError: pass
+    atexit.register(DeleteFile, bcFilename)
+    atexit.register(DeleteFile, optFilename)
+    if not CommandLineOptions.stopAtGbpl: atexit.register(DeleteFile, gbplFilename)
+    if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, bplFilename)
+
   CommandLineOptions.clangOptions.append("-o")
-  CommandLineOptions.clangOptions.append(filename + ".bc")
+  CommandLineOptions.clangOptions.append(bcFilename)
   CommandLineOptions.clangOptions.append(filename + ext)
 
-  CommandLineOptions.optOptions += [ "-o", filename + ".opt.bc", filename + ".bc" ]
+  CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
-  CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", filename + ".gbpl", filename + ".opt.bc"]
+  CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
 
   if CommandLineOptions.adversarialAbstraction:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/adversarialAbstraction" ]
@@ -426,13 +445,13 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSourceLocInfer" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
-  CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, filename + ".gbpl" ]
+  CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + bplFilename[:-4], gbplFilename ] #< ignore .bpl suffix
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
   elif CommandLineOptions.inference:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
-  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ filename + ".bpl" ]
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
   """ RUN CLANG """
   RunTool("clang", 
