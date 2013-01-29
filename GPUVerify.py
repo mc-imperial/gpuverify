@@ -103,6 +103,7 @@ class CommandLineOptions(object):
   stopAtBpl = False
   time = False
   keepTemps = False
+  noThread2Asserts = False
 
 class Timeout(Exception):
     pass
@@ -177,6 +178,7 @@ def showHelpAndExit():
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
   print "  --no-source-loc-infer   Turn off inference of source location information"
+  print "  --no-thread2-asserts    Turn off assertions for second thread"
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
@@ -296,6 +298,9 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.stopAtBpl = True
     if o == "--time":
       CommandLineOptions.time = True
+    if o == "--no-thread2-asserts":
+      CommandLineOptions.noThread2Asserts = True
+      CommandLineOptions.onlyDivergence = True
 
 
 def processOpenCLOptions(opts, args):
@@ -368,7 +373,8 @@ def main(argv=None):
               'vcgen-opt=', 'boogie-opt=',
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
-              'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps'
+              'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
+              'no-thread2-asserts',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -481,6 +487,15 @@ def main(argv=None):
           [gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
           CommandLineOptions.gpuVerifyVCGenOptions,
           ErrorCodes.GPUVERIFYVCGEN_ERROR)
+
+  if CommandLineOptions.noThread2Asserts:
+    f = open(bplFilename)
+    lines = f.readlines()
+    f.close()
+    f = open(bplFilename, 'w')
+    for line in lines:
+      if 'thread 2' not in line: f.write(line)
+    f.close()
 
   if CommandLineOptions.stopAtBpl: return 0
 
