@@ -104,6 +104,7 @@ class CommandLineOptions(object):
   time = False
   keepTemps = False
   noThread2Asserts = False
+  generateSmt2 = False
 
 class Timeout(Exception):
     pass
@@ -173,6 +174,7 @@ def showHelpAndExit():
   print "  --clang-opt=...         Specify option to be passed to CLANG"
   print "  --equality-abstraction  Make shared arrays nondeterministic, but consistent between"
   print "                          threads, at barriers"
+  print "  --gen-smt2              Generate smt2 file"
   print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
@@ -301,6 +303,8 @@ def processGeneralOptions(opts, args):
     if o == "--no-thread2-asserts":
       CommandLineOptions.noThread2Asserts = True
       CommandLineOptions.onlyDivergence = True
+    if o == "--gen-smt2":
+      CommandLineOptions.generateSmt2 = True
 
 
 def processOpenCLOptions(opts, args):
@@ -374,7 +378,7 @@ def main(argv=None):
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
-              'no-thread2-asserts',
+              'no-thread2-asserts', 'gen-smt2',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -457,6 +461,9 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
   elif CommandLineOptions.inference:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
+
+  if CommandLineOptions.generateSmt2:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + filename + ".smt2" ]
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
   """ RUN CLANG """
