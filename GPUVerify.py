@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
+import atexit
 import getopt
-import sys
 import os
-
 import subprocess
+import sys
 import time
 
 bugleDir = sys.path[0] + "/bugle"
@@ -14,6 +14,9 @@ bugleBinDir = sys.path[0] + "/bin"
 gpuVerifyVCGenBinDir = sys.path[0] + "/bin"
 gpuVerifyBoogieDriverBinDir = sys.path[0] + "/bin"
 z3BinDir = sys.path[0] + "/bin"
+
+""" Timing for the toolchain pipeline """
+Timing = []
 
 """ We support three analysis modes """
 class AnalysisMode(object):
@@ -96,6 +99,12 @@ class CommandLineOptions(object):
   noSmartPredication = False
   noSourceLocInfer = False
   noUniformityAnalysis = False
+  stopAtGbpl = False
+  stopAtBpl = False
+  time = False
+  keepTemps = False
+  noThread2Asserts = False
+  generateSmt2 = False
 
 class Timeout(Exception):
     pass
@@ -103,7 +112,9 @@ class Timeout(Exception):
 def run(command):
   if CommandLineOptions.verbose:
     print " ".join(command)
-  proc = subprocess.Popen(command, bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    proc = subprocess.Popen(command)
+  else:
+    proc = subprocess.Popen(command, bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
   try:
     stdout, stderr = proc.communicate()
   except KeyboardInterrupt:
@@ -113,7 +124,9 @@ def run(command):
 def RunTool(ToolName, Command, ErrorCode):
   Verbose("Running " + ToolName)
   try:
+    start = time.time()
     stdout, stderr, returnCode = run(Command)
+    end = time.time()
   except OSError as osError:
     print "Error while invoking " + ToolName + ": " + str(osError)
     exit(ErrorCode)
@@ -121,11 +134,9 @@ def RunTool(ToolName, Command, ErrorCode):
     print "Error while invoking " + ToolName + ": " + str(windowsError)
     exit(ErrorCode)
   if returnCode != 0:
-    print stderr
+    if stderr: print stderr
     exit(ErrorCode)
-  if CommandLineOptions.verbose:
-    print stdout
-    print stderr
+  if CommandLineOptions: Timing.append((ToolName, end-start))
 
 class ErrorCodes(object):
   SUCCESS = 0
@@ -153,6 +164,7 @@ def showHelpAndExit():
   print "  --only-intra-group      Do not check for inter-group races"
   print "  --verify                Run tool in verification mode"
   print "  --verbose               Show commands to run and use verbose output"
+  print "  --time                  Show timing information"
   print ""
   print "ADVANCED OPTIONS:"
   print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
@@ -162,11 +174,16 @@ def showHelpAndExit():
   print "  --clang-opt=...         Specify option to be passed to CLANG"
   print "  --equality-abstraction  Make shared arrays nondeterministic, but consistent between"
   print "                          threads, at barriers"
+  print "  --gen-smt2              Generate smt2 file"
+  print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
   print "  --no-source-loc-infer   Turn off inference of source location information"
+  print "  --no-thread2-asserts    Turn off assertions for second thread"
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
+  print "  --stop-at-gbpl          Stop after generating gbpl"
+  print "  --stop-at-bpl           Stop after generating bpl"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
   print ""
@@ -235,7 +252,7 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.mode = AnalysisMode.FINDBUGS
     if o == "--verify":
       CommandLineOptions.mode = AnalysisMode.VERIFY
-    if o == "--noinfer":
+    if o in ("--noinfer", "--no-infer"):
       CommandLineOptions.inference = False
     if o == "--verbose":
       CommandLineOptions.verbose = True
@@ -261,6 +278,8 @@ def processGeneralOptions(opts, args):
       if CommandLineOptions.adversarialAbstraction:
         GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.equalityAbstraction = True
+    if o == "--keep-temps":
+      CommandLineOptions.keepTemps = True
     if o == "--no-loop-predicate-invariants":
       CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
@@ -275,6 +294,17 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
     if o == "--boogie-opt":
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
+    if o == "--stop-at-gbpl":
+      CommandLineOptions.stopAtGbpl = True
+    if o == "--stop-at-bpl":
+      CommandLineOptions.stopAtBpl = True
+    if o == "--time":
+      CommandLineOptions.time = True
+    if o == "--no-thread2-asserts":
+      CommandLineOptions.noThread2Asserts = True
+      CommandLineOptions.onlyDivergence = True
+    if o == "--gen-smt2":
+      CommandLineOptions.generateSmt2 = True
 
 
 def processOpenCLOptions(opts, args):
@@ -340,13 +370,15 @@ def main(argv=None):
 
   try:
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
-             ['help', 'findbugs', 'verify', 'noinfer', 'verbose',
+             ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose',
               'loop-unwind=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'adversarial-abstraction', 'equality-abstraction', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'boogie-opt=',
               'local_size=', 'num_groups=',
-              'blockDim=', 'gridDim='
+              'blockDim=', 'gridDim=',
+              'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
+              'no-thread2-asserts', 'gen-smt2',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -380,13 +412,28 @@ def main(argv=None):
     CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
     CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
+  # Intermediate filenames
+  bcFilename = filename + '.bc'
+  optFilename = filename + '.opt.bc'
+  gbplFilename = filename + '.gbpl'
+  bplFilename = filename + '.bpl'
+  if not CommandLineOptions.keepTemps:
+    def DeleteFile(filename):
+      """ Delete the filename if it exists """
+      try: os.remove(filename)
+      except OSError: pass
+    atexit.register(DeleteFile, bcFilename)
+    atexit.register(DeleteFile, optFilename)
+    if not CommandLineOptions.stopAtGbpl: atexit.register(DeleteFile, gbplFilename)
+    if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, bplFilename)
+
   CommandLineOptions.clangOptions.append("-o")
-  CommandLineOptions.clangOptions.append(filename + ".bc")
+  CommandLineOptions.clangOptions.append(bcFilename)
   CommandLineOptions.clangOptions.append(filename + ext)
 
-  CommandLineOptions.optOptions += [ "-o", filename + ".opt.bc", filename + ".bc" ]
+  CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
-  CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", filename + ".gbpl", filename + ".opt.bc"]
+  CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
 
   if CommandLineOptions.adversarialAbstraction:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/adversarialAbstraction" ]
@@ -408,13 +455,16 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSourceLocInfer" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
-  CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, filename + ".gbpl" ]
+  CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + bplFilename[:-4], gbplFilename ] #< ignore .bpl suffix
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
   elif CommandLineOptions.inference:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
-  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ filename + ".bpl" ]
+
+  if CommandLineOptions.generateSmt2:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + filename + ".smt2" ]
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
   """ RUN CLANG """
   RunTool("clang", 
@@ -436,12 +486,25 @@ def main(argv=None):
           CommandLineOptions.bugleOptions,
           ErrorCodes.BUGLE_ERROR)
 
+  if CommandLineOptions.stopAtGbpl: return 0
+
   """ RUN GPUVERIFYVCGEN """
   RunTool("gpuverifyvcgen",
           (["mono"] if os.name == "posix" else []) +
           [gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
           CommandLineOptions.gpuVerifyVCGenOptions,
           ErrorCodes.GPUVERIFYVCGEN_ERROR)
+
+  if CommandLineOptions.noThread2Asserts:
+    f = open(bplFilename)
+    lines = f.readlines()
+    f.close()
+    f = open(bplFilename, 'w')
+    for line in lines:
+      if 'thread 2' not in line: f.write(line)
+    f.close()
+
+  if CommandLineOptions.stopAtBpl: return 0
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
   RunTool("gpuverifyboogiedriver",
@@ -464,6 +527,13 @@ def main(argv=None):
     print "- no barrier divergence"
     print "- no assertion failures"
     print "(but absolutely no warranty provided)"
+  return 0
 
 if __name__ == '__main__':
-  sys.exit(main())
+  returnCode = main()
+  if CommandLineOptions.time:
+    print "Timing information:"
+    pad = max([ len(tool) for tool,t in Timing ])
+    for (tool, t) in Timing:
+      print "- %s : %.03f secs" % (tool.ljust(pad), t)
+  sys.exit(returnCode)
