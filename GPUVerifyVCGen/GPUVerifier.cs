@@ -320,11 +320,6 @@ namespace GPUVerify
             }
         }
 
-        internal void preProcess()
-        {
-            //PullOutNonLocalAccesses();
-        }
-
         private void MergeBlocksIntoPredecessors()
         {
             foreach (var impl in Program.TopLevelDeclarations.OfType<Implementation>())
@@ -353,12 +348,6 @@ namespace GPUVerify
             if (CommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_original");
-            }
-
-            preProcess();
-
-            if (CommandLineOptions.ShowStages) {
-              emitProgram(outputFilename + "_preprocessed");
             }
 
             DoUniformityAnalysis();

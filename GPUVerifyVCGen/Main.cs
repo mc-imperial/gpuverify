@@ -18,7 +18,7 @@ namespace GPUVerify
 
         public static void Main(string[] args)
         {
-          try {
+//          try {
 
             int showHelp = CommandLineOptions.Parse(args);
 
@@ -45,11 +45,12 @@ namespace GPUVerify
 
             parseProcessOutput();
 
-          }
-          catch (Exception e) {
-            Console.Error.WriteLine("GPUVerify: an internal error has occurred.  Please report this problem to the development team");
-            Environment.Exit(1);
-          }
+//          }
+//          catch (Exception e) {
+//            throw e;
+            //Console.Error.WriteLine("GPUVerify: an internal error has occurred.  Please report this problem to the development team");
+            //Environment.Exit(1);
+//          }
         }
 
         public static Program parse(out ResolutionContext rc)

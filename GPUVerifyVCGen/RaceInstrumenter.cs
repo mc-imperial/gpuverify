@@ -404,16 +404,16 @@ namespace GPUVerify {
             rc.Visit(rhs);
           if (rc.accesses.Count > 0) {
             foreach (AccessRecord ar in rc.accesses) {
-              AddLogAndCheckCalls(result, ar, "READ");
+              AddLogAndCheckCalls(result, ar, "READ", null);
             }
           }
 
-          foreach (var lhs in assign.Lhss) {
+          foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) {
             WriteCollector wc = new WriteCollector(NonLocalStateToCheck);
-            wc.Visit(lhs);
+            wc.Visit(LhsRhs.Item1);
             if (wc.GetAccess() != null) {
               AccessRecord ar = wc.GetAccess();
-              AddLogAndCheckCalls(result, ar, "WRITE");
+              AddLogAndCheckCalls(result, ar, "WRITE", LhsRhs.Item2);
             }
           }
         }
@@ -421,11 +421,24 @@ namespace GPUVerify {
       return result;
     }
 
-    private void AddLogAndCheckCalls(CmdSeq result, AccessRecord ar, string Access) {
+    private void AddLogAndCheckCalls(CmdSeq result, AccessRecord ar, string Access, Expr Value) {
       ExprSeq inParamsLog = new ExprSeq();
       ExprSeq inParamsChk = new ExprSeq();
-      inParamsChk.Add(ar.Index);
       inParamsLog.Add(ar.Index);
+      inParamsChk.Add(ar.Index);
+      if (!CommandLineOptions.NoBenign) {
+        if (Value != null) {
+          inParamsLog.Add(Value);
+          inParamsChk.Add(Value);
+        }
+        else {
+          Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
+          e.Type = (ar.v.TypedIdent.Type as MapType).Result;
+          inParamsLog.Add(e);
+          inParamsChk.Add(e);
+        }
+      }
+
       inParamsLog.Add(new LiteralExpr(Token.NoToken, BigNum.FromInt(CurrStmtNo), 32));
 
       Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
@@ -530,12 +543,16 @@ namespace GPUVerify {
       MapType mt = v.TypedIdent.Type as MapType;
       Debug.Assert(mt.Arguments.Length == 1);
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
+      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
       Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
       Debug.Assert(!(mt.Result is MapType));
 
-      inParams.Add(new VariableDualiser(1, null, null).VisitVariable(PredicateParameter.Clone() as Variable));
-      inParams.Add(new VariableDualiser(1, null, null).VisitVariable(OffsetParameter.Clone() as Variable));
-      inParams.Add(new VariableDualiser(1, null, null).VisitVariable(SourceParameter.Clone() as Variable));
+      inParams.Add(VariableForThread(1, PredicateParameter));
+      inParams.Add(VariableForThread(1, OffsetParameter));
+      if(!CommandLineOptions.NoBenign) {
+        inParams.Add(VariableForThread(1, ValueParameter));
+      }
+      inParams.Add(VariableForThread(1, SourceParameter));
 
       string LogProcedureName = "_LOG_" + ReadOrWrite + "_" + v.Name;
 
@@ -556,19 +573,22 @@ namespace GPUVerify {
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
       Debug.Assert(mt.Arguments.Length == 1);
-      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Debug.Assert(!(mt.Result is MapType));
 
-      inParams.Add(new VariableDualiser(2, null, null).VisitVariable(PredicateParameter.Clone() as Variable));
-      inParams.Add(new VariableDualiser(2, null, null).VisitVariable(OffsetParameter.Clone() as Variable));
+      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
+      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
+
+      inParams.Add(VariableForThread(2, PredicateParameter));
+      inParams.Add(VariableForThread(2, OffsetParameter));
+      if (!CommandLineOptions.NoBenign) {
+        inParams.Add(VariableForThread(2, ValueParameter));
+      }
 
       string CheckProcedureName = "_CHECK_" + ReadOrWrite + "_" + v.Name;
 
       Procedure result = GetRaceCheckingProcedure(v.tok, CheckProcedureName);
 
       result.InParams = inParams;
-
-      result.AddAttribute("inline", new object[] { new LiteralExpr(v.tok, BigNum.FromInt(1)) });
 
       return result;
     }
@@ -681,17 +701,21 @@ namespace GPUVerify {
     protected void AddLogAccessProcedure(Variable v, string Access) {
       Procedure LogAccessProcedure = MakeLogAccessProcedureHeader(v, Access);
 
-      Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Variable AccessOffsetXVariable = GPUVerifier.MakeOffsetVariable(v.Name, Access);
-      Variable AccessSourceVariable = GPUVerifier.MakeSourceVariable(v.Name, Access);
-
-      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
-
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
       Debug.Assert(mt.Arguments.Length == 1);
+
+      Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
+      Variable AccessOffsetVariable = GPUVerifier.MakeOffsetVariable(v.Name, Access);
+      Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, mt.Result);
+      Variable AccessSourceVariable = GPUVerifier.MakeSourceVariable(v.Name, Access);
+
+      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
+      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
       Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
+
+      
       Debug.Assert(!(mt.Result is MapType));
 
       VariableSeq locals = new VariableSeq();
@@ -708,26 +732,19 @@ namespace GPUVerify {
 
       simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessHasOccurredVariable),
           Condition, Expr.True));
-      simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessOffsetXVariable),
+      simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessOffsetVariable),
           Condition,
           new IdentifierExpr(v.tok, VariableForThread(1, OffsetParameter))));
+      if (!CommandLineOptions.NoBenign) {
+        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessValueVariable),
+          Condition,
+          new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter))));
+      }
       simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessSourceVariable),
           Condition,
           new IdentifierExpr(v.tok, VariableForThread(1, SourceParameter))));
-      if (!verifier.ArrayModelledAdversarially(v) && !CommandLineOptions.NoBenign) {
-        Microsoft.Boogie.Type ValueType = (v.TypedIdent.Type as MapType).Result;
-
-        Expr AccessedValue = ExprForThread(1, MakeAccessedIndex(v, new IdentifierExpr(Token.NoToken, OffsetParameter), Access));
-        Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, ValueType);
-        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessValueVariable),
-            Condition,
-            AccessedValue));
-      }
 
       bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));
-
-      LogAccessProcedure.Modifies.Add(new IdentifierExpr(Token.NoToken, VariableForThread(1, AccessHasOccurredVariable)));
-      LogAccessProcedure.Modifies.Add(new IdentifierExpr(Token.NoToken, VariableForThread(1, AccessOffsetXVariable)));
 
       Implementation LogAccessImplementation = new Implementation(v.tok, "_LOG_" + Access + "_" + v.Name, new TypeVariableSeq(), LogAccessProcedure.InParams, new VariableSeq(), locals, new StmtList(bigblocks, v.tok));
       LogAccessImplementation.AddAttribute("inline", new object[] { new LiteralExpr(v.tok, BigNum.FromInt(1)) });
@@ -750,8 +767,10 @@ namespace GPUVerify {
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
       Debug.Assert(mt.Arguments.Length == 1);
-      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Debug.Assert(!(mt.Result is MapType));
+
+      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
+      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
 
       if (Access.Equals("READ")) {
         // Check read by thread 2 does not conflict with write by thread 1
@@ -762,11 +781,11 @@ namespace GPUVerify {
         WriteReadGuard = Expr.And(WriteReadGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteOffsetVariable)),
                                         new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
 
-        if (!verifier.ArrayModelledAdversarially(v) && !CommandLineOptions.NoBenign) {
-          Microsoft.Boogie.Type ValueType = (v.TypedIdent.Type as MapType).Result;
+        if (!CommandLineOptions.NoBenign) {
           WriteReadGuard = Expr.And(WriteReadGuard, Expr.Neq(
-              ExprForThread(1, new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, "WRITE", ValueType))),
-              ExprForThread(2, MakeAccessedIndex(v, new IdentifierExpr(Token.NoToken, OffsetParameter), "READ"))));
+              new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, "WRITE", mt.Result))),
+              new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))
+              ));
         }
 
         if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
@@ -793,11 +812,10 @@ namespace GPUVerify {
         WriteWriteGuard = Expr.And(WriteWriteGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteOffsetVariable)),
                                         new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
 
-        if (!verifier.ArrayModelledAdversarially(v) && !CommandLineOptions.NoBenign) {
-          Microsoft.Boogie.Type ValueType = (v.TypedIdent.Type as MapType).Result;
+        if (!CommandLineOptions.NoBenign) {
           WriteWriteGuard = Expr.And(WriteWriteGuard, Expr.Neq(
-              ExprForThread(1, new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, "WRITE", ValueType))),
-              ExprForThread(2, MakeAccessedIndex(v, new IdentifierExpr(Token.NoToken, OffsetParameter), "WRITE"))));
+              new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, "WRITE", mt.Result))),
+              new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))));
         }
         
         if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
@@ -819,11 +837,10 @@ namespace GPUVerify {
         ReadWriteGuard = Expr.And(ReadWriteGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, ReadHasOccurredVariable)));
         ReadWriteGuard = Expr.And(ReadWriteGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, ReadOffsetVariable)),
                                         new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
-        if (!verifier.ArrayModelledAdversarially(v) && !CommandLineOptions.NoBenign) {
-          Microsoft.Boogie.Type ValueType = (v.TypedIdent.Type as MapType).Result;
+        if (!CommandLineOptions.NoBenign) {
           ReadWriteGuard = Expr.And(ReadWriteGuard, Expr.Neq(
-              ExprForThread(1, new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, "WRITE", ValueType))),
-              ExprForThread(2, MakeAccessedIndex(v, new IdentifierExpr(Token.NoToken, OffsetParameter), "READ"))));
+              new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, "READ", mt.Result))),
+              new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))));
         }
 
         if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
@@ -856,7 +873,7 @@ namespace GPUVerify {
       verifier.FindOrCreateOffsetVariable(v.Name, ReadOrWrite);
       verifier.FindOrCreateSourceVariable(v.Name, ReadOrWrite);
 
-      if (!verifier.ArrayModelledAdversarially(v) && !CommandLineOptions.NoBenign) {
+      if (!CommandLineOptions.NoBenign) {
         Debug.Assert(v.TypedIdent.Type is MapType);
         MapType mt = v.TypedIdent.Type as MapType;
         Debug.Assert(mt.Arguments.Length == 1);

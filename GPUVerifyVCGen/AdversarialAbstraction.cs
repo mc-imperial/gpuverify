@@ -12,6 +12,9 @@ namespace GPUVerify {
 
     private GPUVerifier verifier;
 
+    private VariableSeq NewLocalVars = null;
+    private int AbstractedCallArgCounter = 0;
+
     internal AdversarialAbstraction(GPUVerifier verifier) {
       this.verifier = verifier;
     }
@@ -71,43 +74,59 @@ namespace GPUVerify {
     }
 
     private void Abstract(Implementation impl) {
-      VariableSeq NewLocVars = new VariableSeq();
-
+      NewLocalVars = new VariableSeq();
+      AbstractedCallArgCounter = 0;
       foreach (Variable v in impl.LocVars) {
         Debug.Assert(!verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v));
-        NewLocVars.Add(v);
+        NewLocalVars.Add(v);
       }
-
-      impl.LocVars = NewLocVars;
-
+      impl.LocVars = NewLocalVars;
       impl.Blocks = impl.Blocks.Select(Abstract).ToList();
+      NewLocalVars = null;
+
     }
 
+    private Block Abstract(Block b) {
 
-    private StmtList Abstract(StmtList stmtList) {
-      Contract.Requires(stmtList != null);
+      var NewCmds = new CmdSeq();
 
-      StmtList result = new StmtList(new List<BigBlock>(), stmtList.EndCurly);
+      foreach (Cmd c in b.Cmds) {
 
-      foreach (BigBlock bodyBlock in stmtList.BigBlocks) {
-        result.BigBlocks.Add(Abstract(bodyBlock));
-      }
-      return result;
-    }
+        if (c is CallCmd) {
+          var call = c as CallCmd;
+          for(int i = 0; i < call.Ins.Count; i++) {
+            ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
+            rc.Visit(call.Ins[i]);
+            bool foundAdversarial = false;
+            foreach (AccessRecord ar in rc.accesses) {
+              if (verifier.ArrayModelledAdversarially(ar.v)) {
+                foundAdversarial = true;
+                break;
+              }
+            }
 
-    private CmdSeq Abstract(CmdSeq cs) {
-      var result = new CmdSeq();
+            if (foundAdversarial) {
+              LocalVariable lv = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
+                "_abstracted_call_arg_" + AbstractedCallArgCounter, call.Ins[i].Type));
+              AbstractedCallArgCounter++;
+              NewLocalVars.Add(lv);
+              NewCmds.Add(new HavocCmd(Token.NoToken, 
+                new IdentifierExprSeq(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, lv) })));
+              call.Ins[i] = new IdentifierExpr(Token.NoToken, lv);
+            }
+          }
+        }
+        
 
-      foreach (Cmd c in cs) {
         if (c is AssignCmd) {
           AssignCmd assign = c as AssignCmd;
 
           var lhss = new List<AssignLhs>();
           var rhss = new List<Expr>();
 
-          for (int i = 0; i != assign.Lhss.Count; i++) {
-            AssignLhs lhs = assign.Lhss[i];
-            Expr rhs = assign.Rhss[i];
+          foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) {
+            AssignLhs lhs = LhsRhs.Item1;
+            Expr rhs = LhsRhs.Item2;
             ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
             rc.Visit(rhs);
 
@@ -121,7 +140,7 @@ namespace GPUVerify {
 
             if (foundAdversarial) {
               Debug.Assert(lhs is SimpleAssignLhs);
-              result.Add(new HavocCmd(c.tok, new IdentifierExprSeq(new IdentifierExpr[] { (lhs as SimpleAssignLhs).AssignedVariable })));
+              NewCmds.Add(new HavocCmd(c.tok, new IdentifierExprSeq(new IdentifierExpr[] { (lhs as SimpleAssignLhs).AssignedVariable })));
               continue;
             }
 
@@ -136,42 +155,15 @@ namespace GPUVerify {
           }
 
           if (lhss.Count != 0) {
-            result.Add(new AssignCmd(assign.tok, lhss, rhss));
+            NewCmds.Add(new AssignCmd(assign.tok, lhss, rhss));
           }
           continue;
         }
-        result.Add(c);
+        NewCmds.Add(c);
       }
 
-      return result;
-    }
-
-    private Block Abstract(Block b) {
-      b.Cmds = Abstract(b.Cmds);
+      b.Cmds = NewCmds;
       return b;
-    }
-
-    private BigBlock Abstract(BigBlock bb) {
-      BigBlock result = new BigBlock(bb.tok, bb.LabelName, new CmdSeq(), null, bb.tc);
-
-      result.simpleCmds = Abstract(bb.simpleCmds);
-
-      if (bb.ec is WhileCmd) {
-        WhileCmd WhileCommand = bb.ec as WhileCmd;
-        result.ec =
-            new WhileCmd(WhileCommand.tok, WhileCommand.Guard, WhileCommand.Invariants, Abstract(WhileCommand.Body));
-      }
-      else if (bb.ec is IfCmd) {
-        IfCmd IfCommand = bb.ec as IfCmd;
-        Debug.Assert(IfCommand.elseIf == null);
-        result.ec = new IfCmd(IfCommand.tok, IfCommand.Guard, Abstract(IfCommand.thn), IfCommand.elseIf, IfCommand.elseBlock != null ? Abstract(IfCommand.elseBlock) : null);
-      }
-      else {
-        Debug.Assert(bb.ec == null || bb.ec is BreakCmd);
-      }
-
-      return result;
-
     }
 
     class AccessesAdversarialArrayVisitor : StandardVisitor {
