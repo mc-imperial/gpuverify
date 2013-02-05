@@ -1439,6 +1439,24 @@ namespace GPUVerify
             Type));
         }
 
+        internal GlobalVariable FindOrCreateNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
+        {
+            string name = MakeNotAccessedVariableName(varName) + "$1";
+            foreach(Declaration D in Program.TopLevelDeclarations)
+            {
+                if(D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
+                {
+                    return D as GlobalVariable;
+                }
+            }
+
+            GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(MakeNotAccessedVariable(varName, dtype)) as GlobalVariable;
+
+            Program.TopLevelDeclarations.Add(result);
+            return result;
+
+        }
+
         internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, string accessType)
         {
             string name = MakeAccessHasOccurredVariableName(varName, accessType) + "$1";
@@ -1510,6 +1528,14 @@ namespace GPUVerify
 
         }
 
+        internal static GlobalVariable MakeNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
+        {
+            return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeNotAccessedVariableName(varName), dtype));
+        }
+
+        internal static string MakeNotAccessedVariableName(string varName) {
+            return "_NOT_ACCESSED_" + varName;
+        }
 
         internal static GlobalVariable MakeAccessHasOccurredVariable(string varName, string accessType)
         {
