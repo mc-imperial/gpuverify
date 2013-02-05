@@ -157,6 +157,9 @@ namespace GPUVerify {
           // Assert barrier invariants
           foreach (var BIDescriptor in BarrierInvariantDescriptors) {
             cs.Add(BIDescriptor.GetAssertCmd());
+            foreach (var AccessAssert in BIDescriptor.GetAccessedAsserts()) {
+              cs.Add(AccessAssert);
+            }
           }
         }
 

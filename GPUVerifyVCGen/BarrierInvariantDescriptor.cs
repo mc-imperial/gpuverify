@@ -26,12 +26,6 @@ namespace GPUVerify {
       var visitor = new SubExprVisitor();
       visitor.VisitExpr(this.BarrierInvariant);
       this.SubExprs = visitor.SubExprs;
-      // DEBUG
-      Console.WriteLine("BI contains {0} elements", visitor.SubExprs.Count);
-      foreach (var assert in GetAccessedAsserts()) {
-        Console.Write("  {0}", assert);
-      }
-      // DEBUG
     }
 
     internal abstract AssertCmd GetAssertCmd();

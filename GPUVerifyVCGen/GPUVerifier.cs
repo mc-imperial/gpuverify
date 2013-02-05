@@ -387,7 +387,7 @@ namespace GPUVerify
             RaceInstrumenter.AddRaceCheckingInstrumentation();
             if (CommandLineOptions.BarrierAccessChecks)
             {
-              NoAccessInstrumenter.AddNoAccessInstrumentation();
+                NoAccessInstrumenter.AddNoAccessInstrumentation();
             }
 
             if (CommandLineOptions.ShowStages)
