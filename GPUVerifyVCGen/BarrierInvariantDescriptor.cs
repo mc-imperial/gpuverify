@@ -13,7 +13,7 @@ namespace GPUVerify {
     protected QKeyValue SourceLocationInfo;
     protected KernelDualiser Dualiser;
     protected string ProcName;
-    protected HashSet<Expr> SubExprs;
+    protected List<AssertCmd> AccessAsserts;
 
     public BarrierInvariantDescriptor(Expr Predicate, Expr BarrierInvariant,
           QKeyValue SourceLocationInfo,
@@ -23,9 +23,16 @@ namespace GPUVerify {
       this.SourceLocationInfo = SourceLocationInfo;
       this.Dualiser = Dualiser;
       this.ProcName = ProcName;
+      
       var visitor = new SubExprVisitor();
       visitor.VisitExpr(this.BarrierInvariant);
-      this.SubExprs = visitor.SubExprs;
+      var asserts = new List<AssertCmd>();
+      foreach (NAryExpr e in visitor.SubExprs) {
+        var v = (e.Args[0] as IdentifierExpr);
+        Expr index = e.Args[1];
+        asserts.Add(new AssertCmd(Token.NoToken, BuildAccessedExpr(v.Name, index)));
+      }
+      this.AccessAsserts = asserts;
     }
 
     internal abstract AssertCmd GetAssertCmd();
@@ -48,13 +55,7 @@ namespace GPUVerify {
     }
 
     public List<AssertCmd> GetAccessedAsserts() {
-      var result = new List<AssertCmd>();
-      foreach (NAryExpr e in SubExprs) {
-        var v = (e.Args[0] as IdentifierExpr);
-        Expr accessed = e.Args[1];
-        result.Add(new AssertCmd(Token.NoToken, BuildAccessedExpr(v.Name, accessed)));
-      }
-      return result;
+      return AccessAsserts;
     }
 
     class SubExprVisitor : StandardVisitor {
