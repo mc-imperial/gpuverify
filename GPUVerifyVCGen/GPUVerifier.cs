@@ -1289,7 +1289,9 @@ namespace GPUVerify
 
                 if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGroupSharedArrays())) {
                   var SharedArrays = KernelArrayInfo.getGroupSharedArrays();
-                  var NoAccessVars = SharedArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0]));
+                  var NoAccessVars = CommandLineOptions.BarrierAccessChecks ? 
+                    SharedArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
+                    Enumerable.Empty<Variable>();
                   var HavocVars = SharedArrays.Concat(NoAccessVars).ToList();
                   bigblocks.Add(new BigBlock(Token.NoToken, null, new CmdSeq(),
                     new IfCmd(Token.NoToken,
@@ -1311,7 +1313,9 @@ namespace GPUVerify
 
                 if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGlobalArrays())) {
                   var GlobalArrays = KernelArrayInfo.getGlobalArrays();
-                  var NoAccessVars = GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0]));
+                  var NoAccessVars = CommandLineOptions.BarrierAccessChecks ? 
+                    GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
+                    Enumerable.Empty<Variable>();
                   var HavocVars = GlobalArrays.Concat(NoAccessVars).ToList();
                   bigblocks.Add(new BigBlock(Token.NoToken, null, new CmdSeq(),
                     new IfCmd(Token.NoToken,
