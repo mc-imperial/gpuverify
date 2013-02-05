@@ -1288,11 +1288,13 @@ namespace GPUVerify
                   Expr.Or(Expr.And(P1, LocalFence1), Expr.And(P2, LocalFence2));
 
                 if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGroupSharedArrays())) {
+                  var SharedArrays = KernelArrayInfo.getGroupSharedArrays();
+                  var NoAccessVars = SharedArrays.Select(x => (MakeNotAccessedVariable(x.Name, Microsoft.Boogie.Type.Bool) as Variable));
+                  var HavocVars = SharedArrays.Concat(NoAccessVars).ToList();
                   bigblocks.Add(new BigBlock(Token.NoToken, null, new CmdSeq(),
                     new IfCmd(Token.NoToken,
                       AtLeastOneEnabledWithLocalFence,
-                      new StmtList(MakeHavocBlocks(KernelArrayInfo.getGroupSharedArrays()), Token.NoToken), null, null), null));
-                  // TODO: insert new HavocBlock for each _NO_ACCESS variable of the shared arrays
+                      new StmtList(MakeHavocBlocks(HavocVars), Token.NoToken), null, null), null));
                 }
             }
 
@@ -1308,11 +1310,13 @@ namespace GPUVerify
                   Expr.And(Expr.And(GPUVerifier.ThreadsInSameGroup(), Expr.And(P1, P2)), Expr.Or(GlobalFence1, GlobalFence2));
 
                 if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGlobalArrays())) {
+                  var GlobalArrays = KernelArrayInfo.getGlobalArrays();
+                  var NoAccessVars = GlobalArrays.Select(x => (MakeNotAccessedVariable(x.Name, Microsoft.Boogie.Type.Bool) as Variable));
+                  var HavocVars = GlobalArrays.Concat(NoAccessVars).ToList();
                   bigblocks.Add(new BigBlock(Token.NoToken, null, new CmdSeq(),
                     new IfCmd(Token.NoToken,
                       ThreadsInSameGroup_BothEnabled_AtLeastOneGlobalFence,
-                      new StmtList(MakeHavocBlocks(KernelArrayInfo.getGlobalArrays()), Token.NoToken), null, null), null));
-                  // TODO: insert new HavocBlock for each _NO_ACCESS variable of the global arrays
+                      new StmtList(MakeHavocBlocks(HavocVars), Token.NoToken), null, null), null));
                 }
             }
 
@@ -1359,7 +1363,7 @@ namespace GPUVerify
           Debug.Assert(variables.Count > 0);
           List<BigBlock> result = new List<BigBlock>();
           foreach (Variable v in variables) {
-            if (!ArrayModelledAdversarially(v)) {
+            if (!ArrayModelledAdversarially(v) || v.Name.Contains("_NOT_ACCESSED_")) {
               result.Add(HavocSharedArray(v));
             }
           }
