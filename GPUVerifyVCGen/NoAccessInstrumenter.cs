@@ -74,7 +74,7 @@ namespace GPUVerify {
     }
 
     private void AddNoAccessAssumes(CmdSeq result, AccessRecord ar) {
-    //Causes System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
+    // Revisit: Following causes System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
     //result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateNotAccessedVariable(ar.v.Name, ar.Index.Type)), ar.Index)));
       result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(new IdentifierExpr(Token.NoToken, GPUVerifier.MakeNotAccessedVariable(ar.v.Name, ar.Index.Type)), ar.Index)));
     }

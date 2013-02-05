@@ -1363,6 +1363,7 @@ namespace GPUVerify
           Debug.Assert(variables.Count > 0);
           List<BigBlock> result = new List<BigBlock>();
           foreach (Variable v in variables) {
+            // Revisit: how to havoc NOT_ACCESSED vars properly
             if (!ArrayModelledAdversarially(v) || v.Name.Contains("_NOT_ACCESSED_")) {
               result.Add(HavocSharedArray(v));
             }
