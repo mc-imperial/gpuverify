@@ -20,6 +20,7 @@ namespace GPUVerify
         public static bool EqualityAbstraction = false;
         public static bool Inference = true;
         public static bool ArrayEqualities = false;
+        public static bool BarrierAccessChecks = false;
 
         public static bool ShowStages = false;
 
@@ -152,6 +153,11 @@ namespace GPUVerify
                     NoBenign = true;
                     break;
 
+                    case "-barrierAccessChecks":
+                    case "/barrierAccessChecks":
+                    BarrierAccessChecks = true;
+                    break;
+
                     default:
                         inputFiles.Add(args[i]);
                         break;
@@ -219,6 +225,7 @@ namespace GPUVerify
                                     not data races
   /onlyIntraGroupRaceChecking   : do not consider inter-group data races
   /noBenign                     : do not tolerate benign data races
+  /barrierAccessChecks          : add access checks for barrier invariants
 
 ");
         }

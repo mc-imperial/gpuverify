@@ -64,6 +64,7 @@ namespace GPUVerify
         internal static Constant _NUM_GROUPS_Z = null;
 
         public IRaceInstrumenter RaceInstrumenter;
+        public INoAccessInstrumenter NoAccessInstrumenter;
 
         public UniformityAnalyser uniformityAnalyser;
         public MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
@@ -89,6 +90,11 @@ namespace GPUVerify
         public void setRaceInstrumenter(IRaceInstrumenter ri)
         {
             this.RaceInstrumenter = ri;
+        }
+
+        public void setNoAccessInstrumenter(INoAccessInstrumenter ni)
+        {
+            this.NoAccessInstrumenter = ni;
         }
 
         private void CheckWellFormedness()
@@ -379,6 +385,10 @@ namespace GPUVerify
             }
 
             RaceInstrumenter.AddRaceCheckingInstrumentation();
+            if (CommandLineOptions.BarrierAccessChecks)
+            {
+              NoAccessInstrumenter.AddNoAccessInstrumentation();
+            }
 
             if (CommandLineOptions.ShowStages)
             {
