@@ -1292,6 +1292,7 @@ namespace GPUVerify
                     new IfCmd(Token.NoToken,
                       AtLeastOneEnabledWithLocalFence,
                       new StmtList(MakeHavocBlocks(KernelArrayInfo.getGroupSharedArrays()), Token.NoToken), null, null), null));
+                  // TODO: insert new HavocBlock for each _NO_ACCESS variable of the shared arrays
                 }
             }
 
@@ -1311,6 +1312,7 @@ namespace GPUVerify
                     new IfCmd(Token.NoToken,
                       ThreadsInSameGroup_BothEnabled_AtLeastOneGlobalFence,
                       new StmtList(MakeHavocBlocks(KernelArrayInfo.getGlobalArrays()), Token.NoToken), null, null), null));
+                  // TODO: insert new HavocBlock for each _NO_ACCESS variable of the global arrays
                 }
             }
 
