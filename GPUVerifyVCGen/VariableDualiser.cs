@@ -34,7 +34,8 @@ namespace GPUVerify
               (node.Decl as Formal).InComing));
           }
 
-          if (!(node.Decl is Constant))
+          // Revisit: create a list of variables to avoid dualising
+          if (!(node.Decl is Constant) && !node.Name.Contains("_NOT_ACCESSED_"))
           {
               return new IdentifierExpr(node.tok, new LocalVariable(node.tok, DualiseTypedIdent(node.Decl)));
           }

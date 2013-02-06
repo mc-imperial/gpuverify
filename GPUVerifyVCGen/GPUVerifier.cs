@@ -1462,7 +1462,7 @@ namespace GPUVerify
 
         internal GlobalVariable FindOrCreateNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
         {
-            string name = MakeNotAccessedVariableName(varName) + "$1";
+            string name = MakeNotAccessedVariableName(varName);
             foreach(Declaration D in Program.TopLevelDeclarations)
             {
                 if(D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
@@ -1471,7 +1471,7 @@ namespace GPUVerify
                 }
             }
 
-            GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(MakeNotAccessedVariable(varName, dtype)) as GlobalVariable;
+            GlobalVariable result = MakeNotAccessedVariable(varName, dtype);
 
             Program.TopLevelDeclarations.Add(result);
             return result;
