@@ -23,16 +23,17 @@ namespace GPUVerify {
       this.SourceLocationInfo = SourceLocationInfo;
       this.Dualiser = Dualiser;
       this.ProcName = ProcName;
-      
-      var visitor = new SubExprVisitor();
-      visitor.VisitExpr(this.BarrierInvariant);
-      var asserts = new List<AssertCmd>();
-      foreach (NAryExpr e in visitor.SubExprs) {
-        var v = (e.Args[0] as IdentifierExpr);
-        Expr index = e.Args[1];
-        asserts.Add(new AssertCmd(Token.NoToken, BuildAccessedExpr(v.Name, index)));
+      this.AccessAsserts = new List<AssertCmd>();
+
+      if (CommandLineOptions.BarrierAccessChecks) {
+        var visitor = new SubExprVisitor();
+        visitor.VisitExpr(this.BarrierInvariant);
+        foreach (NAryExpr e in visitor.SubExprs) {
+          var v = (e.Args[0] as IdentifierExpr);
+          Expr index = e.Args[1];
+          this.AccessAsserts.Add(new AssertCmd(Token.NoToken, BuildAccessedExpr(v.Name, index)));
+        }
       }
-      this.AccessAsserts = asserts;
     }
 
     internal abstract AssertCmd GetAssertCmd();
