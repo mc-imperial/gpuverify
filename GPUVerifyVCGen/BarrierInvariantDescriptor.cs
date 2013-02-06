@@ -55,6 +55,10 @@ namespace GPUVerify {
       return Expr.Neq(new IdentifierExpr(Token.NoToken, Dualiser.verifier.FindOrCreateNotAccessedVariable(name, e.Type)), e);
     }
 
+    public QKeyValue GetSourceLocationInfo() {
+      return SourceLocationInfo;
+    }
+
     public List<Expr> GetAccessedExprs() {
       return AccessExprs;
     }
