@@ -417,6 +417,7 @@ def main(argv=None):
   optFilename = filename + '.opt.bc'
   gbplFilename = filename + '.gbpl'
   bplFilename = filename + '.bpl'
+  locFilename = filename + '.loc'
   if not CommandLineOptions.keepTemps:
     def DeleteFile(filename):
       """ Delete the filename if it exists """
@@ -426,6 +427,7 @@ def main(argv=None):
     atexit.register(DeleteFile, optFilename)
     if not CommandLineOptions.stopAtGbpl: atexit.register(DeleteFile, gbplFilename)
     if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, bplFilename)
+    if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, locFilename)
 
   CommandLineOptions.clangOptions.append("-o")
   CommandLineOptions.clangOptions.append(bcFilename)

@@ -106,6 +106,15 @@ namespace GPUVerify {
       return !visitor.found;
     }
 
+    private int ParameterOffsetForSource() {
+      if (CommandLineOptions.NoBenign) {
+        return 2;
+      }
+      else {
+        return 3;
+      }
+    }
+
     private List<Expr> CollectSourceLocPredicates(IRegion region, Variable v, string accessType) {
       var sourceVar = verifier.FindOrCreateSourceVariable(v.Name, accessType);
       var sourceExpr = new IdentifierExpr(Token.NoToken, sourceVar);
@@ -115,7 +124,7 @@ namespace GPUVerify {
         if (c is CallCmd) {
           CallCmd call = c as CallCmd;
           if (call.callee == "_LOG_" + accessType + "_" + v.Name) {
-            sourcePreds.Add(Expr.Eq(sourceExpr, call.Ins[2]));
+            sourcePreds.Add(Expr.Eq(sourceExpr, call.Ins[ParameterOffsetForSource()]));
           }
         }
       }
@@ -962,7 +971,7 @@ namespace GPUVerify {
 
       foreach (Declaration D in verifier.Program.TopLevelDeclarations.ToList())
       {
-        if (!(D is Procedure))
+        if (!(D is Procedure) || QKeyValue.FindIntAttribute(D.Attributes, "inline", -1) == 1)
         {
           continue;
         }
@@ -1001,8 +1010,7 @@ namespace GPUVerify {
 
       foreach (Declaration D in verifier.Program.TopLevelDeclarations.ToList())
       {
-        if (!(D is Procedure))
-        {
+        if (!(D is Procedure) || QKeyValue.FindIntAttribute(D.Attributes, "inline", -1) == 1) {
           continue;
         }
         Procedure Proc = D as Procedure;
