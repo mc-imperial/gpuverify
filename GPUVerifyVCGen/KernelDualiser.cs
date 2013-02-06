@@ -157,9 +157,11 @@ namespace GPUVerify {
           // Assert barrier invariants
           foreach (var BIDescriptor in BarrierInvariantDescriptors) {
             cs.Add(BIDescriptor.GetAssertCmd());
+            var vd = new VariableDualiser(1, verifier.uniformityAnalyser, procName);
             if (CommandLineOptions.BarrierAccessChecks) {
-              foreach (var AccessAssert in BIDescriptor.GetAccessedAsserts()) {
-                cs.Add(AccessAssert);
+              foreach (Expr AccessExpr in BIDescriptor.GetAccessedExprs()) {
+                var Assert = new AssertCmd(Token.NoToken, AccessExpr);
+                cs.Add(vd.Visit(Assert));
               }
             }
           }
