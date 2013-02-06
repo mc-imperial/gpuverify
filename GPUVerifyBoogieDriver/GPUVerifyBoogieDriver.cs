@@ -950,7 +950,12 @@ namespace Microsoft.Boogie
             }
           }
         }
-        return (penulFunc == null) ? lastFunc : penulFunc;
+        if (penulFunc == null) {
+          return lastFunc;
+        }
+        else {
+          return penulFunc;
+        }
       }
       catch (Exception) {
         return null;
