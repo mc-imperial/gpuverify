@@ -1614,6 +1614,11 @@ namespace GPUVerify
                     IsGroupIdConstant(d as Variable))) {
                   var v = d as Variable;
 
+                  if (v.Name.Contains("_NOT_ACCESSED_")) {
+                    NewTopLevelDeclarations.Add(v);
+                    continue;
+                  }
+
                   if (KernelArrayInfo.getGlobalArrays().Contains(v)) {
                     NewTopLevelDeclarations.Add(v);
                     continue;
