@@ -43,7 +43,7 @@ namespace Microsoft.Boogie
       Contract.Requires(cce.NonNullElements(args));
       CommandLineOptions.Install(new GPUVerifyBoogieDriverCommandLineOptions());
 
-      //try {
+      try {
 
         int exitCode;
 
@@ -119,11 +119,11 @@ namespace Microsoft.Boogie
 
         Environment.Exit(exitCode);
 
-      /*} catch (Exception e) {
-        throw e;
-        //Console.Error.WriteLine("GPUVerify: an internal error has occurred.  Please report this problem to the development team");
-        //Environment.Exit(1);
-      }*/
+      } catch (Exception e) {
+        Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
+        Console.Error.WriteLine(e);
+        Environment.Exit(1);
+      }
     }
 
     public static void ErrorWriteLine(string s) {
