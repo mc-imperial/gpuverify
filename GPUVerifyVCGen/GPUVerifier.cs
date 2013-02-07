@@ -433,7 +433,10 @@ namespace GPUVerify
 
             if (CommandLineOptions.Inference)
             {
-                ComputeInvariant();
+              // We must do modset analysis here because the previous passes add new
+              // global variables
+              Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
+              ComputeInvariant();
             }
 
             emitProgram(outputFilename);
@@ -1539,6 +1542,23 @@ namespace GPUVerify
             for(int i = 0; i < Program.TopLevelDeclarations.Count; i++)
             {
                 Declaration d = Program.TopLevelDeclarations[i];
+
+                if (d is Axiom) {
+
+                  VariableDualiser vd1 = new VariableDualiser(1, null, null);
+                  VariableDualiser vd2 = new VariableDualiser(2, null, null);
+                  Axiom NewAxiom1 = vd1.VisitAxiom(d.Clone() as Axiom);
+                  Axiom NewAxiom2 = vd2.VisitAxiom(d.Clone() as Axiom);
+                  NewTopLevelDeclarations.Add(NewAxiom1);
+
+                  // Test whether dualisation had any effect by seeing whether the new
+                  // axioms are syntactically indistinguishable.  If they are, then there
+                  // is no point adding the second axiom.
+                  if(!NewAxiom1.ToString().Equals(NewAxiom2.ToString())) {
+                    NewTopLevelDeclarations.Add(NewAxiom2);
+                  }
+                  continue;
+                }
 
                 if (d is Procedure)
                 {
