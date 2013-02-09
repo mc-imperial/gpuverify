@@ -356,6 +356,10 @@ namespace GPUVerify
                 emitProgram(outputFilename + "_original");
             }
 
+            if (!ProgramUsesBarrierInvariants()) {
+                CommandLineOptions.BarrierAccessChecks = false;
+            }
+
             DoUniformityAnalysis();
 
             DoVariableDefinitionAnalysis();
@@ -1922,6 +1926,23 @@ namespace GPUVerify
 
         internal static Expr GroupSharedIndexingExpr(int Thread) {
           return Thread == 1 ? Expr.True : ThreadsInSameGroup();
+        }
+
+        internal bool ProgramUsesBarrierInvariants() {
+          foreach (Declaration d in Program.TopLevelDeclarations) {
+            if (d is Implementation) {
+              foreach (Block b in (d as Implementation).Blocks) {
+                foreach (Cmd c in b.Cmds) {
+                  if (c is CallCmd) {
+                    if (QKeyValue.FindBoolAttribute((c as CallCmd).Proc.Attributes, "barrier_invariant")) {
+                      return true;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          return false;
         }
     
     }
