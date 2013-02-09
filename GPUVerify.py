@@ -105,6 +105,7 @@ class CommandLineOptions(object):
   keepTemps = False
   noThread2Asserts = False
   generateSmt2 = False
+  noBarrierAccessChecks = False
 
 class Timeout(Exception):
     pass
@@ -176,6 +177,7 @@ def showHelpAndExit():
   print "                          threads, at barriers"
   print "  --gen-smt2              Generate smt2 file"
   print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
+  print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
@@ -280,6 +282,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.equalityAbstraction = True
     if o == "--keep-temps":
       CommandLineOptions.keepTemps = True
+    if o == "--no-barrier-access-checks":
+      CommandLineOptions.noBarrierAccessChecks = True
     if o == "--no-loop-predicate-invariants":
       CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
@@ -372,7 +376,8 @@ def main(argv=None):
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
              ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose',
               'loop-unwind=', 'no-benign', 'only-divergence', 'only-intra-group', 
-              'adversarial-abstraction', 'equality-abstraction', 'no-loop-predicate-invariants',
+              'adversarial-abstraction', 'equality-abstraction', 
+              'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'boogie-opt=',
               'local_size=', 'num_groups=',
@@ -449,6 +454,8 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyIntraGroupRaceChecking" ]
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS or (not CommandLineOptions.inference):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noInfer" ]
+  if CommandLineOptions.noBarrierAccessChecks:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/noBarrierAccessChecks" ]
   if CommandLineOptions.noLoopPredicateInvariants:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noLoopPredicateInvariants" ]
   if CommandLineOptions.noSmartPredication:
