@@ -36,6 +36,7 @@ namespace GPUVerify {
     }
 
     private void AddNoReadOrWriteCandidateInvariants(IRegion region, Variable v) {
+
       // Reasoning: if READ_HAS_OCCURRED_v is not in the modifies set for the
       // loop then there is no point adding an invariant
       //
