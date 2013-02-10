@@ -106,6 +106,7 @@ class CommandLineOptions(object):
   noThread2Asserts = False
   generateSmt2 = False
   noBarrierAccessChecks = False
+  testsuite = False
 
 class Timeout(Exception):
     pass
@@ -186,6 +187,7 @@ def showHelpAndExit():
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
+  print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
   print ""
@@ -213,6 +215,8 @@ def processVector(vector):
   else:
     return [ int(vector) ]
 
+def GPUVerifyWarn(msg):
+  print "GPUVerify: warning: " + msg
 
 def GPUVerifyError(msg, code):
   print "GPUVerify: error: " + msg
@@ -309,6 +313,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.onlyDivergence = True
     if o == "--gen-smt2":
       CommandLineOptions.generateSmt2 = True
+    if o == "--testsuite":
+      CommandLineOptions.testsuite = True
 
 
 def processOpenCLOptions(opts, args):
@@ -333,6 +339,11 @@ def processOpenCLOptions(opts, args):
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for num_groups dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
+
+  if CommandLineOptions.testsuite:
+    if CommandLineOptions.groupSize or CommandLineOptions.numGroups:
+      GPUVerifyWarn("local_size and num_groups flags ignored when using --testsuite")
+    return
 
   if CommandLineOptions.groupSize == []:
     GPUVerifyError("work group size must be specified via --local_size=...", ErrorCodes.COMMAND_LINE_ERROR)
@@ -362,6 +373,11 @@ def processCUDAOptions(opts, args):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for gridDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
 
+  if CommandLineOptions.testsuite:
+    if CommandLineOptions.groupSize or CommandLineOptions.numGroups:
+      GPUVerifyWarn("blockDim and gridDim flags ignored when using --testsuite")
+    return
+
   if CommandLineOptions.groupSize == []:
     GPUVerifyError("thread block size must be specified via --blockDim=...", ErrorCodes.COMMAND_LINE_ERROR)
   if CommandLineOptions.numGroups == []:
@@ -383,7 +399,7 @@ def main(argv=None):
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
-              'no-thread2-asserts', 'gen-smt2',
+              'no-thread2-asserts', 'gen-smt2', 'testsuite',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -400,22 +416,27 @@ def main(argv=None):
 
   if ext == ".cl":
     CommandLineOptions.clangOptions += clangOpenCLOptions
+    if CommandLineOptions.testsuite:
+      rmFlags = [ "-include", "opencl.h" ]
+      CommandLineOptions.clangOptions = [ i for i in CommandLineOptions.clangOptions if i not in rmFlags ]
     CommandLineOptions.includes += clangOpenCLIncludes
     CommandLineOptions.defines += clangOpenCLDefines
-    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
-    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-    CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-    CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    if not CommandLineOptions.testsuite:
+      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
+      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+      CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+      CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
   else:
     assert(ext == ".cu")
     CommandLineOptions.clangOptions += clangCUDAOptions
     CommandLineOptions.includes += clangCUDAIncludes
     CommandLineOptions.defines += clangCUDADefines
-    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
-    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-    CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-    CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    if not CommandLineOptions.testsuite:
+      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
+      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+      CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+      CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
   # Intermediate filenames
   bcFilename = filename + '.bc'
@@ -423,6 +444,7 @@ def main(argv=None):
   gbplFilename = filename + '.gbpl'
   bplFilename = filename + '.bpl'
   locFilename = filename + '.loc'
+  smt2Filename = filename + '.smt2'
   if not CommandLineOptions.keepTemps:
     def DeleteFile(filename):
       """ Delete the filename if it exists """
@@ -464,7 +486,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSourceLocInfer" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
-  CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + bplFilename[:-4], gbplFilename ] #< ignore .bpl suffix
+  CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
@@ -472,7 +494,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
 
   if CommandLineOptions.generateSmt2:
-    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + filename + ".smt2" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
   """ RUN CLANG """
