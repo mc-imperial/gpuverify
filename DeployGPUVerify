@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Set this variable
+# Set these two variables
 GPUVERIFY_ROOT=/vol/multicore/afd
+INSTALL_DIR=$GPUVERIFY_ROOT/GPUVerifyInstall
 
-# These paths should then be correct
-INSTALL_DIR=$GPUVERIFY_ROOT/install
+# The following should just work
 LIBCLC_DIR=$GPUVERIFY_ROOT/libclc
 BUGLE_DIR=$GPUVERIFY_ROOT/bugle
 BUGLE_BIN_DIR=$GPUVERIFY_ROOT/bugle-build
@@ -13,7 +13,15 @@ LLVM_BIN_DIR=$GPUVERIFY_ROOT/llvm-build/Release+Asserts/bin
 GPUVERIFY_VCGEN_BIN_DIR=$GPUVERIFY_ROOT/gpuverify/GPUVerifyVCGen/bin/Release
 GPUVERIFY_BOOGIE_DRIVER_BIN_DIR=$GPUVERIFY_ROOT/gpuverify/GPUVerifyBoogieDriver/bin/Release
 Z3_BIN_DIR=$GPUVERIFY_ROOT/z3/bin
+if [[ ! -x $Z3_BIN_DIR ]]; then
+  # If z3 is built from source
+  Z3_BIN_DIR=$GPUVERIFY_ROOT/z3/build
+fi
+TESTER_BIN_DIR=$GPUVERIFY_ROOT/Tester/trunk/bin/Release
 
+if [[ -n "$CLEAN" ]]; then
+rm -rf $INSTALL_DIR
+fi
 mkdir $INSTALL_DIR
 
 cp -r $LIBCLC_DIR $INSTALL_DIR/libclc
@@ -54,3 +62,8 @@ cp $Z3_BIN_DIR/z3 $INSTALL_DIR/bin
 
 ln $INSTALL_DIR/bin/z3 $INSTALL_DIR/bin/z3.exe
 
+if [ -x $TESTER_BIN_DIR ]; then
+  cp $BUGLE_BIN_DIR/cublang $INSTALL_DIR/bin
+  cp $BUGLE_BIN_DIR/clblang $INSTALL_DIR/bin
+  cp $TESTER_BIN_DIR/Tester.exe $INSTALL_DIR/bin
+fi
