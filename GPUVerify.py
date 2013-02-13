@@ -105,6 +105,20 @@ class CommandLineOptions(object):
   keepTemps = False
   noThread2Asserts = False
   generateSmt2 = False
+  noBarrierAccessChecks = False
+  testsuite = False
+  skip = { "clang": False,
+           "opt": False,
+           "bugle": False,
+           "vcgen": False, }
+  bugleLanguage = None
+
+def SplitFilenameExt(f):
+  filename, ext = os.path.splitext(f)
+  if filename.endswith(".opt") and ext == ".bc":
+    filename, unused_ext_ = os.path.splitext(filename)
+    ext = ".opt.bc"
+  return filename, ext
 
 class Timeout(Exception):
     pass
@@ -171,11 +185,13 @@ def showHelpAndExit():
   print "                          nondeterministic"
   print "  --array-equalities      Generate equality candidate invariants for array variables"
   print "  --boogie-opt=...        Specify option to be passed to Boogie"
+  print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
   print "  --clang-opt=...         Specify option to be passed to CLANG"
   print "  --equality-abstraction  Make shared arrays nondeterministic, but consistent between"
   print "                          threads, at barriers"
   print "  --gen-smt2              Generate smt2 file"
   print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
+  print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
@@ -184,6 +200,7 @@ def showHelpAndExit():
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
+  print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
   print ""
@@ -211,6 +228,8 @@ def processVector(vector):
   else:
     return [ int(vector) ]
 
+def GPUVerifyWarn(msg):
+  print "GPUVerify: warning: " + msg
 
 def GPUVerifyError(msg, code):
   print "GPUVerify: error: " + msg
@@ -224,15 +243,23 @@ def getSourceFiles(args):
   if len(args) == 0:
     GPUVerifyError("no .cl or .cu files supplied", ErrorCodes.COMMAND_LINE_ERROR)
   for a in args:
-    filename, ext = os.path.splitext(a)
+    filename, ext = SplitFilenameExt(a)
     if ext == ".cl":
       if CommandLineOptions.SL == SourceLanguage.CUDA:
-        GPUVerifyError("illegal to pass both .cl and .cu files simultaneoulsy", ErrorCodes.COMMAND_LINE_ERROR)
+        GPUVerifyError("illegal to pass both .cl and .cu files simultaneously", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.SL = SourceLanguage.OpenCL
     elif ext == ".cu":
       if CommandLineOptions.SL == SourceLanguage.OpenCL:
-        GPUVerifyError("illegal to pass both .cl and .cu files simultaneoulsy", ErrorCodes.COMMAND_LINE_ERROR)
+        GPUVerifyError("illegal to pass both .cl and .cu files simultaneously", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.SL = SourceLanguage.CUDA
+    elif ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl" ]:
+      CommandLineOptions.skip["clang"] = True
+      if ext in [        ".opt.bc", ".gbpl", ".bpl" ]:
+        CommandLineOptions.skip["opt"] = True
+      if ext in [                   ".gbpl", ".bpl" ]:
+        CommandLineOptions.skip["bugle"] = True
+      if ext in [                            ".bpl" ]:
+        CommandLineOptions.skip["vcgen"] = True
     else:
       GPUVerifyError("'" + a + "' has unknown file extension, supported file extensions are .cl (OpenCL) and .cu (CUDA)", ErrorCodes.COMMAND_LINE_ERROR)
     CommandLineOptions.sourceFiles.append(a)
@@ -280,6 +307,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.equalityAbstraction = True
     if o == "--keep-temps":
       CommandLineOptions.keepTemps = True
+    if o == "--no-barrier-access-checks":
+      CommandLineOptions.noBarrierAccessChecks = True
     if o == "--no-loop-predicate-invariants":
       CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
@@ -305,7 +334,13 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.onlyDivergence = True
     if o == "--gen-smt2":
       CommandLineOptions.generateSmt2 = True
-
+    if o == "--testsuite":
+      CommandLineOptions.testsuite = True
+    if o == "--bugle-lang":
+      if a.lower() in ("cl", "cu"):
+        CommandLineOptions.bugleLanguage = a.lower()
+      else:
+        GPUVerifyError("argument to --bugle-lang must be 'cl' or 'cu'", ErrorCodes.COMMAND_LINE_ERROR)
 
 def processOpenCLOptions(opts, args):
   for o, a in opts:
@@ -329,6 +364,11 @@ def processOpenCLOptions(opts, args):
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for num_groups dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
+
+  if CommandLineOptions.testsuite:
+    if CommandLineOptions.groupSize or CommandLineOptions.numGroups:
+      GPUVerifyWarn("local_size and num_groups flags ignored when using --testsuite")
+    return
 
   if CommandLineOptions.groupSize == []:
     GPUVerifyError("work group size must be specified via --local_size=...", ErrorCodes.COMMAND_LINE_ERROR)
@@ -358,6 +398,11 @@ def processCUDAOptions(opts, args):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for gridDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
 
+  if CommandLineOptions.testsuite:
+    if CommandLineOptions.groupSize or CommandLineOptions.numGroups:
+      GPUVerifyWarn("blockDim and gridDim flags ignored when using --testsuite")
+    return
+
   if CommandLineOptions.groupSize == []:
     GPUVerifyError("thread block size must be specified via --blockDim=...", ErrorCodes.COMMAND_LINE_ERROR)
   if CommandLineOptions.numGroups == []:
@@ -372,13 +417,14 @@ def main(argv=None):
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
              ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose',
               'loop-unwind=', 'no-benign', 'only-divergence', 'only-intra-group', 
-              'adversarial-abstraction', 'equality-abstraction', 'no-loop-predicate-invariants',
+              'adversarial-abstraction', 'equality-abstraction', 
+              'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'boogie-opt=',
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
-              'no-thread2-asserts', 'gen-smt2',
+              'no-thread2-asserts', 'gen-smt2', 'testsuite', 'bugle-lang='
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -391,26 +437,30 @@ def main(argv=None):
   if CommandLineOptions.SL == SourceLanguage.CUDA:
     processCUDAOptions(opts, args)
 
-  filename, ext = os.path.splitext(args[0])
+  filename, ext = SplitFilenameExt(args[0])
 
   if ext == ".cl":
     CommandLineOptions.clangOptions += clangOpenCLOptions
+    if CommandLineOptions.testsuite:
+      rmFlags = [ "-include", "opencl.h" ]
+      CommandLineOptions.clangOptions = [ i for i in CommandLineOptions.clangOptions if i not in rmFlags ]
     CommandLineOptions.includes += clangOpenCLIncludes
     CommandLineOptions.defines += clangOpenCLDefines
-    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
-    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-    CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-    CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    if not CommandLineOptions.testsuite:
+      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
+      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+      CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+      CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
-  else:
-    assert(ext == ".cu")
+  elif ext == ".cu":
     CommandLineOptions.clangOptions += clangCUDAOptions
     CommandLineOptions.includes += clangCUDAIncludes
     CommandLineOptions.defines += clangCUDADefines
-    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
-    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-    CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-    CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    if not CommandLineOptions.testsuite:
+      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
+      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+      CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+      CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
   # Intermediate filenames
   bcFilename = filename + '.bc'
@@ -418,6 +468,7 @@ def main(argv=None):
   gbplFilename = filename + '.gbpl'
   bplFilename = filename + '.bpl'
   locFilename = filename + '.loc'
+  smt2Filename = filename + '.smt2'
   if not CommandLineOptions.keepTemps:
     def DeleteFile(filename):
       """ Delete the filename if it exists """
@@ -435,7 +486,13 @@ def main(argv=None):
 
   CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
-  CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
+  if ext in [ ".cl", ".cu" ]:
+    CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" or CommandLineOptions.forceOpenCLBitcode else "cu", "-o", gbplFilename, optFilename ]
+  elif not CommandLineOptions.skip['bugle']:
+    if not CommandLineOptions.bugleLanguage:
+      GPUVerifyError("must specify --bugle-lang=[cl|cu] when given a bitcode .bc file", ErrorCodes.COMMAND_LINE_ERROR)
+    assert CommandLineOptions.bugleLanguage in [ "cl", "cu" ]
+    CommandLineOptions.bugleOptions += [ "-l", CommandLineOptions.bugleLanguage, "-o", gbplFilename, optFilename ]
 
   if CommandLineOptions.adversarialAbstraction:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/adversarialAbstraction" ]
@@ -449,6 +506,8 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyIntraGroupRaceChecking" ]
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS or (not CommandLineOptions.inference):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noInfer" ]
+  if CommandLineOptions.noBarrierAccessChecks:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/noBarrierAccessChecks" ]
   if CommandLineOptions.noLoopPredicateInvariants:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noLoopPredicateInvariants" ]
   if CommandLineOptions.noSmartPredication:
@@ -457,7 +516,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSourceLocInfer" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
-  CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + bplFilename[:-4], gbplFilename ] #< ignore .bpl suffix
+  CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
@@ -465,46 +524,50 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
 
   if CommandLineOptions.generateSmt2:
-    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + filename + ".smt2" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
   """ RUN CLANG """
-  RunTool("clang", 
-           [llvmBinDir + "/clang"] + 
-           CommandLineOptions.clangOptions + 
-           [("-I" + str(o)) for o in CommandLineOptions.includes] + 
-           [("-D" + str(o)) for o in CommandLineOptions.defines],
-           ErrorCodes.CLANG_ERROR)
+  if not CommandLineOptions.skip["clang"]:
+    RunTool("clang", 
+             [llvmBinDir + "/clang"] + 
+             CommandLineOptions.clangOptions + 
+             [("-I" + str(o)) for o in CommandLineOptions.includes] + 
+             [("-D" + str(o)) for o in CommandLineOptions.defines],
+             ErrorCodes.CLANG_ERROR)
 
   """ RUN OPT """
-  RunTool("opt",
-          [llvmBinDir + "/opt"] + 
-          CommandLineOptions.optOptions,
-          ErrorCodes.OPT_ERROR)
+  if not CommandLineOptions.skip["opt"]:
+    RunTool("opt",
+            [llvmBinDir + "/opt"] + 
+            CommandLineOptions.optOptions,
+            ErrorCodes.OPT_ERROR)
 
   """ RUN BUGLE """
-  RunTool("bugle",
-          [bugleBinDir + "/bugle"] +
-          CommandLineOptions.bugleOptions,
-          ErrorCodes.BUGLE_ERROR)
+  if not CommandLineOptions.skip["bugle"]:
+    RunTool("bugle",
+            [bugleBinDir + "/bugle"] +
+            CommandLineOptions.bugleOptions,
+            ErrorCodes.BUGLE_ERROR)
 
   if CommandLineOptions.stopAtGbpl: return 0
 
   """ RUN GPUVERIFYVCGEN """
-  RunTool("gpuverifyvcgen",
-          (["mono"] if os.name == "posix" else []) +
-          [gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
-          CommandLineOptions.gpuVerifyVCGenOptions,
-          ErrorCodes.GPUVERIFYVCGEN_ERROR)
+  if not CommandLineOptions.skip["vcgen"]:
+    RunTool("gpuverifyvcgen",
+            (["mono"] if os.name == "posix" else []) +
+            [gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
+            CommandLineOptions.gpuVerifyVCGenOptions,
+            ErrorCodes.GPUVERIFYVCGEN_ERROR)
 
-  if CommandLineOptions.noThread2Asserts:
-    f = open(bplFilename)
-    lines = f.readlines()
-    f.close()
-    f = open(bplFilename, 'w')
-    for line in lines:
-      if 'thread 2' not in line: f.write(line)
-    f.close()
+    if CommandLineOptions.noThread2Asserts:
+      f = open(bplFilename)
+      lines = f.readlines()
+      f.close()
+      f = open(bplFilename, 'w')
+      for line in lines:
+        if 'thread 2' not in line: f.write(line)
+      f.close()
 
   if CommandLineOptions.stopAtBpl: return 0
 

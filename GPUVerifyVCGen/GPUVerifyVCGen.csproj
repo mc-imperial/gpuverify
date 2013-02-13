@@ -149,6 +149,8 @@
     <Compile Include="GPUVerifier.cs" />
     <Compile Include="IKernelArrayInfo.cs" />
     <Compile Include="IRaceInstrumenter.cs" />
+    <Compile Include="INoAccessInstrumenter.cs" />
+    <Compile Include="NoAccessInstrumenter.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="KernelArrayInfoLists.cs" />
     <Compile Include="NullRaceInstrumenter.cs" />

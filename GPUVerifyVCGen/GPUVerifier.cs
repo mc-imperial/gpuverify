@@ -64,6 +64,7 @@ namespace GPUVerify
         internal static Constant _NUM_GROUPS_Z = null;
 
         public IRaceInstrumenter RaceInstrumenter;
+        public INoAccessInstrumenter NoAccessInstrumenter;
 
         public UniformityAnalyser uniformityAnalyser;
         public MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
@@ -89,6 +90,11 @@ namespace GPUVerify
         public void setRaceInstrumenter(IRaceInstrumenter ri)
         {
             this.RaceInstrumenter = ri;
+        }
+
+        public void setNoAccessInstrumenter(INoAccessInstrumenter ni)
+        {
+            this.NoAccessInstrumenter = ni;
         }
 
         private void CheckWellFormedness()
@@ -350,6 +356,10 @@ namespace GPUVerify
                 emitProgram(outputFilename + "_original");
             }
 
+            if (!ProgramUsesBarrierInvariants()) {
+                CommandLineOptions.BarrierAccessChecks = false;
+            }
+
             DoUniformityAnalysis();
 
             DoVariableDefinitionAnalysis();
@@ -379,6 +389,10 @@ namespace GPUVerify
             }
 
             RaceInstrumenter.AddRaceCheckingInstrumentation();
+            if (CommandLineOptions.BarrierAccessChecks)
+            {
+                NoAccessInstrumenter.AddNoAccessInstrumentation();
+            }
 
             if (CommandLineOptions.ShowStages)
             {
@@ -1281,10 +1295,15 @@ namespace GPUVerify
                   Expr.Or(Expr.And(P1, LocalFence1), Expr.And(P2, LocalFence2));
 
                 if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGroupSharedArrays())) {
+                  var SharedArrays = KernelArrayInfo.getGroupSharedArrays();
+                  var NoAccessVars = CommandLineOptions.BarrierAccessChecks ? 
+                    SharedArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
+                    Enumerable.Empty<Variable>();
+                  var HavocVars = SharedArrays.Concat(NoAccessVars).ToList();
                   bigblocks.Add(new BigBlock(Token.NoToken, null, new CmdSeq(),
                     new IfCmd(Token.NoToken,
                       AtLeastOneEnabledWithLocalFence,
-                      new StmtList(MakeHavocBlocks(KernelArrayInfo.getGroupSharedArrays()), Token.NoToken), null, null), null));
+                      new StmtList(MakeHavocBlocks(HavocVars), Token.NoToken), null, null), null));
                 }
             }
 
@@ -1300,10 +1319,15 @@ namespace GPUVerify
                   Expr.And(Expr.And(GPUVerifier.ThreadsInSameGroup(), Expr.And(P1, P2)), Expr.Or(GlobalFence1, GlobalFence2));
 
                 if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGlobalArrays())) {
+                  var GlobalArrays = KernelArrayInfo.getGlobalArrays();
+                  var NoAccessVars = CommandLineOptions.BarrierAccessChecks ? 
+                    GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
+                    Enumerable.Empty<Variable>();
+                  var HavocVars = GlobalArrays.Concat(NoAccessVars).ToList();
                   bigblocks.Add(new BigBlock(Token.NoToken, null, new CmdSeq(),
                     new IfCmd(Token.NoToken,
                       ThreadsInSameGroup_BothEnabled_AtLeastOneGlobalFence,
-                      new StmtList(MakeHavocBlocks(KernelArrayInfo.getGlobalArrays()), Token.NoToken), null, null), null));
+                      new StmtList(MakeHavocBlocks(HavocVars), Token.NoToken), null, null), null));
                 }
             }
 
@@ -1350,7 +1374,8 @@ namespace GPUVerify
           Debug.Assert(variables.Count > 0);
           List<BigBlock> result = new List<BigBlock>();
           foreach (Variable v in variables) {
-            if (!ArrayModelledAdversarially(v)) {
+            // Revisit: how to havoc NOT_ACCESSED vars properly
+            if (!ArrayModelledAdversarially(v) || v.Name.Contains("_NOT_ACCESSED_")) {
               result.Add(HavocSharedArray(v));
             }
           }
@@ -1442,6 +1467,24 @@ namespace GPUVerify
             Type));
         }
 
+        internal GlobalVariable FindOrCreateNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
+        {
+            string name = MakeNotAccessedVariableName(varName);
+            foreach(Declaration D in Program.TopLevelDeclarations)
+            {
+                if(D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
+                {
+                    return D as GlobalVariable;
+                }
+            }
+
+            GlobalVariable result = MakeNotAccessedVariable(varName, dtype);
+
+            Program.TopLevelDeclarations.Add(result);
+            return result;
+
+        }
+
         internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, string accessType)
         {
             string name = MakeAccessHasOccurredVariableName(varName, accessType) + "$1";
@@ -1513,6 +1556,16 @@ namespace GPUVerify
 
         }
 
+        internal static GlobalVariable MakeNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
+        {
+            var v = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeNotAccessedVariableName(varName), dtype));
+            v.Attributes = new QKeyValue(Token.NoToken, "check_access", new List<object>(new object[] { }), null);
+            return v;
+        }
+
+        internal static string MakeNotAccessedVariableName(string varName) {
+            return "_NOT_ACCESSED_" + varName;
+        }
 
         internal static GlobalVariable MakeAccessHasOccurredVariable(string varName, string accessType)
         {
@@ -1586,6 +1639,11 @@ namespace GPUVerify
                     IsThreadLocalIdConstant(d as Variable) || 
                     IsGroupIdConstant(d as Variable))) {
                   var v = d as Variable;
+
+                  if (v.Name.Contains("_NOT_ACCESSED_")) {
+                    NewTopLevelDeclarations.Add(v);
+                    continue;
+                  }
 
                   if (KernelArrayInfo.getGlobalArrays().Contains(v)) {
                     NewTopLevelDeclarations.Add(v);
@@ -1868,6 +1926,23 @@ namespace GPUVerify
 
         internal static Expr GroupSharedIndexingExpr(int Thread) {
           return Thread == 1 ? Expr.True : ThreadsInSameGroup();
+        }
+
+        internal bool ProgramUsesBarrierInvariants() {
+          foreach (Declaration d in Program.TopLevelDeclarations) {
+            if (d is Implementation) {
+              foreach (Block b in (d as Implementation).Blocks) {
+                foreach (Cmd c in b.Cmds) {
+                  if (c is CallCmd) {
+                    if (QKeyValue.FindBoolAttribute((c as CallCmd).Proc.Attributes, "barrier_invariant")) {
+                      return true;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          return false;
         }
     
     }

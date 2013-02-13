@@ -156,7 +156,15 @@ namespace GPUVerify {
         if (Call.callee.Equals(verifier.BarrierProcedure.Name)) {
           // Assert barrier invariants
           foreach (var BIDescriptor in BarrierInvariantDescriptors) {
+            QKeyValue SourceLocationInfo = BIDescriptor.GetSourceLocationInfo();
             cs.Add(BIDescriptor.GetAssertCmd());
+            var vd = new VariableDualiser(1, verifier.uniformityAnalyser, procName);
+            if (CommandLineOptions.BarrierAccessChecks) {
+              foreach (Expr AccessExpr in BIDescriptor.GetAccessedExprs()) {
+                var Assert = new AssertCmd(Token.NoToken, AccessExpr, MakeThreadSpecificAttributes(SourceLocationInfo,1));
+                cs.Add(vd.Visit(Assert));
+              }
+            }
           }
         }
 

@@ -151,6 +151,13 @@ namespace GPUVerify
                 g.setRaceInstrumenter(ri);
             }
 
+            if (CommandLineOptions.BarrierAccessChecks)
+            {
+                NoAccessInstrumenter ni = new NoAccessInstrumenter();
+                ni.setVerifier(g);
+                g.setNoAccessInstrumenter(ni);
+            }
+
             g.doit();
             
         }
