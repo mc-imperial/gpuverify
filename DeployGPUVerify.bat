@@ -30,6 +30,7 @@ md %INSTALL_DIR%\bin
 
 xcopy /Y %LLVM_BIN_DIR%\clang.exe %INSTALL_DIR%\bin
 xcopy /Y %LLVM_BIN_DIR%\opt.exe %INSTALL_DIR%\bin
+xcopy /Y %LLVM_BIN_DIR%\llvm-nm.exe %INSTALL_DIR%\bin
 xcopy /Y %BUGLE_BIN_DIR%\bugle.exe %INSTALL_DIR%\bin
 
 xcopy /Y %GPUVERIFY_DIR%\Binaries\AbsInt.dll %INSTALL_DIR%\bin

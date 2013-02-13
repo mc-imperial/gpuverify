@@ -470,8 +470,10 @@ def main(argv=None):
   locFilename = filename + '.loc'
   smt2Filename = filename + '.smt2'
   if not CommandLineOptions.keepTemps:
+    inputFilename = filename + ext
     def DeleteFile(filename):
-      """ Delete the filename if it exists """
+      """ Delete the filename if it exists; but don't delete the original input """
+      if filename == inputFilename: return
       try: os.remove(filename)
       except OSError: pass
     atexit.register(DeleteFile, bcFilename)
@@ -487,12 +489,20 @@ def main(argv=None):
   CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
   if ext in [ ".cl", ".cu" ]:
-    CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" or CommandLineOptions.forceOpenCLBitcode else "cu", "-o", gbplFilename, optFilename ]
+    CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
   elif not CommandLineOptions.skip['bugle']:
-    if not CommandLineOptions.bugleLanguage:
+    lang = CommandLineOptions.bugleLanguage
+    if not lang: # try to infer
+      try:
+        proc = subprocess.Popen([ llvmBinDir + "/llvm-nm", filename + ext ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = proc.communicate()
+        if "get_local_size" in stdout: lang = 'cl'
+        if "blockDim" in stdout: lang = 'cu'
+      except: pass
+    if not lang:
       GPUVerifyError("must specify --bugle-lang=[cl|cu] when given a bitcode .bc file", ErrorCodes.COMMAND_LINE_ERROR)
-    assert CommandLineOptions.bugleLanguage in [ "cl", "cu" ]
-    CommandLineOptions.bugleOptions += [ "-l", CommandLineOptions.bugleLanguage, "-o", gbplFilename, optFilename ]
+    assert lang in [ "cl", "cu" ]
+    CommandLineOptions.bugleOptions += [ "-l", lang, "-o", gbplFilename, optFilename ]
 
   if CommandLineOptions.adversarialAbstraction:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/adversarialAbstraction" ]

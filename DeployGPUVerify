@@ -39,6 +39,7 @@ mkdir $INSTALL_DIR/bin
 
 cp $LLVM_BIN_DIR/clang $INSTALL_DIR/bin
 cp $LLVM_BIN_DIR/opt $INSTALL_DIR/bin
+cp $LLVM_BIN_DIR/llvm-nm $INSTALL_DIR/bin
 cp $BUGLE_BIN_DIR/bugle $INSTALL_DIR/bin
 
 cp $GPUVERIFY_BOOGIE_DRIVER_BIN_DIR/AbsInt.dll $INSTALL_DIR/bin
