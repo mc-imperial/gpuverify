@@ -28,10 +28,13 @@ namespace GPUVerify {
       if (CommandLineOptions.BarrierAccessChecks) {
         var visitor = new SubExprVisitor();
         visitor.VisitExpr(this.BarrierInvariant);
-        foreach (NAryExpr e in visitor.SubExprs) {
+        foreach (Tuple<Expr,Expr> pair in visitor.SubExprs) {
+          var Path = pair.Item1;
+          var e = (pair.Item2 as NAryExpr);
           var v = (e.Args[0] as IdentifierExpr);
           var index = e.Args[1];
-          this.AccessExprs.Add(Expr.Imp(Predicate, BuildAccessedExpr(v.Name, index)));
+          this.AccessExprs.Add(Expr.Imp(Predicate, 
+            Expr.Imp(Path, BuildAccessedExpr(v.Name, index))));
         }
       }
     }
@@ -64,10 +67,24 @@ namespace GPUVerify {
     }
 
     class SubExprVisitor : StandardVisitor {
-      internal HashSet<Expr> SubExprs;
+      internal HashSet<Tuple<Expr, Expr>> SubExprs;
+      internal List<Expr> Path;
 
       internal SubExprVisitor() {
-        this.SubExprs = new HashSet<Expr>();
+        this.SubExprs = new HashSet<Tuple<Expr,Expr>>();
+        this.Path = new List<Expr>();
+      }
+
+      internal void PushPath(Expr e) {
+        Path.Add(e);
+      }
+
+      internal void PopPath() {
+        Path.RemoveAt(Path.Count - 1);
+      }
+
+      internal Expr BuildPathCondition() {
+        return Path.Aggregate((Expr.True as Expr), (e1,e2) => Expr.And(e1, e2));
       }
 
       public override Expr VisitNAryExpr(NAryExpr node) {
@@ -77,12 +94,27 @@ namespace GPUVerify {
           var v = (node.Args[0] as IdentifierExpr).Decl;
           if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") ||
               QKeyValue.FindBoolAttribute(v.Attributes, "global")) {
-            SubExprs.Add(node);
+            var PathCondition = BuildPathCondition();
+            SubExprs.Add(new Tuple<Expr,Expr>(PathCondition,node));
+            Console.WriteLine("> Got one! {0} => {1}", PathCondition, node);
           }
+        } else if (node.Fun is BinaryOperator && 
+                   (node.Fun as BinaryOperator).Op == BinaryOperator.Opcode.Imp) {
+          var p = node.Args[0];
+          var q = node.Args[1];
+          PushPath(p); var e = VisitExpr(q); PopPath();
+          return node; // stop recursing
+        } else if (node.Fun is IfThenElse) {
+          var p = node.Args[0];
+          var e1 = node.Args[1];
+          var e2 = node.Args[2];
+          VisitExpr(p);
+          PushPath(p); VisitExpr(e1); PopPath();
+          PushPath(Expr.Not(p)); var e = VisitExpr(e2); PopPath();
+          return node; // stop recursing
         }
         return base.VisitNAryExpr(node);
       }
-
     }
 
   }
