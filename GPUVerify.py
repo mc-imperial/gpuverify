@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+import threading
 
 bugleDir = sys.path[0] + "/bugle"
 libclcDir = sys.path[0] + "/libclc"
@@ -102,6 +103,7 @@ class CommandLineOptions(object):
   stopAtGbpl = False
   stopAtBpl = False
   time = False
+  boogieTimeout=0
   keepTemps = False
   noThread2Asserts = False
   generateSmt2 = False
@@ -123,24 +125,78 @@ def SplitFilenameExt(f):
 class Timeout(Exception):
     pass
 
-def run(command):
+class ToolWatcher(object):
+  """ This class is used by run() to implement a timeout for tools.
+  It uses threading.Timer to implement the timeout and provides
+  a method for checking if the timeout was hit.
+
+  The class is re-entrant... I think...
+  """  
+  def handleTimeOut(self):
+    if self.popenObject.poll() == None :
+      #Program is still running, let's kill it
+      self.__killed=True
+      self.popenObject.kill()
+
+  def __init__(self,popenObject,timeout):
+    """ Create ToolWatcher. This will start the timeout.
+    """
+    self.timeout=timeout
+    self.popenObject=popenObject
+    self.__killed=False
+
+    self.timer=threading.Timer(self.timeout, self.handleTimeOut)
+    self.timer.start()
+
+  def timeOutOccured(self):
+    return self.__killed
+
+def run(command,**kargs):
+  """ Run a command. Additional keywords are supported after the
+      positional arguments.
+    
+    timeout=X             : Set timeout in seconds
+    timeoutErrorCode=CODE : The error code to return if a timeout occurs
+  """
+
+  
+  popenargs={}
   if CommandLineOptions.verbose:
     print " ".join(command)
-    proc = subprocess.Popen(command)
+
   else:
-    proc = subprocess.Popen(command, bufsize=0, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    popenargs['bufsize']=0
+    popenargs['stdout']=subprocess.PIPE
+    popenargs['stderr']=subprocess.PIPE
+    
+  killer=None
+  proc = subprocess.Popen(command,**popenargs)
+  if 'timeout' in kargs and 'timeoutErrorCode' in kargs:
+    killer=ToolWatcher(proc,kargs['timeout'])
+    
   try:
     stdout, stderr = proc.communicate()
+    if type(killer) == ToolWatcher and killer.timeOutOccured():
+      raise Timeout
+          
   except KeyboardInterrupt:
     exit(1)
   return stdout, stderr, proc.returncode
 
-def RunTool(ToolName, Command, ErrorCode):
+def RunTool(ToolName, Command, ErrorCode,**kargs):
+  """ Run a tool. Additional keywords are supported after the
+    positional arguments.
+    
+    timeout=X             : Set timeout in seconds
+    timeoutErrorCode=CODE : The error code to return if a timeout occurs
+  """
   Verbose("Running " + ToolName)
   try:
     start = time.time()
-    stdout, stderr, returnCode = run(Command)
+    stdout, stderr, returnCode = run(Command, **kargs)
     end = time.time()
+  except Timeout:
+    GPUVerifyError("Boogie timed out.", ErrorCodes.BOOGIE_TIMEOUT)
   except OSError as osError:
     print "Error while invoking " + ToolName + ": " + str(osError)
     exit(ErrorCode)
@@ -160,6 +216,7 @@ class ErrorCodes(object):
   BUGLE_ERROR = 4
   GPUVERIFYVCGEN_ERROR = 5
   BOOGIE_ERROR = 6
+  BOOGIE_TIMEOUT=7
 
 def showHelpAndExit():
   print "OVERVIEW: GPUVerify driver"
@@ -179,6 +236,8 @@ def showHelpAndExit():
   print "  --verify                Run tool in verification mode"
   print "  --verbose               Show commands to run and use verbose output"
   print "  --time                  Show timing information"
+  print "  --timeout=X             Allow Boogie component to run for X seconds before giving up."
+  print "                          A timeout of 0 disables the timeout, this is the default."
   print ""
   print "ADVANCED OPTIONS:"
   print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
@@ -341,6 +400,13 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.bugleLanguage = a.lower()
       else:
         GPUVerifyError("argument to --bugle-lang must be 'cl' or 'cu'", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--timeout":
+      try:
+        CommandLineOptions.boogieTimeout = int(a)
+        if CommandLineOptions.boogieTimeout < 0:
+          raise ValueError
+      except ValueError as e:
+          GPUVerifyError("Invalid timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
 
 def processOpenCLOptions(opts, args):
   for o, a in opts:
@@ -424,7 +490,7 @@ def main(argv=None):
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
-              'no-thread2-asserts', 'gen-smt2', 'testsuite', 'bugle-lang='
+              'no-thread2-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout='
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -582,11 +648,17 @@ def main(argv=None):
   if CommandLineOptions.stopAtBpl: return 0
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
+  timeoutArguments={}
+  if CommandLineOptions.boogieTimeout > 0:
+    timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
+    timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
+    
   RunTool("gpuverifyboogiedriver",
           (["mono"] if os.name == "posix" else []) +
           [gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver.exe"] +
           CommandLineOptions.gpuVerifyBoogieDriverOptions,
-          ErrorCodes.BOOGIE_ERROR)
+          ErrorCodes.BOOGIE_ERROR,
+          **timeoutArguments)
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     print "No defects were found while analysing: " + ", ".join(CommandLineOptions.sourceFiles)
