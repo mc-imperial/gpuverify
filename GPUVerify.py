@@ -19,6 +19,13 @@ z3BinDir = sys.path[0] + "/bin"
 """ Timing for the toolchain pipeline """
 Timing = []
 
+"""Horrible hack: WindowsError is not defined on UNIX systems, this works around that"""
+try:
+   WindowsError
+except NameError:
+   WindowsError = None
+
+
 """ We support three analysis modes """
 class AnalysisMode(object):
   """ This is the default mode.  Right now it is the same as VERIFY, 
