@@ -135,16 +135,21 @@ class Timeout(Exception):
 class ToolWatcher(object):
   """ This class is used by run() to implement a timeout for tools.
   It uses threading.Timer to implement the timeout and provides
-  a method for checking if the timeout was hit.
+  a method for checking if the timeout occurred. It also provides a 
+  method for cancelling the timeout.
 
-  The class is re-entrant... I think...
-  """  
-  def handleTimeOut(self):
+  The class is reentrant
+  """
+   
+  def __handleTimeOut(self):
     if self.popenObject.poll() == None :
       #Program is still running, let's kill it
       self.__killed=True
       self.popenObject.kill()
 
+  """ Create a ToolWatcher instance with an existing "subprocess.Popen" instance
+      and timeout.
+  """
   def __init__(self,popenObject,timeout):
     """ Create ToolWatcher. This will start the timeout.
     """
@@ -152,12 +157,17 @@ class ToolWatcher(object):
     self.popenObject=popenObject
     self.__killed=False
 
-    self.timer=threading.Timer(self.timeout, self.handleTimeOut)
+    self.timer=threading.Timer(self.timeout, self.__handleTimeOut)
     self.timer.start()
-
+  
+  """ Returns True if the timeout occurred """
   def timeOutOccured(self):
     return self.__killed
   
+  """ Cancel the timeout. You must call this if your program wishes
+      to exit else exit() will block waiting for this class's Thread
+      (threading.Timer) to finish.
+  """
   def cancelTimeout(self):
     self.timer.cancel()
 
