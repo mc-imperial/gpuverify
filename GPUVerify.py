@@ -221,12 +221,9 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
     end = time.time()
   except Timeout:
     GPUVerifyError(ToolName + " timed out.", timeoutErrorCode)
-  except OSError as osError:
-    print "Error while invoking " + ToolName + ": " + str(osError)
-    exit(ErrorCode)
-  except WindowsError as windowsError:
-    print "Error while invoking " + ToolName + ": " + str(windowsError)
-    exit(ErrorCode)
+  except (OSError,WindowsError) as e:
+    GPUVerifyError("While invoking " + ToolName + ": " + str(e),ErrorCode)
+
   if returnCode != 0:
     if stderr: print stderr
     exit(ErrorCode)
