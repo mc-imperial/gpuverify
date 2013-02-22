@@ -171,19 +171,13 @@ class ToolWatcher(object):
   def cancelTimeout(self):
     self.timer.cancel()
 
-def run(command,**kargs):
-  """ Run a command. Additional keywords are supported after the
-      positional arguments.
-    
-    timeout=X             : Set timeout in seconds
-    timeoutErrorCode=CODE : The error code to return if a timeout occurs
+def run(command,timeout=0):
+  """ Run a command with an optional timeout. A timeout of zero 
+      implies no timeout.
   """
-
-  
   popenargs={}
   if CommandLineOptions.verbose:
     print " ".join(command)
-
   else:
     popenargs['bufsize']=0
     popenargs['stdout']=subprocess.PIPE
@@ -191,14 +185,12 @@ def run(command,**kargs):
     
   killer=None
   proc = subprocess.Popen(command,**popenargs)
-  if 'timeout' in kargs and 'timeoutErrorCode' in kargs:
-    killer=ToolWatcher(proc,kargs['timeout'])
-    
+  if timeout > 0:
+    killer=ToolWatcher(proc,timeout)   
   try:
     stdout, stderr = proc.communicate()
-    if type(killer) == ToolWatcher and killer.timeOutOccured():
+    if killer != None and killer.timeOutOccured():
       raise Timeout
-          
   except KeyboardInterrupt:
     #Need to kill the timer if it exists else exit() will block until the timer finishes
     if killer != None:
@@ -206,31 +198,6 @@ def run(command,**kargs):
     exit(1)
     
   return stdout, stderr, proc.returncode
-
-def RunTool(ToolName, Command, ErrorCode,**kargs):
-  """ Run a tool. Additional keywords are supported after the
-    positional arguments.
-    
-    timeout=X             : Set timeout in seconds
-    timeoutErrorCode=CODE : The error code to return if a timeout occurs
-  """
-  Verbose("Running " + ToolName)
-  try:
-    start = time.time()
-    stdout, stderr, returnCode = run(Command, **kargs)
-    end = time.time()
-  except Timeout:
-    GPUVerifyError("Boogie timed out.", ErrorCodes.BOOGIE_TIMEOUT)
-  except OSError as osError:
-    print "Error while invoking " + ToolName + ": " + str(osError)
-    exit(ErrorCode)
-  except WindowsError as windowsError:
-    print "Error while invoking " + ToolName + ": " + str(windowsError)
-    exit(ErrorCode)
-  if returnCode != 0:
-    if stderr: print stderr
-    exit(ErrorCode)
-  if CommandLineOptions: Timing.append((ToolName, end-start))
 
 class ErrorCodes(object):
   SUCCESS = 0
@@ -241,6 +208,29 @@ class ErrorCodes(object):
   GPUVERIFYVCGEN_ERROR = 5
   BOOGIE_ERROR = 6
   BOOGIE_TIMEOUT=7
+  
+def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
+  """ Run a tool. 
+      If the timeout is set to 0 then there will no timeout.
+      If the timeout is > 0 then timeoutErrorCode MUST be set!
+  """
+  Verbose("Running " + ToolName)
+  try:
+    start = time.time()
+    stdout, stderr, returnCode = run(Command, timeout)
+    end = time.time()
+  except Timeout:
+    GPUVerifyError(ToolName + " timed out.", timeoutErrorCode)
+  except OSError as osError:
+    print "Error while invoking " + ToolName + ": " + str(osError)
+    exit(ErrorCode)
+  except WindowsError as windowsError:
+    print "Error while invoking " + ToolName + ": " + str(windowsError)
+    exit(ErrorCode)
+  if returnCode != 0:
+    if stderr: print stderr
+    exit(ErrorCode)
+  if CommandLineOptions: Timing.append((ToolName, end-start))
 
 def showHelpAndExit():
   print "OVERVIEW: GPUVerify driver"
