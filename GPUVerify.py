@@ -157,6 +157,9 @@ class ToolWatcher(object):
 
   def timeOutOccured(self):
     return self.__killed
+  
+  def cancelTimeout(self):
+    self.timer.cancel()
 
 def run(command,**kargs):
   """ Run a command. Additional keywords are supported after the
@@ -187,7 +190,11 @@ def run(command,**kargs):
       raise Timeout
           
   except KeyboardInterrupt:
+    #Need to kill the timer if it exists else exit() will block until the timer finishes
+    if killer != None:
+      killer.cancelTimeout()
     exit(1)
+    
   return stdout, stderr, proc.returncode
 
 def RunTool(ToolName, Command, ErrorCode,**kargs):
