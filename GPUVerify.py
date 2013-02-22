@@ -110,7 +110,7 @@ class CommandLineOptions(object):
   stopAtGbpl = False
   stopAtBpl = False
   time = False
-  boogieTimeout=0
+  boogieTimeout=300
   keepTemps = False
   noThread2Asserts = False
   generateSmt2 = False
@@ -254,7 +254,7 @@ def showHelpAndExit():
   print "  --verbose               Show commands to run and use verbose output"
   print "  --time                  Show timing information"
   print "  --timeout=X             Allow Boogie component to run for X seconds before giving up."
-  print "                          A timeout of 0 disables the timeout, this is the default."
+  print "                          A timeout of 0 disables the timeout. The default is " + str(CommandLineOptions.boogieTimeout) + " seconds"
   print ""
   print "ADVANCED OPTIONS:"
   print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
