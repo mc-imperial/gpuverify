@@ -19,12 +19,11 @@ z3BinDir = sys.path[0] + "/bin"
 """ Timing for the toolchain pipeline """
 Timing = []
 
-"""Horrible hack: WindowsError is not defined on UNIX systems, this works around that"""
+""" Horrible hack: WindowsError is not defined on UNIX systems, this works around that """
 try:
    WindowsError
 except NameError:
    WindowsError = None
-
 
 """ We support three analysis modes """
 class AnalysisMode(object):
@@ -197,6 +196,7 @@ def run(command,timeout=0):
       raise Timeout
   except KeyboardInterrupt:
     cleanupKiller()
+    proc.wait()
     exit(1)
   finally:
     #Need to kill the timer if it exists else exit() will block until the timer finishes
