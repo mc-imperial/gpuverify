@@ -184,6 +184,10 @@ def run(command,timeout=0):
     popenargs['stderr']=subprocess.PIPE
     
   killer=None
+  def cleanupKiller():
+    if killer!=None:
+      killer.cancelTimeout()
+      
   proc = subprocess.Popen(command,**popenargs)
   if timeout > 0:
     killer=ToolWatcher(proc,timeout)   
@@ -192,10 +196,12 @@ def run(command,timeout=0):
     if killer != None and killer.timeOutOccured():
       raise Timeout
   except KeyboardInterrupt:
-    #Need to kill the timer if it exists else exit() will block until the timer finishes
-    if killer != None:
-      killer.cancelTimeout()
+    cleanupKiller()
     exit(1)
+  finally:
+    #Need to kill the timer if it exists else exit() will block until the timer finishes
+    cleanupKiller()
+    
     
   return stdout, stderr, proc.returncode
 
