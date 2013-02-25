@@ -503,6 +503,7 @@ namespace Microsoft.Boogie
 
     static void ProcessOutcome(VC.VCGen.Outcome outcome, List<Counterexample> errors, string timeIndication,
                        ref int errorCount, ref int verified, ref int inconclusives, ref int timeOuts, ref int outOfMemories) {
+
       switch (outcome) {
         default:
           Contract.Assert(false);  // unexpected outcome
@@ -651,6 +652,7 @@ namespace Microsoft.Boogie
           }
           break;
       }
+
     }
 
     private static void PrintDetailedTraceHeader(string colTwoHeader, string colThreeHeader, int locationColSize, int colTwoSize, int colThreeSize)
@@ -1196,13 +1198,13 @@ namespace Microsoft.Boogie
       } while (f != null);
 
       try {
-        int index = sourceLocLineNos.Count - 1;
-        while(index >= 0) {
+        for (int index = sourceLocLineNos.Count - 1;
+            index >= 0;
+            index--) {
           if (sourceLocLineNos[index] > 0) {
             // TODO: Make lines in .loc file be indexed from 1 for consistency.
             string fileLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), sourceLocLineNos[index] + 1);
-            if(fileLine.Equals("<unknown line of code>")) {
-              index--;
+            if (fileLine.Equals("<unknown line of code>")) {
               continue;
             }
             string[] slocTokens = Regex.Split(fileLine, "#");
