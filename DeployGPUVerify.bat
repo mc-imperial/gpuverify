@@ -25,6 +25,7 @@ xcopy /Y /E /I %LLVM_BUILD_DIR%\bin\lib %INSTALL_DIR%\lib
 
 xcopy /Y %~dp0GPUVerify.py %INSTALL_DIR%
 xcopy /Y %~dp0GPUVerify.bat %INSTALL_DIR%
+xcopy /Y %~dp0GPUVerifyTester.py %INSTALL_DIR%
 
 md %INSTALL_DIR%\bin
 

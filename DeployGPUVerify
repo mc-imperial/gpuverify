@@ -34,6 +34,7 @@ cp -r $LLVM_BUILD_DIR/Release+Asserts/lib $INSTALL_DIR/lib
 
 cp GPUVerify.py $INSTALL_DIR
 cp gpuverify $INSTALL_DIR
+cp GPUVerifyTester.py $INSTALL_DIR
 
 mkdir $INSTALL_DIR/bin
 
