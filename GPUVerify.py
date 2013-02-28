@@ -71,7 +71,7 @@ clangCUDADefines = [ "__CUDA_ARCH__" ]
 """ Options for the tool """
 class CommandLineOptions(object):
   SL = SourceLanguage.Unknown
-  sourceFiles = []
+  sourceFiles = [] # The OpenCL or CUDA files to be processed
   includes = clangCoreIncludes
   defines = clangCoreDefines
   clangOptions = clangCoreOptions
@@ -260,6 +260,7 @@ def showHelpAndExit():
   print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
   print "                          nondeterministic"
   print "  --array-equalities      Generate equality candidate invariants for array variables"
+  print "  --boogie-file=X.bpl     Specify a supporting .bpl file to be used during verification"
   print "  --boogie-opt=...        Specify option to be passed to Boogie"
   print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
   print "  --clang-opt=...         Specify option to be passed to CLANG"
@@ -424,6 +425,11 @@ def processGeneralOptions(opts, args):
           raise ValueError
       except ValueError as e:
           GPUVerifyError("Invalid timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--boogie-file":
+      filename, ext = SplitFilenameExt(a)
+      if ext != ".bpl":
+        GPUVerifyError("'" + a + "' specified via --boogie-file should have extension .bpl", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyBoogieDriverOptions += [ a ]
 
 def processOpenCLOptions(opts, args):
   for o, a in opts:
@@ -507,7 +513,8 @@ def main(argv=None):
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
-              'no-thread2-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout='
+              'no-thread2-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
+              'boogie-file=',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
