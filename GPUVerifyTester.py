@@ -293,7 +293,7 @@ def getCanonicalTestName(path,prefix):
         so that it is possible to compare test runs between different machines
         that keep their tests in different directories.
         
-        The "prefix" is assumed to be present at in every path to a test.
+        The "prefix" is assumed to be present in every path to a test kernel.
     """
     cPath=""
     try:
@@ -301,7 +301,7 @@ def getCanonicalTestName(path,prefix):
         cPath=path[path.index(prefix):]
         
         #Replace Windows slashes with UNIX slashes
-        cPath.replace('\\', '/')
+        cPath=cPath.replace('\\', '/')
     except ValueError:
         raise CanonicalisationError(path,prefix)
     
