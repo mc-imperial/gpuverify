@@ -438,12 +438,12 @@ def main(arg):
                     logging.debug("Found CUDA kernel:\"{}\"".format(f))
                 if f.endswith('cl'): 
                     openCLCount+=1
-                    logging.debug("Found openCL kernel:\"{}\"".format(f))
+                    logging.debug("Found OpenCL kernel:\"{}\"".format(f))
                     
                 kernelFiles.append(os.path.join(root,f))
             
          
-    logging.info("Found {0} openCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
+    logging.info("Found {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
     
     if len(kernelFiles) == 0:
         logging.error("Could not find any OpenCL or CUDA kernels")
