@@ -133,6 +133,11 @@ class GPUVerifyTestKernel:
                 
                 lineCounter+=1
             
+            #Set variables to be used later
+            self.testPassed=None
+            self.returnedCode=""
+            self.gpuverifyReturnCode=""
+
             #Finished parsing
             logging.debug("Successfully parsed kernel \"{0}\" for test parameters".format(path))
             
@@ -194,19 +199,36 @@ class GPUVerifyTestKernel:
             
     
     def __str__(self):
-        return """GPUVerifyTestKernel:
-  File:{0}
-  Expected exit code:{1}
-  CmdArgs: {2}
-  Regex: {3}
-""".format(   self.path, 
+        testString="GPUVerifyTestKernel:\nFull Path:{0}\nExpected exit code:{1}\nCmdArgs: {2}\n".format(   
+              self.path, 
               GPUVerifyErrorCodes.errorCodeToString[self.expectedReturnCode], 
               self.gpuverifyCmdArgs, 
-              self.regex
           )
-        
 
+        if self.testPassed == None:
+          #Test has not yet been run
+          if len(self.regex) == 0:
+              testString+= "No regular expressions.\n"
+          else:
+              for regex in self.regex.keys():
+                  testString+= "Regex:\"{0}\"\n".format(regex)
 
+          testString+= "Kernel has not yet been executed.\n"
+          
+        else:
+          #Test has been run, show more info
+          testString+= "Kernel has been executed.\n"
+          testString+= "Passed: " + str(self.testPassed) + "\n"
+          testString+= "Actual result:" + GPUVerifyErrorCodes.errorCodeToString[self.returnedCode] + "\n"
+          testString+= "GPUVerify return code:" + GPUVerifyErrorCodes.errorCodeToString[self.gpuverifyReturnCode] + "\n"
+          if len(self.regex) > 0:
+              testString+= "Regular expression matching:\n"
+              for (regex,succeeded) in self.regex.items():
+                  testString+= "\"" + regex +"\" : " + ("MATCHED" if succeeded else "FAILED TO MATCH") + "\n"
+          else:
+              testString+="No regular expressions.\n"
+
+        return testString  
 
 class GPUVerifyTesterError(Exception):
     pass
@@ -260,17 +282,7 @@ def dumpTestResults(tests,prefix):
             logging.error(e)
             print("Test: No canonical name")
             
-        print("Full Path: " + testObj.path)
-        print("Passed: " + str(testObj.testPassed))
-        print("Expected result:" + GPUVerifyErrorCodes.errorCodeToString[testObj.expectedReturnCode])
-        print("Actual result:" + GPUVerifyErrorCodes.errorCodeToString[testObj.returnedCode])
-        print("GPUVerify return code:" + GPUVerifyErrorCodes.errorCodeToString[testObj.gpuverifyReturnCode])
-        if len(testObj.regex) > 0:
-            print("\nRegular expression matching:")
-            for (regex,succeeded) in testObj.regex.items():
-                print("\"" + regex +"\" : " + ("MATCHED" if succeeded else "FAILED TO MATCH"))
-        print("\n")
-        
+        print(testObj)
         print("#" * width) #Footer bar
 
 #This Action can be triggered from the command line
@@ -314,7 +326,9 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
     changedTestCounter=0
     missingTestCounter=0
     newTestCounter=0
-    
+   
+    width=80
+
     #Create dictionaries mapping canonical path to test
     #We do this now because we want to leave determining canonical path
     #to comparison time so the user has the capability to manipulate how the
@@ -343,11 +357,13 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
             
             #Look for a change in result
             if oldTest.testPassed != newTestDic[cPath].testPassed:
+                logging.info('#'*width)
                 logging.info("Test \"" + cPath + "\" result has changed.")
-                print("Test \"" + cPath + "\ from \"" + oldTestName + "\":")
-                print(oldTest)
-                print("Test \"" + cPath + "\ from \"" + newTestName + "\"")
-                print(newTestDic[cPath])
+                logging.info("Test \"" + cPath + "\ from \"" + oldTestName + "\":")
+                logging.info(oldTest)
+                logging.info("Test \"" + cPath + "\ from \"" + newTestName + "\"")
+                logging.info(newTestDic[cPath])
+                logging.info('#'*width)
                 changedTestCounter+=1
         else:
             logging.warning("Test \"" + cPath + "\" present in \"" + oldTestName+ "\" was missing from \"" + newTestName + "\"")
