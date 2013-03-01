@@ -292,7 +292,10 @@ namespace GPUVerify {
       }
       else if (c is AssumeCmd) {
         AssumeCmd ass = c as AssumeCmd;
-        if (QKeyValue.FindBoolAttribute(ass.Attributes, "backedge")) {
+
+        if (QKeyValue.FindStringAttribute(ass.Attributes, "captureState") != null) {
+          cs.Add(c);
+        } else if (QKeyValue.FindBoolAttribute(ass.Attributes, "backedge")) {
           cs.Add(new AssumeCmd(c.tok, Expr.Or(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr),
               new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr))));
         }

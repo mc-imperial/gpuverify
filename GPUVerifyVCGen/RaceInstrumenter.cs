@@ -16,6 +16,8 @@ namespace GPUVerify {
 
     private int CurrStmtNo = 1;
 
+    private int CheckStateCounter = 0;
+
     private Dictionary<string, List<int>> ReadAccessSourceLocations = new Dictionary<string, List<int>>();
 
     private Dictionary<string, List<int>> WriteAccessSourceLocations = new Dictionary<string, List<int>>();
@@ -460,12 +462,22 @@ namespace GPUVerify {
       CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new IdentifierExprSeq());
       logAccessCallCmd.Proc = logProcedure;
       logAccessCallCmd.Attributes = SourceLocationAttributes;
+      result.Add(logAccessCallCmd);
+
+      string CheckState = "check_state_" + CheckStateCounter;
+      CheckStateCounter++;
+
+      AssumeCmd captureStateAssume = new AssumeCmd(Token.NoToken, Expr.True);
+      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
+        "captureState", new List<object>() { CheckState }, null);
+      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
+        "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
+      result.Add(captureStateAssume);
 
       CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new IdentifierExprSeq());
       checkAccessCallCmd.Proc = checkProcedure;
       checkAccessCallCmd.Attributes = SourceLocationAttributes;
-
-      result.Add(logAccessCallCmd);
+      checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "state_id", new List<object>() { CheckState }, checkAccessCallCmd.Attributes);
       result.Add(checkAccessCallCmd);
 
       AddToAccessSourceLocations(Access, ar.v.Name);

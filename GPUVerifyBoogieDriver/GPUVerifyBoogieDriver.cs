@@ -560,63 +560,33 @@ namespace Microsoft.Boogie
                 }
                 else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "race"))
                 {
-                  int byteOffset = -1, elemOffset = -1, elemWidth = -1;
-                  string thread1 = null, thread2 = null, group1 = null, group2 = null, arrName = null;
-                  //TODO: make this a command line argument.
-                  bool detailedTrace = false;
-                  string threadOneFailAccess = null, threadTwoFailAccess = null;
+                  string thread1, thread2, group1, group2, arrName;
 
-                  Variable offsetVar = ExtractOffsetVar(err.FailingRequires.Condition as NAryExpr);
-                  /* Right now the offset incarnation that is extracted is the penultimate one if
-                   * there is more than one incarnation, or the last one if there is only one incarnation.
-                   * TODO: In future, we should know the exact incarnation to extract. This information is 
-                   * available when the CallCounterexample is created in VC.cs AssertCmdToCounterexample() (line 2405)
-                   * The condition of the AssertRequiresCmd contains the incarnation information, so this should be passed 
-                   * on to the Requires of the created CallCounterexample. This can either be done by replacing the condition
-                   * of the Requires with the condition from AssertRequiresCmd (containing incarnation information) or creating 
-                   * a separate field in the Requires to store this original condition.
-                   */
-                  Model.Func offsetFunc = ExtractIncarnationFromModel(error.Model, offsetVar.Name);
-                  GetInfoFromVarAndFunc(offsetVar.Attributes, offsetFunc, out byteOffset, out elemOffset, out elemWidth, out arrName);
+                  Model ModelWithStates = error.GetModelWithStates();
+
+                  int byteOffset = GetOffsetInBytes(ExtractOffsetVar(err), ModelWithStates, err.FailingCall);
 
                   GetThreadsAndGroupsFromModel(err.Model, out thread1, out thread2, out group1, out group2, true);
 
+                  arrName = GetArrayName(err.FailingRequires);
+
+                  Debug.Assert(arrName != null);
+
                   if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read"))
                   {
-                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "WRITE", QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
-                    threadOneFailAccess = "WRITE";
-                    threadTwoFailAccess = "READ";
+                    err.FailingRequires.Attributes = GetSourceLocInfo(err, "WRITE", ModelWithStates);
                     ReportRace(err.FailingCall, err.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WR);
                   }
                   else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write"))
                   {
-                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "READ", QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
-                    threadOneFailAccess = "READ";
-                    threadTwoFailAccess = "WRITE";
+                    err.FailingRequires.Attributes = GetSourceLocInfo(err, "READ", ModelWithStates);
                     ReportRace(err.FailingCall, err.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RW);
 
                   }
                   else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write"))
                   {
-                    err.FailingRequires.Attributes = GetSourceLocInfo(error, "WRITE", QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
-                    threadOneFailAccess = "WRITE";
-                    threadTwoFailAccess = "WRITE";
+                    err.FailingRequires.Attributes = GetSourceLocInfo(err, "WRITE", ModelWithStates);
                     ReportRace(err.FailingCall, err.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WW);
-                  }
-
-                  if (detailedTrace)
-                  {
-                    string fname = QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "fname");
-                    Debug.Assert(!String.IsNullOrEmpty(fname));
-                    int colOneSize = fname.Length + 11;
-                    string colTwoHeader = " T " + GetThreadOne(error.Model, false) + " G " + GetGroupOne(error.Model, false) + " ";
-                    string colThreeHeader = " T " + GetThreadTwo(error.Model, false) + " G " + GetGroupTwo(error.Model, false) + " ";
-                    
-                    int colTwoSize   = colTwoHeader.Length + 2;
-                    int colThreeSize = colTwoHeader.Length + 2;
-                    
-                    PrintDetailedTraceHeader(colTwoHeader, colThreeHeader, colOneSize, colTwoSize, colThreeSize);
-                    PrintDetailedTrace(err, colOneSize, colTwoSize, colThreeSize, elemOffset, elemWidth, threadOneFailAccess, threadTwoFailAccess);
                   }
                 }
                 else
@@ -655,17 +625,11 @@ namespace Microsoft.Boogie
 
     }
 
-    private static void PrintDetailedTraceHeader(string colTwoHeader, string colThreeHeader, int locationColSize, int colTwoSize, int colThreeSize)
-    {
-      Console.Write("\nLocation");
-      PrintNChars(locationColSize - "Location".Length, ' ');
-      Console.WriteLine("|{0}|{1}", colTwoHeader + Chars(colTwoSize - colTwoHeader.Length, ' '), colThreeHeader + Chars(colThreeSize - colThreeHeader.Length, ' '));
-      PrintNChars(locationColSize, '-');
-      Console.Write("|");
-      PrintNChars(colTwoSize, '-');
-      Console.Write("|");
-      PrintNChars(colThreeSize, '-');
-      Console.WriteLine("");
+    private static string GetArrayName(Requires requires) {
+      string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "array");
+      Debug.Assert(arrName != null);
+      Debug.Assert(arrName.StartsWith("$$"));
+      return arrName.Substring("$$".Length);
     }
 
     private static void PrintNChars(int n, char c)
@@ -935,134 +899,6 @@ namespace Microsoft.Boogie
       return null;
     }
 
-    static Model.Func ExtractIncarnationFromModel(Model m, string varName)
-    {
-      try {
-        Model.Func lastFunc = null;
-        Model.Func penulFunc = null;
-        int currIncarnationNo = -1;
-        foreach (Model.Func f in m.Functions) {
-          if (f.Name.Contains(varName)) {
-            string[] tokens = Regex.Split(f.Name, "@");
-            if (tokens.Length == 2 && System.Convert.ToInt32(tokens[1]) > currIncarnationNo) {
-              penulFunc = lastFunc;
-              lastFunc = f;
-              currIncarnationNo = System.Convert.ToInt32(tokens[1]);
-            }
-          }
-        }
-        if (penulFunc == null) {
-          return lastFunc;
-        }
-        else {
-          return penulFunc;
-        }
-      }
-      catch (Exception) {
-        return null;
-      }
-    }
-
-    static void PrintDetailedTrace(CallCounterexample err, int colOneLength, int colTwoLength, int colThreeLength, int failElemOffset, int elemWidth, string threadOneFailAccess, string threadTwoFailAccess)
-    {
-      Model model = err.Model;
-      BlockSeq trace = err.Trace;
-
-      int failCallLineNo = QKeyValue.FindIntAttribute(err.FailingCall.Attributes, "line", -1);
-      int failCallColNo  = QKeyValue.FindIntAttribute(err.FailingCall.Attributes, "col", -1);
-      int failReqLineNo  = QKeyValue.FindIntAttribute(err.FailingRequires.Attributes, "line", -1);
-      int failReqColNo   = QKeyValue.FindIntAttribute(err.FailingRequires.Attributes, "col", -1);
-
-      int lineno = -1;
-      int colno = -1;
-
-      bool checkCallExpected = false;
-      bool colTwoFail = false;
-      bool colThreeFail = false;
-
-      string colOne   = null;
-      string colTwo   = null;
-      string colThree = null;
-
-      foreach (Block b in trace)
-      {
-        if (Regex.IsMatch(b.ToString(), @"inline[$]_LOG_(READ|WRITE)_[$]+\w+[$][0-9]+[$]_LOG_(READ|WRITE)"))
-        {
-          int elemOffset = -1;
-          string arrName;
-
-          foreach (Cmd c in b.Cmds)
-          {
-            string access = (Regex.IsMatch(c.ToString(), @"inline[$]_LOG_READ")) ? "READ" : "WRITE";
-
-            if (Regex.IsMatch(c.ToString(), "assume _" + access + "_OFFSET")) 
-            {
-              elemOffset = ExtractOffsetFromExpr(model, (((c as PredicateCmd).Expr as NAryExpr).Args[1] as NAryExpr).Args[1]);
-            }
-            else if (Regex.IsMatch(c.ToString(), "assume _" + access + "_SOURCE"))
-            {
-              arrName = ExtractArrName(c.ToString());
-              string enParamName = ExtractEnabledArg((c as AssumeCmd).Expr).Name;
-
-              Model.Func enFunc = model.TryGetFunc(enParamName);
-              Debug.Assert(enFunc != null, "PrintDetailedTrace(): could not get enParamName from model: " + enParamName);
-              Debug.Assert(enFunc.AppCount == 1, "PrintDetailedTrace(): enabled parameter function has more that one application.");
-              bool enabled = (enFunc.Apps.ElementAt(0).Result as Model.Boolean).Value;
-              int sourceLocLineNo = (ExtractSourceLineArg((c as AssumeCmd).Expr).Val as BvConst).Value.ToIntSafe;
-
-              string sourceLocLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), sourceLocLineNo + 1);
-
-              string[] slocTokens = Regex.Split(sourceLocLine, "#");
-              lineno = System.Convert.ToInt32(slocTokens[0]);
-              colno = System.Convert.ToInt32(slocTokens[1]);
-              string fname = slocTokens[2];
-
-              colOne = fname + ":" + lineno + ":" + colno + ":";
-              colTwo = enabled ? " " + access.ToLower() + "s ((char*)" + arrName + ")" + "[" + ((elemOffset == -1) ? "?" : "" + CalculateByteOffset(elemOffset, elemWidth)) + "]" : "";
-              colTwoFail = elemOffset == failElemOffset && lineno == failReqLineNo && colno == failReqColNo && access == threadOneFailAccess;
-            }
-          }
-        }
-        else if (Regex.IsMatch(b.ToString(), @"inline[$]_LOG_(READ|WRITE)_[$]+\w+[$][0-9]+[$]Return"))
-        {
-          // Assuming that a LOG call will always be immediately followed by a CHECK call.
-          checkCallExpected = true;
-          continue;
-        }
-        else if (checkCallExpected)
-        {
-          foreach (Cmd c in b.Cmds)
-          {
-            if (Regex.IsMatch(c.ToString(), @"assert[\s]+[!]\(\w+[$][0-9]+(@[0-9]+|[\s]+)[\s]*&&[\s]+_(WRITE|READ)_HAS_OCCURRED"))
-            {
-              string access = Regex.IsMatch((c as AssertRequiresCmd).Call.callee, "_CHECK_READ_") ? "READ" : "WRITE";
-
-              string[] tokens = Regex.Split(c.ToString(), "&&");
-              string arrName = ExtractArrName(tokens[1]);
-              string enParamName = ExtractEnabledParameterName((c as AssertRequiresCmd).Expr);
-
-              Model.Func enFunc = model.TryGetFunc(enParamName);
-              Debug.Assert(enFunc != null, "PrintDetailedTrace(): could not get enParamName from model: " + enParamName);
-              Debug.Assert(enFunc.AppCount == 1, "PrintDetailedTrace(): enabled parameter function has more that one application.");
-              bool enabled = (enFunc.Apps.ElementAt(0).Result as Model.Boolean).Value;
-
-              Expr offsetArg = ExtractOffsetArg((c as AssertRequiresCmd).Expr, "_" + (c.ToString().Contains("WRITE") ? "WRITE" : "READ") + "_OFFSET_");
-
-
-
-              int elemOffset = ExtractOffsetFromExpr(model, offsetArg);
-              colThree = enabled ? " " + access.ToLower() + "s ((char*)" + arrName + ")" + "[" + ((elemOffset == -1) ? "?" : "" + CalculateByteOffset(elemOffset, elemWidth)) + "]" : "";
-              colThreeFail = elemOffset == failElemOffset && lineno == failCallLineNo && colno == failCallColNo && access == threadTwoFailAccess;
-
-              checkCallExpected = false;
-              PrintDetailedTraceLine(colOne, colTwo, colThree, colOneLength, colTwoLength, colThreeLength, colTwoFail, colThreeFail);
-              break;
-            }
-          }
-        }
-      }
-    }
-
     private static LiteralExpr ExtractSourceLineArg(Expr e)
     {
       var visitor = new GetThenOfIfThenElseVisitor();
@@ -1118,30 +954,7 @@ namespace Microsoft.Boogie
       }
     }
 
-    private static void PrintDetailedTraceLine(string colOne, string colTwo, string colThree, int colOneLength, int colTwoLength, int colThreeLength, bool colTwoError, bool colThreeError)
-    {
-      Contract.Requires(colOneLength >= colOne.Length && colTwoLength >= colTwo.Length && colThreeLength >= colThree.Length);
-      Console.Write("{0}|", colOne + Chars(colOneLength - colOne.Length, ' '));
-
-      ConsoleColor col = Console.ForegroundColor;
-      if (colTwoError) 
-      {
-        Console.ForegroundColor = ConsoleColor.Red;
-      }
-      Console.Write("{0}", colTwo + Chars(colTwoLength - colTwo.Length, ' '));
-      Console.ForegroundColor = col;
-      Console.Write('|');
-
-      if (colThreeError)
-      {
-        Console.ForegroundColor = ConsoleColor.Red;
-      }
-      Console.WriteLine("{0}", colThree + Chars(colThreeLength - colThree.Length, ' '));
-      Console.ForegroundColor = col;
-
-    }
-
-   private static string GetSourceLocFileName()
+    private static string GetSourceLocFileName()
     {
       return GetFilenamePathPrefix() + GetFileName() + ".loc";
     }
@@ -1170,52 +983,33 @@ namespace Microsoft.Boogie
       return linekv;
     }
 
-    static QKeyValue GetSourceLocInfo(Counterexample error, string AccessType, string ArrayName) {
-      List<int> sourceLocLineNos = new List<int>();
-      string SourceVarPrefix = "_" + AccessType + "_SOURCE_" + ArrayName + "$1";
-      Model.Func f = error.Model.TryGetFunc(SourceVarPrefix);
-      if (f != null) {
-        try {
-          int temp = f.GetConstant().AsInt();
-          sourceLocLineNos.Add(temp);
-        } catch(System.OverflowException) {
+    static QKeyValue GetSourceLocInfo(CallCounterexample err, string AccessType, Model ModelWithStates) {
+      string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
+      Debug.Assert(ArrayName != null);
+      string StateId = QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id");
+      Debug.Assert(StateId != null);
 
+      Model.CapturedState CapturedState = null;
+      foreach (var s in ModelWithStates.States) {
+        if (s.Name.Equals(StateId)) {
+          CapturedState = s;
+          break;
         }
       }
-      int SSAIndex = 0;
-      do {
-        f = error.Model.TryGetFunc(SourceVarPrefix + "@" + SSAIndex);
-        if (f != null) {
-          try {
-            int temp = f.GetConstant().AsInt();
-            sourceLocLineNos.Add(temp);
-          }
-          catch (System.OverflowException) {
+      Debug.Assert(CapturedState != null);
 
-          }
-        }
-        SSAIndex++;
-      } while (f != null);
+      string SourceVarName = "_" + AccessType + "_SOURCE_" + ArrayName + "$1";
+      int SourceValue = CapturedState.TryGet(SourceVarName).AsInt();
 
       try {
-        for (int index = sourceLocLineNos.Count - 1;
-            index >= 0;
-            index--) {
-          if (sourceLocLineNos[index] > 0) {
-            // TODO: Make lines in .loc file be indexed from 1 for consistency.
-            string fileLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), sourceLocLineNos[index] + 1);
-            if (fileLine.Equals("<unknown line of code>")) {
-              continue;
-            }
-            string[] slocTokens = Regex.Split(fileLine, "#");
-            return CreateSourceLocQKV(
-                    System.Convert.ToInt32(slocTokens[0]),
-                    System.Convert.ToInt32(slocTokens[1]),
-                    slocTokens[2],
-                    slocTokens[3]);
-          }
-        }
-        return null;
+        // TODO: Make lines in .loc file be indexed from 1 for consistency.
+        string fileLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), SourceValue + 1);
+        string[] slocTokens = Regex.Split(fileLine, "#");
+        return CreateSourceLocQKV(
+                System.Convert.ToInt32(slocTokens[0]),
+                System.Convert.ToInt32(slocTokens[1]),
+                slocTokens[2],
+                slocTokens[3]);
       }
       catch (Exception) {
         return null;
@@ -1331,7 +1125,7 @@ namespace Microsoft.Boogie
       ErrorWriteLine(sli.FetchCodeLine());
     }
 
-    private static void ReportRace(Absy callNode, Absy reqNode, string thread1, string thread2, string group1, string group2, string arrName, int byteOffset, RaceType raceType)
+    private static void ReportRace(CallCmd callNode, Requires reqNode, string thread1, string thread2, string group1, string group2, string arrName, int byteOffset, RaceType raceType)
     {
       Console.WriteLine("");
       string locinfo1 = null, locinfo2 = null, raceName, access1, access2;
@@ -1496,61 +1290,68 @@ namespace Microsoft.Boogie
              + ")";
     }
 
-    private static void GetInfoFromVarAndFunc(QKeyValue attrs, Model.Func f, out int byteOffset, out int elemOffset, out int elemWidth, out string arrName)
+    private static int GetOffsetInBytes(Variable OffsetVar, Model m, CallCmd FailingCall)
     {
-      if (attrs == null) {
-        elemWidth = -1;
-      }
-      else {
-        elemWidth = QKeyValue.FindIntAttribute(attrs, "elem_width", -1);
-      }
-      if (f == null) {
-        elemOffset = -1;
-        arrName = "<unknown array>";
-      }
-      else {
-        try {
-          elemOffset = f.Apps.FirstOrDefault().Result.AsInt();
+      string StateName = QKeyValue.FindStringAttribute(FailingCall.Attributes, "state_id");
+      Debug.Assert(StateName != null);
+      Model.CapturedState state = null;
+      foreach (var s in m.States) {
+        if (s.Name.Equals(StateName)) {
+          state = s;
+          break;
         }
-        catch (System.OverflowException e) {
-          elemOffset = -1;
-        }
-        arrName = ExtractArrName(f.Name);
       }
-      if (attrs == null || f == null) {
-        byteOffset = -1;
-      }
-      else {
-        byteOffset = CalculateByteOffset(elemOffset, elemWidth);
-      }
-    }
-
-    private static int CalculateByteOffset(int elemOffset, int elemWidth)
-    {
+      Debug.Assert(state != null);
+      var element = state.TryGet(OffsetVar.Name);
+      Debug.Assert(element != null);
+      int elemOffset = element.AsInt();
+      
+      Debug.Assert(OffsetVar.Attributes != null);
+      int elemWidth = QKeyValue.FindIntAttribute(OffsetVar.Attributes, "elem_width", -1);
+      Debug.Assert(elemWidth != -1);
       return (elemOffset * elemWidth) / 8;
     }
 
-    private static string ExtractArrName(string varName)
+    private static Variable ExtractOffsetVar(CallCounterexample err)
     {
-      return Regex.Split(varName, "[$]+")[1];
+      // The offset variable name can be exactly reconstructed from the attributes of the requires clause
+      string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
+      string AccessType;
+      if(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") || 
+         QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read")) {
+        AccessType = "WRITE";
+      } else {
+        Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write"));
+        AccessType = "READ";
+      }
+      string OffsetVarName = "_" + AccessType + "_OFFSET_" + ArrayName + "$1";
+
+      var VFV = new VariableFinderVisitor(OffsetVarName);
+      VFV.Visit(err.FailingRequires.Condition);
+      return VFV.GetVariable();
     }
 
-    private static Variable ExtractOffsetVar(NAryExpr expr)
-    {
-      foreach (Expr e in expr.Args)
-      {
-        if (e is NAryExpr && e.ToString().Contains("_OFFSET_"))
-        {
-          return ExtractOffsetVar(e as NAryExpr);
-        }
-        else if (e is IdentifierExpr && (e as IdentifierExpr).Name.Contains("_OFFSET_"))
-        {
-          return (e as IdentifierExpr).Decl;
-        }
-        else continue;
+  }
+
+
+  class VariableFinderVisitor : StandardVisitor {
+
+    private string VarName;
+    private Variable Variable = null;
+
+    internal VariableFinderVisitor(string VarName) {
+      this.VarName = VarName;
+    }
+
+    public override Variable VisitVariable(Variable node) {
+      if (node.Name.Equals(VarName)) {
+        Variable = node;
       }
-      Debug.Assert(false, "GPUVerifyBoogieDriver: ExtractOffsetExpr() could not find _OFFSET expr.");
-      return null;
+      return base.VisitVariable(node);
+    }
+
+    internal Variable GetVariable() {
+      return Variable;
     }
 
   }

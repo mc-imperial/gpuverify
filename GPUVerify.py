@@ -87,6 +87,7 @@ class CommandLineOptions(object):
                                    "/doNotUseLabels", 
                                    "/noinfer", 
                                    "/enhancedErrorMessages:1",
+                                   "/mv:-",
                                    "/errorLimit:20",
                                    "/z3exe:" + z3BinDir + "/z3"
                                  ]
