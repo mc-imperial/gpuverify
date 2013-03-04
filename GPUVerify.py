@@ -702,7 +702,7 @@ def main(argv=None):
 
 if __name__ == '__main__':
   returnCode = main()
-  if CommandLineOptions.time:
+  if CommandLineOptions.time and Timing:
     print "Timing information:"
     pad = max([ len(tool) for tool,t in Timing ])
     for (tool, t) in Timing:
