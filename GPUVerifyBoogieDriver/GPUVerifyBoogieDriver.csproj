@@ -75,9 +75,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GetIfOfIfThenElseVisitor.cs" />
-    <Compile Include="GetRHSOfEqualityVisitor.cs" />
-    <Compile Include="GetThenOfIfThenElseVisitor.cs" />
+    <Compile Include="GPUVerifyErrorReporter.cs" />
     <Compile Include="GPUVerifyBoogieDriver.cs" />
     <Compile Include="GPUVerifyBoogieDriverCommandLineOptions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -87,6 +85,10 @@
   <PropertyGroup>
     <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">cp ../../../BoogieBinaries/UnivBackPred2.smt2 .</PostBuildEvent>
     <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">copy ..\BoogieBinaries\UnivBackPred2.smt2 ..\Binaries</PostBuildEvent>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PostBuildEvent>copy ..\BoogieBinaries\UnivBackPred2.smt2 ..\Binaries
+copy /Y C:\prog\GPUVerify\Binaries\GPUVerifyBoogieDriver.exe C:\prog\GPUVerifyInstall\bin\GPUVerifyBoogieDriver.exe</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

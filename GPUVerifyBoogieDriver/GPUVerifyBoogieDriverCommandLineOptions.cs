@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using Microsoft.Boogie;
 
-namespace GPUVerifyBoogieDriver {
+namespace GPUVerify {
   public class GPUVerifyBoogieDriverCommandLineOptions : CommandLineOptions {
 
     public GPUVerifyBoogieDriverCommandLineOptions() :

@@ -88,8 +88,7 @@ class CommandLineOptions(object):
                                    "/noinfer", 
                                    "/enhancedErrorMessages:1",
                                    "/mv:-",
-                                   "/errorLimit:20",
-                                   "/z3exe:" + z3BinDir + "/z3"
+                                   "/errorLimit:20"
                                  ]
   bugleOptions = []
   mode = AnalysisMode.ALL
@@ -227,7 +226,7 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
     stdout, stderr, returnCode = run(Command, timeout)
     end = time.time()
   except Timeout:
-    GPUVerifyError(ToolName + " timed out.", timeoutErrorCode)
+    GPUVerifyError(ToolName + " timed out.  Use --timeout=N with N > " + str(timeout) + " to increase timeout, or --timeout=0 to disable timeout.", timeoutErrorCode)
   except (OSError,WindowsError) as e:
     GPUVerifyError("While invoking " + ToolName + ": " + str(e),ErrorCode)
 
