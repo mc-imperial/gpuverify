@@ -408,7 +408,6 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.time = True
     if o == "--no-thread2-asserts":
       CommandLineOptions.noThread2Asserts = True
-      CommandLineOptions.onlyDivergence = True
     if o == "--gen-smt2":
       CommandLineOptions.generateSmt2 = True
     if o == "--testsuite":
