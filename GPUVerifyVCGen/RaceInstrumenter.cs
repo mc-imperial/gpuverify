@@ -622,51 +622,6 @@ namespace GPUVerify {
       }
     }
 
-    public void DoHoudiniPointerAnalysis(Procedure Proc) {
-      foreach (Variable v in Proc.InParams) {
-        if (v.TypedIdent.Type is CtorType) {
-          CtorType ct = v.TypedIdent.Type as CtorType;
-          if (ct.Decl.Name.Equals("ptr")) {
-            foreach (var arrayCollection in new ICollection<Variable>[] { 
-                            verifier.KernelArrayInfo.getGlobalArrays(), verifier.KernelArrayInfo.getGroupSharedArrays(),
-                            verifier.KernelArrayInfo.getPrivateArrays() }) {
-              if (arrayCollection.Count == 0) {
-                continue;
-              }
-
-              Expr DisjunctionOverPointerSet = null;
-              foreach (var array in arrayCollection) {
-                Expr PointerSetDisjunct = Expr.Eq(MakePtrBaseExpr(v), MakeArrayIdExpr(array));
-                DisjunctionOverPointerSet = (DisjunctionOverPointerSet == null ? PointerSetDisjunct : Expr.Or(DisjunctionOverPointerSet, PointerSetDisjunct));
-                verifier.AddCandidateRequires(Proc,
-                        Expr.Neq(MakePtrBaseExpr(v), MakeArrayIdExpr(array)));
-              }
-              Debug.Assert(DisjunctionOverPointerSet != null);
-              verifier.AddCandidateRequires(Proc, DisjunctionOverPointerSet);
-              verifier.AddCandidateRequires(Proc, Expr.Eq(MakePtrOffsetExpr(v), GPUVerifier.ZeroBV()));
-            }
-          }
-        }
-      }
-    }
-
-    private IdentifierExpr MakeArrayIdExpr(Variable array) {
-      var arrayId = verifier.ResContext.LookUpVariable("$arrayId" + array.Name);
-      return new IdentifierExpr(Token.NoToken, arrayId);
-    }
-
-    private NAryExpr MakePtrBaseExpr(Variable v) {
-      var baseSel = (Function)verifier.ResContext.LookUpProcedure("base#MKPTR");
-      return new NAryExpr(Token.NoToken, new FunctionCall(baseSel),
-                          new ExprSeq(new Expr[] { Expr.Ident(v) }));
-    }
-
-    private NAryExpr MakePtrOffsetExpr(Variable v) {
-      var offsetSel = (Function)verifier.ResContext.LookUpProcedure("offset#MKPTR");
-      return new NAryExpr(Token.NoToken, new FunctionCall(offsetSel),
-                          new ExprSeq(new Expr[] { Expr.Ident(v) }));
-    }
-
     public void AddRaceCheckingCandidateEnsures(Procedure Proc) {
       foreach (Variable v in NonLocalStateToCheck.getAllNonLocalArrays()) {
         AddNoReadOrWriteCandidateEnsures(Proc, v);

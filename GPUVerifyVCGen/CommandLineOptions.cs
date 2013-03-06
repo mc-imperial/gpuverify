@@ -40,6 +40,8 @@ namespace GPUVerify
 
         public static bool NoBenign = false;
 
+        public static bool AsymmetricAsserts = false;
+
         public static int Parse(string[] args)
         {
             for (int i = 0; i < args.Length; i++)
@@ -156,6 +158,11 @@ namespace GPUVerify
                     case "-noBarrierAccessChecks":
                     case "/noBarrierAccessChecks":
                     BarrierAccessChecks = false;
+                    break;
+
+                    case "-asymmetricAsserts":
+                    case "/asymmetricAsserts":
+                    AsymmetricAsserts = true;
                     break;
 
                     default:

@@ -87,8 +87,7 @@
     <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">copy ..\BoogieBinaries\UnivBackPred2.smt2 ..\Binaries</PostBuildEvent>
   </PropertyGroup>
   <PropertyGroup>
-    <PostBuildEvent>copy ..\BoogieBinaries\UnivBackPred2.smt2 ..\Binaries
-copy /Y C:\prog\GPUVerify\Binaries\GPUVerifyBoogieDriver.exe C:\prog\GPUVerifyInstall\bin\GPUVerifyBoogieDriver.exe</PostBuildEvent>
+    <PostBuildEvent>copy ..\BoogieBinaries\UnivBackPred2.smt2 ..\Binaries</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

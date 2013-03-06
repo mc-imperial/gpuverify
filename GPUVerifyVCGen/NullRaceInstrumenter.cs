@@ -49,11 +49,6 @@ namespace GPUVerify
 
         }
 
-        public void DoHoudiniPointerAnalysis(Procedure Proc)
-        {
-
-        }
-
         public void AddStandardSourceVariablePreconditions()
         {
 

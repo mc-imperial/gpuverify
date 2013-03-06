@@ -93,6 +93,12 @@ namespace GPUVerify {
       return result;
     }
 
+    private AssumeCmd MakeThreadSpecificAssumeFromAssert(AssertCmd a, int Thread) {
+      AssumeCmd result = new AssumeCmd(Token.NoToken, new VariableDualiser(Thread,
+        verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr));
+      return result;
+    }
+
     internal QKeyValue MakeThreadSpecificAttributes(QKeyValue attributes, int Thread) {
       if (attributes == null) {
         return null;
@@ -285,7 +291,7 @@ namespace GPUVerify {
         }
         else {
           cs.Add(MakeThreadSpecificAssert(a, 1));
-          if (!ContainsAsymmetricExpression(a.Expr)) {
+          if (!CommandLineOptions.AsymmetricAsserts && !ContainsAsymmetricExpression(a.Expr)) {
             cs.Add(MakeThreadSpecificAssert(a, 2));
           }
         }

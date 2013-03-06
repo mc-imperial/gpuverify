@@ -372,12 +372,8 @@ namespace GPUVerify
 
             if (CommandLineOptions.Inference)
             {
-                foreach (var proc in Program.TopLevelDeclarations.OfType<Procedure>().ToList())
-                {
-                    RaceInstrumenter.DoHoudiniPointerAnalysis(proc);
-                }
 
-                foreach (var impl in Program.TopLevelDeclarations.OfType<Implementation>().ToList())
+              foreach (var impl in Program.TopLevelDeclarations.OfType<Implementation>().ToList())
                 {
                     LoopInvariantGenerator.PreInstrument(this, impl);
                 }

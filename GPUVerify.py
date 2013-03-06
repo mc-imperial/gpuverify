@@ -111,7 +111,7 @@ class CommandLineOptions(object):
   time = False
   boogieTimeout=300
   keepTemps = False
-  noThread2Asserts = False
+  asymmetricAsserts = False
   generateSmt2 = False
   noBarrierAccessChecks = False
   testsuite = False
@@ -260,6 +260,8 @@ def showHelpAndExit():
   print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
   print "                          nondeterministic"
   print "  --array-equalities      Generate equality candidate invariants for array variables"
+  print "  --asymmetric-asserts    Emit assertions only for first thread.  Sound, and may lead"
+  print "                          to faster verification, but can yield false positives"
   print "  --boogie-file=X.bpl     Specify a supporting .bpl file to be used during verification"
   print "  --boogie-opt=...        Specify option to be passed to Boogie"
   print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
@@ -406,8 +408,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.stopAtBpl = True
     if o == "--time":
       CommandLineOptions.time = True
-    if o == "--no-thread2-asserts":
-      CommandLineOptions.noThread2Asserts = True
+    if o == "--asymmetric-asserts":
+      CommandLineOptions.asymmetricAsserts = True
     if o == "--gen-smt2":
       CommandLineOptions.generateSmt2 = True
     if o == "--testsuite":
@@ -512,7 +514,7 @@ def main(argv=None):
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
-              'no-thread2-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
+              'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=',
              ])
   except getopt.GetoptError as getoptError:
@@ -615,6 +617,8 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSourceLocInfer" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
+  if CommandLineOptions.asymmetricAsserts:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/asymmetricAsserts" ]
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
@@ -658,15 +662,6 @@ def main(argv=None):
             [gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
             CommandLineOptions.gpuVerifyVCGenOptions,
             ErrorCodes.GPUVERIFYVCGEN_ERROR)
-
-    if CommandLineOptions.noThread2Asserts:
-      f = open(bplFilename)
-      lines = f.readlines()
-      f.close()
-      f = open(bplFilename, 'w')
-      for line in lines:
-        if 'thread 2' not in line: f.write(line)
-      f.close()
 
   if CommandLineOptions.stopAtBpl: return 0
 

@@ -7,6 +7,7 @@ import logging
 import re
 import subprocess
 import pickle 
+import time
 
 from GPUVerify import ErrorCodes
 
@@ -462,13 +463,13 @@ def main(arg):
 
     #run tests
     logging.info("Running tests...")
+    start = time.time()
     for test in tests:
         test.run()
         if not test.testPassed and args.stop_on_fail :
             logging.error("Stopping on test failure.")
             return GPUVerifyTesterErrorCodes.TEST_FAILED
-            
-            
+    end = time.time()
     logging.info("Finished running tests.")
     
     if len(args.write_pickle) > 0 :
@@ -478,7 +479,8 @@ def main(arg):
      
     if oldTests!=None:
         doComparison(oldTests,args.compare_run,tests,"Newly completed tests", args.canonical_path_prefix)
-        
+
+    print "Time taken to run tests: " + str((end - start))
         
     return GPUVerifyTesterErrorCodes.SUCCESS
             
