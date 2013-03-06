@@ -362,6 +362,10 @@ namespace GPUVerify
 
             DoUniformityAnalysis();
 
+            if (CommandLineOptions.ShowUniformityAnalysis) {
+                uniformityAnalyser.dump();
+            }
+
             DoVariableDefinitionAnalysis();
 
             DoReducedStrengthAnalysis();
