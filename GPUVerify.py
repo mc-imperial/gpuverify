@@ -275,7 +275,6 @@ def showHelpAndExit():
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
   print "  --no-source-loc-infer   Turn off inference of source location information"
-  print "  --no-thread2-asserts    Turn off assertions for second thread"
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
