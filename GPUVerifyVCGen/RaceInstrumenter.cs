@@ -434,55 +434,58 @@ namespace GPUVerify {
     }
 
     private void AddLogAndCheckCalls(CmdSeq result, AccessRecord ar, string Access, Expr Value) {
-      ExprSeq inParamsLog = new ExprSeq();
+      result.Add(MakeLogCall(ar, Access, Value));
+      result.Add(MakeCheckCall(result, ar, Access, Value));
+      AddToAccessSourceLocations(Access, ar.v.Name);
+      TryWriteSourceLocToFile();
+      CurrStmtNo++;
+    }
+
+    private CallCmd MakeCheckCall(CmdSeq result, AccessRecord ar, string Access, Expr Value) {
       ExprSeq inParamsChk = new ExprSeq();
-      inParamsLog.Add(ar.Index);
       inParamsChk.Add(ar.Index);
-      if (!CommandLineOptions.NoBenign) {
-        if (Value != null) {
-          inParamsLog.Add(Value);
-          inParamsChk.Add(Value);
-        }
-        else {
-          Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
-          e.Type = (ar.v.TypedIdent.Type as MapType).Result;
-          inParamsLog.Add(e);
-          inParamsChk.Add(e);
-        }
-      }
-
-      inParamsLog.Add(new LiteralExpr(Token.NoToken, BigNum.FromInt(CurrStmtNo), 32));
-
-      Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
+      MaybeAddValueParameter(inParamsChk, ar, Value);
       Procedure checkProcedure = GetRaceCheckingProcedure(Token.NoToken, "_CHECK_" + Access + "_" + ar.v.Name);
-
-      verifier.OnlyThread1.Add(logProcedure.Name);
       verifier.OnlyThread2.Add(checkProcedure.Name);
-
-      CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new IdentifierExprSeq());
-      logAccessCallCmd.Proc = logProcedure;
-      logAccessCallCmd.Attributes = SourceLocationAttributes;
-      result.Add(logAccessCallCmd);
-
       string CheckState = "check_state_" + CheckStateCounter;
       CheckStateCounter++;
-
       AssumeCmd captureStateAssume = new AssumeCmd(Token.NoToken, Expr.True);
       captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
         "captureState", new List<object>() { CheckState }, null);
       captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
         "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
       result.Add(captureStateAssume);
-
       CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new IdentifierExprSeq());
       checkAccessCallCmd.Proc = checkProcedure;
       checkAccessCallCmd.Attributes = SourceLocationAttributes;
       checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "state_id", new List<object>() { CheckState }, checkAccessCallCmd.Attributes);
-      result.Add(checkAccessCallCmd);
+      return checkAccessCallCmd;
+    }
 
-      AddToAccessSourceLocations(Access, ar.v.Name);
-      TryWriteSourceLocToFile();
-      CurrStmtNo++;
+    private CallCmd MakeLogCall(AccessRecord ar, string Access, Expr Value) {
+      ExprSeq inParamsLog = new ExprSeq();
+      inParamsLog.Add(ar.Index);
+      MaybeAddValueParameter(inParamsLog, ar, Value);
+      inParamsLog.Add(new LiteralExpr(Token.NoToken, BigNum.FromInt(CurrStmtNo), 32));
+      Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
+      verifier.OnlyThread1.Add(logProcedure.Name);
+      CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new IdentifierExprSeq());
+      logAccessCallCmd.Proc = logProcedure;
+      logAccessCallCmd.Attributes = SourceLocationAttributes;
+      return logAccessCallCmd;
+    }
+
+    private void MaybeAddValueParameter(ExprSeq parameters, AccessRecord ar, Expr Value) {
+      if (!CommandLineOptions.NoBenign) {
+        if (Value != null) {
+          parameters.Add(Value);
+        }
+        else {
+          Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
+          e.Type = (ar.v.TypedIdent.Type as MapType).Result;
+          parameters.Add(e);
+        }
+      }
     }
 
     private void TryWriteSourceLocToFile() {
