@@ -18,8 +18,6 @@ namespace GPUVerify
 
         public Dictionary<Procedure, Implementation> KernelProcedures;
 
-//        public Procedure KernelProcedure;
-//        public Implementation KernelImplementation;
         public Procedure BarrierProcedure;
         public string BarrierProcedureLocalFenceArgName;
         public string BarrierProcedureGlobalFenceArgName;
