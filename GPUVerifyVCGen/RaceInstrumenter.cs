@@ -949,7 +949,7 @@ namespace GPUVerify {
           continue;
         }
         Procedure Proc = D as Procedure;
-        if(verifier.ProcedureIsInlined(Proc) || verifier.ProcedureHasNoImplementation(Proc)) {
+        if(verifier.ProcedureIsInlined(Proc)) {
           continue;
         }
 
@@ -991,7 +991,7 @@ namespace GPUVerify {
           continue;
         }
         Procedure Proc = D as Procedure;
-        if (verifier.ProcedureIsInlined(Proc) || verifier.ProcedureHasNoImplementation(Proc)) {
+        if (verifier.ProcedureIsInlined(Proc)) {
           continue;
         }
         foreach (string key in WriteAccessSourceLocations.Keys.Union(ReadAccessSourceLocations.Keys))
