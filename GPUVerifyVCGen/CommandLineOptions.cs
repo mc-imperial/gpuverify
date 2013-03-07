@@ -12,35 +12,26 @@ namespace GPUVerify
     {
 
         public static List<string> inputFiles = new List<string>();
-
         public static string outputFile = null;
-
         public static bool OnlyDivergence = false;
         public static bool AdversarialAbstraction = false;
         public static bool EqualityAbstraction = false;
         public static bool Inference = true;
         public static bool ArrayEqualities = false;
         public static bool BarrierAccessChecks = true;
-
         public static bool ShowStages = false;
-
         public static bool ShowUniformityAnalysis = false;
         public static bool DoUniformityAnalysis = true;
-
         public static bool ShowMayBePowerOfTwoAnalysis = false;
         public static bool ShowArrayControlFlowAnalysis = false;
-
         public static bool NoLoopPredicateInvariants = false;
-
         public static bool SmartPredication = true;
-
         public static bool OnlyIntraGroupRaceChecking = false;
-
         public static bool InferSourceLocation = true;
-
         public static bool NoBenign = false;
-
         public static bool AsymmetricAsserts = false;
+        public static bool OnlyLog = false;
+
 
         public static int Parse(string[] args)
         {
@@ -163,6 +154,11 @@ namespace GPUVerify
                     case "-asymmetricAsserts":
                     case "/asymmetricAsserts":
                     AsymmetricAsserts = true;
+                    break;
+
+                    case "-onlyLog":
+                    case "/onlyLog":
+                    OnlyLog = true;
                     break;
 
                     default:

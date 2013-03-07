@@ -102,6 +102,7 @@ class CommandLineOptions(object):
   noBenign = False
   onlyDivergence = False
   onlyIntraGroup = False
+  onlyLog = False
   noLoopPredicateInvariants = False
   noSmartPredication = False
   noSourceLocInfer = False
@@ -275,8 +276,9 @@ def showHelpAndExit():
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
   print "  --no-source-loc-infer   Turn off inference of source location information"
-  print "  --no-thread2-asserts    Turn off assertions for second thread"
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
+  print "  --only-log              Log accesses to arrays, but do not check for races.  This"
+  print "                          can be useful for determining access pattern invariants"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
   print "  --testsuite             Testing testsuite program"
@@ -376,6 +378,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.onlyDivergence = True
     if o == "--only-intra-group":
       CommandLineOptions.onlyIntraGroup = True
+    if o == "--only-log":
+      CommandLineOptions.onlyLog = True
     if o == "--adversarial-abstraction":
       if CommandLineOptions.equalityAbstraction:
         GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
@@ -507,7 +511,7 @@ def main(argv=None):
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
              ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose',
               'loop-unwind=', 'no-benign', 'only-divergence', 'only-intra-group', 
-              'adversarial-abstraction', 'equality-abstraction', 
+              'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'boogie-opt=',
@@ -605,6 +609,8 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyDivergence" ]
   if CommandLineOptions.onlyIntraGroup:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyIntraGroupRaceChecking" ]
+  if CommandLineOptions.onlyLog:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyLog" ]
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS or (not CommandLineOptions.inference):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noInfer" ]
   if CommandLineOptions.noBarrierAccessChecks:

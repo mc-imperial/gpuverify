@@ -435,7 +435,9 @@ namespace GPUVerify {
 
     private void AddLogAndCheckCalls(CmdSeq result, AccessRecord ar, string Access, Expr Value) {
       result.Add(MakeLogCall(ar, Access, Value));
-      result.Add(MakeCheckCall(result, ar, Access, Value));
+      if (!CommandLineOptions.OnlyLog) {
+        result.Add(MakeCheckCall(result, ar, Access, Value));
+      }
       AddToAccessSourceLocations(Access, ar.v.Name);
       TryWriteSourceLocToFile();
       CurrStmtNo++;
