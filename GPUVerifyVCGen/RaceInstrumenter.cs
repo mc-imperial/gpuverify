@@ -939,11 +939,15 @@ namespace GPUVerify {
 
       foreach (Declaration D in verifier.Program.TopLevelDeclarations.ToList())
       {
-        if (!(D is Procedure) || QKeyValue.FindIntAttribute(D.Attributes, "inline", -1) == 1)
+        if (!(D is Procedure))
         {
           continue;
         }
         Procedure Proc = D as Procedure;
+        if(verifier.ProcedureIsInlined(Proc) || verifier.ProcedureHasNoImplementation(Proc)) {
+          continue;
+        }
+
         foreach (string key in WriteAccessSourceLocations.Keys.Union(ReadAccessSourceLocations.Keys))
         {
           Proc.Requires.Add(new Requires(false, BuildNoAccessExpr(key, "WRITE")));
@@ -978,10 +982,13 @@ namespace GPUVerify {
 
       foreach (Declaration D in verifier.Program.TopLevelDeclarations.ToList())
       {
-        if (!(D is Procedure) || QKeyValue.FindIntAttribute(D.Attributes, "inline", -1) == 1) {
+        if (!(D is Procedure)) {
           continue;
         }
         Procedure Proc = D as Procedure;
+        if (verifier.ProcedureIsInlined(Proc) || verifier.ProcedureHasNoImplementation(Proc)) {
+          continue;
+        }
         foreach (string key in WriteAccessSourceLocations.Keys.Union(ReadAccessSourceLocations.Keys))
         {
           Proc.Ensures.Add(new Ensures(false, BuildNoAccessExpr(key, "WRITE")));

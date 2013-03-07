@@ -516,7 +516,7 @@ namespace GPUVerify
 
                     Procedure Proc = Impl.Proc;
 
-                    if (QKeyValue.FindIntAttribute(Proc.Attributes, "inline", -1) == 1)
+                    if (ProcedureIsInlined(Proc) || ProcedureHasNoImplementation(Proc))
                     {
                         continue;
                     }
@@ -872,7 +872,7 @@ namespace GPUVerify
                     continue;
                 }
                 Procedure Proc = D as Procedure;
-                if (QKeyValue.FindIntAttribute(Proc.Attributes, "inline", -1) == 1)
+                if (ProcedureIsInlined(Proc) || ProcedureHasNoImplementation(Proc))
                 {
                     continue;
                 }
@@ -946,6 +946,14 @@ namespace GPUVerify
 
         }
 
+        internal bool ProcedureHasNoImplementation(Procedure Proc) {
+          return !Program.TopLevelDeclarations.OfType<Implementation>().Select(i => i.Name).Contains(Proc.Name);
+        }
+
+        internal bool ProcedureIsInlined(Procedure Proc) {
+          return QKeyValue.FindIntAttribute(Proc.Attributes, "inline", -1) == 1;
+        }
+
         internal static Expr ThreadsInSameGroup()
         {
             return Expr.And(
@@ -980,7 +988,7 @@ namespace GPUVerify
                     continue;
                 }
                 Procedure Proc = D as Procedure;
-                if (QKeyValue.FindIntAttribute(Proc.Attributes, "inline", -1) == 1)
+                if (ProcedureIsInlined(Proc) || ProcedureHasNoImplementation(Proc))
                 {
                     continue;
                 }
