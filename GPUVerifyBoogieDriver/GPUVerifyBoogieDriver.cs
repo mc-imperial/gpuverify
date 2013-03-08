@@ -195,17 +195,10 @@ namespace Microsoft.Boogie
         if (oc != PipelineOutcome.ResolvedAndTypeChecked)
           return 1;
         EliminateDeadVariablesAndInline(programStage2);
-        using (TokenTextWriter writer = new TokenTextWriter("aftertypechecking.bpl")) {
-          programStage2.Emit(writer);
-        }
 
         houdini.ApplyAssignment(programStage2);
 
         CommandLineOptions.Clo.PrintUnstructured = 2;
-
-        using (TokenTextWriter writer = new TokenTextWriter("afterassignment.bpl")) {
-          programStage2.Emit(writer);
-        }
 
         return VerifyProgram(programStage2);
       }
