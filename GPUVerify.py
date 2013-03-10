@@ -5,7 +5,7 @@ import getopt
 import os
 import subprocess
 import sys
-import time
+import timeit
 import threading
 
 bugleDir = sys.path[0] + "/bugle"
@@ -223,9 +223,9 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """
   Verbose("Running " + ToolName)
   try:
-    start = time.time()
+    start = timeit.default_timer()
     stdout, stderr, returnCode = run(Command, timeout)
-    end = time.time()
+    end = timeit.default_timer()
   except Timeout:
     GPUVerifyError(ToolName + " timed out.  Use --timeout=N with N > " + str(timeout) + " to increase timeout, or --timeout=0 to disable timeout.", timeoutErrorCode)
   except (OSError,WindowsError) as e:
@@ -703,8 +703,10 @@ def main(argv=None):
 if __name__ == '__main__':
   returnCode = main()
   if CommandLineOptions.time and Timing:
-    print "Timing information:"
-    pad = max([ len(tool) for tool,t in Timing ])
+    total = sum([ t for tool, t in Timing ])
+    print "Timing information (%.2f secs):" % total
+    padTool = max([ len(tool) for tool,t in Timing ])
+    padTime = max([ len('%.3f secs' % t) for tool,t in Timing ])
     for (tool, t) in Timing:
-      print "- %s : %.03f secs" % (tool.ljust(pad), t)
+      print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
   sys.exit(returnCode)
