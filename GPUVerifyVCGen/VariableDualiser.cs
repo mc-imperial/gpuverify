@@ -16,6 +16,13 @@ namespace GPUVerify
         private int id;
         private UniformityAnalyser uniformityAnalyser;
         private string procName;
+        private HashSet<Variable> quantifiedVars;
+
+        private bool SkipDualiseVariable(Variable node) {
+          if (node.Name.Contains("_NOT_ACCESSED_")) return true;
+          if (quantifiedVars.Contains(node)) return true;
+          return false;
+        }
 
         public VariableDualiser(int id, UniformityAnalyser uniformityAnalyser, string procName)
         {
@@ -25,6 +32,7 @@ namespace GPUVerify
             this.id = id;
             this.uniformityAnalyser = uniformityAnalyser;
             this.procName = procName;
+            this.quantifiedVars = new HashSet<Variable>();
         }
 
         public override Expr VisitIdentifierExpr(IdentifierExpr node)
@@ -34,8 +42,7 @@ namespace GPUVerify
               (node.Decl as Formal).InComing));
           }
 
-          // Revisit: create a list of variables to avoid dualising
-          if (!(node.Decl is Constant) && !node.Name.Contains("_NOT_ACCESSED_"))
+          if (!(node.Decl is Constant) && !SkipDualiseVariable(node.Decl as Variable))
           {
               return new IdentifierExpr(node.tok, new LocalVariable(node.tok, DualiseTypedIdent(node.Decl)));
           }
@@ -71,7 +78,8 @@ namespace GPUVerify
 
         public override Variable VisitVariable(Variable node)
         {
-            if (!(node is Constant) || GPUVerifier.IsThreadLocalIdConstant(node) ||
+            if ((!(node is Constant) && !SkipDualiseVariable(node as Variable)) ||
+                GPUVerifier.IsThreadLocalIdConstant(node) ||
                 GPUVerifier.IsGroupIdConstant(node))
             {
                 node.TypedIdent = DualiseTypedIdent(node);
@@ -115,6 +123,20 @@ namespace GPUVerify
           return base.VisitNAryExpr(node);
         }
 
+        // Do not dualise quantified variables
+        public override QuantifierExpr VisitQuantifierExpr(QuantifierExpr node) {
+          VariableSeq vs = node.Dummies;
+          foreach (Variable dummy in vs)
+          {
+            quantifiedVars.Add(dummy);
+          }
+          base.VisitQuantifierExpr(node);
+          foreach (Variable dummy in vs)
+          {
+            quantifiedVars.Remove(dummy);
+          }
+          return node;
+        }
 
         public override AssignLhs VisitMapAssignLhs(MapAssignLhs node) {
 
