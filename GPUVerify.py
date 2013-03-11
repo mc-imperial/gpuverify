@@ -304,8 +304,8 @@ def showHelpAndExit():
 
 def processVector(vector):
   vector = vector.strip()
-  if vector[0] == '[' and vector[len(vector)-1] == ']':
-    return map(int, vector[1:len(vector)-1].split(","))
+  if vector[0] == '[' and vector[-1] == ']':
+    return map(int, vector[1:-1].split(","))
   else:
     return [ int(vector) ]
 
