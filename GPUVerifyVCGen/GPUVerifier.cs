@@ -10,7 +10,14 @@ using Microsoft.Basetypes;
 
 namespace GPUVerify
 {
-    class GPUVerifier : CheckingContext
+
+    public class InferenceStages {
+      public const int BASIC_CANDIDATE_STAGE = 0;
+      internal static int NO_READ_WRITE_CANDIDATE_STAGE = 0;
+      internal static int ACCESS_PATTERN_CANDIDATE_STAGE = 0;
+    }
+
+    internal class GPUVerifier : CheckingContext
     {
         public string outputFilename;
         public Program Program;
@@ -22,7 +29,7 @@ namespace GPUVerify
         public string BarrierProcedureLocalFenceArgName;
         public string BarrierProcedureGlobalFenceArgName;
 
-        public IKernelArrayInfo KernelArrayInfo = new KernelArrayInfoLists();
+        internal IKernelArrayInfo KernelArrayInfo = new KernelArrayInfoLists();
 
         private HashSet<string> ReservedNames = new HashSet<string>();
 
@@ -61,20 +68,21 @@ namespace GPUVerify
         internal static Constant _NUM_GROUPS_Y = null;
         internal static Constant _NUM_GROUPS_Z = null;
 
-        public IRaceInstrumenter RaceInstrumenter;
-        public INoAccessInstrumenter NoAccessInstrumenter;
+        internal IRaceInstrumenter RaceInstrumenter;
+        internal INoAccessInstrumenter NoAccessInstrumenter;
 
-        public UniformityAnalyser uniformityAnalyser;
-        public MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
-        public ArrayControlFlowAnalyser arrayControlFlowAnalyser;
-        public Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
-        public Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
+        internal UniformityAnalyser uniformityAnalyser;
+        internal MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
+        internal ArrayControlFlowAnalyser arrayControlFlowAnalyser;
+        internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
+        internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
 
-        public GPUVerifier(string filename, Program program, ResolutionContext rc, IRaceInstrumenter raceInstrumenter) : this(filename, program, rc, raceInstrumenter, false)
+        internal GPUVerifier(string filename, Program program, ResolutionContext rc, IRaceInstrumenter raceInstrumenter)
+          : this(filename, program, rc, raceInstrumenter, false)
         {
         }
 
-        public GPUVerifier(string filename, Program program, ResolutionContext rc, IRaceInstrumenter raceInstrumenter, bool skipCheck)
+        internal GPUVerifier(string filename, Program program, ResolutionContext rc, IRaceInstrumenter raceInstrumenter, bool skipCheck)
             : base((IErrorSink)null)
         {
             this.outputFilename = filename;
@@ -85,12 +93,12 @@ namespace GPUVerify
                 CheckWellFormedness();
         }
 
-        public void setRaceInstrumenter(IRaceInstrumenter ri)
+        internal void setRaceInstrumenter(IRaceInstrumenter ri)
         {
             this.RaceInstrumenter = ri;
         }
 
-        public void setNoAccessInstrumenter(INoAccessInstrumenter ni)
+        internal void setNoAccessInstrumenter(INoAccessInstrumenter ni)
         {
             this.NoAccessInstrumenter = ni;
         }
@@ -579,7 +587,7 @@ namespace GPUVerify
                     AddCandidateRequires(Proc, Expr.Eq(
                         new IdentifierExpr(Proc.tok, new LocalVariable(Proc.tok, new TypedIdent(Proc.tok, name + "$1", Microsoft.Boogie.Type.Bool))),
                         new IdentifierExpr(Proc.tok, new LocalVariable(Proc.tok, new TypedIdent(Proc.tok, name + "$2", Microsoft.Boogie.Type.Bool)))
-                    ));
+                    ), InferenceStages.BASIC_CANDIDATE_STAGE);
                 }
                 else
                 {
@@ -607,7 +615,7 @@ namespace GPUVerify
                     new IdentifierExpr(Proc.tok, new VariableDualiser(1, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable)),
                     new IdentifierExpr(Proc.tok, new VariableDualiser(2, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable))
                 )
-            ));
+            ), InferenceStages.BASIC_CANDIDATE_STAGE);
         }
 
         private void AddEqualityCandidateRequires(Procedure Proc, Variable v)
@@ -616,7 +624,7 @@ namespace GPUVerify
                 Expr.Eq(
                     new IdentifierExpr(Proc.tok, new VariableDualiser(1, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable)),
                     new IdentifierExpr(Proc.tok, new VariableDualiser(2, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable))
-                )
+                ), InferenceStages.BASIC_CANDIDATE_STAGE
             );
         }
 
@@ -626,19 +634,19 @@ namespace GPUVerify
                 Expr.Eq(
                     new IdentifierExpr(Proc.tok, new VariableDualiser(1, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable)),
                     new IdentifierExpr(Proc.tok, new VariableDualiser(2, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable))
-                ));
+                ), InferenceStages.BASIC_CANDIDATE_STAGE);
         }
 
-        internal void AddCandidateRequires(Procedure Proc, Expr e)
+        internal void AddCandidateRequires(Procedure Proc, Expr e, int StageId)
         {
-            Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean();
+            Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean(StageId);
             IdentifierExpr ExistentialBoolean = new IdentifierExpr(Proc.tok, ExistentialBooleanConstant);
             Proc.Requires.Add(new Requires(false, Expr.Imp(ExistentialBoolean, e)));
         }
 
-        internal void AddCandidateEnsures(Procedure Proc, Expr e)
+        internal void AddCandidateEnsures(Procedure Proc, Expr e, int StageId)
         {
-            Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean();
+            Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean(StageId);
             IdentifierExpr ExistentialBoolean = new IdentifierExpr(Proc.tok, ExistentialBooleanConstant);
             Proc.Ensures.Add(new Ensures(false, Expr.Imp(ExistentialBoolean, e)));
         }
@@ -1742,9 +1750,9 @@ namespace GPUVerify
             return variable.Name.Equals(_GROUP_X.Name) || variable.Name.Equals(_GROUP_Y.Name) || variable.Name.Equals(_GROUP_Z.Name);
         }
 
-        internal void AddCandidateInvariant(IRegion region, Expr e, string tag)
+        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId)
         {
-            region.AddInvariant(Program.CreateCandidateInvariant(e, tag));
+            region.AddInvariant(Program.CreateCandidateInvariant(e, tag, StageId));
         }
 
         internal Implementation GetImplementation(string procedureName)

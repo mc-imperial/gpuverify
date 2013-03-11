@@ -28,17 +28,17 @@ namespace GPUVerify.InvariantGenerationRules
                     {
                         if (verifier.ContainsNamedVariable(LoopInvariantGenerator.GetModifiedVariables(region), basicName))
                         {
-                            verifier.AddCandidateInvariant(region, MakePowerOfTwoExpr(v), "pow2 disjunction");
+                            verifier.AddCandidateInvariant(region, MakePowerOfTwoExpr(v), "pow2 disjunction", InferenceStages.BASIC_CANDIDATE_STAGE);
                             for (int i = (1 << 15); i > 0; i >>= 1)
                             {
                                 verifier.AddCandidateInvariant(region, 
                                     verifier.MakeBVSlt(
                                     new IdentifierExpr(v.tok, v),
-                                    new LiteralExpr(v.tok, BigNum.FromInt(i), 32)), "pow2 less than " + i);
+                                    new LiteralExpr(v.tok, BigNum.FromInt(i), 32)), "pow2 less than " + i, InferenceStages.BASIC_CANDIDATE_STAGE);
                             }
                             verifier.AddCandidateInvariant(region,
                                 Expr.Neq(new IdentifierExpr(v.tok, v),
-                                new LiteralExpr(v.tok, BigNum.FromInt(0), 32)), "pow2 not zero");
+                                new LiteralExpr(v.tok, BigNum.FromInt(0), 32)), "pow2 not zero", InferenceStages.BASIC_CANDIDATE_STAGE);
                         }
                     }
                 }

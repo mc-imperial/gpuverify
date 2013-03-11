@@ -38,7 +38,8 @@ namespace GPUVerify.InvariantGenerationRules
                         verifier.AddCandidateInvariant(region,
                                 verifier.MakeBVSge(
                                 new IdentifierExpr(v.tok, v),
-                                new LiteralExpr(v.tok, BigNum.FromInt(0), BVWidth)), "loop guard variable non-negative");
+                                new LiteralExpr(v.tok, BigNum.FromInt(0), BVWidth)), "loop guard variable non-negative",
+                                InferenceStages.BASIC_CANDIDATE_STAGE);
                     }
                 }
             }

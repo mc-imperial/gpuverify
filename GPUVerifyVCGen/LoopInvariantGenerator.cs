@@ -40,7 +40,7 @@ namespace GPUVerify {
         var lcPred = sc.MaybeBuildPredicate(verifier, lcExpr);
 
         if (lcPred != null) {
-          verifier.AddCandidateInvariant(region, lcPred, "variable " + lc + " is strided");
+          verifier.AddCandidateInvariant(region, lcPred, "variable " + lc + " is strided", InferenceStages.BASIC_CANDIDATE_STAGE);
         }
       }
     }
@@ -70,7 +70,7 @@ namespace GPUVerify {
           Expr.Eq(
               new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable)),
               new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable))
-      ), "equality");
+      ), "equality", InferenceStages.BASIC_CANDIDATE_STAGE);
     }
 
     private void AddPredicatedEqualityCandidateInvariant(IRegion region, string LoopPredicate, Variable v) {
@@ -82,7 +82,7 @@ namespace GPUVerify {
           Expr.Eq(
               new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable)),
               new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable))
-      )), "predicated equality");
+      )), "predicated equality", InferenceStages.BASIC_CANDIDATE_STAGE);
     }
 
     private Dictionary<string, int> GetAssignmentCounts(Implementation impl) {
@@ -137,7 +137,7 @@ namespace GPUVerify {
                   // Int type used here, but it doesn't matter as we will print and then re-parse the program
                   new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$1", Microsoft.Boogie.Type.Int))),
                   new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$2", Microsoft.Boogie.Type.Int)))
-              ), "loop predicate equality");
+              ), "loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
 
               Dictionary<string, int> assignmentCounts = GetAssignmentCounts(Impl);
 
