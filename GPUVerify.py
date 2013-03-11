@@ -290,25 +290,25 @@ def showHelpAndExit():
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"         
-  print "              =(X,Y)      or 3D and specify size for each"
-  print "              =(X,Y,Z)    dimension"
+  print "              =[X,Y]      or 3D and specify size for each"
+  print "              =[X,Y,Z]    dimension"
   print "  --num_groups=X          Specify whether grid of work-groups is"         
-  print "              =(X,Y)      1D, 2D or 3D and specify size for each"
-  print "              =(X,Y,Z)    dimension"
+  print "              =[X,Y]      1D, 2D or 3D and specify size for each"
+  print "              =[X,Y,Z]    dimension"
   print ""
   print "CUDA OPTIONS"
   print "  --blockDim=X            Specify whether thread block is 1D, 2D"         
-  print "              =(X,Y)      or 3D and specify size for each"
-  print "              =(X,Y,Z)    dimension"
+  print "              =[X,Y]      or 3D and specify size for each"
+  print "              =[X,Y,Z]    dimension"
   print "  --gridDim=X             Specify whether grid of thread blocks is"         
-  print "              =(X,Y)      1D, 2D or 3D and specify size for each"
-  print "              =(X,Y,Z)    dimension"
+  print "              =[X,Y]      1D, 2D or 3D and specify size for each"
+  print "              =[X,Y,Z]    dimension"
   exit(0)
 
 def processVector(vector):
   vector = vector.strip()
-  if vector[0] == '(' and vector[len(vector)-1] == ')':
-    return map(int, vector[1:len(vector)-1].split(","))
+  if vector[0] == '[' and vector[-1] == ']':
+    return map(int, vector[1:-1].split(","))
   else:
     return [ int(vector) ]
 
