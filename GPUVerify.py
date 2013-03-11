@@ -107,6 +107,7 @@ class CommandLineOptions(object):
   noSmartPredication = False
   noSourceLocInfer = False
   noUniformityAnalysis = False
+  stagedInference = False
   stopAtGbpl = False
   stopAtBpl = False
   time = False
@@ -279,6 +280,8 @@ def showHelpAndExit():
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
   print "  --only-log              Log accesses to arrays, but do not check for races.  This"
   print "                          can be useful for determining access pattern invariants"
+  print "  --staged-inference      Perform invariant inference in stages; this can boost"
+  print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
   print "  --testsuite             Testing testsuite program"
@@ -406,6 +409,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
     if o == "--boogie-opt":
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
+    if o == "--staged-inference":
+      CommandLineOptions.stagedInference = True 
     if o == "--stop-at-gbpl":
       CommandLineOptions.stopAtGbpl = True
     if o == "--stop-at-bpl":
@@ -519,7 +524,7 @@ def main(argv=None):
               'blockDim=', 'gridDim=',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
-              'boogie-file=',
+              'boogie-file=', 'staged-inference'
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -625,6 +630,9 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
   if CommandLineOptions.asymmetricAsserts:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/asymmetricAsserts" ]
+  if CommandLineOptions.stagedInference:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/stagedInference" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/stagedInference" ]
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
