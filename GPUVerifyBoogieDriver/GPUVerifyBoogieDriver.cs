@@ -150,7 +150,11 @@ namespace Microsoft.Boogie
                 QKeyValue.FindIntAttribute(Item.Attributes, "stage_id", -1)).ToList();
 
           }
-          
+
+          if (Stages.Count == 0) {
+            break;
+          }
+
           do {
             CurrentStage++;
           } while(!Stages.Contains(CurrentStage));
