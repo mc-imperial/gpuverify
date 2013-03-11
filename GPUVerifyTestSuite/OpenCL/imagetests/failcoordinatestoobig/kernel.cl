@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=(128,128) --num_groups=(48,64)
+//--local_size=[128,128] --num_groups=[48,64]
 
 
 

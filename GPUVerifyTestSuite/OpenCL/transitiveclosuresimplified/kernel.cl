@@ -1,5 +1,5 @@
 //pass
-//--local_size=(8,8) --num_groups=(1,1) --equality-abstraction
+//--local_size=[8,8] --num_groups=[1,1] --equality-abstraction
 
 
 #define _2D_ACCESS(A, y, x, X_DIM) A[(y)*(X_DIM)+(x)]

@@ -1,5 +1,5 @@
 //pass
-//--blockDim=(8,8) --gridDim=(1,1)
+//--blockDim=[8,8] --gridDim=[1,1]
 
 #include <cuda.h>
 
