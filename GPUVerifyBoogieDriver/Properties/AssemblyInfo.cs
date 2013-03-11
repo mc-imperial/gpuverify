@@ -1,3 +1,13 @@
+//===-----------------------------------------------------------------------==//
+//
+//                GPUVerify - a Verifier for GPU Kernels
+//
+// This file is distributed under the Microsoft Public License.  See
+// LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
