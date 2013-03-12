@@ -164,7 +164,7 @@ namespace Microsoft.Boogie
             Console.WriteLine("Current inference stage: " + CurrentStage);
           }
 
-          if((CommandLineOptions.Clo as GPUVerifyBoogieDriverCommandLineOptions).StagedInference && 
+          if ((CommandLineOptions.Clo as GPUVerifyBoogieDriverCommandLineOptions).StagedInference &&
                 CurrentStage == InferenceStages.BASIC_CANDIDATE_STAGE) {
             DisableRaceLogging(InvariantComputationProgram);
           }
@@ -261,7 +261,7 @@ namespace Microsoft.Boogie
 
       // Treat all assertions
       // TODO: do we need to also consider assumptions?
-      foreach (Block block in program.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).SelectMany(item => item)) {
+      foreach (Block block in ProgramBlocks(program)) {
         CmdSeq newCmds = new CmdSeq();
         foreach (Cmd cmd in block.Cmds) {
           string c;
@@ -280,6 +280,11 @@ namespace Microsoft.Boogie
       program.TopLevelDeclarations.RemoveAll(item => (item is Variable) &&
            (CandidatesToDisable.Contains((item as Variable).Name)));
 
+    }
+
+    private static IEnumerable<Block> ProgramBlocks(Program program) {
+      return program.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).
+        SelectMany(item => item);
     }
 
     class DisableCandidatesVisitor : StandardVisitor {
@@ -389,7 +394,7 @@ namespace Microsoft.Boogie
 
 
     private static void DisableRaceChecking(Program program) {
-      foreach (var block in program.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).SelectMany(item => item)) {
+      foreach (var block in ProgramBlocks(program)) {
         CmdSeq newCmds = new CmdSeq();
         foreach (Cmd c in block.Cmds) {
           CallCmd callCmd = c as CallCmd;
@@ -404,7 +409,7 @@ namespace Microsoft.Boogie
     }
 
     private static void DisableRaceLogging(Program program) {
-      foreach (var block in program.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).SelectMany(item => item)) {
+      foreach (var block in ProgramBlocks(program)) {
         CmdSeq newCmds = new CmdSeq();
         foreach (Cmd c in block.Cmds) {
           CallCmd callCmd = c as CallCmd;

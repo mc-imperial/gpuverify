@@ -178,7 +178,7 @@ namespace GPUVerify {
             if (CommandLineOptions.BarrierAccessChecks) {
               foreach (Expr AccessExpr in BIDescriptor.GetAccessedExprs()) {
                 var Assert = new AssertCmd(Token.NoToken, AccessExpr, MakeThreadSpecificAttributes(SourceLocationInfo,1));
-                cs.Add(vd.Visit(Assert));
+                cs.Add(vd.VisitAssertCmd(Assert));
               }
             }
           }
