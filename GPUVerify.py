@@ -94,6 +94,7 @@ class CommandLineOptions(object):
   mode = AnalysisMode.ALL
   inference = True
   verbose = False
+  silent = False
   groupSize = []
   numGroups = []
   adversarialAbstraction = False
@@ -280,6 +281,7 @@ def showHelpAndExit():
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
   print "  --only-log              Log accesses to arrays, but do not check for races.  This"
   print "                          can be useful for determining access pattern invariants"
+  print "  --silent                Only show errors; silent on success"
   print "  --staged-inference      Perform invariant inference in stages; this can boost"
   print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --stop-at-gbpl          Stop after generating gbpl"
@@ -367,6 +369,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.inference = False
     if o == "--verbose":
       CommandLineOptions.verbose = True
+    if o == "--silent":
+      CommandLineOptions.silent = True
     if o == "--loop-unwind":
       CommandLineOptions.mode = AnalysisMode.FINDBUGS
       try:
@@ -514,7 +518,7 @@ def main(argv=None):
 
   try:
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
-             ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose',
+             ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
@@ -692,6 +696,9 @@ def main(argv=None):
           ErrorCodes.BOOGIE_ERROR,
           **timeoutArguments)
 
+  """ SUCCESS - REPORT STATUS AND TIMING """
+  if CommandLineOptions.silent: return 0
+
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     print "No defects were found while analysing: " + ", ".join(CommandLineOptions.sourceFiles)
     print "Notes:"
@@ -706,11 +713,8 @@ def main(argv=None):
     print "- no barrier divergence"
     print "- no assertion failures"
     print "(but absolutely no warranty provided)"
-  return 0
 
-if __name__ == '__main__':
-  returnCode = main()
-  if CommandLineOptions.time and Timing:
+  if Timing and CommandLineOptions.time:
     tools, times = zip(*Timing)
     total = sum(times)
     padTool = max([ len(tool) for tool in tools ])
@@ -718,4 +722,8 @@ if __name__ == '__main__':
     print "Timing information (%.2f secs):" % total
     for (tool, t) in Timing:
       print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
-  sys.exit(returnCode)
+
+  return 0
+
+if __name__ == '__main__':
+  sys.exit(main())
