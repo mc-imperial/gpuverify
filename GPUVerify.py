@@ -711,10 +711,11 @@ def main(argv=None):
 if __name__ == '__main__':
   returnCode = main()
   if CommandLineOptions.time and Timing:
-    total = sum([ t for tool, t in Timing ])
+    tools, times = zip(*Timing)
+    total = sum(times)
+    padTool = max([ len(tool) for tool in tools ])
+    padTime = max([ len('%.3f secs' % t) for t in times ])
     print "Timing information (%.2f secs):" % total
-    padTool = max([ len(tool) for tool,t in Timing ])
-    padTime = max([ len('%.3f secs' % t) for tool,t in Timing ])
     for (tool, t) in Timing:
       print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
   sys.exit(returnCode)
