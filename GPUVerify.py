@@ -112,6 +112,7 @@ class CommandLineOptions(object):
   stopAtGbpl = False
   stopAtBpl = False
   time = False
+  timeCSVLabel = None
   boogieTimeout=300
   keepTemps = False
   asymmetricAsserts = False
@@ -281,11 +282,12 @@ def showHelpAndExit():
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
   print "  --only-log              Log accesses to arrays, but do not check for races.  This"
   print "                          can be useful for determining access pattern invariants"
-  print "  --silent                Only show errors; silent on success"
+  print "  --silent                Silent on success; only show errors/timing"
   print "  --staged-inference      Perform invariant inference in stages; this can boost"
   print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
+  print "  --time-as-csv=label     Print timing as CSV row with label"
   print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
@@ -421,6 +423,9 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.stopAtBpl = True
     if o == "--time":
       CommandLineOptions.time = True
+    if o == "--time-as-csv":
+      CommandLineOptions.time = True
+      CommandLineOptions.timeCSVLabel = a
     if o == "--asymmetric-asserts":
       CommandLineOptions.asymmetricAsserts = True
     if o == "--gen-smt2":
@@ -526,7 +531,7 @@ def main(argv=None):
               'vcgen-opt=', 'boogie-opt=',
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
-              'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
+              'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference'
              ])
@@ -697,6 +702,22 @@ def main(argv=None):
           **timeoutArguments)
 
   """ SUCCESS - REPORT STATUS AND TIMING """
+  if Timing and CommandLineOptions.time:
+    tools, times = map(list, zip(*Timing))
+    total = sum(times)
+    if CommandLineOptions.timeCSVLabel is not None:
+      label = CommandLineOptions.timeCSVLabel
+      times.append(total)
+      row = [ '%.3f' % t for t in times ]
+      if len(label) > 0: row.insert(0, label)
+      print ', '.join(row)
+    else:
+      padTool = max([ len(tool) for tool in tools ])
+      padTime = max([ len('%.3f secs' % t) for t in times ])
+      print "Timing information (%.2f secs):" % total
+      for (tool, t) in Timing:
+        print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+
   if CommandLineOptions.silent: return 0
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
@@ -713,15 +734,6 @@ def main(argv=None):
     print "- no barrier divergence"
     print "- no assertion failures"
     print "(but absolutely no warranty provided)"
-
-  if Timing and CommandLineOptions.time:
-    tools, times = zip(*Timing)
-    total = sum(times)
-    padTool = max([ len(tool) for tool in tools ])
-    padTime = max([ len('%.3f secs' % t) for t in times ])
-    print "Timing information (%.2f secs):" % total
-    for (tool, t) in Timing:
-      print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
 
   return 0
 
