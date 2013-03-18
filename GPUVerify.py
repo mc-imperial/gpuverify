@@ -19,11 +19,27 @@ z3BinDir = sys.path[0] + "/bin"
 """ Timing for the toolchain pipeline """
 Timing = []
 
-""" Horrible hack: WindowsError is not defined on UNIX systems, this works around that """
+""" WindowsError is not defined on UNIX systems, this works around that """
 try:
    WindowsError
 except NameError:
    WindowsError = None
+
+""" Horrible hack: Patch sys.exit() so we can get the exitcode in atexit callbacks """
+class ExitHook(object):
+  def __init__(self):
+    self.code = None
+
+  def hook(self):
+    self.realExit = sys.exit
+    sys.exit = self.exit
+
+  def exit(self, code=0):
+    self.code = code
+    self.realExit(code)
+
+exitHook = ExitHook()
+exitHook.hook()
 
 """ We support three analysis modes """
 class AnalysisMode(object):
@@ -202,7 +218,7 @@ def run(command,timeout=0):
   except KeyboardInterrupt:
     cleanupKiller()
     proc.wait()
-    exit(1)
+    sys.exit(ErrorCodes.CTRL_C)
   finally:
     #Need to kill the timer if it exists else exit() will block until the timer finishes
     cleanupKiller()
@@ -217,7 +233,8 @@ class ErrorCodes(object):
   BUGLE_ERROR = 4
   GPUVERIFYVCGEN_ERROR = 5
   BOOGIE_ERROR = 6
-  BOOGIE_TIMEOUT=7
+  BOOGIE_TIMEOUT = 7
+  CTRL_C = 8
   
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool. 
@@ -239,7 +256,7 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   if returnCode != 0:
     if stdout: print stdout
     if stderr: print stderr
-    exit(ErrorCode)
+    sys.exit(ErrorCode)
 
 def showHelpAndExit():
   print "OVERVIEW: GPUVerify driver"
@@ -311,7 +328,7 @@ def showHelpAndExit():
   print "  --gridDim=X             Specify whether grid of thread blocks is"         
   print "              =[X,Y]      1D, 2D or 3D and specify size for each"
   print "              =[X,Y,Z]    dimension"
-  exit(0)
+  sys.exit(0)
 
 def processVector(vector):
   vector = vector.strip()
@@ -325,7 +342,7 @@ def GPUVerifyWarn(msg):
 
 def GPUVerifyError(msg, code):
   print "GPUVerify: error: " + msg
-  exit(code)
+  sys.exit(code)
 
 def Verbose(msg):
   if(CommandLineOptions.verbose):
@@ -743,6 +760,8 @@ def showTiming():
       times.append(total)
       row = [ '%.3f' % t for t in times ]
       if len(label) > 0: row.insert(0, label)
+      if exitHook.code is ErrorCodes.SUCCESS: row.append('PASS')
+      else: row.append('FAIL(' + str(exitHook.code) + ')')
       print ', '.join(row)
     else:
       padTool = max([ len(tool) for tool in tools ])
