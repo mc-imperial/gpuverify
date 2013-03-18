@@ -206,7 +206,6 @@ def run(command,timeout=0):
     #Need to kill the timer if it exists else exit() will block until the timer finishes
     cleanupKiller()
     
-    
   return stdout, stderr, proc.returncode
 
 class ErrorCodes(object):
@@ -230,14 +229,15 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
     stdout, stderr, returnCode = run(Command, timeout)
     end = timeit.default_timer()
   except Timeout:
+    if CommandLineOptions.time: Timing.append((ToolName, timeout))
     GPUVerifyError(ToolName + " timed out.  Use --timeout=N with N > " + str(timeout) + " to increase timeout, or --timeout=0 to disable timeout.", timeoutErrorCode)
   except (OSError,WindowsError) as e:
     GPUVerifyError("While invoking " + ToolName + ": " + str(e),ErrorCode)
 
+  if CommandLineOptions.time: Timing.append((ToolName, end-start))
   if returnCode != 0:
     if stderr: print stderr
     exit(ErrorCode)
-  if CommandLineOptions: Timing.append((ToolName, end-start))
 
 def showHelpAndExit():
   print "OVERVIEW: GPUVerify driver"
@@ -701,23 +701,7 @@ def main(argv=None):
           ErrorCodes.BOOGIE_ERROR,
           **timeoutArguments)
 
-  """ SUCCESS - REPORT STATUS AND TIMING """
-  if Timing and CommandLineOptions.time:
-    tools, times = map(list, zip(*Timing))
-    total = sum(times)
-    if CommandLineOptions.timeCSVLabel is not None:
-      label = CommandLineOptions.timeCSVLabel
-      times.append(total)
-      row = [ '%.3f' % t for t in times ]
-      if len(label) > 0: row.insert(0, label)
-      print ', '.join(row)
-    else:
-      padTool = max([ len(tool) for tool in tools ])
-      padTime = max([ len('%.3f secs' % t) for t in times ])
-      print "Timing information (%.2f secs):" % total
-      for (tool, t) in Timing:
-        print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
-
+  """ SUCCESS - REPORT STATUS """
   if CommandLineOptions.silent: return 0
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
@@ -737,5 +721,23 @@ def main(argv=None):
 
   return 0
 
+def showTiming():
+  if Timing and CommandLineOptions.time:
+    tools, times = map(list, zip(*Timing))
+    total = sum(times)
+    if CommandLineOptions.timeCSVLabel is not None:
+      label = CommandLineOptions.timeCSVLabel
+      times.append(total)
+      row = [ '%.3f' % t for t in times ]
+      if len(label) > 0: row.insert(0, label)
+      print ', '.join(row)
+    else:
+      padTool = max([ len(tool) for tool in tools ])
+      padTime = max([ len('%.3f secs' % t) for t in times ])
+      print "Timing information (%.2f secs):" % total
+      for (tool, t) in Timing:
+        print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+
 if __name__ == '__main__':
+  atexit.register(showTiming)
   sys.exit(main())
