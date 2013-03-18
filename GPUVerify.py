@@ -113,6 +113,7 @@ class CommandLineOptions(object):
   stopAtBpl = False
   time = False
   timeCSVLabel = None
+  boogieMemout=0
   boogieTimeout=300
   keepTemps = False
   asymmetricAsserts = False
@@ -236,6 +237,7 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
 
   if CommandLineOptions.time: Timing.append((ToolName, end-start))
   if returnCode != 0:
+    if stdout: print stdout
     if stderr: print stderr
     exit(ErrorCode)
 
@@ -250,6 +252,8 @@ def showHelpAndExit():
   print "  -D <value>              Define symbol"
   print "  --findbugs              Run tool in bug-finding mode"
   print "  --loop-unwind=X         Explore traces that pass through at most X loop heads"
+  print "  --memout=X              Give Boogie a hard memory limit of X megabytes."
+  print "                          A memout of 0 disables the memout. The default is " + str(CommandLineOptions.boogieMemout) + " megabytes."
   print "  --no-benign             Do not tolerate benign data races"
   print "  --no-infer              Turn off invariant inference"
   print "  --only-divergence       Only check for barrier divergence, not for races"
@@ -257,8 +261,8 @@ def showHelpAndExit():
   print "  --verify                Run tool in verification mode"
   print "  --verbose               Show commands to run and use verbose output"
   print "  --time                  Show timing information"
-  print "  --timeout=X             Allow Boogie component to run for X seconds before giving up."
-  print "                          A timeout of 0 disables the timeout. The default is " + str(CommandLineOptions.boogieTimeout) + " seconds"
+  print "  --timeout=X             Allow Boogie to run for X seconds before giving up."
+  print "                          A timeout of 0 disables the timeout. The default is " + str(CommandLineOptions.boogieTimeout) + " seconds."
   print ""
   print "ADVANCED OPTIONS:"
   print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
@@ -381,6 +385,13 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.loopUnwindDepth = int(a)
       except ValueError:
         GPUVerifyError("non integer value '" + a + "' provided as argument to --loop-unwind", ErrorCodes.COMMAND_LINE_ERROR) 
+    if o == "--memout":
+      try:
+        CommandLineOptions.boogieMemout = int(a)
+        if CommandLineOptions.boogieMemout < 0:
+          raise ValueError
+      except ValueError as e:
+          GPUVerifyError("Invalid memout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--no-benign":
       CommandLineOptions.noBenign = True
     if o == "--only-divergence":
@@ -524,7 +535,7 @@ def main(argv=None):
   try:
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
              ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
-              'loop-unwind=', 'no-benign', 'only-divergence', 'only-intra-group', 
+              'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
@@ -693,6 +704,8 @@ def main(argv=None):
   if CommandLineOptions.boogieTimeout > 0:
     timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
     timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
+  if CommandLineOptions.boogieMemout > 0:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
     
   RunTool("gpuverifyboogiedriver",
           (["mono"] if os.name == "posix" else []) +
