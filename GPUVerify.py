@@ -254,8 +254,8 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
 
   if CommandLineOptions.time: Timing.append((ToolName, end-start))
   if returnCode != 0:
-    if stdout: print stdout
-    if stderr: print stderr
+    if stdout: print >> sys.stderr, stdout
+    if stderr: print >> sys.stderr, stderr
     sys.exit(ErrorCode)
 
 def showHelpAndExit():
@@ -677,6 +677,9 @@ def main(argv=None):
   elif CommandLineOptions.inference:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
 
+  if CommandLineOptions.boogieMemout > 0:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
+
   if CommandLineOptions.generateSmt2:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
@@ -721,8 +724,6 @@ def main(argv=None):
   if CommandLineOptions.boogieTimeout > 0:
     timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
     timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
-  if CommandLineOptions.boogieMemout > 0:
-    CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
     
   RunTool("gpuverifyboogiedriver",
           (["mono"] if os.name == "posix" else []) +
@@ -760,15 +761,19 @@ def showTiming():
       times.append(total)
       row = [ '%.3f' % t for t in times ]
       if len(label) > 0: row.insert(0, label)
-      if exitHook.code is ErrorCodes.SUCCESS: row.append('PASS')
-      else: row.append('FAIL(' + str(exitHook.code) + ')')
-      print ', '.join(row)
+      if exitHook.code is ErrorCodes.SUCCESS:
+        print ', '.join(row)
+      else:
+        row.append('FAIL(' + str(exitHook.code) + ')')
+        print >> sys.stderr, ', '.join(row) 
     else:
       padTool = max([ len(tool) for tool in tools ])
       padTime = max([ len('%.3f secs' % t) for t in times ])
       print "Timing information (%.2f secs):" % total
       for (tool, t) in Timing:
         print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+  sys.stderr.flush()
+  sys.stdout.flush()
 
 if __name__ == '__main__':
   atexit.register(showTiming)
