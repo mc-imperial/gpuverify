@@ -341,7 +341,7 @@ def GPUVerifyWarn(msg):
   print "GPUVerify: warning: " + msg
 
 def GPUVerifyError(msg, code):
-  print "GPUVerify: error: " + msg
+  print >> sys.stderr, "GPUVerify: error: " + msg
   sys.exit(code)
 
 def Verbose(msg):
