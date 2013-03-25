@@ -102,41 +102,6 @@ namespace GPUVerify
             return null;
         }
 
-/*        public static bool doit(string filename, Variable v, int a1, int a2)
-        {
-            ResolutionContext rc;
-            Program newProgram = parse(out rc);
-            RaceInstrumenter ri = new RaceInstrumenter();
-            GPUVerifier newGp = new GPUVerifier(filename, newProgram, rc, ri);
-            ri.setVerifier(newGp);
-
-            
-            Variable newG = findClonedVar(v, newGp.KernelArrayInfo.getGlobalArrays());
-            Variable newT = findClonedVar(v, newGp.KernelArrayInfo.getGroupSharedArrays());
-            Contract.Assert(newG == null || newT == null);
-
-            ri.NonLocalStateToCheck.getGlobalArrays().Clear();
-            ri.NonLocalStateToCheck.getGroupSharedArrays().Clear();
-            ri.onlyLog1 = a1;
-            ri.onlyLog2 = a2;
-
-            if (newG != null)
-            {
-                ri.NonLocalStateToCheck.getGlobalArrays().Add(newG);
-            }
-
-            if (newT != null)
-            {
-                ri.NonLocalStateToCheck.getGroupSharedArrays().Add(newT);
-            }
-            
-            newGp.doit();
-
-            return !ri.failedToFindSecondAccess;
-
-        }
-      */
-
         public static void parseProcessOutput()
         {
             string fn = "temp";

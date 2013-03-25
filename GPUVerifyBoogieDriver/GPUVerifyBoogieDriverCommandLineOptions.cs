@@ -1,4 +1,4 @@
-//===-----------------------------------------------------------------------==//
+﻿//===-----------------------------------------------------------------------==//
 //
 //                GPUVerify - a Verifier for GPU Kernels
 //
@@ -12,12 +12,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Diagnostics;
 using Microsoft.Boogie;
 
 namespace GPUVerify {
   public class GPUVerifyBoogieDriverCommandLineOptions : CommandLineOptions {
 
     public bool StagedInference = false;
+    public string ArrayToCheck = null;
 
     public GPUVerifyBoogieDriverCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser") {
@@ -30,7 +32,23 @@ namespace GPUVerify {
         return true;
       }
 
+      if (name == "array") {
+        if (ps.ConfirmArgumentCount(1)) {
+          ArrayToCheck = ToInternalArrayName(ps.args[ps.i]);
+        }
+        return true;
+      }
+
       return base.ParseOption(name, ps);  // defer to superclass
+    }
+
+    private string ToInternalArrayName(string arrayName) {
+      return "$$" + arrayName;
+    }
+
+    internal string ToExternalArrayName(string arrayName) {
+      Debug.Assert(arrayName.StartsWith("$$"));
+      return arrayName.Substring("$$".Length);
     }
 
   }

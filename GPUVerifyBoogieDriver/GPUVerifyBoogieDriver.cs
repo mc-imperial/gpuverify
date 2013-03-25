@@ -1,4 +1,4 @@
-//===-----------------------------------------------------------------------==//
+﻿//===-----------------------------------------------------------------------==//
 //
 //                GPUVerify - a Verifier for GPU Kernels
 //
@@ -38,7 +38,7 @@ namespace Microsoft.Boogie
       Contract.Requires(cce.NonNullElements(args));
       CommandLineOptions.Install(new GPUVerifyBoogieDriverCommandLineOptions());
 
-      try {
+      //try {
 
         CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
         if (!CommandLineOptions.Clo.Parse(args)) {
@@ -73,163 +73,121 @@ namespace Microsoft.Boogie
           }
         }
 
-        int exitCode;
-
-        if (CommandLineOptions.Clo.ContractInfer) {
-          exitCode = VerifyWithInference(fileList);
-        }
-        else {
-          exitCode = VerifyDirectly(fileList);
-        }
+        int exitCode = VerifyFiles(fileList);
         Environment.Exit(exitCode);
-      } catch (Exception e) {
+      /*} catch (Exception e) {
         Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
         Console.Error.WriteLine(e);
         Environment.Exit(1);
-      }
+      }*/
     }
 
-    static int VerifyDirectly(List<string> fileNames) {
+    static int VerifyFiles(List<string> fileNames) {
       Contract.Requires(cce.NonNullElements(fileNames));
-      Contract.Requires(!CommandLineOptions.Clo.ContractInfer);
-
-      if (CommandLineOptions.Clo.Trace) {
-        Console.WriteLine("Verifying without inference");
-      }
-
-      Program program = ParseBoogieProgram(fileNames, false);
-      if (program == null) {
-        return 1;
-      }
-
-      PipelineOutcome oc = ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
-      if (oc != PipelineOutcome.ResolvedAndTypeChecked)
-        return 1;
-
-      EliminateDeadVariablesAndInline(program);
-
-      if (CommandLineOptions.Clo.LoopUnrollCount != -1) {
-        program.UnrollLoops(CommandLineOptions.Clo.LoopUnrollCount, CommandLineOptions.Clo.SoundLoopUnrolling);
-      }
-
-      return VerifyProgram(program);
-
-    }
-
-    static int VerifyWithInference(List<string> fileNames) {
-      Contract.Requires(cce.NonNullElements(fileNames));
-      Contract.Requires(CommandLineOptions.Clo.ContractInfer);
-      Contract.Requires(CommandLineOptions.Clo.LoopUnrollCount == -1);
-
-      if (CommandLineOptions.Clo.Trace) {
-        Console.WriteLine("Verifying with inference");
-      }
 
       List<Houdini.Houdini> HoudiniInstances = new List<Houdini.Houdini>();
 
-      #region Compute invariant without race checking
-      {
-        if (CommandLineOptions.Clo.Trace) {
-          Console.WriteLine("Compute invariant without race checking");
-        }
+      if (CommandLineOptions.Clo.ContractInfer) {
 
-        int CurrentStage = -1;
-        List<int> Stages = null;
-
-        do {
-          Program InvariantComputationProgram = ParseBoogieProgram(fileNames, false);
-          if (InvariantComputationProgram == null) {
-            return 1;
-          }
-          PipelineOutcome oc = ResolveAndTypecheck(InvariantComputationProgram, fileNames[fileNames.Count - 1]);
-          if (oc != PipelineOutcome.ResolvedAndTypeChecked)
-            return 1;
-
-          if(Stages == null) {
-            Stages = InvariantComputationProgram.TopLevelDeclarations.OfType<Constant>().Where(Item
-              => QKeyValue.FindIntAttribute(Item.Attributes, "stage_id", -1) != -1).Select(Item =>
-                QKeyValue.FindIntAttribute(Item.Attributes, "stage_id", -1)).ToList();
-
+        #region Compute invariant without race checking
+        {
+          if (CommandLineOptions.Clo.Trace) {
+            Console.WriteLine("Compute invariant without race checking");
           }
 
-          if (Stages.Count == 0) {
-            break;
-          }
-            
+          int CurrentStage = -1;
+          List<int> Stages = null;
+
           do {
-            CurrentStage++;
-          } while(!Stages.Contains(CurrentStage));
-
-          if (CommandLineOptions.Clo.Trace) {
-            Console.WriteLine("Current inference stage: " + CurrentStage);
-          }
-
-          if ((CommandLineOptions.Clo as GPUVerifyBoogieDriverCommandLineOptions).StagedInference &&
-                CurrentStage == InferenceStages.BASIC_CANDIDATE_STAGE) {
-            DisableRaceLogging(InvariantComputationProgram);
-          }
-
-          DisableRaceChecking(InvariantComputationProgram);
-
-          EliminateDeadVariablesAndInline(InvariantComputationProgram);
-
-          // Instantiate or remove candidates based on what has been
-          // learned during previous iterations
-          foreach(var h in HoudiniInstances) {
-            h.ApplyAssignment(InvariantComputationProgram, true);
-          }
-
-          DisableCandidatesFromHigherStages(InvariantComputationProgram, CurrentStage);
-
-          Houdini.Houdini houdini = new Houdini.Houdini(InvariantComputationProgram);
-          HoudiniInstances.Add(houdini);
-
-          Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
-          if (CommandLineOptions.Clo.PrintAssignment) {
-            Console.WriteLine("Assignment computed by Houdini:");
-            foreach (var x in outcome.assignment) {
-              Console.WriteLine(x.Key + " = " + x.Value);
+            Program InvariantComputationProgram = ParseBoogieProgram(fileNames, false);
+            if (InvariantComputationProgram == null) {
+              return 1;
             }
-          }
-          if (CommandLineOptions.Clo.Trace) {
-            int numTrueAssigns = 0;
-            foreach (var x in outcome.assignment) {
-              if (x.Value)
-                numTrueAssigns++;
+            PipelineOutcome oc = ResolveAndTypecheck(InvariantComputationProgram, fileNames[fileNames.Count - 1]);
+            if (oc != PipelineOutcome.ResolvedAndTypeChecked)
+              return 1;
+
+            if (Stages == null) {
+              Stages = InvariantComputationProgram.TopLevelDeclarations.OfType<Constant>().Where(Item
+                => QKeyValue.FindIntAttribute(Item.Attributes, "stage_id", -1) != -1).Select(Item =>
+                  QKeyValue.FindIntAttribute(Item.Attributes, "stage_id", -1)).ToList();
+
             }
-            Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-            Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
-            Console.WriteLine("Prover time = " + Houdini.HoudiniSession.proverTime.ToString("F2"));
-            Console.WriteLine("Unsat core prover time = " + Houdini.HoudiniSession.unsatCoreProverTime.ToString("F2"));
-            Console.WriteLine("Number of prover queries = " + Houdini.HoudiniSession.numProverQueries);
-            Console.WriteLine("Number of unsat core prover queries = " + Houdini.HoudiniSession.numUnsatCoreProverQueries);
-            Console.WriteLine("Number of unsat core prunings = " + Houdini.HoudiniSession.numUnsatCorePrunings);
-          }
 
-          if (!AllImplementationsValid(outcome)) {
-            int verified = 0;
-            int errorCount = 0;
-            int inconclusives = 0;
-            int timeOuts = 0;
-            int outOfMemories = 0;
-            foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
-              ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+            if (Stages.Count == 0) {
+              break;
             }
-            WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
-            return errorCount + inconclusives + timeOuts + outOfMemories;
-          }
 
-          Console.WriteLine("Max stages is " + Stages.Max());
+            do {
+              CurrentStage++;
+            } while (!Stages.Contains(CurrentStage));
 
-        } while(CurrentStage < Stages.Max());
-      }
-      #endregion
+            if (GetCommandLineOptions().StagedInference &&
+                  CurrentStage == InferenceStages.BASIC_CANDIDATE_STAGE) {
+              DisableRaceLogging(InvariantComputationProgram);
+            }
 
-      #region Use computed invariant to perform race checking
-      {
-        if (CommandLineOptions.Clo.Trace) {
-          Console.WriteLine("Use computed invariant to perform race checking");
+            DisableRaceChecking(InvariantComputationProgram);
+
+            if (GetCommandLineOptions().ArrayToCheck != null) {
+              RestrictToArray(InvariantComputationProgram, GetCommandLineOptions().ArrayToCheck);
+            }
+
+            EliminateDeadVariablesAndInline(InvariantComputationProgram);
+
+            // Instantiate or remove candidates based on what has been
+            // learned during previous iterations
+            foreach (var h in HoudiniInstances) {
+              h.ApplyAssignment(InvariantComputationProgram);
+            }
+
+            DisableCandidatesFromHigherStages(InvariantComputationProgram, CurrentStage);
+
+            Houdini.Houdini houdini = new Houdini.Houdini(InvariantComputationProgram);
+            HoudiniInstances.Add(houdini);
+
+            Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
+            if (CommandLineOptions.Clo.PrintAssignment) {
+              Console.WriteLine("Assignment computed by Houdini:");
+              foreach (var x in outcome.assignment) {
+                Console.WriteLine(x.Key + " = " + x.Value);
+              }
+            }
+            if (CommandLineOptions.Clo.Trace) {
+              int numTrueAssigns = 0;
+              foreach (var x in outcome.assignment) {
+                if (x.Value)
+                  numTrueAssigns++;
+              }
+              Console.WriteLine("Number of true assignments = " + numTrueAssigns);
+              Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+              Console.WriteLine("Prover time = " + Houdini.HoudiniSession.proverTime.ToString("F2"));
+              Console.WriteLine("Unsat core prover time = " + Houdini.HoudiniSession.unsatCoreProverTime.ToString("F2"));
+              Console.WriteLine("Number of prover queries = " + Houdini.HoudiniSession.numProverQueries);
+              Console.WriteLine("Number of unsat core prover queries = " + Houdini.HoudiniSession.numUnsatCoreProverQueries);
+              Console.WriteLine("Number of unsat core prunings = " + Houdini.HoudiniSession.numUnsatCorePrunings);
+            }
+
+            if (!AllImplementationsValid(outcome)) {
+              int verified = 0;
+              int errorCount = 0;
+              int inconclusives = 0;
+              int timeOuts = 0;
+              int outOfMemories = 0;
+              foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
+                ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+              }
+              WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
+              return errorCount + inconclusives + timeOuts + outOfMemories;
+            }
+
+          } while (CurrentStage < Stages.Max());
         }
+        #endregion
+      }
+
+      #region Use computed invariant (if any) to perform race checking
+      {
 
         Program RaceCheckingProgram = ParseBoogieProgram(fileNames, false);
         if (RaceCheckingProgram == null) {
@@ -238,18 +196,142 @@ namespace Microsoft.Boogie
         PipelineOutcome oc = ResolveAndTypecheck(RaceCheckingProgram, fileNames[fileNames.Count - 1]);
         if (oc != PipelineOutcome.ResolvedAndTypeChecked)
           return 1;
+
+        if (GetCommandLineOptions().ArrayToCheck != null) {
+          RestrictToArray(RaceCheckingProgram, GetCommandLineOptions().ArrayToCheck);
+        }
+        
         EliminateDeadVariablesAndInline(RaceCheckingProgram);
 
-        foreach (var h in HoudiniInstances) {
-          h.ApplyAssignment(RaceCheckingProgram, true);
+        CommandLineOptions.Clo.PrintUnstructured = 2;
+
+        if (CommandLineOptions.Clo.LoopUnrollCount != -1) {
+          Debug.Assert(!CommandLineOptions.Clo.ContractInfer);
+          RaceCheckingProgram.UnrollLoops(CommandLineOptions.Clo.LoopUnrollCount, CommandLineOptions.Clo.SoundLoopUnrolling);
+          GPUVerifyErrorReporter.FixStateIds(RaceCheckingProgram);
+          GPUVerify.Emitter.emitProgram(RaceCheckingProgram, "unrolled");
         }
 
-        CommandLineOptions.Clo.PrintUnstructured = 2;
+        foreach (var h in HoudiniInstances) {
+          h.ApplyAssignment(RaceCheckingProgram);
+        }
 
         return VerifyProgram(RaceCheckingProgram);
       }
       #endregion
 
+    }
+
+    private static GPUVerifyBoogieDriverCommandLineOptions GetCommandLineOptions() {
+      return (GPUVerifyBoogieDriverCommandLineOptions)CommandLineOptions.Clo;
+    }
+
+    private static void RestrictToArray(Program prog, string arrayName) {
+
+      if(!ValidArray(prog, arrayName)) {
+        ErrorWriteLine("GPUVerify: error: array " + GetCommandLineOptions().ToExternalArrayName(arrayName) + " does not exist");
+        Environment.Exit(1);
+      }
+
+      var Candidates = prog.TopLevelDeclarations.OfType<Constant>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "existential")).Select(Item => Item.Name);
+
+      HashSet<string> CandidatesToRemove = new HashSet<string>();
+      foreach (var b in ProgramBlocks(prog)) {
+        CmdSeq newCmds = new CmdSeq();
+        foreach(Cmd c in b.Cmds) {
+          var callCmd = c as CallCmd;
+          if(callCmd != null && IsRaceInstrumentationProcedureForOtherArray(callCmd, arrayName)) {
+            continue;
+          }
+          var assertCmd = c as AssertCmd;
+          if (assertCmd != null && ContainsAccessHasOccurredForOtherArray(assertCmd.Expr, arrayName)) {
+            string CandidateName;
+            if(Houdini.Houdini.MatchCandidate(assertCmd.Expr, Candidates, out CandidateName)) {
+              CandidatesToRemove.Add(CandidateName);
+            }
+            continue;
+          }
+          newCmds.Add(c);
+        }
+        b.Cmds = newCmds;
+      }
+
+      foreach (var p in prog.TopLevelDeclarations.OfType<Procedure>()) {
+        RequiresSeq newRequires = new RequiresSeq();
+        foreach (Requires r in p.Requires) {
+          if (ContainsAccessHasOccurredForOtherArray(r.Condition, arrayName)) {
+            continue;
+          }
+          newRequires.Add(r);
+        }
+        p.Requires = newRequires;
+
+        EnsuresSeq newEnsures = new EnsuresSeq();
+        foreach (Ensures r in p.Ensures) {
+          if (ContainsAccessHasOccurredForOtherArray(r.Condition, arrayName)) {
+            continue;
+          }
+          newEnsures.Add(r);
+        }
+        p.Ensures = newEnsures;
+      }
+
+      prog.TopLevelDeclarations.RemoveAll(Item => (Item is Variable) &&
+        CandidatesToRemove.Contains((Item as Variable).Name));
+
+    }
+
+    private static bool ValidArray(Program prog, string arrayName) {
+      return prog.TopLevelDeclarations.OfType<Variable>().Where(Item =>
+        QKeyValue.FindBoolAttribute(Item.Attributes, "race_checking") &&
+        Item.Name.StartsWith("_WRITE_HAS_OCCURRED_")).Select(Item => Item.Name).Contains("_WRITE_HAS_OCCURRED_" + arrayName + "$1");
+    }
+
+    class FindAccessHasOccurredForOtherArrayVisitor : StandardVisitor {
+
+      private string arrayName;
+      private bool Found;
+
+      internal FindAccessHasOccurredForOtherArrayVisitor(string arrayName) {
+        this.arrayName = arrayName;
+        this.Found = false;
+      }
+
+      public override Variable VisitVariable(Variable node) {
+        foreach (var AccessType in new string[] { "READ", "WRITE" }) {
+          string prefix = "_" + AccessType + "_HAS_OCCURRED_";
+          if (node.Name.StartsWith(prefix)) {
+            if (!node.Name.Substring(prefix.Length).Equals(arrayName + "$1")) {
+              Found = true;
+              return node;
+            }
+          }
+        }
+        return node;
+      }
+
+      internal bool IsFound() {
+        return Found;
+      }
+
+    }
+
+    private static bool ContainsAccessHasOccurredForOtherArray(Expr expr, string arrayName) {
+      var v = new FindAccessHasOccurredForOtherArrayVisitor(arrayName);
+      v.VisitExpr(expr);
+      return v.IsFound();
+    }
+
+    private static bool IsRaceInstrumentationProcedureForOtherArray(CallCmd callCmd, string arrayName) {
+      foreach (var AccessType in new string[] { "READ", "WRITE" }) {
+        foreach (var ProcedureType in new string[] { "LOG", "CHECK" }) {
+          var prefix = "_" + ProcedureType + "_" + AccessType + "_";
+          if(callCmd.callee.StartsWith(prefix)) {
+            return !callCmd.callee.Substring(prefix.Length).Equals(arrayName);
+          }
+        }
+      }
+      return false;
     }
 
     private static void DisableCandidatesFromHigherStages(Program program, int CurrentStage) {

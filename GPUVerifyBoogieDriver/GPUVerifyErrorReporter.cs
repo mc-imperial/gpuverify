@@ -457,7 +457,76 @@ namespace GPUVerify {
         return null;
       }
     }
+
+    internal static void FixStateIds(Program Program) {
+      new StateIdFixer().FixStateIds(Program);
+    }
   
+  }
+
+  class StateIdFixer {
+
+    // For race reporting, we emit a bunch of "state_id" attributes.
+    // It is important that these are not duplicated.  However,
+    // loop unrolling duplicates them.  This class is responsible for
+    // fixing things up.  It is not a particularly elegant solution.
+
+    private int counter = 0;
+
+    internal void FixStateIds(Program Program) {
+
+      Debug.Assert(CommandLineOptions.Clo.LoopUnrollCount != -1);
+
+
+      foreach(var impl in Program.TopLevelDeclarations.OfType<Implementation>()) {
+        impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds)); 
+      }
+
+    }
+
+    private Block FixStateIds(Block b) {
+      CmdSeq newCmds = new CmdSeq();
+      for (int i = 0; i < b.Cmds.Length; i++) {
+        var a = b.Cmds[i] as AssumeCmd;
+        if (a != null && (QKeyValue.FindStringAttribute(a.Attributes, "captureState") != null)) {
+          // It is necessary to clone the assume and call command, because after loop unrolling
+          // there is aliasing between blocks of different loop iterations
+          newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetStateId(a.Attributes, "captureState")));
+          Debug.Assert(i + 1 < b.Cmds.Length);
+          var c = b.Cmds[i + 1] as CallCmd;
+          Debug.Assert(c != null);
+          Debug.Assert(QKeyValue.FindStringAttribute(c.Attributes, "state_id") != null);
+          var newCall = new CallCmd(Token.NoToken, c.callee, c.Ins, c.Outs, ResetStateId(c.Attributes, "state_id"));
+          newCall.Proc = c.Proc;
+          newCmds.Add(newCall);
+          counter++;
+        }
+        else {
+          newCmds.Add(b.Cmds[i]);
+        }
+      }
+      b.Cmds = newCmds;
+      return b;
+    }
+
+    private QKeyValue ResetStateId(QKeyValue Attributes, string Key) {
+      // Returns attributes identical to Attributes, but:
+      // - reversed (for ease of implementation; should not matter)
+      // - with the value for Key replaced by "check_state_X" where X is the counter field
+      Debug.Assert(QKeyValue.FindStringAttribute(Attributes, Key) != null);
+      QKeyValue result = null;
+      while (Attributes != null) {
+        if (Attributes.Key.Equals(Key)) {
+          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { "check_state_" + counter }, result);
+        }
+        else {
+          result = new QKeyValue(Token.NoToken, Attributes.Key, Attributes.Params, result);
+        }
+        Attributes = Attributes.Next;
+      }
+      return result;
+    }
+
   }
 
 
