@@ -19,11 +19,27 @@ z3BinDir = sys.path[0] + "/bin"
 """ Timing for the toolchain pipeline """
 Timing = []
 
-""" Horrible hack: WindowsError is not defined on UNIX systems, this works around that """
+""" WindowsError is not defined on UNIX systems, this works around that """
 try:
    WindowsError
 except NameError:
    WindowsError = None
+
+""" Horrible hack: Patch sys.exit() so we can get the exitcode in atexit callbacks """
+class ExitHook(object):
+  def __init__(self):
+    self.code = None
+
+  def hook(self):
+    self.realExit = sys.exit
+    sys.exit = self.exit
+
+  def exit(self, code=0):
+    self.code = code
+    self.realExit(code)
+
+exitHook = ExitHook()
+exitHook.hook()
 
 """ We support three analysis modes """
 class AnalysisMode(object):
@@ -94,6 +110,7 @@ class CommandLineOptions(object):
   mode = AnalysisMode.ALL
   inference = True
   verbose = False
+  silent = False
   groupSize = []
   numGroups = []
   adversarialAbstraction = False
@@ -111,6 +128,8 @@ class CommandLineOptions(object):
   stopAtGbpl = False
   stopAtBpl = False
   time = False
+  timeCSVLabel = None
+  boogieMemout=0
   boogieTimeout=300
   keepTemps = False
   asymmetricAsserts = False
@@ -199,11 +218,10 @@ def run(command,timeout=0):
   except KeyboardInterrupt:
     cleanupKiller()
     proc.wait()
-    exit(1)
+    sys.exit(ErrorCodes.CTRL_C)
   finally:
     #Need to kill the timer if it exists else exit() will block until the timer finishes
     cleanupKiller()
-    
     
   return stdout, stderr, proc.returncode
 
@@ -215,7 +233,8 @@ class ErrorCodes(object):
   BUGLE_ERROR = 4
   GPUVERIFYVCGEN_ERROR = 5
   BOOGIE_ERROR = 6
-  BOOGIE_TIMEOUT=7
+  BOOGIE_TIMEOUT = 7
+  CTRL_C = 8
   
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool. 
@@ -228,14 +247,16 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
     stdout, stderr, returnCode = run(Command, timeout)
     end = timeit.default_timer()
   except Timeout:
+    if CommandLineOptions.time: Timing.append((ToolName, timeout))
     GPUVerifyError(ToolName + " timed out.  Use --timeout=N with N > " + str(timeout) + " to increase timeout, or --timeout=0 to disable timeout.", timeoutErrorCode)
   except (OSError,WindowsError) as e:
     GPUVerifyError("While invoking " + ToolName + ": " + str(e),ErrorCode)
 
+  if CommandLineOptions.time: Timing.append((ToolName, end-start))
   if returnCode != 0:
-    if stderr: print stderr
-    exit(ErrorCode)
-  if CommandLineOptions: Timing.append((ToolName, end-start))
+    if stdout: print >> sys.stderr, stdout
+    if stderr: print >> sys.stderr, stderr
+    sys.exit(ErrorCode)
 
 def showHelpAndExit():
   print "OVERVIEW: GPUVerify driver"
@@ -248,6 +269,8 @@ def showHelpAndExit():
   print "  -D <value>              Define symbol"
   print "  --findbugs              Run tool in bug-finding mode"
   print "  --loop-unwind=X         Explore traces that pass through at most X loop heads"
+  print "  --memout=X              Give Boogie a hard memory limit of X megabytes."
+  print "                          A memout of 0 disables the memout. The default is " + str(CommandLineOptions.boogieMemout) + " megabytes."
   print "  --no-benign             Do not tolerate benign data races"
   print "  --no-infer              Turn off invariant inference"
   print "  --only-divergence       Only check for barrier divergence, not for races"
@@ -255,8 +278,8 @@ def showHelpAndExit():
   print "  --verify                Run tool in verification mode"
   print "  --verbose               Show commands to run and use verbose output"
   print "  --time                  Show timing information"
-  print "  --timeout=X             Allow Boogie component to run for X seconds before giving up."
-  print "                          A timeout of 0 disables the timeout. The default is " + str(CommandLineOptions.boogieTimeout) + " seconds"
+  print "  --timeout=X             Allow Boogie to run for X seconds before giving up."
+  print "                          A timeout of 0 disables the timeout. The default is " + str(CommandLineOptions.boogieTimeout) + " seconds."
   print ""
   print "ADVANCED OPTIONS:"
   print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
@@ -280,10 +303,12 @@ def showHelpAndExit():
   print "  --no-uniformity-analysis  Turn off uniformity analysis"
   print "  --only-log              Log accesses to arrays, but do not check for races.  This"
   print "                          can be useful for determining access pattern invariants"
+  print "  --silent                Silent on success; only show errors/timing"
   print "  --staged-inference      Perform invariant inference in stages; this can boost"
   print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
+  print "  --time-as-csv=label     Print timing as CSV row with label"
   print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
@@ -303,7 +328,7 @@ def showHelpAndExit():
   print "  --gridDim=X             Specify whether grid of thread blocks is"         
   print "              =[X,Y]      1D, 2D or 3D and specify size for each"
   print "              =[X,Y,Z]    dimension"
-  exit(0)
+  sys.exit(0)
 
 def processVector(vector):
   vector = vector.strip()
@@ -316,8 +341,8 @@ def GPUVerifyWarn(msg):
   print "GPUVerify: warning: " + msg
 
 def GPUVerifyError(msg, code):
-  print "GPUVerify: error: " + msg
-  exit(code)
+  print >> sys.stderr, "GPUVerify: error: " + msg
+  sys.exit(code)
 
 def Verbose(msg):
   if(CommandLineOptions.verbose):
@@ -367,6 +392,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.inference = False
     if o == "--verbose":
       CommandLineOptions.verbose = True
+    if o == "--silent":
+      CommandLineOptions.silent = True
     if o == "--loop-unwind":
       CommandLineOptions.mode = AnalysisMode.FINDBUGS
       try:
@@ -375,6 +402,13 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.loopUnwindDepth = int(a)
       except ValueError:
         GPUVerifyError("non integer value '" + a + "' provided as argument to --loop-unwind", ErrorCodes.COMMAND_LINE_ERROR) 
+    if o == "--memout":
+      try:
+        CommandLineOptions.boogieMemout = int(a)
+        if CommandLineOptions.boogieMemout < 0:
+          raise ValueError
+      except ValueError as e:
+          GPUVerifyError("Invalid memout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--no-benign":
       CommandLineOptions.noBenign = True
     if o == "--only-divergence":
@@ -417,6 +451,9 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.stopAtBpl = True
     if o == "--time":
       CommandLineOptions.time = True
+    if o == "--time-as-csv":
+      CommandLineOptions.time = True
+      CommandLineOptions.timeCSVLabel = a
     if o == "--asymmetric-asserts":
       CommandLineOptions.asymmetricAsserts = True
     if o == "--gen-smt2":
@@ -514,15 +551,15 @@ def main(argv=None):
 
   try:
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
-             ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose',
-              'loop-unwind=', 'no-benign', 'only-divergence', 'only-intra-group', 
+             ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
+              'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'boogie-opt=',
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=',
-              'stop-at-gbpl', 'stop-at-bpl', 'time', 'keep-temps',
+              'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference'
              ])
@@ -640,6 +677,9 @@ def main(argv=None):
   elif CommandLineOptions.inference:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
 
+  if CommandLineOptions.boogieMemout > 0:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
+
   if CommandLineOptions.generateSmt2:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
@@ -692,6 +732,9 @@ def main(argv=None):
           ErrorCodes.BOOGIE_ERROR,
           **timeoutArguments)
 
+  """ SUCCESS - REPORT STATUS """
+  if CommandLineOptions.silent: return 0
+
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     print "No defects were found while analysing: " + ", ".join(CommandLineOptions.sourceFiles)
     print "Notes:"
@@ -706,15 +749,32 @@ def main(argv=None):
     print "- no barrier divergence"
     print "- no assertion failures"
     print "(but absolutely no warranty provided)"
+
   return 0
 
+def showTiming():
+  if Timing and CommandLineOptions.time:
+    tools, times = map(list, zip(*Timing))
+    total = sum(times)
+    if CommandLineOptions.timeCSVLabel is not None:
+      label = CommandLineOptions.timeCSVLabel
+      times.append(total)
+      row = [ '%.3f' % t for t in times ]
+      if len(label) > 0: row.insert(0, label)
+      if exitHook.code is ErrorCodes.SUCCESS:
+        print ', '.join(row)
+      else:
+        row.append('FAIL(' + str(exitHook.code) + ')')
+        print >> sys.stderr, ', '.join(row) 
+    else:
+      padTool = max([ len(tool) for tool in tools ])
+      padTime = max([ len('%.3f secs' % t) for t in times ])
+      print "Timing information (%.2f secs):" % total
+      for (tool, t) in Timing:
+        print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+  sys.stderr.flush()
+  sys.stdout.flush()
+
 if __name__ == '__main__':
-  returnCode = main()
-  if CommandLineOptions.time and Timing:
-    total = sum([ t for tool, t in Timing ])
-    print "Timing information (%.2f secs):" % total
-    padTool = max([ len(tool) for tool,t in Timing ])
-    padTime = max([ len('%.3f secs' % t) for tool,t in Timing ])
-    for (tool, t) in Timing:
-      print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
-  sys.exit(returnCode)
+  atexit.register(showTiming)
+  sys.exit(main())
