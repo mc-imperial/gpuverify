@@ -19,3 +19,9 @@ GPUVerifyBoogieDriver/obj/*
 #GPUVerifyVCGen build files
 GPUVerifyVCGen/bin/*
 GPUVerifyVCGen/obj/*
+
+#GPUVerify Temporary files
+*.bc
+*.bpl
+*.gbpl
+*.loc
