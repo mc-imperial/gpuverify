@@ -8,13 +8,13 @@ import sys
 import timeit
 import threading
 
-bugleDir = sys.path[0] + "/bugle"
-libclcDir = sys.path[0] + "/libclc"
-llvmBinDir = sys.path[0] + "/bin"
-bugleBinDir = sys.path[0] + "/bin"
-gpuVerifyVCGenBinDir = sys.path[0] + "/bin"
-gpuVerifyBoogieDriverBinDir = sys.path[0] + "/bin"
-z3BinDir = sys.path[0] + "/bin"
+#Try to import the paths need for GPUVerify's tools
+if os.path.isfile(sys.path[0] + os.sep + 'gvfindtools.py'):
+  from gvfindtools import *
+else:
+  sys.stderr.write('Error: Cannot find \'gvfindtools.py\'.'
+                   'Did you forget to create it from a template?\n')
+  sys.exit(1)
 
 """ Timing for the toolchain pipeline """
 Timing = []
@@ -58,7 +58,7 @@ class SourceLanguage(object):
   OpenCL=1
   CUDA=2
 
-clangCoreIncludes = [ bugleDir + "/include-blang" ]
+clangCoreIncludes = [ bugleSrcDir + "/include-blang" ]
 
 clangCoreDefines = []
 
@@ -98,6 +98,7 @@ class CommandLineOptions(object):
                                    "/doModSetAnalysis", 
                                    "/proverOpt:OPTIMIZE_FOR_BV=true", 
                                    "/useArrayTheory", 
+				   "/z3exe:" + z3BinDir + os.sep + "z3.exe",
                                    "/z3opt:RELEVANCY=0", 
                                    "/z3opt:SOLVER=true", 
                                    "/doNotUseLabels", 

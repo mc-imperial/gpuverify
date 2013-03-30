@@ -1,0 +1,21 @@
+syntax: glob
+
+#Developer's local paths
+gvfindtools.py
+
+#Vim swap files
+*.swp
+
+#Emacs temporary files
+*~
+
+#Python temporary files
+*.pyc
+
+#GPUVerifyBoogieDriver build files
+GPUVerifyBoogieDriver/bin/*
+GPUVerifyBoogieDriver/obj/*
+
+#GPUVerifyVCGen build files
+GPUVerifyVCGen/bin/*
+GPUVerifyVCGen/obj/*
