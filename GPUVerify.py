@@ -10,7 +10,9 @@ import threading
 
 #Try to import the paths need for GPUVerify's tools
 if os.path.isfile(sys.path[0] + os.sep + 'gvfindtools.py'):
-  from gvfindtools import *
+  import gvfindtools
+  #Initialise the paths (only needed for deployment)
+  gvfindtools.init(sys.path[0])
 else:
   sys.stderr.write('Error: Cannot find \'gvfindtools.py\'.'
                    'Did you forget to create it from a template?\n')
@@ -58,7 +60,7 @@ class SourceLanguage(object):
   OpenCL=1
   CUDA=2
 
-clangCoreIncludes = [ bugleSrcDir + "/include-blang" ]
+clangCoreIncludes = [ gvfindtools.bugleSrcDir + "/include-blang" ]
 
 clangCoreDefines = []
 
@@ -71,10 +73,10 @@ clangCoreOptions = [ "-target", "nvptx--bugle",
 clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                        "-O0",
                        "-Xclang", "-mlink-bitcode-file",
-                       "-Xclang", libclcDir + "/nvptx--bugle/lib/builtins.bc",
+                       "-Xclang", gvfindtools.libclcDir + "/nvptx--bugle/lib/builtins.bc",
                        "-include", "opencl.h"
                      ]
-clangOpenCLIncludes = [ libclcDir + "/generic/include" ]
+clangOpenCLIncludes = [ gvfindtools.libclcDir + "/generic/include" ]
 clangOpenCLDefines = [ "cl_khr_fp64",
                        "cl_clang_storage_class_specifiers",
                        "__OPENCL_VERSION__"
@@ -98,7 +100,7 @@ class CommandLineOptions(object):
                                    "/doModSetAnalysis", 
                                    "/proverOpt:OPTIMIZE_FOR_BV=true", 
                                    "/useArrayTheory", 
-				   "/z3exe:" + z3BinDir + os.sep + "z3.exe",
+				   "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe",
                                    "/z3opt:RELEVANCY=0", 
                                    "/z3opt:SOLVER=true", 
                                    "/doNotUseLabels", 
@@ -632,7 +634,7 @@ def main(argv=None):
     lang = CommandLineOptions.bugleLanguage
     if not lang: # try to infer
       try:
-        proc = subprocess.Popen([ llvmBinDir + "/llvm-nm", filename + ext ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen([ gvfindtools.llvmBinDir + "/llvm-nm", filename + ext ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = proc.communicate()
         if "get_local_size" in stdout: lang = 'cl'
         if "blockDim" in stdout: lang = 'cu'
@@ -688,7 +690,7 @@ def main(argv=None):
   """ RUN CLANG """
   if not CommandLineOptions.skip["clang"]:
     RunTool("clang", 
-             [llvmBinDir + "/clang"] + 
+             [gvfindtools.llvmBinDir + "/clang"] + 
              CommandLineOptions.clangOptions + 
              [("-I" + str(o)) for o in CommandLineOptions.includes] + 
              [("-D" + str(o)) for o in CommandLineOptions.defines],
@@ -697,14 +699,14 @@ def main(argv=None):
   """ RUN OPT """
   if not CommandLineOptions.skip["opt"]:
     RunTool("opt",
-            [llvmBinDir + "/opt"] + 
+            [gvfindtools.llvmBinDir + "/opt"] + 
             CommandLineOptions.optOptions,
             ErrorCodes.OPT_ERROR)
 
   """ RUN BUGLE """
   if not CommandLineOptions.skip["bugle"]:
     RunTool("bugle",
-            [bugleBinDir + "/bugle"] +
+            [gvfindtools.bugleBinDir + "/bugle"] +
             CommandLineOptions.bugleOptions,
             ErrorCodes.BUGLE_ERROR)
 
@@ -714,7 +716,7 @@ def main(argv=None):
   if not CommandLineOptions.skip["vcgen"]:
     RunTool("gpuverifyvcgen",
             (["mono"] if os.name == "posix" else []) +
-            [gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
+            [gvfindtools.gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
             CommandLineOptions.gpuVerifyVCGenOptions,
             ErrorCodes.GPUVERIFYVCGEN_ERROR)
 
@@ -728,7 +730,7 @@ def main(argv=None):
     
   RunTool("gpuverifyboogiedriver",
           (["mono"] if os.name == "posix" else []) +
-          [gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver.exe"] +
+          [gvfindtools.gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver.exe"] +
           CommandLineOptions.gpuVerifyBoogieDriverOptions,
           ErrorCodes.BOOGIE_ERROR,
           **timeoutArguments)

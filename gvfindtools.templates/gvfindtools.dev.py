@@ -7,7 +7,7 @@ import sys
 
 # THIS IS A TEMPLATE FOR DEVELOPMENT. MODIFY THE PATHS TO SUIT YOUR BUILD ENVIRONMENT.
 # THEN COPY THIS FILE INTO THE ROOT GPUVERIFY DIRECTORY (where GPUVerify.py lives)
-# AND RENAME IT TO "gvfindtools.py". "gvfindtools.py" will be ignored by Mercurial.
+# AND RENAME IT TO "gvfindtools.py". "gvfindtools.py" WILL BE IGNORED BY MERCURIAL
 
 #The path to the Bugle Source directory. The include-blang/ folder should be in there
 bugleSrcDir = "/home/dan/documents/projects/gpuverify/bugle/src"
@@ -21,6 +21,9 @@ libclcDir = "/home/dan/documents/projects/gpuverify/libclc-inst"
 #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
 llvmBinDir = "/home/dan/documents/projects/gpuverify/llvm_and_clang/bin/bin"
 
+#The path containing the llvm libraries
+llvmLibDir = "/home/dan/documents/projects/gpuverify/llvm_and_clang/bin/lib"
+
 #The path to the directory containing GPUVerifyVCGen.exe
 gpuVerifyVCGenBinDir = "/home/dan/documents/projects/gpuverify/gpuverify/GPUVerifyVCGen/bin/Release"
 
@@ -29,3 +32,7 @@ gpuVerifyBoogieDriverBinDir = "/home/dan/documents/projects/gpuverify/gpuverify/
 
 #The path to the directory containing z3.exe
 z3BinDir = "/home/dan/documents/projects/gpuverify/z3/install/bin"
+
+def init(prefixPath):
+  """This method does nothing"""
+  pass
