@@ -480,7 +480,7 @@ def main(arg):
     if oldTests!=None:
         doComparison(oldTests,args.compare_run,tests,"Newly completed tests", args.canonical_path_prefix)
 
-    print "Time taken to run tests: " + str((end - start))
+    print("Time taken to run tests: " + str((end - start)) )
         
     return GPUVerifyTesterErrorCodes.SUCCESS
             
