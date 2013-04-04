@@ -8,6 +8,11 @@ import sys
 # THIS IS A TEMPLATE FOR DEVELOPMENT. MODIFY THE PATHS TO SUIT YOUR BUILD ENVIRONMENT.
 # THEN COPY THIS FILE INTO THE ROOT GPUVERIFY DIRECTORY (where GPUVerify.py lives)
 # AND RENAME IT TO "gvfindtools.py". "gvfindtools.py" WILL BE IGNORED BY MERCURIAL
+# SO IT WILL NOT BE UNDER VERSION CONTROL SO THAT YOU CAN MAINTAIN YOUR OWN PERSONAL
+# COPY OF "gvfindtools.py" WITHOUT AFFECTING OTHER DEVELOPERS.
+#
+# Please note Windows users should use "\\" for paths e.g.
+# bugleSrcDir="c:\\build folder\\bugle\\src"
 
 #The path to the Bugle Source directory. The include-blang/ folder should be in there
 bugleSrcDir = "/home/dan/documents/projects/gpuverify/bugle/src"
