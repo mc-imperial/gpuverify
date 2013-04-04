@@ -295,14 +295,14 @@ def dumpTestResults(tests,prefix):
 #This Action can be triggered from the command line
 class dumpTestResultsAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        logging.basicConfig(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
+        logging.getLogger().setLevel(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
         dumpTestResults(openPickle(values),namespace.canonical_path_prefix)
         sys.exit(GPUVerifyTesterErrorCodes.SUCCESS)
         
 #This Action can be triggered from the command line
 class comparePickleFiles(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        logging.basicConfig(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
+        logging.getLogger().setLevel(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
         doComparison(openPickle(values[0]),values[0],openPickle(values[1]),values[1],namespace.canonical_path_prefix)
         sys.exit(GPUVerifyTesterErrorCodes.SUCCESS)
 
@@ -362,31 +362,32 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
             
             #Look for a change in result
             if oldTest.testPassed != newTestDic[cPath].testPassed:
-                logging.info('#'*printBarWidth)
-                logging.info("Test \"" + cPath + "\" result has changed.")
-                logging.info("Test \"" + cPath + "\ from \"" + oldTestName + "\":")
-                logging.info(oldTest)
-                logging.info("Test \"" + cPath + "\ from \"" + newTestName + "\"")
-                logging.info(newTestDic[cPath])
-                logging.info('#'*printBarWidth)
+                logging.warning('#'*printBarWidth)
+                logging.warning("Test \"" + cPath + "\" result has changed.\n" + 
+                                "Test \"" + cPath + "\ from \"" + oldTestName + "\":\n\n" + 
+                                str(oldTest) + '\n' + 
+                                "Test \"" + cPath + "\ from \"" + newTestName + "\"\n" + 
+                                str(newTestDic[cPath]))
                 changedTestCounter+=1
         else:
             logging.warning("Test \"" + cPath + "\" present in \"" + oldTestName+ "\" was missing from \"" + newTestName + "\"")
             missingTestCounter+=1
     
+    logging.info('#'*printBarWidth + '\n')
     #Iterate over just completed tests to notify about newly introduced tests.
     for cPath in newTestDic.keys():
         if cPath not in oldTestDic:
-            logging.info("Test \"" + cPath + "\" was executed in \"" + newTestName + "\" but was not present in \"" + oldTestName + "\"" )
+            logging.warning("Test \"" + cPath + "\" was executed in \"" + newTestName + "\" but was not present in \"" + oldTestName + "\"" )
             newTestCounter+=1
 
+    logging.info('#'*printBarWidth + '\n')
     #Print test summary
-    logging.info("Summary:")
-    logging.info("# of changed tests:" + str(changedTestCounter))
-    logging.info("# of missing tests:" + str(missingTestCounter))
-    logging.info("The above is number of tests in \"" + oldTestName + "\" that aren't present in \"" + newTestName + "\"")
-    logging.info("# of new tests:" + str(newTestCounter))
-    logging.info("The above is number of tests in \"" + newTestName + "\" that aren't present in \"" + oldTestName + "\"")
+    logging.info("Summary:\n" + 
+                 "# of changed tests:" + str(changedTestCounter) + '\n' + 
+                 "# of missing tests:" + str(missingTestCounter) + '\n' + 
+                 "The above is number of tests in \"" + oldTestName + "\" that aren't present in \"" + newTestName + "\"\n" + 
+                 "# of new tests:" + str(newTestCounter) + '\n' + 
+                 "The above is number of tests in \"" + newTestName + "\" that aren't present in \"" + oldTestName + "\"")
 
 def summariseTests(tests):
     """
@@ -429,7 +430,7 @@ def summariseTests(tests):
 
 def main(arg):  
     parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
-    
+    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
     #Add command line options
     
     #Mutually exclusive behaviour options
@@ -449,7 +450,7 @@ def main(arg):
     
     args = parser.parse_args()
     
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), None))
+    logging.getLogger().setLevel(level=getattr(logging, args.log_level.upper(), None))
     logging.debug("Finished parsing arguments.")
     
     #Check the user isn't trying something silly
