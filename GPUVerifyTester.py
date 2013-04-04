@@ -200,7 +200,12 @@ class GPUVerifyTestKernel:
             logging.info(self.path + " PASSED (" + 
                          ("pass" if self.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS else "xfail") + ")")
             
-    
+    def hasBeenExecuted(self):
+        if self.testPassed == None:
+            return False
+        else:
+            return True
+
     def __str__(self):
         testString="GPUVerifyTestKernel:\nFull Path:{0}\nExpected exit code:{1}\nCmdArgs: {2}\n".format(   
               self.path, 
@@ -398,22 +403,27 @@ def summariseTests(tests):
     passCounter=0
     failCounter=0
     xfailCounter=0
+    skipCounter=0
 
     for test in tests:
-        #Record if test was pass/fail/xfail
-        if test.testPassed:
-            if test.returnedCode == GPUVerifyErrorCodes.SUCCESS:
-                passCounter += 1
-            else:
-                xfailCounter += 1
-        else:
-            failCounter += 1
-        
         #Record kernel type
         if test.path.endswith('cl'):
             OpenCLCounter += 1
         else:
             CUDACounter += 1 
+
+        if test.hasBeenExecuted():
+            #Record if test was pass/fail/xfail
+            if test.testPassed:
+                if test.returnedCode == GPUVerifyErrorCodes.SUCCESS:
+                    passCounter += 1
+                else:
+                    xfailCounter += 1
+            else:
+                failCounter += 1
+            
+        else:
+            skipCounter += 1
 
     #Print output
     print('#'*printBarWidth)
@@ -425,6 +435,7 @@ def summariseTests(tests):
     print('# of passes:{0}'.format(passCounter))
     print('# of expected failures (xfail):{0}'.format(xfailCounter))
     print('# of unexpected failures:{0}'.format(failCounter))
+    print('# of tests skipped:{0}'.format(skipCounter))
     print('')
     print('#'*printBarWidth)
 
@@ -446,6 +457,11 @@ def main(arg):
     parser.add_argument("-w","--write-pickle",type=str, default="", help="Write detailed log information in pickle format to a file")
     parser.add_argument("-p","--canonical-path-prefix",type=str, default="GPUVerifyTestSuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
     parser.add_argument("-r,","--compare-run", type=str ,default="", help="After performing test runs compare the result of that run with the runs recorded in a pickle file.")
+
+    #Mutually exclusive test run options
+    runGroup = parser.add_mutually_exclusive_group()
+    runGroup.add_argument("--run-only-pass",action="store_true",default=False,help="Run only the tests that are expected to pass (default: \"%(default)s\")")
+    runGroup.add_argument("--run-only-xfail",action="store_true",default=False,help="Run only the tests that are expected to fail (xfail) (default: \"%(default)s\")")
 
     
     args = parser.parse_args()
@@ -509,6 +525,14 @@ def main(arg):
     logging.info("Running tests...")
     start = time.time()
     for test in tests:
+        if args.run_only_pass and test.expectedReturnCode != GPUVerifyErrorCodes.SUCCESS : 
+            logging.warning("Skipping xfail test:{0}".format(test.path))
+            continue
+
+        if args.run_only_xfail and test.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS : 
+            logging.warning("Skipping pass test:{0}".format(test.path))
+            continue
+
         test.run()
         if not test.testPassed and args.stop_on_fail :
             logging.error("Stopping on test failure.")
