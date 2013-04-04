@@ -275,18 +275,22 @@ def openPickle(path):
         sys.exit(GPUVerifyTesterErrorCodes.FILE_OPEN_ERROR)
 
 def dumpTestResults(tests,prefix):
-    summariseTests(tests)
-    print("Printing results of " + str(len(tests)) + " tests")
-    for testObj in tests:
-        print("\n" + ("#" * printBarWidth)) #Header bar
-        try:
-            print("Test:" + getCanonicalTestName(testObj.path, prefix))
-        except CanonicalisationError as e:
-            logging.error(e)
-            print("Test: No canonical name")
-            
-        print(testObj)
-        print("#" * printBarWidth) #Footer bar
+    try:
+        summariseTests(tests)
+        print("Printing results of " + str(len(tests)) + " tests")
+        for testObj in tests:
+            print("\n" + ("#" * printBarWidth)) #Header bar
+            try:
+                print("Test:" + getCanonicalTestName(testObj.path, prefix))
+            except CanonicalisationError as e:
+                logging.error(e)
+                print("Test: No canonical name")
+                
+            print(testObj)
+            print("#" * printBarWidth) #Footer bar
+    except IOError:
+        #This can happen if piping output to tool such as less
+        sys.exit(0)
 
 #This Action can be triggered from the command line
 class dumpTestResultsAction(argparse.Action):
