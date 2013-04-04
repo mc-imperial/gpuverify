@@ -13,6 +13,8 @@ from GPUVerify import ErrorCodes
 
 GPUVerifyExecutable=sys.path[0] + os.sep + "GPUVerify.py"
 
+printBarWidth=80
+
 class GPUVerifyErrorCodes(ErrorCodes):
     """ Provides extra error codes and a handy dictionary
         to map error codes to strings.
@@ -273,10 +275,10 @@ def openPickle(path):
         sys.exit(GPUVerifyTesterErrorCodes.FILE_OPEN_ERROR)
 
 def dumpTestResults(tests,prefix):
+    summariseTests(tests)
     print("Printing results of " + str(len(tests)) + " tests")
-    width=80
     for testObj in tests:
-        print("\n" + ("#" * width)) #Header bar
+        print("\n" + ("#" * printBarWidth)) #Header bar
         try:
             print("Test:" + getCanonicalTestName(testObj.path, prefix))
         except CanonicalisationError as e:
@@ -284,7 +286,7 @@ def dumpTestResults(tests,prefix):
             print("Test: No canonical name")
             
         print(testObj)
-        print("#" * width) #Footer bar
+        print("#" * printBarWidth) #Footer bar
 
 #This Action can be triggered from the command line
 class dumpTestResultsAction(argparse.Action):
@@ -328,8 +330,6 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
     missingTestCounter=0
     newTestCounter=0
    
-    width=80
-
     #Create dictionaries mapping canonical path to test
     #We do this now because we want to leave determining canonical path
     #to comparison time so the user has the capability to manipulate how the
@@ -358,13 +358,13 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
             
             #Look for a change in result
             if oldTest.testPassed != newTestDic[cPath].testPassed:
-                logging.info('#'*width)
+                logging.info('#'*printBarWidth)
                 logging.info("Test \"" + cPath + "\" result has changed.")
                 logging.info("Test \"" + cPath + "\ from \"" + oldTestName + "\":")
                 logging.info(oldTest)
                 logging.info("Test \"" + cPath + "\ from \"" + newTestName + "\"")
                 logging.info(newTestDic[cPath])
-                logging.info('#'*width)
+                logging.info('#'*printBarWidth)
                 changedTestCounter+=1
         else:
             logging.warning("Test \"" + cPath + "\" present in \"" + oldTestName+ "\" was missing from \"" + newTestName + "\"")
@@ -383,6 +383,45 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
     logging.info("The above is number of tests in \"" + oldTestName + "\" that aren't present in \"" + newTestName + "\"")
     logging.info("# of new tests:" + str(newTestCounter))
     logging.info("The above is number of tests in \"" + newTestName + "\" that aren't present in \"" + oldTestName + "\"")
+
+def summariseTests(tests):
+    """
+        Iterates through a list of GPUVerifyTestKernel objects and prints out a summary
+    """
+    OpenCLCounter=0
+    CUDACounter=0
+    passCounter=0
+    failCounter=0
+    xfailCounter=0
+
+    for test in tests:
+        #Record if test was pass/fail/xfail
+        if test.testPassed:
+            if test.returnedCode == GPUVerifyErrorCodes.SUCCESS:
+                passCounter += 1
+            else:
+                xfailCounter += 1
+        else:
+            failCounter += 1
+        
+        #Record kernel type
+        if test.path.endswith('cl'):
+            OpenCLCounter += 1
+        else:
+            CUDACounter += 1 
+
+    #Print output
+    print('#'*printBarWidth)
+    print('')
+    print('Summary:')
+    print('# of tests:{0}'.format(len(tests)))
+    print('# OpenCL kernels:{0}'.format(OpenCLCounter))
+    print('# CUDA kernels:{0}'.format(CUDACounter))
+    print('# of passes:{0}'.format(passCounter))
+    print('# of expected failures (xfail):{0}'.format(xfailCounter))
+    print('# of unexpected failures:{0}'.format(failCounter))
+    print('')
+    print('#'*printBarWidth)
 
 def main(arg):  
     parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
@@ -471,6 +510,7 @@ def main(arg):
             return GPUVerifyTesterErrorCodes.TEST_FAILED
     end = time.time()
     logging.info("Finished running tests.")
+    summariseTests(tests)
     
     if len(args.write_pickle) > 0 :
         logging.info("Writing run information to pickle file \"" + args.write_pickle + "\"")
