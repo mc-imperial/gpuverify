@@ -189,7 +189,7 @@ class GPUVerifyTestKernel:
         #Check if the test failed overall
         if self.returnedCode != self.expectedReturnCode :
             self.testPassed=False
-            logging.info(self.path + " FAILED with " + GPUVerifyErrorCodes.errorCodeToString[self.returnedCode] + 
+            logging.error(self.path + " FAILED with " + GPUVerifyErrorCodes.errorCodeToString[self.returnedCode] + 
                          " expected " + GPUVerifyErrorCodes.errorCodeToString[self.expectedReturnCode])
             
             #Print output for user to see
