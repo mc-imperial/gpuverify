@@ -8,6 +8,7 @@ import re
 import subprocess
 import pickle 
 import time
+import string
 
 from GPUVerify import ErrorCodes
 
@@ -116,7 +117,24 @@ class GPUVerifyTestKernel:
                 raise KernelParseError(2,self.path,"Second Line should start with \"//\" and then optionally space seperate arguments to pass to GPUVerify")
             
             self.gpuverifyCmdArgs = cmdArgs[2:].strip().split() #Split on spaces
-            
+
+            #Perform variable substitution in commandline arguments (e.g. ${KERNEL_DIR})
+
+            #This defines the substitution mapping, we can easily add more :)
+            cmdArgsSubstitution = {
+            'KERNEL_DIR':os.path.dirname(self.path) 
+            }
+
+            for index in range(0,len(self.gpuverifyCmdArgs)):
+                
+                if self.gpuverifyCmdArgs[index].find('$') != -1:
+                    #We're probably going to do a substitution
+                    template=string.Template(self.gpuverifyCmdArgs[index])
+                    logging.debug('Performing command line argument substitution on:' + self.gpuverifyCmdArgs[index])
+                    self.gpuverifyCmdArgs[index]=template.substitute(cmdArgsSubstitution)
+                    logging.debug('Substitution complete, result:' + self.gpuverifyCmdArgs[index])
+
+
             #Grab (optional regex line(s))
             haveRegexLines=True
             self.regex={}
@@ -155,7 +173,7 @@ class GPUVerifyTestKernel:
         cmdLine=[sys.executable, GPUVerifyExecutable] + self.gpuverifyCmdArgs + [self.path]
         try:
             logging.info("Running test " + self.path)
-            logging.debug(self)
+            logging.debug(self) # show pre test information
             processInstance=subprocess.Popen(cmdLine,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             stdout=processInstance.communicate() #Allow program to run and wait for it to exit.    
             
@@ -167,6 +185,7 @@ class GPUVerifyTestKernel:
         
         #Record the true return code of GPUVerify
         self.gpuverifyReturnCode=processInstance.returncode
+        logging.debug("GPUVerify return code:" + GPUVerifyErrorCodes.errorCodeToString[self.gpuverifyReturnCode])
         
         #Do Regex tests if the rest of the test went okay
         if self.gpuverifyReturnCode == self.expectedReturnCode:
@@ -199,6 +218,8 @@ class GPUVerifyTestKernel:
             self.testPassed=True
             logging.info(self.path + " PASSED (" + 
                          ("pass" if self.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS else "xfail") + ")")
+        
+        logging.debug(self) #Show after test information
             
     def hasBeenExecuted(self):
         if self.testPassed == None:
