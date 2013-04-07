@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--blockDim=512 --gridDim=1
-//hjm.cu:64:21: error: loop invariant might not be maintained
+//kernel.cu:64:21: error: loop invariant might not be maintained
 
 #include <cuda.h>
 
