@@ -431,6 +431,10 @@ namespace GPUVerify {
       string StateId = QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id");
       Debug.Assert(StateId != null);
 
+      if ((CommandLineOptions.Clo as GPUVerifyBoogieDriverCommandLineOptions).NoSourceLocInfer) {
+        return CreateSourceLocQKV(0,0,GetFileName(),GetFilenamePathPrefix());
+      }
+
       Model.CapturedState CapturedState = null;
       foreach (var s in ModelWithStates.States) {
         if (s.Name.Equals(StateId)) {

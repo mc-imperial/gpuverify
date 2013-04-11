@@ -20,6 +20,7 @@ namespace GPUVerify {
 
     public bool StagedInference = false;
     public string ArrayToCheck = null;
+    public bool NoSourceLocInfer = false;
 
     public GPUVerifyBoogieDriverCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser") {
@@ -36,6 +37,11 @@ namespace GPUVerify {
         if (ps.ConfirmArgumentCount(1)) {
           ArrayToCheck = ToInternalArrayName(ps.args[ps.i]);
         }
+        return true;
+      }
+
+      if (name == "noSourceLocInfer") {
+        NoSourceLocInfer = true;
         return true;
       }
 

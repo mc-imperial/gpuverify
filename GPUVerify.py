@@ -666,6 +666,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSmartPredication" ]
   if CommandLineOptions.noSourceLocInfer:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSourceLocInfer" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/noSourceLocInfer" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
   if CommandLineOptions.asymmetricAsserts:
