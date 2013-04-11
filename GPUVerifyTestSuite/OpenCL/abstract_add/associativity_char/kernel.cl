@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64 --boogie-file=OpenCL/abstract_add/associativity_char/axioms.bpl
+//--local_size=64 --num_groups=64 --boogie-file=${KERNEL_DIR}/axioms.bpl
 
 DECLARE_UF_BINARY(A, unsigned char, unsigned char, unsigned char);
 DECLARE_UF_BINARY(A1, unsigned char, unsigned char, unsigned char);

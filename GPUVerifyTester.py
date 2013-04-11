@@ -8,10 +8,13 @@ import re
 import subprocess
 import pickle 
 import time
+import string
 
 from GPUVerify import ErrorCodes
 
 GPUVerifyExecutable=sys.path[0] + os.sep + "GPUVerify.py"
+
+printBarWidth=80
 
 class GPUVerifyErrorCodes(ErrorCodes):
     """ Provides extra error codes and a handy dictionary
@@ -114,7 +117,24 @@ class GPUVerifyTestKernel:
                 raise KernelParseError(2,self.path,"Second Line should start with \"//\" and then optionally space seperate arguments to pass to GPUVerify")
             
             self.gpuverifyCmdArgs = cmdArgs[2:].strip().split() #Split on spaces
-            
+
+            #Perform variable substitution in commandline arguments (e.g. ${KERNEL_DIR})
+
+            #This defines the substitution mapping, we can easily add more :)
+            cmdArgsSubstitution = {
+            'KERNEL_DIR':os.path.dirname(self.path) 
+            }
+
+            for index in range(0,len(self.gpuverifyCmdArgs)):
+                
+                if self.gpuverifyCmdArgs[index].find('$') != -1:
+                    #We're probably going to do a substitution
+                    template=string.Template(self.gpuverifyCmdArgs[index])
+                    logging.debug('Performing command line argument substitution on:' + self.gpuverifyCmdArgs[index])
+                    self.gpuverifyCmdArgs[index]=template.substitute(cmdArgsSubstitution)
+                    logging.debug('Substitution complete, result:' + self.gpuverifyCmdArgs[index])
+
+
             #Grab (optional regex line(s))
             haveRegexLines=True
             self.regex={}
@@ -153,7 +173,7 @@ class GPUVerifyTestKernel:
         cmdLine=[sys.executable, GPUVerifyExecutable] + self.gpuverifyCmdArgs + [self.path]
         try:
             logging.info("Running test " + self.path)
-            logging.debug(self)
+            logging.debug(self) # show pre test information
             processInstance=subprocess.Popen(cmdLine,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             stdout=processInstance.communicate() #Allow program to run and wait for it to exit.    
             
@@ -165,6 +185,7 @@ class GPUVerifyTestKernel:
         
         #Record the true return code of GPUVerify
         self.gpuverifyReturnCode=processInstance.returncode
+        logging.debug("GPUVerify return code:" + GPUVerifyErrorCodes.errorCodeToString[self.gpuverifyReturnCode])
         
         #Do Regex tests if the rest of the test went okay
         if self.gpuverifyReturnCode == self.expectedReturnCode:
@@ -187,7 +208,7 @@ class GPUVerifyTestKernel:
         #Check if the test failed overall
         if self.returnedCode != self.expectedReturnCode :
             self.testPassed=False
-            logging.info(self.path + " FAILED with " + GPUVerifyErrorCodes.errorCodeToString[self.returnedCode] + 
+            logging.error(self.path + " FAILED with " + GPUVerifyErrorCodes.errorCodeToString[self.returnedCode] + 
                          " expected " + GPUVerifyErrorCodes.errorCodeToString[self.expectedReturnCode])
             
             #Print output for user to see
@@ -197,8 +218,15 @@ class GPUVerifyTestKernel:
             self.testPassed=True
             logging.info(self.path + " PASSED (" + 
                          ("pass" if self.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS else "xfail") + ")")
+        
+        logging.debug(self) #Show after test information
             
-    
+    def hasBeenExecuted(self):
+        if self.testPassed == None:
+            return False
+        else:
+            return True
+
     def __str__(self):
         testString="GPUVerifyTestKernel:\nFull Path:{0}\nExpected exit code:{1}\nCmdArgs: {2}\n".format(   
               self.path, 
@@ -273,30 +301,34 @@ def openPickle(path):
         sys.exit(GPUVerifyTesterErrorCodes.FILE_OPEN_ERROR)
 
 def dumpTestResults(tests,prefix):
-    print("Printing results of " + str(len(tests)) + " tests")
-    width=80
-    for testObj in tests:
-        print("\n" + ("#" * width)) #Header bar
-        try:
-            print("Test:" + getCanonicalTestName(testObj.path, prefix))
-        except CanonicalisationError as e:
-            logging.error(e)
-            print("Test: No canonical name")
-            
-        print(testObj)
-        print("#" * width) #Footer bar
+    try:
+        summariseTests(tests)
+        print("Printing results of " + str(len(tests)) + " tests")
+        for testObj in tests:
+            print("\n" + ("#" * printBarWidth)) #Header bar
+            try:
+                print("Test:" + getCanonicalTestName(testObj.path, prefix))
+            except CanonicalisationError as e:
+                logging.error(e)
+                print("Test: No canonical name")
+                
+            print(testObj)
+            print("#" * printBarWidth) #Footer bar
+    except IOError:
+        #This can happen if piping output to tool such as less
+        sys.exit(0)
 
 #This Action can be triggered from the command line
 class dumpTestResultsAction(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        logging.basicConfig(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
+        logging.getLogger().setLevel(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
         dumpTestResults(openPickle(values),namespace.canonical_path_prefix)
         sys.exit(GPUVerifyTesterErrorCodes.SUCCESS)
         
 #This Action can be triggered from the command line
 class comparePickleFiles(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
-        logging.basicConfig(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
+        logging.getLogger().setLevel(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
         doComparison(openPickle(values[0]),values[0],openPickle(values[1]),values[1],namespace.canonical_path_prefix)
         sys.exit(GPUVerifyTesterErrorCodes.SUCCESS)
 
@@ -328,8 +360,6 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
     missingTestCounter=0
     newTestCounter=0
    
-    width=80
-
     #Create dictionaries mapping canonical path to test
     #We do this now because we want to leave determining canonical path
     #to comparison time so the user has the capability to manipulate how the
@@ -358,35 +388,81 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
             
             #Look for a change in result
             if oldTest.testPassed != newTestDic[cPath].testPassed:
-                logging.info('#'*width)
-                logging.info("Test \"" + cPath + "\" result has changed.")
-                logging.info("Test \"" + cPath + "\ from \"" + oldTestName + "\":")
-                logging.info(oldTest)
-                logging.info("Test \"" + cPath + "\ from \"" + newTestName + "\"")
-                logging.info(newTestDic[cPath])
-                logging.info('#'*width)
+                logging.warning('#'*printBarWidth)
+                logging.warning("Test \"" + cPath + "\" result has changed.\n" + 
+                                "Test \"" + cPath + "\ from \"" + oldTestName + "\":\n\n" + 
+                                str(oldTest) + '\n' + 
+                                "Test \"" + cPath + "\ from \"" + newTestName + "\"\n" + 
+                                str(newTestDic[cPath]))
                 changedTestCounter+=1
         else:
             logging.warning("Test \"" + cPath + "\" present in \"" + oldTestName+ "\" was missing from \"" + newTestName + "\"")
             missingTestCounter+=1
     
+    logging.info('#'*printBarWidth + '\n')
     #Iterate over just completed tests to notify about newly introduced tests.
     for cPath in newTestDic.keys():
         if cPath not in oldTestDic:
-            logging.info("Test \"" + cPath + "\" was executed in \"" + newTestName + "\" but was not present in \"" + oldTestName + "\"" )
+            logging.warning("Test \"" + cPath + "\" was executed in \"" + newTestName + "\" but was not present in \"" + oldTestName + "\"" )
             newTestCounter+=1
 
+    logging.info('#'*printBarWidth + '\n')
     #Print test summary
-    logging.info("Summary:")
-    logging.info("# of changed tests:" + str(changedTestCounter))
-    logging.info("# of missing tests:" + str(missingTestCounter))
-    logging.info("The above is number of tests in \"" + oldTestName + "\" that aren't present in \"" + newTestName + "\"")
-    logging.info("# of new tests:" + str(newTestCounter))
-    logging.info("The above is number of tests in \"" + newTestName + "\" that aren't present in \"" + oldTestName + "\"")
+    logging.info("Summary:\n" + 
+                 "# of changed tests:" + str(changedTestCounter) + '\n' + 
+                 "# of missing tests:" + str(missingTestCounter) + '\n' + 
+                 "The above is number of tests in \"" + oldTestName + "\" that aren't present in \"" + newTestName + "\"\n" + 
+                 "# of new tests:" + str(newTestCounter) + '\n' + 
+                 "The above is number of tests in \"" + newTestName + "\" that aren't present in \"" + oldTestName + "\"")
+
+def summariseTests(tests):
+    """
+        Iterates through a list of GPUVerifyTestKernel objects and prints out a summary
+    """
+    OpenCLCounter=0
+    CUDACounter=0
+    passCounter=0
+    failCounter=0
+    xfailCounter=0
+    skipCounter=0
+
+    for test in tests:
+        #Record kernel type
+        if test.path.endswith('cl'):
+            OpenCLCounter += 1
+        else:
+            CUDACounter += 1 
+
+        if test.hasBeenExecuted():
+            #Record if test was pass/fail/xfail
+            if test.testPassed:
+                if test.returnedCode == GPUVerifyErrorCodes.SUCCESS:
+                    passCounter += 1
+                else:
+                    xfailCounter += 1
+            else:
+                failCounter += 1
+            
+        else:
+            skipCounter += 1
+
+    #Print output
+    print('#'*printBarWidth)
+    print('')
+    print('Summary:')
+    print('# of tests:{0}'.format(len(tests)))
+    print('# OpenCL kernels:{0}'.format(OpenCLCounter))
+    print('# CUDA kernels:{0}'.format(CUDACounter))
+    print('# of passes:{0}'.format(passCounter))
+    print('# of expected failures (xfail):{0}'.format(xfailCounter))
+    print('# of unexpected failures:{0}'.format(failCounter))
+    print('# of tests skipped:{0}'.format(skipCounter))
+    print('')
+    print('#'*printBarWidth)
 
 def main(arg):  
     parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
-    
+    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
     #Add command line options
     
     #Mutually exclusive behaviour options
@@ -403,10 +479,15 @@ def main(arg):
     parser.add_argument("-p","--canonical-path-prefix",type=str, default="GPUVerifyTestSuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
     parser.add_argument("-r,","--compare-run", type=str ,default="", help="After performing test runs compare the result of that run with the runs recorded in a pickle file.")
 
+    #Mutually exclusive test run options
+    runGroup = parser.add_mutually_exclusive_group()
+    runGroup.add_argument("--run-only-pass",action="store_true",default=False,help="Run only the tests that are expected to pass (default: \"%(default)s\")")
+    runGroup.add_argument("--run-only-xfail",action="store_true",default=False,help="Run only the tests that are expected to fail (xfail) (default: \"%(default)s\")")
+
     
     args = parser.parse_args()
     
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), None))
+    logging.getLogger().setLevel(level=getattr(logging, args.log_level.upper(), None))
     logging.debug("Finished parsing arguments.")
     
     #Check the user isn't trying something silly
@@ -465,12 +546,21 @@ def main(arg):
     logging.info("Running tests...")
     start = time.time()
     for test in tests:
+        if args.run_only_pass and test.expectedReturnCode != GPUVerifyErrorCodes.SUCCESS : 
+            logging.warning("Skipping xfail test:{0}".format(test.path))
+            continue
+
+        if args.run_only_xfail and test.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS : 
+            logging.warning("Skipping pass test:{0}".format(test.path))
+            continue
+
         test.run()
         if not test.testPassed and args.stop_on_fail :
             logging.error("Stopping on test failure.")
             return GPUVerifyTesterErrorCodes.TEST_FAILED
     end = time.time()
     logging.info("Finished running tests.")
+    summariseTests(tests)
     
     if len(args.write_pickle) > 0 :
         logging.info("Writing run information to pickle file \"" + args.write_pickle + "\"")
