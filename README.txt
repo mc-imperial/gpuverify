@@ -44,7 +44,12 @@ $ make -jN
 where N is the number of jobs to do in parallel.
 
 4. Now get libclc and build
-FIX ME!
+
+$ cd ${BUILD_ROOT}
+$ git clone http://llvm.org/git/libclc.git
+$ cd libclc
+$ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/bin/bin/llvm-config nvptx--bugle
+$ make
 
 5. Get Bugle and configure for building (we will do out of source build)
 
