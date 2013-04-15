@@ -174,7 +174,11 @@ class GPUVerifyTestKernel:
         try:
             logging.info("Running test " + self.path)
             logging.debug(self) # show pre test information
-            processInstance=subprocess.Popen(cmdLine,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            processInstance=subprocess.Popen(cmdLine,
+                                             stdout=subprocess.PIPE, 
+                                             stderr=subprocess.STDOUT,
+                                             cwd=os.path.dirname(self.path)
+                                            )
             stdout=processInstance.communicate() #Allow program to run and wait for it to exit.    
             
         except KeyboardInterrupt:
