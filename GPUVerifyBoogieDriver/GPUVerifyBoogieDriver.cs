@@ -209,7 +209,7 @@ namespace Microsoft.Boogie
           Debug.Assert(!CommandLineOptions.Clo.ContractInfer);
           RaceCheckingProgram.UnrollLoops(CommandLineOptions.Clo.LoopUnrollCount, CommandLineOptions.Clo.SoundLoopUnrolling);
           GPUVerifyErrorReporter.FixStateIds(RaceCheckingProgram);
-          GPUVerify.Emitter.emitProgram(RaceCheckingProgram, "unrolled");
+          //GPUVerify.Emitter.emitProgram(RaceCheckingProgram, "unrolled");
         }
 
         foreach (var h in HoudiniInstances) {
