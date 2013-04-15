@@ -9,6 +9,9 @@ import subprocess
 import pickle 
 import time
 import string
+import Queue
+import threading
+import multiprocessing # Only for determining number of CPU cores available
 
 from GPUVerify import ErrorCodes
 
@@ -170,9 +173,11 @@ class GPUVerifyTestKernel:
             .returnedCode : The return code of the test (includes REGEX_MISMATCH_ERROR)
             .gpuverifyReturnCode : GPUVerify's actual return code (doesn't include REGEX_MISMATCH_ERROR)
         """    
+        threadStr='[' + threading.currentThread().name + '] '
+
         cmdLine=[sys.executable, GPUVerifyExecutable] + self.gpuverifyCmdArgs + [self.path]
         try:
-            logging.info("Running test " + self.path)
+            logging.info(threadStr + "Running test " + self.path)
             logging.debug(self) # show pre test information
             processInstance=subprocess.Popen(cmdLine,
                                              stdout=subprocess.PIPE, 
@@ -212,7 +217,7 @@ class GPUVerifyTestKernel:
         #Check if the test failed overall
         if self.returnedCode != self.expectedReturnCode :
             self.testPassed=False
-            logging.error(self.path + " FAILED with " + GPUVerifyErrorCodes.errorCodeToString[self.returnedCode] + 
+            logging.error(threadStr + self.path + " FAILED with " + GPUVerifyErrorCodes.errorCodeToString[self.returnedCode] + 
                          " expected " + GPUVerifyErrorCodes.errorCodeToString[self.expectedReturnCode])
             
             #Print output for user to see
@@ -220,7 +225,7 @@ class GPUVerifyTestKernel:
                 print(line)
         else:
             self.testPassed=True
-            logging.info(self.path + " PASSED (" + 
+            logging.info(threadStr + self.path + " PASSED (" + 
                          ("pass" if self.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS else "xfail") + ")")
         
         logging.debug(self) #Show after test information
@@ -464,6 +469,57 @@ def summariseTests(tests):
     print('')
     print('#'*printBarWidth)
 
+class Worker(threading.Thread):
+    def __init__(self,theQueue):
+        threading.Thread.__init__(self)
+        self.theQueue = theQueue
+        
+        #We will be abruptly killed in main thread exits
+        self.daemon = True
+
+    def run(self):
+        while True:
+            test=self.theQueue.get(block=True,timeout=None)
+            test.run()
+            #Notify the Queue that we finished our task
+            self.theQueue.task_done()
+
+            #Hack: If we detect that that the return code was CTRL+C
+            # then we should probably trigger termination, we'll
+            # do this by trying to empty the queue so that eventually
+            # the main thread will unblock so that 
+            if test.gpuverifyReturnCode == GPUVerifyErrorCodes.CTRL_C:
+                logging.error("Detected CTRL+C, trying to stop any more tests being executed.")
+                while True:
+                    #Try to empty the queue
+                    try:
+                        self.theQueue.get()
+                        self.theQueue.task_done()
+                        logging.debug("Removed one item from queue is. There are now" + 
+                                      str(self.theQueue.qsize()) + " items left.")
+                    except Queue.empty:
+                        logging.debug("The queue is now empty.")
+                        break
+                        
+class ThreadPool:
+    def __init__(self, numberOfThreads):
+        self.theQueue = Queue.Queue(0);
+
+        #Create the Threads
+        self.threads= []
+        for tid in range(numberOfThreads):
+            self.threads.append( Worker(self.theQueue) )
+            
+    def addTest(self, test):
+        self.theQueue.put(test)
+
+    def start(self):
+        for tid in self.threads:
+            tid.start()
+
+    def waitForCompletion(self):
+        self.theQueue.join()
+
 def main(arg):  
     parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
     logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
@@ -477,11 +533,11 @@ def main(arg):
     
     #General options
     parser.add_argument("--kernel-regex", type=str, default=r"^kernel\.(cu|cl)$", help="Regex for kernel file names (default: \"%(default)s\")")
-    parser.add_argument("-s","--stop-on-fail",action="store_true", default=False, help="Stop running tests after first failure. (default: %(default)s)")
     parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR'])
     parser.add_argument("-w","--write-pickle",type=str, default="", help="Write detailed log information in pickle format to a file")
     parser.add_argument("-p","--canonical-path-prefix",type=str, default="GPUVerifyTestSuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
     parser.add_argument("-r,","--compare-run", type=str ,default="", help="After performing test runs compare the result of that run with the runs recorded in a pickle file.")
+    parser.add_argument("-j","--threads", type=int ,default=multiprocessing.cpu_count(), help="Number of tests to run in parallel (default: %(default)s)")
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
@@ -498,7 +554,12 @@ def main(arg):
     if(args.write_pickle == args.compare_run and len(args.write_pickle) > 0):
         logging.error("Write log and comparison log cannot be the same.")
         return GPUVerifyTesterErrorCodes.GENERAL_ERROR
-    
+   
+    #Check the number of threads isn't stupid
+    if args.threads > 50:
+        logging.error("The number of threads requested is TOO DAMN HIGH!")
+        return GPUVerifyTesterErrorCodes.GENERAL_ERROR
+
     oldTests=None
     if len(args.compare_run) > 0 :
         oldTests=openPickle(args.compare_run)
@@ -547,6 +608,9 @@ def main(arg):
                 return GPUVerifyTesterErrorCodes.KERNEL_PARSE_ERROR
 
     #run tests
+    logging.info("Using " + str(args.threads) + " threads")
+    threadPool = ThreadPool(args.threads)
+
     logging.info("Running tests...")
     start = time.time()
     for test in tests:
@@ -557,11 +621,13 @@ def main(arg):
         if args.run_only_xfail and test.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS : 
             logging.warning("Skipping pass test:{0}".format(test.path))
             continue
+       
+        threadPool.addTest(test)
 
-        test.run()
-        if not test.testPassed and args.stop_on_fail :
-            logging.error("Stopping on test failure.")
-            return GPUVerifyTesterErrorCodes.TEST_FAILED
+    #Start tests
+    threadPool.start()
+    threadPool.waitForCompletion()
+
     end = time.time()
     logging.info("Finished running tests.")
     summariseTests(tests)
