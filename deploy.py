@@ -99,7 +99,7 @@ class DirCopy(DeployTask):
       shutil.copytree(self.srcdir,self.destination)
     else:
       logging.info("Recursively copying only files that match \"" + 
-                   self.copyOnlyRegex.pattern + "\" into \"" + self.srcdir +
+                   self.copyOnlyRegex.pattern + "\" from \"" + self.srcdir +
                    "\" into \"" + self.destination + "\"")
       shutil.copytree(self.srcdir,self.destination,ignore=self.listFilesToIgnore)
 
