@@ -62,13 +62,22 @@ class DirCopy(DeployTask):
 
   WARNING if destdir already exists it will be deleted first!
   """
-  def __init__(self,srcdir,destdir):
+  def __init__(self,srcdir,destdir,copyOnlyRegex=None):
     """
-        srcdir  : The directory to copy the contents of
-        destdir : The directory to place the copy of the contents of "srcdir"
+        srcdir        : The directory to copy the contents of
+        destdir       : The directory to place the copy of the contents of "srcdir"
+        copyOnlyRegex : If not equal to None only filenames that match the regular
+                        expression will be copied.
     """
     self.srcdir=srcdir
     self.destination=destdir
+
+    if copyOnlyRegex != None:
+      #Construct regex
+      self.copyOnlyRegex = re.compile(copyOnlyRegex)
+    else:
+      self.copyOnlyRegex=None
+
 
   def removeDestination(self):
     if os.path.isdir(self.destination):
@@ -84,9 +93,32 @@ class DirCopy(DeployTask):
     #this will remove it (be careful!)
     self.removeDestination()
 
-    logging.info("Recursively copying \"" + self.srcdir + 
-                 "\" into \"" + self.destination + "\"")
-    shutil.copytree(self.srcdir,self.destination)
+    if self.copyOnlyRegex == None:
+      logging.info("Recursively copying \"" + self.srcdir + 
+                   "\" into \"" + self.destination + "\"")
+      shutil.copytree(self.srcdir,self.destination)
+    else:
+      logging.info("Recursively copying only files that match \"" + 
+                   self.copyOnlyRegex.pattern + "\" into \"" + self.srcdir +
+                   "\" into \"" + self.destination + "\"")
+      shutil.copytree(self.srcdir,self.destination,ignore=self.listFilesToIgnore)
+
+  def listFilesToIgnore(self,path,filenames):
+    logging.debug('Checking ' + path)
+    filesToIgnore=[]
+    for fileOrDirectory in filenames:
+      fullPath=path + os.sep + fileOrDirectory
+      if self.copyOnlyRegex.match(fullPath) == None:
+        if not os.path.isdir(path + os.sep + fileOrDirectory):
+          #The item is a directory and it didn't match the regex
+          #so we add it to the ignore list
+          filesToIgnore.append(fileOrDirectory)
+          logging.debug('ignoring ' + path + os.sep + fileOrDirectory)
+      else:
+        logging.info('Copying "' + fullPath + '"')
+     
+    return set(filesToIgnore)
+
 
 class RegexFileCopy(DeployTask):
   """
@@ -160,7 +192,7 @@ def main(argv):
                      )
 
   args = parser.parse_args()
-  logging.basicConfig(level=logging.INFO)
+  logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
   #Check deploy directory exists
   deployDir = args.path
@@ -195,7 +227,7 @@ def main(argv):
   FileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, 'UnivBackPred2.smt2', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   RegexFileCopy(gvfindtools.gpuVerifyVCGenBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyVCGenBinDir),
   RegexFileCopy(gvfindtools.z3BinDir, r'^z3(\.exe)?$', gvfindtoolsdeploy.z3BinDir, z3Hook),
-  DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir)
+  DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$') # Only Copy clang header files
   ]
 
   for action in deployActions:
