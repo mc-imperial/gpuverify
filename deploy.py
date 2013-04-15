@@ -227,7 +227,9 @@ def main(argv):
   FileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, 'UnivBackPred2.smt2', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   RegexFileCopy(gvfindtools.gpuVerifyVCGenBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyVCGenBinDir),
   RegexFileCopy(gvfindtools.z3BinDir, r'^z3(\.exe)?$', gvfindtoolsdeploy.z3BinDir, z3Hook),
-  DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$') # Only Copy clang header files
+  DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
+  FileCopy(GPUVerifyRoot, 'GPUVerifyTester.py', deployDir),
+  DirCopy( os.path.join(GPUVerifyRoot ,'GPUVerifyTestSuite'), os.path.join(deployDir, 'GPUVerifyTestSuite') )
   ]
 
   for action in deployActions:
