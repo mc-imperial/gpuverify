@@ -10,6 +10,7 @@
  */
 
 __global__ void k(int *A) {
+  __assert(blockDim.x <= WIDTH);
 
   for (int i=threadIdx.x; 
     // working set using global invariants
