@@ -27,6 +27,25 @@ class DeployTask:
     if not os.path.isdir(self.destination):
       os.mkdir(self.destination)
 
+class IfUsing(DeployTask):
+  """ Wrapper class that only executes a deploy task if host is of
+      particular type.
+  """
+
+  """ Set the task to execute is host operating system matches 'operatingSystem'.
+      Valid values for 'operatingSystem' are those of os.name
+  """
+  def __init__(self,operatingSystem,task):
+    self.task=task
+    self.operatingSystem=operatingSystem
+  def run(self):
+    if os.name == self.operatingSystem:
+      logging.info("Using " + self.operatingSystem + ", performing task")
+      self.task.run()
+    else:
+      logging.info("Not using " + self.operatingSystem + ", skipping task")
+    
+
 class FileCopy(DeployTask):
   """
       This class is intended for copying individual files
@@ -216,7 +235,8 @@ def main(argv):
   DirCopy(gvfindtools.libclcDir, gvfindtoolsdeploy.libclcDir),
   DirCopy(gvfindtools.bugleSrcDir + os.sep + 'include-blang', gvfindtoolsdeploy.bugleSrcDir + os.sep + 'include-blang'),
   FileCopy(GPUVerifyRoot, 'GPUVerify.py', deployDir),
-  FileCopy(GPUVerifyRoot, 'gpuverify', deployDir),
+  IfUsing('posix',FileCopy(GPUVerifyRoot, 'gpuverify', deployDir)),
+  IfUsing('nt',FileCopy(GPUVerifyRoot, 'GPUVerify.bat', deployDir)),
   FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir),
   MoveFile(deployDir + os.sep + 'gvfindtoolsdeploy.py', deployDir + os.sep + 'gvfindtools.py'),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^clang(\.exe)?$', gvfindtoolsdeploy.llvmBinDir ),
