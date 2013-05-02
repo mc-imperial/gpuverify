@@ -535,7 +535,7 @@ def main(arg):
     parser.add_argument("--kernel-regex", type=str, default=r"^kernel\.(cu|cl)$", help="Regex for kernel file names (default: \"%(default)s\")")
     parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR'])
     parser.add_argument("-w","--write-pickle",type=str, default="", help="Write detailed log information in pickle format to a file")
-    parser.add_argument("-p","--canonical-path-prefix",type=str, default="GPUVerifyTestSuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
+    parser.add_argument("-p","--canonical-path-prefix",type=str, default="testsuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
     parser.add_argument("-r,","--compare-run", type=str ,default="", help="After performing test runs compare the result of that run with the runs recorded in a pickle file.")
     parser.add_argument("-j","--threads", type=int ,default=multiprocessing.cpu_count(), help="Number of tests to run in parallel (default: %(default)s)")
 

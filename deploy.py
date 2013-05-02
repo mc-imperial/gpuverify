@@ -229,7 +229,7 @@ def main(argv):
   RegexFileCopy(gvfindtools.z3BinDir, r'^z3(\.exe)?$', gvfindtoolsdeploy.z3BinDir, z3Hook),
   DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
   FileCopy(GPUVerifyRoot, 'GPUVerifyTester.py', deployDir),
-  DirCopy( os.path.join(GPUVerifyRoot ,'GPUVerifyTestSuite'), os.path.join(deployDir, 'GPUVerifyTestSuite') )
+  DirCopy( os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite') )
   ]
 
   for action in deployActions:
