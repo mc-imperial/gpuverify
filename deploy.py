@@ -223,13 +223,6 @@ def main(argv):
   deployDir=os.path.abspath(deployDir)
   gvfindtoolsdeploy.init(deployDir)
 
-  #This hook is for Linux/OSX users who build "z3" and not "z3.exe"
-  def z3Hook(path):
-    if path.endswith('z3'):
-      newPath=path + '.exe'
-      logging.info('Moving "' + path + '" to "' + newPath + '"')
-      shutil.move(path,newPath)
-
   #Specify actions to perform
   deployActions = [
   DirCopy(gvfindtools.libclcDir, gvfindtoolsdeploy.libclcDir),
@@ -246,7 +239,7 @@ def main(argv):
   RegexFileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   FileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, 'UnivBackPred2.smt2', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   RegexFileCopy(gvfindtools.gpuVerifyVCGenBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyVCGenBinDir),
-  RegexFileCopy(gvfindtools.z3BinDir, r'^z3(\.exe)?$', gvfindtoolsdeploy.z3BinDir, z3Hook),
+  FileCopy(gvfindtools.z3BinDir, 'z3.exe', gvfindtoolsdeploy.z3BinDir),
   DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
   DirCopy( os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite') )
