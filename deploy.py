@@ -228,7 +228,7 @@ def main(argv):
   RegexFileCopy(gvfindtools.gpuVerifyVCGenBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyVCGenBinDir),
   RegexFileCopy(gvfindtools.z3BinDir, r'^z3(\.exe)?$', gvfindtoolsdeploy.z3BinDir, z3Hook),
   DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
-  FileCopy(GPUVerifyRoot, 'GPUVerifyTester.py', deployDir),
+  FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
   DirCopy( os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite') )
   ]
 
