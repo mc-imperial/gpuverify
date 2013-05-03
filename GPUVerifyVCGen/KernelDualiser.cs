@@ -312,14 +312,18 @@ namespace GPUVerify {
         if (QKeyValue.FindStringAttribute(ass.Attributes, "captureState") != null) {
           cs.Add(c);
         } else if (QKeyValue.FindBoolAttribute(ass.Attributes, "backedge")) {
-          cs.Add(new AssumeCmd(c.tok, Expr.Or(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr),
-              new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr))));
+          AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Or(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr),
+              new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr)));
+          newAss.Attributes = ass.Attributes;
+          cs.Add(newAss);
         }
         else {
-          cs.Add(new AssumeCmd(c.tok, new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr)));
+          AssumeCmd newAss = new AssumeCmd(c.tok, new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr));
           if (!ContainsAsymmetricExpression(ass.Expr)) {
-            cs.Add(new AssumeCmd(c.tok, new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr)));
+            newAss.Expr = Expr.And(newAss.Expr, new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr));
           }
+          newAss.Attributes = ass.Attributes;
+          cs.Add(newAss);
         }
       }
       else {

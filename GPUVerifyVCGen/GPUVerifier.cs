@@ -506,8 +506,8 @@ namespace GPUVerify
 
             var nonUniformVars = new Variable[] { _X, _Y, _Z, _GROUP_X, _GROUP_Y, _GROUP_Z };
 
-            uniformityAnalyser = new UniformityAnalyser(Program, CommandLineOptions.DoUniformityAnalysis, 
-                                                        true, entryPoints, nonUniformVars);
+            uniformityAnalyser = new UniformityAnalyser(Program, CommandLineOptions.DoUniformityAnalysis, true,
+                                                        entryPoints, nonUniformVars);
             uniformityAnalyser.Analyse();
         }
 
