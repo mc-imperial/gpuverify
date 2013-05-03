@@ -27,6 +27,25 @@ class DeployTask:
     if not os.path.isdir(self.destination):
       os.mkdir(self.destination)
 
+class IfUsing(DeployTask):
+  """ Wrapper class that only executes a deploy task if host is of
+      particular type.
+  """
+
+  """ Set the task to execute is host operating system matches 'operatingSystem'.
+      Valid values for 'operatingSystem' are those of os.name
+  """
+  def __init__(self,operatingSystem,task):
+    self.task=task
+    self.operatingSystem=operatingSystem
+  def run(self):
+    if os.name == self.operatingSystem:
+      logging.info("Using " + self.operatingSystem + ", performing task")
+      self.task.run()
+    else:
+      logging.info("Not using " + self.operatingSystem + ", skipping task")
+    
+
 class FileCopy(DeployTask):
   """
       This class is intended for copying individual files
@@ -204,19 +223,13 @@ def main(argv):
   deployDir=os.path.abspath(deployDir)
   gvfindtoolsdeploy.init(deployDir)
 
-  #This hook is for Linux/OSX users who build "z3" and not "z3.exe"
-  def z3Hook(path):
-    if path.endswith('z3'):
-      newPath=path + '.exe'
-      logging.info('Moving "' + path + '" to "' + newPath + '"')
-      shutil.move(path,newPath)
-
   #Specify actions to perform
   deployActions = [
   DirCopy(gvfindtools.libclcDir, gvfindtoolsdeploy.libclcDir),
   DirCopy(gvfindtools.bugleSrcDir + os.sep + 'include-blang', gvfindtoolsdeploy.bugleSrcDir + os.sep + 'include-blang'),
   FileCopy(GPUVerifyRoot, 'GPUVerify.py', deployDir),
-  FileCopy(GPUVerifyRoot, 'gpuverify', deployDir),
+  IfUsing('posix',FileCopy(GPUVerifyRoot, 'gpuverify', deployDir)),
+  IfUsing('nt',FileCopy(GPUVerifyRoot, 'GPUVerify.bat', deployDir)),
   FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir),
   MoveFile(deployDir + os.sep + 'gvfindtoolsdeploy.py', deployDir + os.sep + 'gvfindtools.py'),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^clang(\.exe)?$', gvfindtoolsdeploy.llvmBinDir ),
@@ -226,10 +239,10 @@ def main(argv):
   RegexFileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   FileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, 'UnivBackPred2.smt2', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   RegexFileCopy(gvfindtools.gpuVerifyVCGenBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyVCGenBinDir),
-  RegexFileCopy(gvfindtools.z3BinDir, r'^z3(\.exe)?$', gvfindtoolsdeploy.z3BinDir, z3Hook),
+  FileCopy(gvfindtools.z3BinDir, 'z3.exe', gvfindtoolsdeploy.z3BinDir),
   DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
-  FileCopy(GPUVerifyRoot, 'GPUVerifyTester.py', deployDir),
-  DirCopy( os.path.join(GPUVerifyRoot ,'GPUVerifyTestSuite'), os.path.join(deployDir, 'GPUVerifyTestSuite') )
+  FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
+  DirCopy( os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite') )
   ]
 
   for action in deployActions:

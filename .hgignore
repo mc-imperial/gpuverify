@@ -25,3 +25,6 @@ GPUVerifyVCGen/obj/*
 *.bpl
 *.gbpl
 *.loc
+
+#Monodevelop settings
+*.userprefs
