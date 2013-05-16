@@ -64,6 +64,9 @@ namespace GPUVerify
 
           if (GPUVerifier.IsGroupIdConstant(node.Decl))
           {
+              if(CommandLineOptions.OnlyIntraGroupRaceChecking) {
+                return node;
+              }
               return new IdentifierExpr(node.tok, new Constant(node.tok, DualiseTypedIdent(node.Decl)));
           }
 

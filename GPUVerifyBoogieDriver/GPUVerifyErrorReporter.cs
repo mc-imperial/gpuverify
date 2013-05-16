@@ -286,52 +286,27 @@ namespace GPUVerify {
     private static void GetThreadsAndGroupsFromModel(Model model, out string thread1, out string thread2, out string group1, out string group2, bool withSpaces) {
       thread1 = GetThreadOne(model, withSpaces);
       thread2 = GetThreadTwo(model, withSpaces);
-      group1 = GetGroupOne(model, withSpaces);
-      group2 = GetGroupTwo(model, withSpaces);
+      group1 = GetGroup(model, withSpaces, 1);
+      group2 = GetGroup(model, withSpaces, 2);
     }
 
-    private static string GetGroupTwo(Model model, bool withSpaces) {
+    private static string GetGroup(Model model, bool withSpaces, int thread) {
       return "("
-             + GetGidX2(model)
+             + GetGid(model, "x", thread)
              + "," + (withSpaces ? " " : "")
-             + GetGidY2(model)
+             + GetGid(model, "y", thread)
              + "," + (withSpaces ? " " : "")
-             + GetGidZ2(model)
+             + GetGid(model, "z", thread)
              + ")";
     }
 
-    private static int GetGidZ2(Model model) {
-      return model.TryGetFunc("group_id_z$2").GetConstant().AsInt();
-    }
+    private static int GetGid(Model model, string dimension, int thread) {
+      string name = "group_id_" + dimension;
+      if(!((GPUVerifyBoogieDriverCommandLineOptions)CommandLineOptions.Clo).OnlyIntraGroupRaceChecking) {
+        name += "$" + thread;
+      }
 
-    private static int GetGidY2(Model model) {
-      return model.TryGetFunc("group_id_y$2").GetConstant().AsInt();
-    }
-
-    private static int GetGidX2(Model model) {
-      return model.TryGetFunc("group_id_x$2").GetConstant().AsInt();
-    }
-
-    private static string GetGroupOne(Model model, bool withSpaces) {
-      return "("
-             + GetGidX1(model)
-             + "," + (withSpaces ? " " : "")
-             + GetGidY1(model)
-             + "," + (withSpaces ? " " : "")
-             + GetGidZ1(model)
-             + ")";
-    }
-
-    private static int GetGidZ1(Model model) {
-      return model.TryGetFunc("group_id_z$1").GetConstant().AsInt();
-    }
-
-    private static int GetGidY1(Model model) {
-      return model.TryGetFunc("group_id_y$1").GetConstant().AsInt();
-    }
-
-    private static int GetGidX1(Model model) {
-      return model.TryGetFunc("group_id_x$1").GetConstant().AsInt();
+      return model.TryGetFunc(name).GetConstant().AsInt();
     }
 
     private static string GetThreadTwo(Model model, bool withSpaces) {

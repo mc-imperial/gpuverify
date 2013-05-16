@@ -21,6 +21,7 @@ namespace GPUVerify {
     public bool StagedInference = false;
     public string ArrayToCheck = null;
     public bool NoSourceLocInfer = false;
+    public bool OnlyIntraGroupRaceChecking = false;
 
     public GPUVerifyBoogieDriverCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser") {
@@ -42,6 +43,11 @@ namespace GPUVerify {
 
       if (name == "noSourceLocInfer") {
         NoSourceLocInfer = true;
+        return true;
+      }
+
+      if (name == "onlyIntraGroupRaceChecking") {
+        OnlyIntraGroupRaceChecking = true;
         return true;
       }
 
