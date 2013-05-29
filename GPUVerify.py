@@ -7,6 +7,7 @@ import subprocess
 import sys
 import timeit
 import threading
+import getversion
 
 #Try to import the paths need for GPUVerify's tools
 if os.path.isfile(sys.path[0] + os.sep + 'gvfindtools.py'):
@@ -261,6 +262,16 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
     if stderr: print >> sys.stderr, stderr
     sys.exit(ErrorCode)
 
+def showVersionAndExit():
+  """ This will check if using gpuverify from development directory.
+      If so this will invoke Mercurial to find out version information.
+      If this is a deployed version we will try to read the version from
+      a file instead
+  """
+
+  print(getversion.getVersionString())
+  sys.exit(ErrorCodes.SUCCESS)
+
 def showHelpAndExit():
   print "OVERVIEW: GPUVerify driver"
   print ""
@@ -283,6 +294,7 @@ def showHelpAndExit():
   print "  --time                  Show timing information"
   print "  --timeout=X             Allow Boogie to run for X seconds before giving up."
   print "                          A timeout of 0 disables the timeout. The default is " + str(CommandLineOptions.boogieTimeout) + " seconds."
+  print "  --version               Show version information."
   print ""
   print "ADVANCED OPTIONS:"
   print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
@@ -380,6 +392,11 @@ def showHelpIfRequested(opts):
   for o, a in opts:
     if o == "--help" or o == "-h":
       showHelpAndExit()
+
+def showVersionIfRequested(opts):
+  for o, a in opts:
+    if o == "--version":
+      showVersionAndExit()
 
 def processGeneralOptions(opts, args):
   for o, a in opts:
@@ -554,7 +571,7 @@ def main(argv=None):
 
   try:
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
-             ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
+             ['help', 'version', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
@@ -570,6 +587,7 @@ def main(argv=None):
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
 
   showHelpIfRequested(opts)
+  showVersionIfRequested(opts)
   getSourceFiles(args)
   processGeneralOptions(opts, args)
   if CommandLineOptions.SL == SourceLanguage.OpenCL:

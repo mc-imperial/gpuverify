@@ -5,6 +5,9 @@ import argparse
 import logging
 import shutil
 import re
+import datetime
+
+import getversion
 
 #Try to import the paths need for GPUVerify's tools
 GPUVerifyRoot = sys.path[0]
@@ -199,7 +202,21 @@ class MoveFile(DeployTask):
 
     logging.info('Moving "' + self.srcpath + '" to "' + self.destpath + '"')
     shutil.move(self.srcpath,self.destpath)
-     
+
+class CreateFileFromString(DeployTask):
+  """
+      This class will create a text file from a string
+  """
+
+  def __init__(self,string,destpath):
+    self.string=string
+    self.destpath=destpath
+
+  def run(self):
+    logging.info('Creating file "' + self.destpath + '"')
+
+    with open(self.destpath,'w') as f:
+      f.write(self.string)
 
 def main(argv):
   des=('Deploys GPUVerify to a directory by copying the necessary '
@@ -223,11 +240,16 @@ def main(argv):
   deployDir=os.path.abspath(deployDir)
   gvfindtoolsdeploy.init(deployDir)
 
+  #Determine version and create version string
+  versionString = getversion.getVersionStringFromMercurial()
+  versionString += "Deployed on " + datetime.datetime.utcnow().ctime() + " (UTC)"
+
   #Specify actions to perform
   deployActions = [
   DirCopy(gvfindtools.libclcDir, gvfindtoolsdeploy.libclcDir),
   DirCopy(gvfindtools.bugleSrcDir + os.sep + 'include-blang', gvfindtoolsdeploy.bugleSrcDir + os.sep + 'include-blang'),
   FileCopy(GPUVerifyRoot, 'GPUVerify.py', deployDir),
+  FileCopy(GPUVerifyRoot, 'getversion.py', deployDir),
   IfUsing('posix',FileCopy(GPUVerifyRoot, 'gpuverify', deployDir)),
   IfUsing('nt',FileCopy(GPUVerifyRoot, 'GPUVerify.bat', deployDir)),
   FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir),
@@ -242,7 +264,8 @@ def main(argv):
   FileCopy(gvfindtools.z3BinDir, 'z3.exe', gvfindtoolsdeploy.z3BinDir),
   DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
-  DirCopy( os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite') )
+  DirCopy( os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite') ),
+  CreateFileFromString(versionString, os.path.join(deployDir,getversion.GPUVerifyDeployVersionFile)) # file for version information
   ]
 
   for action in deployActions:
