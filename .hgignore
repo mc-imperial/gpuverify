@@ -28,3 +28,6 @@ GPUVerifyVCGen/obj/*
 
 #Monodevelop settings
 *.userprefs
+
+#Generated sphinx documentation
+Documentation/_build
