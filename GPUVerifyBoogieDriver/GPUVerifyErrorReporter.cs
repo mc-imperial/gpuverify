@@ -471,9 +471,20 @@ namespace GPUVerify {
           // It is necessary to clone the assume and call command, because after loop unrolling
           // there is aliasing between blocks of different loop iterations
           newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetStateId(a.Attributes, "captureState")));
-          Debug.Assert(i + 1 < b.Cmds.Length);
-          var c = b.Cmds[i + 1] as CallCmd;
+
+          #region Skip on to the next call, adding all intervening commands to the new command list
+          CallCmd c;
+          do {
+            i++;
+            Debug.Assert(i < b.Cmds.Length);
+            c = b.Cmds[i] as CallCmd;
+            if(c == null) {
+              newCmds.Add(b.Cmds[i]);
+            }
+          } while(c == null);
           Debug.Assert(c != null);
+          #endregion
+
           Debug.Assert(QKeyValue.FindStringAttribute(c.Attributes, "state_id") != null);
           var newCall = new CallCmd(Token.NoToken, c.callee, c.Ins, c.Outs, ResetStateId(c.Attributes, "state_id"));
           newCall.Proc = c.Proc;
