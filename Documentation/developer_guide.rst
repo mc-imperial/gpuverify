@@ -247,21 +247,21 @@ Note for the most current list of values that ``<xfail-code>`` can take run::
 
 
 ``<line_2>`` is telling ``gvtester.py`` what command line arguments to pass to
-"GPUVerify.py". <gv-arg> is a single "GPUVerify.py" command line argument. Each
-command line argument must be seperated by one or more spaces. Note as stated
-in the Backus-Naur form it is legal to pass no command line arguments. The path
-to the kernel for ``GPUVerify.py`` is implicitly passed as the last command
-line argument to ``GPUVerify.py`` so it should **not** be stated in
-``<cmd-args>``.
+``GPUVerify.py``. ``<gv-arg>`` is a single ``GPUVerify.py`` command line
+argument. Each command line argument must be seperated by one or more spaces.
+Note as stated in the Backus-Naur form it is legal to pass no command line
+arguments. The path to the kernel for ``GPUVerify.py`` is implicitly passed as
+the last command line argument to ``GPUVerify.py`` so it should **not** be
+stated in ``<cmd-args>``.
 
 Special substitution variables can be used inside ``<gv-arg>`` which will
 expand as follows:
 
-- ``${KERNEL_DIR}`` : The absolute path to the directory containing the kernel without
-  a trailing slash.
+- ``${KERNEL_DIR}`` : The absolute path to the directory containing the kernel
+  without a trailing slash.
 
 ``<line_n>`` is telling ``gvtester.py`` what regular expression to match
-against the output of ``GPUVerify.py`` if "GPUVerify.py"'s return code is not
+against the output of ``GPUVerify.py`` if ``GPUVerify.py``'s return code is not
 as expected. ``<python_regex>`` is any Python regular expression supported by
 the ``re`` module. ``<line_n>`` can be repeated on mulitiple lines. Note that
 every character after ``//`` until the end of the line is interpreted as the
