@@ -22,12 +22,18 @@ namespace GPUVerify {
     public string ArrayToCheck = null;
     public bool NoSourceLocInfer = false;
     public bool OnlyIntraGroupRaceChecking = false;
+    public bool DebugGPUVerify = false;
 
     public GPUVerifyBoogieDriverCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser") {
     }
 
     protected override bool ParseOption(string name, CommandLineOptionEngine.CommandLineParseState ps) {
+
+      if (name == "debugGPUVerify") {
+        DebugGPUVerify = true;
+        return true;
+      }
 
       if (name == "stagedInference") {
         StagedInference = true;

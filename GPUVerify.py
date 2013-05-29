@@ -112,6 +112,7 @@ class CommandLineOptions(object):
   bugleOptions = []
   mode = AnalysisMode.ALL
   inference = True
+  debugging = False
   verbose = False
   silent = False
   groupSize = []
@@ -294,6 +295,8 @@ def showHelpAndExit():
   print "  --boogie-opt=...        Specify option to be passed to Boogie"
   print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
   print "  --clang-opt=...         Specify option to be passed to CLANG"
+  print "  --debug                 Enable debugging of GPUVerify components: exceptions will"
+  print "                          not be suppressed"
   print "  --equality-abstraction  Make shared arrays nondeterministic, but consistent between"
   print "                          threads, at barriers"
   print "  --gen-smt2              Generate smt2 file"
@@ -387,6 +390,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.defines.append(a)
     if o == "-I":
       CommandLineOptions.includes.append(a)
+    if o == "--debug":
+      CommandLineOptions.debugging = True
     if o == "--findbugs":
       CommandLineOptions.mode = AnalysisMode.FINDBUGS
     if o == "--verify":
@@ -554,7 +559,7 @@ def main(argv=None):
 
   try:
     opts, args = getopt.getopt(argv[1:],'D:I:h', 
-             ['help', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
+             ['help', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
@@ -687,6 +692,10 @@ def main(argv=None):
 
   if CommandLineOptions.generateSmt2:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
+
+  if CommandLineOptions.debugging:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/debugGPUVerify" ]
+
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
   """ RUN CLANG """
