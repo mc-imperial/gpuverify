@@ -140,7 +140,7 @@ namespace Microsoft.Boogie
             foreach (var h in HoudiniInstances) {
               h.ApplyAssignment(InvariantComputationProgram);
             }
-
+            
             DisableCandidatesFromHigherStages(InvariantComputationProgram, CurrentStage);
 
             Houdini.Houdini houdini = new Houdini.Houdini(InvariantComputationProgram);
@@ -356,7 +356,29 @@ namespace Microsoft.Boogie
       }
 
       // Treat requires and ensures
-      new DisableCandidatesVisitor(CandidatesToDisable, program).VisitProgram(program);
+      foreach (var proc in program.TopLevelDeclarations.OfType<Procedure>()) {
+
+        RequiresSeq newRequires = new RequiresSeq();
+        foreach (Requires r in proc.Requires) {
+          string c;
+          if (Houdini.Houdini.MatchCandidate(r.Condition, CandidatesToDisable, out c)) {
+            continue;
+          }
+          newRequires.Add(r);
+        }
+        proc.Requires = newRequires;
+
+        EnsuresSeq newEnsures = new EnsuresSeq();
+        foreach (Ensures e in proc.Ensures) {
+          string c;
+          if (Houdini.Houdini.MatchCandidate(e.Condition, CandidatesToDisable, out c)) {
+            continue;
+          }
+          newEnsures.Add(e);
+        }
+        proc.Ensures = newEnsures;
+
+      }
 
       // Remove the existential constants
       program.TopLevelDeclarations.RemoveAll(item => (item is Variable) &&
@@ -368,38 +390,6 @@ namespace Microsoft.Boogie
       return program.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).
         SelectMany(item => item);
     }
-
-    class DisableCandidatesVisitor : StandardVisitor {
-
-      private IEnumerable<string> CandidatesToDisable;
-      private Program prog;
-
-      internal DisableCandidatesVisitor(IEnumerable<string> CandidatesToDisable, Program prog) {
-        this.CandidatesToDisable = CandidatesToDisable;
-        this.prog = prog;
-      }
-
-      public override Requires VisitRequires(Requires requires) {
-        requires.Condition = DisableCandidates(requires.Condition);
-        return requires;
-      }
-
-      public override Ensures VisitEnsures(Ensures ensures) {
-        ensures.Condition = DisableCandidates(ensures.Condition);
-        return ensures;
-      }
-
-      private Expr DisableCandidates(Expr e) {
-        string c;
-        if (Houdini.Houdini.MatchCandidate(e, CandidatesToDisable, out c)) {
-          return Expr.True;
-        }
-        return e;
-      }
-
-    }
-
-
 
     private static int VerifyProgram(Program program) {
       int errorCount = 0;

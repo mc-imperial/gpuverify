@@ -504,10 +504,14 @@ namespace GPUVerify
               }
             }
 
-            var nonUniformVars = new Variable[] { _X, _Y, _Z, _GROUP_X, _GROUP_Y, _GROUP_Z };
+            var nonUniformVars = new List<Variable> { _X, _Y, _Z };
+            
+            if(!CommandLineOptions.OnlyIntraGroupRaceChecking) {
+                nonUniformVars.AddRange(new Variable[] { _GROUP_X, _GROUP_Y, _GROUP_Z } );
+            }
 
-            uniformityAnalyser = new UniformityAnalyser(Program, CommandLineOptions.DoUniformityAnalysis, 
-                                                        true, entryPoints, nonUniformVars);
+            uniformityAnalyser = new UniformityAnalyser(Program, CommandLineOptions.DoUniformityAnalysis, true,
+                                                        entryPoints, nonUniformVars);
             uniformityAnalyser.Analyse();
         }
 
@@ -983,6 +987,10 @@ namespace GPUVerify
 
         internal static Expr ThreadsInSameGroup()
         {
+            if(CommandLineOptions.OnlyIntraGroupRaceChecking) {
+              return Expr.True;
+            }
+
             return Expr.And(
                                         Expr.And(
                                             Expr.Eq(
@@ -1042,10 +1050,16 @@ namespace GPUVerify
 
                 Proc.Requires.Add(new Requires(false, GroupSizePositive));
                 Proc.Requires.Add(new Requires(false, NumGroupsPositive));
-                Proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(GroupIdNonNegative)));
-                Proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(GroupIdNonNegative)));
-                Proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(GroupIdLessThanNumGroups)));
-                Proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(GroupIdLessThanNumGroups)));
+
+                if(CommandLineOptions.OnlyIntraGroupRaceChecking) {
+                  Proc.Requires.Add(new Requires(false, GroupIdNonNegative));
+                  Proc.Requires.Add(new Requires(false, GroupIdLessThanNumGroups));
+                } else {
+                  Proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(GroupIdNonNegative)));
+                  Proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(GroupIdNonNegative)));
+                  Proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(GroupIdLessThanNumGroups)));
+                  Proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(GroupIdLessThanNumGroups)));
+                }
 
                 Expr ThreadIdNonNegative =
                     GetTypeOfId(dimension).Equals(Microsoft.Boogie.Type.GetBvType(32)) ?
@@ -1666,7 +1680,7 @@ namespace GPUVerify
 
                 if (d is Variable && ((d as Variable).IsMutable || 
                     IsThreadLocalIdConstant(d as Variable) || 
-                    IsGroupIdConstant(d as Variable))) {
+                    (IsGroupIdConstant(d as Variable) && !CommandLineOptions.OnlyIntraGroupRaceChecking))) {
                   var v = d as Variable;
 
                   if (v.Name.Contains("_NOT_ACCESSED_")) {

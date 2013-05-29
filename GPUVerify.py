@@ -654,6 +654,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyDivergence" ]
   if CommandLineOptions.onlyIntraGroup:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyIntraGroupRaceChecking" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/onlyIntraGroupRaceChecking" ]
   if CommandLineOptions.onlyLog:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyLog" ]
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS or (not CommandLineOptions.inference):
