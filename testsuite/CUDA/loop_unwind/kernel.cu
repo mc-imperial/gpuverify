@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=512 --gridDim=64
+//--blockDim=512 --gridDim=64 --loop-unwind=2
 //kernel.cu: error: possible write-write race on \(\(char\*\)B\)
 #include <cuda.h>
 
