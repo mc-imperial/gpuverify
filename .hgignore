@@ -31,3 +31,6 @@ GPUVerifyVCGen/obj/*
 
 #Generated sphinx documentation
 Documentation/_build
+
+#Mac hidden files
+.DS_Store
