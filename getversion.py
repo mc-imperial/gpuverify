@@ -1,17 +1,23 @@
 import os
 import sys
 import subprocess
-
-GPUVerifyDeployVersionFile='.gvdeployversion'
-
 """ This module is responsible for trying to determine the GPUVerify version"""
 
-def getVersionStringFromMercurial(forceRunMercurial=False):
-  p = subprocess.Popen(['hg','log','-r',' -1','--template','Revision {rev}:{node}\n'],
+GPUVerifyDeployVersionFile='.gvdeployversion'
+GPUVerifyHgErrorMessage='Error could not retrieve version from Mercurial'
+
+
+def getVersionStringFromMercurial():
+  try:
+    p = subprocess.Popen(['hg','log','-r',' -1','--template','Revision {rev}:{node}\n'],
                        stdout=subprocess.PIPE)
-  (vs, stderr) = p.communicate()
-  if p.returncode != 0:
-    vs="Error could not retrieve version"
+    (vs, stderr) = p.communicate()
+
+    if p.returncode != 0:
+      vs=GPUVerifyHgErrorMessage
+  except:
+    vs=GPUVerifyHgErrorMessage
+  
   return vs
 
 def getVersionString():
