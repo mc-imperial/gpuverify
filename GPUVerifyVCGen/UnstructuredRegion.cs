@@ -33,8 +33,11 @@ class UnstructuredRegion : IRegion {
         loopNodes.UnionWith(blockGraph.NaturalLoops(h, b));
       this.loopNodes[h] = loopNodes;
       foreach (var n in loopNodes)
-        if (n != h)
-          innermostHeader[n] = h;
+        if (n != h) {
+          if(!innermostHeader.ContainsKey(n)) {
+            innermostHeader[n] = h;
+          }
+        }
     }
     guard = null;
   }
