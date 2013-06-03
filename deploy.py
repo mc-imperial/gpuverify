@@ -226,9 +226,17 @@ def main(argv):
   parser.add_argument("path",
                       help="The path to the directory that GPUVerify will be deployed to"
                      )
+  parser.add_argument("-quiet",
+                      help="Only output errors",
+                      action="store_true",
+                      default=False
+                     )
 
   args = parser.parse_args()
-  logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+  level=logging.INFO
+  if args.quiet:
+    level=logging.ERROR
+  logging.basicConfig(level=level, format='%(levelname)s: %(message)s')
 
   #Check deploy directory exists
   deployDir = args.path
