@@ -226,8 +226,8 @@ def main(argv):
   parser.add_argument("path",
                       help="The path to the directory that GPUVerify will be deployed to"
                      )
-  parser.add_argument("-quiet",
-                      help="Only output errors",
+  parser.add_argument("--quiet",
+                      help="only output errors",
                       action="store_true",
                       default=False
                      )
