@@ -338,8 +338,9 @@ class dumpTestResultsAction(argparse.Action):
 class comparePickleFiles(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         logging.getLogger().setLevel(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
-        doComparison(openPickle(values[0]),values[0],openPickle(values[1]),values[1],namespace.canonical_path_prefix)
-        sys.exit(GPUVerifyTesterErrorCodes.SUCCESS)
+        result = doComparison(openPickle(values[0]),values[0],openPickle(values[1]),values[1],namespace.canonical_path_prefix)
+        if result in [-1, 0]: sys.exit(GPUVerifyTesterErrorCodes.SUCCESS)
+        else: sys.exit(1)
 
 def getCanonicalTestName(path,prefix):
     """
@@ -391,22 +392,28 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
     logging.info("\"" + newTestName + "\" has " + str(len(newTestDic)) + " test(s)")
     
     #Iterate over old tests
+    changeIsWorse = False
     for (cPath, oldTest) in oldTestDic.items():
         if cPath in newTestDic:
             #Found a test common to both test sets
             
             #Look for a change in result
-            if oldTest.testPassed != newTestDic[cPath].testPassed:
+            newTest = newTestDic[cPath]
+            if oldTest.testPassed != newTest.testPassed:
                 logging.warning('#'*printBarWidth)
                 logging.warning("Test \"" + cPath + "\" result has changed.\n" + 
                                 "Test \"" + cPath + "\ from \"" + oldTestName + "\":\n\n" + 
                                 str(oldTest) + '\n' + 
                                 "Test \"" + cPath + "\ from \"" + newTestName + "\"\n" + 
-                                str(newTestDic[cPath]))
+                                str(newTest))
                 changedTestCounter+=1
+                # change is for the worse
+                if oldTest.testPassed:
+                    changeIsWorse = True
         else:
             logging.warning("Test \"" + cPath + "\" present in \"" + oldTestName+ "\" was missing from \"" + newTestName + "\"")
             missingTestCounter+=1
+            changeIsWorse = True
     
     logging.info('#'*printBarWidth + '\n')
     #Iterate over just completed tests to notify about newly introduced tests.
@@ -423,6 +430,16 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
                  "The above is number of tests in \"" + oldTestName + "\" that aren't present in \"" + newTestName + "\"\n" + 
                  "# of new tests:" + str(newTestCounter) + '\n' + 
                  "The above is number of tests in \"" + newTestName + "\" that aren't present in \"" + oldTestName + "\"")
+
+    if changeIsWorse:
+      logging.info(oldTestName + " > " + newTestName)
+      return 1
+    elif changedTestCounter == 0 and missingTestCounter == 0 and newTestCounter == 0:
+      logging.info(oldTestName + " = " + newTestName)
+      return 0
+    else:
+      logging.info(oldTestName + " < " + newTestName)
+      return -1
 
 def summariseTests(tests):
     """
