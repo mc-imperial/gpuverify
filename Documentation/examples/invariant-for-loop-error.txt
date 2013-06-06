@@ -1,0 +1,5 @@
+invariant-for-loop.cl:4:7: error: loop invariant might not hold on entry for thread (512, 0, 0) group (0, 0, 0)
+      __invariant(i < 200), // First invariant
+invariant-for-loop.cl:4:7: error: loop invariant might not hold on entry for thread (576, 0, 0) group (8, 0, 0)
+      __invariant(i < 200), // First invariant
+

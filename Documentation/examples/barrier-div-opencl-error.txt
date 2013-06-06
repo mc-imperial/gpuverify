@@ -1,0 +1,2 @@
+barrier-div.cl:4:5: error: barrier may be reached by non-uniform control flow
+    barrier(CLK_GLOBAL_MEM_FENCE);

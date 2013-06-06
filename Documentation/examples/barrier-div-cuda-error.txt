@@ -1,0 +1,2 @@
+barrier-div-cuda.cu:6:5: error: barrier may be reached by non-uniform control flow
+    __syncthreads();

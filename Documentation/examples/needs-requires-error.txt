@@ -1,0 +1,15 @@
+needs_requires.cu: error: possible write-read race on ((char*)A)[-62043744]:
+
+needs_requires.cu:5:5: read by thread (512, 0, 0) group (0, 0, 0)
+  A[sz*i + threadIdx.x] *= 2.0f;
+
+needs_requires.cu:5:5: write by thread (520, 0, 0) group (0, 0, 0)
+  A[sz*i + threadIdx.x] *= 2.0f;
+
+needs_requires.cu: error: possible read-write race on ((char*)A)[37438500]:
+
+needs_requires.cu:5:5: write by thread (0, 0, 0) group (0, 0, 0)
+  A[sz*i + threadIdx.x] *= 2.0f;
+
+needs_requires.cu:5:5: read by thread (1, 0, 0) group (0, 0, 0)
+  A[sz*i + threadIdx.x] *= 2.0f;

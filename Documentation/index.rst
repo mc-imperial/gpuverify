@@ -18,10 +18,14 @@ Contents:
    developer_guide
    trouble_shooting
 
-Indices and tables
-==================
+Search documentation
+====================
 
-* :ref:`genindex`
-* :ref:`modindex`
+.. * :ref:`genindex`
+.. * :ref:`modindex`
 * :ref:`search`
 
+Documentation TODO list
+=======================
+
+.. todolist::

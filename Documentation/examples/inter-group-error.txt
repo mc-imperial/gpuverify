@@ -1,0 +1,7 @@
+inter-group.cu: error: possible write-write race on ((char*)p)[0]:
+
+inter-group.cu:4:3: write by thread (0, 0, 0) group (0, 0, 0)
+  p[threadIdx.x] = threadIdx.x;
+
+inter-group.cu:4:3: write by thread (0, 0, 0) group (1, 0, 0)
+  p[threadIdx.x] = threadIdx.x;

@@ -1,0 +1,6 @@
+Verified: add-neighbour-correct.cl
+- no data races within work groups
+- no data races between work groups
+- no barrier divergence
+- no assertion failures
+(but absolutely no warranty provided)

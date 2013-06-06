@@ -1,0 +1,5 @@
+failing-assert.cu:4:3: error: this assertion might not hold for thread (5, 0, 0) group (22, 0, 0)
+  __assert(threadIdx.x + blockIdx.x != 27);
+failing-assert.cu:4:3: error: this assertion might not hold for thread (16, 0, 0) group (11, 0, 0)
+  __assert(threadIdx.x + blockIdx.x != 27);
+

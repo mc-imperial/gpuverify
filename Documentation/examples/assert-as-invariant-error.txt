@@ -1,0 +1,5 @@
+assert-as-invariant.cl:4:5: error: loop invariant might not be maintained by the loop for thread (102, 0, 0) group (8, 0, 0)
+    __assert(i <= 100) // Assertion at loop head treated as invariant
+assert-as-invariant.cl:4:5: error: loop invariant might not be maintained by the loop for thread (101, 0, 0) group (0, 0, 0)
+    __assert(i <= 100) // Assertion at loop head treated as invariant
+

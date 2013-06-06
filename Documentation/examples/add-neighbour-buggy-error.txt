@@ -1,0 +1,8 @@
+add-neighbour-buggy.cl: error: possible read-write race on ((char*)A)[32]:
+
+add-neighbour-buggy.cl:3:3: write by thread (8, 0, 0) group (0, 0, 0)
+  A[tid] += A[tid + offset];
+
+add-neighbour-buggy.cl:3:3: read by thread (4, 0, 0) group (0, 0, 0)
+  A[tid] += A[tid + offset];
+
