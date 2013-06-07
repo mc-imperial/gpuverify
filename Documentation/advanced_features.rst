@@ -125,18 +125,20 @@ Global assertions and pre-/post-conditions
 ------------------------------------------
 
 .. todo:: This will explain:
-* ``__global_requires``
 
-* ``__global_ensures``
+  * ``__global_requires``
 
-* ``__global_assert``
+  * ``__global_ensures``
+
+  * ``__global_assert``
 
 
 Reasoning about memory accesses
 -------------------------------
 
-.. todo:: ``__write_implies'', etc.  Be sure to comment on byte-level
-          reasoning issue.
+.. todo:: ``__write_implies``, etc.  Be sure to comment on byte-level reasoning 
+          issue.
+
 
 Barrier invariants
 ==================
