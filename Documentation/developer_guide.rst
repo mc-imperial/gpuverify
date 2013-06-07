@@ -124,8 +124,8 @@ Replace as appropriate
    to be aware of the location of all its dependencies. We currently do this by
    having an additional python script (gvfindtools.py) with hard coded absolute
    paths that a developer must configure by hand. gvfindtools.py is ignored by
-   Mercurial so each developer can their own configuration without interfering
-   with other users.
+   Mercurial so each developer can have their own configuration without
+   interfering with other users.
    ::
 
      $ cd ${BUILD_ROOT}/gpuverify
