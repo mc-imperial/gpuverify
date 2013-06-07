@@ -74,8 +74,8 @@ for. This verification result can be trusted, modulo bugs in GPUVerify
 and known sources of unsoundness in the tool.
 
 .. todo:: In due course this
-documentation will be updated to describe potential sources of
-unsoundness.
+  documentation will be updated to describe potential sources of
+  unsoundness.
 
 In verify mode, any defects reported by GPUVerify are **possible**
 defects.  If the kernel contains loops or multiple (non-inlined)
