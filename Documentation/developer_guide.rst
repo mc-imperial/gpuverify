@@ -174,7 +174,7 @@ Replace as appropriate
 Windows
 -------
 
-.. todo:: Coming in due course
+.. todo:: Windows build instructions
 
 Deploying GPUVerify
 ===================
@@ -205,7 +205,7 @@ The GPUVerify repository has a pre-built version of Boogie inside it to make
 building the project a little bit easier. If you wish to rebuild Boogie for use
 in GPUVerify then follow the steps below
 
-.. todo:: Coming in due course
+.. todo:: Building Boogie for GPUVerify
 
 Test framework
 ==============
