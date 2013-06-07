@@ -791,7 +791,7 @@ namespace Microsoft.Boogie
         return PipelineOutcome.TypeCheckingError;
       }
 
-      LinearTypechecker linearTypechecker = new LinearTypechecker();
+      LinearTypechecker linearTypechecker = new LinearTypechecker(program);
       linearTypechecker.VisitProgram(program);
       if (linearTypechecker.errorCount > 0) {
         Console.WriteLine("{0} type checking errors detected in {1}", errorCount, bplFileName);
