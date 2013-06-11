@@ -28,7 +28,7 @@ To build GPUVerify follow this guide in a bash shell.
 Note ``${BUILD_ROOT}`` refers to where ever you wish to build GPUVerify.
 Replace as appropriate or setup an environment variable.::
 
-     $ export BUILD_ROOT=/path/to/install
+     $ export BUILD_ROOT=/path/to/build
 
 .. 
   Note Sphinx is incredibly picky about indentation in lists. Everything
@@ -208,9 +208,9 @@ To build GPUVerify follow this guide in a powershell window.
 Note ``${BUILD_ROOT}`` refers to where ever you wish to build GPUVerify.
 Replace as appropriate or setup an environment variable.::
 
-      > ${BUILD_ROOT}=C:\path\to\install
+      > ${BUILD_ROOT}=C:\path\to\build
 
-We recommend that you install GPUVerify to a local hard drive like ``C:``
+We recommend that you build GPUVerify to a local hard drive like ``C:``
 since this avoids problems with invoking scripts on network mounted
 drives.
 
