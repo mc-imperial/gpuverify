@@ -171,7 +171,7 @@ class ToolWatcher(object):
     if self.popenObject.poll() == None :
       # Program is still running, let's kill it
       self.__killed=True
-      self.popenObject.kill()
+      self.popenObject.terminate()
 
   """ Create a ToolWatcher instance with an existing "subprocess.Popen" instance
       and timeout.
