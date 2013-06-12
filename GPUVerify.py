@@ -100,10 +100,7 @@ class CommandLineOptions(object):
                                    "/typeEncoding:m", 
                                    "/doModSetAnalysis", 
                                    "/proverOpt:OPTIMIZE_FOR_BV=true", 
-                                   "/useArrayTheory", 
-				   "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe",
-                                   "/z3opt:RELEVANCY=0", 
-                                   "/z3opt:SOLVER=true", 
+                                   "/useArrayTheory",
                                    "/doNotUseLabels", 
                                    "/noinfer", 
                                    "/enhancedErrorMessages:1",
@@ -139,6 +136,7 @@ class CommandLineOptions(object):
   keepTemps = False
   asymmetricAsserts = False
   generateSmt2 = False
+  useCVC4 = False
   noBarrierAccessChecks = False
   testsuite = False
   skip = { "clang": False,
@@ -330,6 +328,7 @@ def showHelpAndExit():
   print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
+  print "  --use-cvc4              Use the CVC4 SMT solver backend instead of the Z3 default"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"         
@@ -483,6 +482,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.asymmetricAsserts = True
     if o == "--gen-smt2":
       CommandLineOptions.generateSmt2 = True
+    if o == "--use-cvc4":
+      CommandLineOptions.useCVC4 = True
     if o == "--testsuite":
       CommandLineOptions.testsuite = True
     if o == "--bugle-lang":
@@ -586,7 +587,8 @@ def main(argv=None):
               'blockDim=', 'gridDim=',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
-              'boogie-file=', 'staged-inference'
+              'boogie-file=', 'staged-inference',
+              'use-cvc4'
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -707,6 +709,14 @@ def main(argv=None):
 
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
+
+  if CommandLineOptions.useCVC4:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:SOLVER=cvc4" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
+  else:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:RELEVANCY=0" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:SOLVER=true" ]
 
   if CommandLineOptions.generateSmt2:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
