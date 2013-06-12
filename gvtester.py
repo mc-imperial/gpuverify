@@ -136,7 +136,6 @@ class GPUVerifyTestKernel:
                     logging.debug('Performing command line argument substitution on:' + self.gpuverifyCmdArgs[index])
                     self.gpuverifyCmdArgs[index]=template.substitute(cmdArgsSubstitution)
                     logging.debug('Substitution complete, result:' + self.gpuverifyCmdArgs[index])
-            self.gpuverifyCmdArgs.append("--use-cvc4")
 
 
             #Grab (optional regex line(s))
