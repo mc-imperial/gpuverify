@@ -203,8 +203,15 @@ class GPUVerifyTestKernel:
         
         
         #Record the true return code of GPUVerify
-        self.gpuverifyReturnCode=processInstance.returncode
-        logging.debug("GPUVerify return code:" + GPUVerifyErrorCodes.errorCodeToString[self.gpuverifyReturnCode])
+        if processInstance.returncode < 0:
+          # Treat the test as skipped.
+          logging.error(threadStr + 'An external program killed test "'+ 
+                        self.path + '" with signal ' + 
+                        str(-1*processInstance.returncode))
+          return 
+        else:
+          self.gpuverifyReturnCode=processInstance.returncode
+          logging.debug("GPUVerify return code:" + GPUVerifyErrorCodes.errorCodeToString[self.gpuverifyReturnCode])
         
         #Do Regex tests if the rest of the test went okay
         if self.gpuverifyReturnCode == self.expectedReturnCode:
@@ -550,7 +557,7 @@ class ThreadPool:
             self.theQueue.task_done()
           except Queue.Empty:
             break #Handle potential race where the queue becomes empty whilst executing try block
-          
+        
         raise
 
 def main(arg):  
