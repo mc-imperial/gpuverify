@@ -179,13 +179,23 @@ class GPUVerifyTestKernel:
         try:
             logging.info(threadStr + "Running test " + self.path)
             logging.debug(self) # show pre test information
+
+            # On POSIX systems put GPUVerify in its own process group.
+            # If GPUVerify tries to do something crazy like kill everything
+            # in its process group then we will be killed if we don't call
+            # use os.setsid()
+            _posixSession=None;
+            if os.name == 'posix':
+              _posixSession = os.setsid
+
             processInstance=subprocess.Popen(cmdLine,
                                              stdout=subprocess.PIPE, 
                                              stderr=subprocess.STDOUT,
-                                             cwd=os.path.dirname(self.path)
+                                             cwd=os.path.dirname(self.path),
+                                             preexec_fn=_posixSession
                                             )
             stdout=processInstance.communicate() #Allow program to run and wait for it to exit.    
-            
+
         except KeyboardInterrupt:
             logging.error("Received keyboard interrupt. Attempting to kill GPUVerify process")
             processInstance.kill()
@@ -500,23 +510,6 @@ class Worker(threading.Thread):
             test.run()
             #Notify the Queue that we finished our task
             self.theQueue.task_done()
-
-            #Hack: If we detect that that the return code was CTRL+C
-            # then we should probably trigger termination, we'll
-            # do this by trying to empty the queue so that eventually
-            # the main thread will unblock so that 
-            if test.gpuverifyReturnCode == GPUVerifyErrorCodes.CTRL_C:
-                logging.error("Detected CTRL+C, trying to stop any more tests being executed.")
-                while True:
-                    #Try to empty the queue
-                    try:
-                        self.theQueue.get()
-                        self.theQueue.task_done()
-                        logging.debug("Removed one item from queue is. There are now" + 
-                                      str(self.theQueue.qsize()) + " items left.")
-                    except Queue.empty:
-                        logging.debug("The queue is now empty.")
-                        break
                         
 class ThreadPool:
     def __init__(self, numberOfThreads):
@@ -535,7 +528,30 @@ class ThreadPool:
             tid.start()
 
     def waitForCompletion(self):
-        self.theQueue.join()
+      """ This will wait for the queue to empty.
+          We use a polling wait because Queue.join()
+          blocks until queue is empty, even if we get
+          sent signals like SIGTERM (i.e. We can't 
+          catch KeyboardInterrupt at the right time)
+
+      """
+      try:
+        # WARNING: unfinished_tasks is not part of public API
+        # so this might break in future. Cannot use Queue.empty()
+        # because that will return true before threads complete
+        while self.theQueue.unfinished_tasks > 0:
+          time.sleep(0.5)
+      except KeyboardInterrupt:
+        logging.error("Received keyboard interrupt. Clearing queue!")
+        
+        while not self.theQueue.empty():
+          try:
+            self.theQueue.get()
+            self.theQueue.task_done()
+          except Queue.Empty:
+            break #Handle potential race where the queue becomes empty whilst executing try block
+          
+        raise
 
 def main(arg):  
     parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
@@ -643,7 +659,10 @@ def main(arg):
 
     #Start tests
     threadPool.start()
-    threadPool.waitForCompletion()
+    try:
+      threadPool.waitForCompletion()
+    except KeyboardInterrupt:
+      sys.exit(GPUVerifyTesterErrorCodes.GENERAL_ERROR)
 
     end = time.time()
     logging.info("Finished running tests.")
