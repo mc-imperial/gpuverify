@@ -80,9 +80,14 @@ GPUVerifyTesterErrorCodes=enum('SUCCESS', 'FILE_SEARCH_ERROR','KERNEL_PARSE_ERRO
 
 class GPUVerifyTestKernel:
     
-    def __init__(self,path):
+    def __init__(self,path,additionalOptions=None):
         """
-            Initialise. Upon successful parsing of a kernel the follow attributes should be available.
+            
+            Initialise CUDA/OpenCL GPUVerify test. 
+            path                : The absolute path to the test kernel
+            additionalOptions   : A list of additional command line options to pass to GPUVerify
+            
+            Upon successful parsing of a kernel the follow attributes should be available.
             .expectedReturnCode : The expected return code of GPUVerify
             .gpuverifyCmdArgs   : A list of command line arguments to pass to GPUVerify
             .regex              : A dictionary of regular expressions that map to Success True/False
@@ -90,7 +95,7 @@ class GPUVerifyTestKernel:
         logging.debug("Parsing kernel \"{0}\" for test parameters".format(path))
         self.path=path
         
-        #Use with so that if exception throw file is still closed
+        #Use with so that if exception thrown file is still closed
         #Note need to use universal line endings to handle DOS format (groan) kernels
         with open(self.path,'rU') as fileObject:
             
@@ -164,6 +169,11 @@ class GPUVerifyTestKernel:
 
             #Finished parsing
             logging.debug("Successfully parsed kernel \"{0}\" for test parameters".format(path))
+
+            #Add additional GPUVerify command line args
+            if additionalOptions != None:
+              logging.debug("Adding additional command line arguments" + str(additionalOptions))
+              self.gpuverifyCmdArgs.extend(additionalOptions)
             
      
     def run(self):
@@ -578,6 +588,9 @@ def main(arg):
     parser.add_argument("-p","--canonical-path-prefix",type=str, default="testsuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
     parser.add_argument("-r,","--compare-run", type=str ,default="", help="After performing test runs compare the result of that run with the runs recorded in a pickle file.")
     parser.add_argument("-j","--threads", type=int ,default=multiprocessing.cpu_count(), help="Number of tests to run in parallel (default: %(default)s)")
+    parser.add_argument("--gvopt=", type=str, default=None, action='append', 
+                        help="Pass a command line options to GPUVerify for all tests. This option can be specified multiple times.  E.g. --gvopt=--keep-temps --gvopt=--no-benign",
+                        metavar='GPUVerifyCmdLineOption')
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
@@ -641,7 +654,7 @@ def main(arg):
     tests=[]
     for kernelPath in kernelFiles:
         try: 
-            tests.append(GPUVerifyTestKernel(kernelPath))
+            tests.append(GPUVerifyTestKernel(kernelPath, getattr(args,'gvopt=') ))
         except KernelParseError as e:
             logging.error(e)
             if args.stop_on_fail:
