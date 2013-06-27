@@ -153,13 +153,8 @@ namespace GPUVerify {
         }
       }
       Debug.Assert(state != null);
-      var element = state.TryGet(OffsetVar.Name);
-
-      Debug.Assert(element is Model.BitVector);
-      var BitVectorElement = ((Model.BitVector)element);
-
-      uint elemOffset = Convert.ToUInt32(BitVectorElement.Numeral);
-
+      var element = state.TryGet(OffsetVar.Name) as Model.Number;
+      uint elemOffset = Convert.ToUInt32(element.Numeral);
       Debug.Assert(OffsetVar.Attributes != null);
       uint elemWidth = (uint)QKeyValue.FindIntAttribute(OffsetVar.Attributes, "elem_width", int.MaxValue);
       Debug.Assert(elemWidth != int.MaxValue);

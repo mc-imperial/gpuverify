@@ -23,6 +23,7 @@ interface IRegion {
   IEnumerable<IRegion> SubRegions();
   Expr Guard();
   void AddInvariant(PredicateCmd pc);
+  List<PredicateCmd> RemoveInvariants();
 }
 
 }

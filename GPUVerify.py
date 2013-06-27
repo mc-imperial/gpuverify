@@ -99,11 +99,8 @@ class CommandLineOptions(object):
   gpuVerifyBoogieDriverOptions = [ "/nologo",
                                    "/typeEncoding:m", 
                                    "/doModSetAnalysis", 
-                                   "/proverOpt:OPTIMIZE_FOR_BV=true", 
                                    "/useArrayTheory", 
 				   "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe",
-                                   "/z3opt:RELEVANCY=0", 
-                                   "/z3opt:SOLVER=true", 
                                    "/doNotUseLabels", 
                                    "/noinfer", 
                                    "/enhancedErrorMessages:1",
@@ -137,6 +134,7 @@ class CommandLineOptions(object):
   boogieMemout=0
   boogieTimeout=300
   keepTemps = False
+  mathInt = False
   asymmetricAsserts = False
   generateSmt2 = False
   noBarrierAccessChecks = False
@@ -306,6 +304,7 @@ def showHelpAndExit():
   print "  --boogie-file=X.bpl     Specify a supporting .bpl file to be used during verification"
   print "  --boogie-opt=...        Specify option to be passed to Boogie"
   print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
+  print "  --bugle-opt=...         Specify option to be passed to Bugle"
   print "  --clang-opt=...         Specify option to be passed to CLANG"
   print "  --debug                 Enable debugging of GPUVerify components: exceptions will"
   print "                          not be suppressed"
@@ -313,6 +312,8 @@ def showHelpAndExit():
   print "                          threads, at barriers"
   print "  --gen-smt2              Generate smt2 file"
   print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
+  print "  --math-int              Represent integer types using mathematical integers"
+  print "                          instead of bit-vectors"
   print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
@@ -452,6 +453,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.equalityAbstraction = True
     if o == "--keep-temps":
       CommandLineOptions.keepTemps = True
+    if o == "--math-int":
+      CommandLineOptions.mathInt = True
     if o == "--no-barrier-access-checks":
       CommandLineOptions.noBarrierAccessChecks = True
     if o == "--no-loop-predicate-invariants":
@@ -468,6 +471,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
     if o == "--boogie-opt":
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
+    if o == "--bugle-opt":
+      CommandLineOptions.bugleOptions += str(a).split(" ")
     if o == "--staged-inference":
       CommandLineOptions.stagedInference = True 
     if o == "--stop-at-gbpl":
@@ -581,9 +586,9 @@ def main(argv=None):
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
-              'vcgen-opt=', 'boogie-opt=',
+              'vcgen-opt=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
-              'blockDim=', 'gridDim=',
+              'blockDim=', 'gridDim=', 'math-int',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference'
@@ -653,6 +658,8 @@ def main(argv=None):
 
   if ext in [ ".cl", ".cu" ]:
     CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
+    if CommandLineOptions.mathInt:
+      CommandLineOptions.bugleOptions += [ "-i", "math" ]
   elif not CommandLineOptions.skip['bugle']:
     lang = CommandLineOptions.bugleLanguage
     if not lang: # try to infer
@@ -698,21 +705,24 @@ def main(argv=None):
   if CommandLineOptions.stagedInference:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/stagedInference" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/stagedInference" ]
+  if CommandLineOptions.mathInt:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/mathInt" ]
+
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
   elif CommandLineOptions.inference:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
-
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
-
   if CommandLineOptions.generateSmt2:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
-
   if CommandLineOptions.debugging:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/debugGPUVerify" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/debugGPUVerify" ]
+  if not CommandLineOptions.mathInt:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += ["/proverOpt:OPTIMIZE_FOR_BV=true", "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
 
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 

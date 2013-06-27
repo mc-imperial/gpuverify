@@ -16,6 +16,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using Microsoft.Boogie;
+using Microsoft.Boogie.Houdini;
 using Microsoft.Basetypes;
 
 namespace GPUVerify
@@ -39,6 +40,7 @@ namespace GPUVerify
     {
         public string outputFilename;
         public Program Program;
+        public IntegerRepresentation IntRep;
         public ResolutionContext ResContext;
 
         public Dictionary<Procedure, Implementation> KernelProcedures;
@@ -105,6 +107,9 @@ namespace GPUVerify
         {
             this.outputFilename = filename;
             this.Program = program;
+            this.IntRep = CommandLineOptions.MathInt ?
+                (IntegerRepresentation)new MathIntegerRepresentation(this) :
+                (IntegerRepresentation)new BVIntegerRepresentation(this);
             this.ResContext = rc;
             this.RaceInstrumenter = raceInstrumenter;
             if(!skipCheck)
@@ -156,8 +161,8 @@ namespace GPUVerify
             {
                 p = new Procedure(Token.NoToken, "barrier", new TypeVariableSeq(),
                                   new VariableSeq(new Variable[] { 
-                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", new BvType(1)), true),
-                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__global_fence", new BvType(1)), true) }),
+                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", IntRep.GetIntType(1)), true),
+                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__global_fence", IntRep.GetIntType(1)), true) }),
                                   new VariableSeq(),
                                   new RequiresSeq(), new IdentifierExprSeq(),
                                   new EnsuresSeq(),
@@ -191,9 +196,9 @@ namespace GPUVerify
             p = new Procedure(Token.NoToken, "barrier_invariant_instantiation", new TypeVariableSeq(),
                               new VariableSeq(new Variable[] { 
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1", 
-                                      new BvType(32)), true),
+                                      IntRep.GetIntType(32)), true),
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", 
-                                      new BvType(32)), true)
+                                      IntRep.GetIntType(32)), true)
                               }),
                               new VariableSeq(), new RequiresSeq(), new IdentifierExprSeq(),
                               new EnsuresSeq(),
@@ -270,7 +275,8 @@ namespace GPUVerify
         {
             if (constFieldRef == null)
             {
-                constFieldRef = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, attr, Microsoft.Boogie.Type.GetBvType(32)), /*unique=*/false);
+                constFieldRef = new Constant(Token.NoToken, 
+                  new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(32)), /*unique=*/false);
                 constFieldRef.AddAttribute(attr);
                 Program.TopLevelDeclarations.Add(constFieldRef);
             }
@@ -475,6 +481,12 @@ namespace GPUVerify
               // global variables
               Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
               ComputeInvariant();
+
+              if (CommandLineOptions.AbstractHoudini)
+              {
+                new AbstractHoudiniTransformation(this).DoAbstractHoudiniTransform();
+              }
+
             }
 
             emitProgram(outputFilename);
@@ -1014,6 +1026,10 @@ namespace GPUVerify
             return Int32.Parse(p.Substring(p.IndexOf("$") + 1, p.Length - (p.IndexOf("$") + 1)));
         }
 
+        internal LiteralExpr Zero() {
+          return IntRep.GetLiteral(0, 32);
+        }
+
         private void GeneratePreconditionsForDimension(String dimension)
         {
             foreach (Declaration D in Program.TopLevelDeclarations.ToList())
@@ -1028,25 +1044,10 @@ namespace GPUVerify
                     continue;
                 }
 
-                Expr GroupSizePositive;
-                Expr NumGroupsPositive;
-                Expr GroupIdNonNegative;
-                Expr GroupIdLessThanNumGroups;
-
-                if (GetTypeOfId(dimension).Equals(Microsoft.Boogie.Type.GetBvType(32)))
-                {
-                  GroupSizePositive = MakeBVSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), ZeroBV());
-                  NumGroupsPositive = MakeBVSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), ZeroBV());
-                  GroupIdNonNegative = MakeBVSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), ZeroBV());
-                  GroupIdLessThanNumGroups = MakeBVSlt(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)));
-                }
-                else
-                {
-                  GroupSizePositive = Expr.Gt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), Zero());
-                  NumGroupsPositive = Expr.Gt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), Zero());
-                  GroupIdNonNegative = Expr.Ge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), Zero());
-                  GroupIdLessThanNumGroups = Expr.Lt(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)));
-                }
+                Expr GroupSizePositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), Zero());
+                Expr NumGroupsPositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), Zero());
+                Expr GroupIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), Zero());
+                Expr GroupIdLessThanNumGroups = IntRep.MakeSlt(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)));
 
                 Proc.Requires.Add(new Requires(false, GroupSizePositive));
                 Proc.Requires.Add(new Requires(false, NumGroupsPositive));
@@ -1061,16 +1062,9 @@ namespace GPUVerify
                   Proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(GroupIdLessThanNumGroups)));
                 }
 
-                Expr ThreadIdNonNegative =
-                    GetTypeOfId(dimension).Equals(Microsoft.Boogie.Type.GetBvType(32)) ?
-                            MakeBVSge(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), ZeroBV())
-                    :
-                            Expr.Ge(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), Zero());
-                Expr ThreadIdLessThanGroupSize =
-                    GetTypeOfId(dimension).Equals(Microsoft.Boogie.Type.GetBvType(32)) ?
-                            MakeBVSlt(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)))
-                    :
-                            Expr.Lt(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)));
+                Expr ThreadIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), Zero());
+                Expr ThreadIdLessThanGroupSize = IntRep.MakeSlt(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)),
+                  new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)));
 
                 Proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(ThreadIdNonNegative)));
                 Proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(ThreadIdNonNegative)));
@@ -1081,100 +1075,58 @@ namespace GPUVerify
 
         }
 
-        private Function GetOrCreateBVFunction(string functionName, string smtName, Microsoft.Boogie.Type resultType, params Microsoft.Boogie.Type[] argTypes)
+        internal Function GetOrCreateBVFunction(string functionName, string smtName, Microsoft.Boogie.Type resultType, params Microsoft.Boogie.Type[] argTypes)
         {
             Function f = (Function)ResContext.LookUpProcedure(functionName);
             if (f != null)
                 return f;
 
             f = new Function(Token.NoToken, functionName,
-                             new VariableSeq(argTypes.Select(t => new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", t))).ToArray()),
-                             new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
+                              new VariableSeq(argTypes.Select(t => new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", t))).ToArray()),
+                              new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
             f.AddAttribute("bvbuiltin", smtName);
             Program.TopLevelDeclarations.Add(f);
             ResContext.AddProcedure(f);
             return f;
         }
 
-        private Expr MakeBVFunctionCall(string functionName, string smtName, Microsoft.Boogie.Type resultType, params Expr[] args)
+        internal Function GetOrCreateIntFunction(string functionName, BinaryOperator.Opcode infixOp, Microsoft.Boogie.Type resultType, Microsoft.Boogie.Type lhsType, Microsoft.Boogie.Type rhsType)
         {
-            Function f = GetOrCreateBVFunction(functionName, smtName, resultType, args.Select(a => a.Type).ToArray());
-            var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new ExprSeq(args));
-            e.Type = resultType;
-            return e;
+          Function f = (Function)ResContext.LookUpProcedure(functionName);
+          if (f != null)
+              return f;
+
+          VariableSeq inParams = new VariableSeq();
+          Variable lhs = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x", lhsType));
+          Variable rhs = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "y", rhsType));
+          inParams.Add(lhs);
+          inParams.Add(rhs);
+
+          f = new Function(Token.NoToken, functionName,
+                            inParams,
+                            new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
+          f.AddAttribute("inline", Expr.True);
+          f.Body = Expr.Binary(infixOp, new IdentifierExpr(Token.NoToken, lhs), new IdentifierExpr(Token.NoToken, rhs)); 
+
+          Program.TopLevelDeclarations.Add(f);
+          ResContext.AddProcedure(f);
+          return f;
         }
 
-        private Expr MakeBitVectorBinaryBoolean(string suffix, string smtName, Expr lhs, Expr rhs)
+        internal Function GetOrCreateBinaryUF(string functionName, Microsoft.Boogie.Type resultType, Microsoft.Boogie.Type lhsType, Microsoft.Boogie.Type rhsType)
         {
-            return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, Microsoft.Boogie.Type.Bool, lhs, rhs);
+          Function f = (Function)ResContext.LookUpProcedure(functionName);
+          if (f != null)
+              return f;
+
+          f = new Function(Token.NoToken, functionName,
+                            new VariableSeq { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", lhsType)),
+                                              new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", rhsType))},
+                            new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
+          Program.TopLevelDeclarations.Add(f);
+          ResContext.AddProcedure(f);
+          return f;
         }
-
-        private Expr MakeBitVectorBinaryBitVector(string suffix, string smtName, Expr lhs, Expr rhs)
-        {
-            return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, lhs.Type, lhs, rhs);
-        }
-
-        internal Expr MakeBVSlt(Expr lhs, Expr rhs) { return MakeBitVectorBinaryBoolean("SLT", "bvslt", lhs, rhs); }
-        internal Expr MakeBVSgt(Expr lhs, Expr rhs) { return MakeBitVectorBinaryBoolean("SGT", "bvsgt", lhs, rhs); }
-        internal Expr MakeBVSge(Expr lhs, Expr rhs) { return MakeBitVectorBinaryBoolean("SGE", "bvsge", lhs, rhs); }
-
-        internal Expr MakeBVAnd(Expr lhs, Expr rhs) { return MakeBitVectorBinaryBitVector("AND", "bvand", lhs, rhs); }
-        internal Expr MakeBVAdd(Expr lhs, Expr rhs) { return MakeBitVectorBinaryBitVector("ADD", "bvadd", lhs, rhs); }
-        internal Expr MakeBVSub(Expr lhs, Expr rhs) { return MakeBitVectorBinaryBitVector("SUB", "bvsub", lhs, rhs); }
-        internal Expr MakeBVMul(Expr lhs, Expr rhs) { return MakeBitVectorBinaryBitVector("MUL", "bvmul", lhs, rhs); }
-        internal Expr MakeBVURem(Expr lhs, Expr rhs) { return MakeBitVectorBinaryBitVector("UREM", "bvurem", lhs, rhs); }
-
-        internal static Expr MakeBitVectorBinaryBoolean(string functionName, Expr lhs, Expr rhs)
-        {
-            return new NAryExpr(lhs.tok, new FunctionCall(new Function(lhs.tok, functionName, new VariableSeq(new Variable[] { 
-                new LocalVariable(lhs.tok, new TypedIdent(lhs.tok, "arg1", Microsoft.Boogie.Type.GetBvType(32))),
-                new LocalVariable(lhs.tok, new TypedIdent(lhs.tok, "arg2", Microsoft.Boogie.Type.GetBvType(32)))
-            }), new LocalVariable(lhs.tok, new TypedIdent(lhs.tok, "result", Microsoft.Boogie.Type.Bool)))), new ExprSeq(new Expr[] { lhs, rhs }));
-        }
-
-        internal static Expr MakeBitVectorBinaryBitVector(string functionName, Expr lhs, Expr rhs)
-        {
-            return new NAryExpr(lhs.tok, new FunctionCall(new Function(lhs.tok, functionName, new VariableSeq(new Variable[] { 
-                new LocalVariable(lhs.tok, new TypedIdent(lhs.tok, "arg1", Microsoft.Boogie.Type.GetBvType(32))),
-                new LocalVariable(lhs.tok, new TypedIdent(lhs.tok, "arg2", Microsoft.Boogie.Type.GetBvType(32)))
-            }), new LocalVariable(lhs.tok, new TypedIdent(lhs.tok, "result", Microsoft.Boogie.Type.GetBvType(32))))), new ExprSeq(new Expr[] { lhs, rhs }));
-        }
-
-        private static bool IsBVFunctionCall(Expr e, string smtName, out ExprSeq args)
-        {
-            args = null;
-            var ne = e as NAryExpr;
-            if (ne == null)
-                return false;
-
-            var fc = ne.Fun as FunctionCall;
-            if (fc == null)
-                return false;
-
-            string bvBuiltin = QKeyValue.FindStringAttribute(fc.Func.Attributes, "bvbuiltin");
-            if (bvBuiltin == smtName)
-            {
-                args = ne.Args;
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool IsBVFunctionCall(Expr e, string smtName, out Expr lhs, out Expr rhs)
-        {
-            ExprSeq es;
-            if (IsBVFunctionCall(e, smtName, out es))
-            {
-                lhs = es[0]; rhs = es[1];
-                return true;
-            }
-            lhs = null; rhs = null;
-            return false;
-        }
-
-        internal static bool IsBVAdd(Expr e, out Expr lhs, out Expr rhs) { return IsBVFunctionCall(e, "bvadd", out lhs, out rhs); }
-        internal static bool IsBVMul(Expr e, out Expr lhs, out Expr rhs) { return IsBVFunctionCall(e, "bvmul", out lhs, out rhs); }
 
         internal Constant GetGroupSize(string dimension)
         {
@@ -1229,18 +1181,6 @@ namespace GPUVerify
             Constant resultWithoutThreadId = GetGroupId(dimension);
             return new Constant(Token.NoToken, new TypedIdent(Token.NoToken, resultWithoutThreadId.Name + "$" + number, GetTypeOfId(dimension)));
         }
-
-        private static LiteralExpr Zero()
-        {
-            return new LiteralExpr(Token.NoToken, BigNum.FromInt(0));
-        }
-
-        internal static LiteralExpr ZeroBV()
-        {
-            return new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 32);
-        }
-
-        
 
         private void GenerateBarrierImplementation()
         {
@@ -1381,24 +1321,17 @@ namespace GPUVerify
 
             BarrierImplementation.Resolve(ResContext);
 
-            BarrierImplementation.AddAttribute("inline", new object[] { new LiteralExpr(tok, BigNum.FromInt(1)) });
-            BarrierProcedure.AddAttribute("inline", new object[] { new LiteralExpr(tok, BigNum.FromInt(1)) });
+            AddInlineAttribute(BarrierImplementation);
+            AddInlineAttribute(BarrierProcedure);
 
             BarrierImplementation.Proc = BarrierProcedure;
 
             Program.TopLevelDeclarations.Add(BarrierImplementation);
         }
 
-        private static NAryExpr MakeFenceExpr(Variable v) {
-          return Expr.Eq(new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, v.TypedIdent)), 
-            new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1));
-        }
-
-        private static Expr flagIsSet(Expr Flags, int flag)
-        {
-            return Expr.Eq(new BvExtractExpr(
-                                    Token.NoToken, Flags, flag, flag - 1),
-                                    new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1));
+        private NAryExpr MakeFenceExpr(Variable v) {
+          return Expr.Neq(new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, v.TypedIdent)), 
+            IntRep.GetLiteral(0, 1));
         }
 
         private List<BigBlock> MakeResetBlocks(Expr ResetCondition, ICollection<Variable> variables)
@@ -1484,10 +1417,10 @@ namespace GPUVerify
             return "_" + AccessType + "_OFFSET_" + Name;
         }
 
-        internal static GlobalVariable MakeOffsetVariable(string Name, string ReadOrWrite)
+        internal GlobalVariable MakeOffsetVariable(string Name, string ReadOrWrite)
         {
           return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, ReadOrWrite), 
-            Microsoft.Boogie.Type.GetBvType(32)));
+            IntRep.GetIntType(32)));
         }
 
         internal static string MakeSourceVariableName(string Name, string AccessType)
@@ -1495,10 +1428,10 @@ namespace GPUVerify
           return "_" + AccessType + "_SOURCE_" + Name;
         }
 
-        internal static GlobalVariable MakeSourceVariable(string name, string ReadOrWrite)
+        internal GlobalVariable MakeSourceVariable(string name, string ReadOrWrite)
         {
           return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeSourceVariableName(name, ReadOrWrite),
-            Microsoft.Boogie.Type.GetBvType(32)));
+            IntRep.GetIntType(32)));
         }
 
         internal static string MakeValueVariableName(string Name, string AccessType) {
@@ -1748,11 +1681,13 @@ namespace GPUVerify
             {
                 Error(BarrierProcedure, "Barrier procedure must take exactly two arguments");
             }
-            else if (!BarrierProcedure.InParams[0].TypedIdent.Type.Equals(new BvType(1)))
+            else if (!BarrierProcedure.InParams[0].TypedIdent.Type.Equals(
+              IntRep.GetIntType(1)))
             {
-                Error(BarrierProcedure, "First argument to barrier procedure must have type bv1");
+              Error(BarrierProcedure, "First argument to barrier procedure must have type bv1");
             }
-            else if (!BarrierProcedure.InParams[1].TypedIdent.Type.Equals(new BvType(1))) {
+            else if (!BarrierProcedure.InParams[1].TypedIdent.Type.Equals(
+              IntRep.GetIntType(1))) {
               Error(BarrierProcedure, "Second argument to barrier procedure must have type bv1");
             }
 
@@ -1837,7 +1772,7 @@ namespace GPUVerify
 
         internal Expr GlobalIdExpr(string dimension)
         {
-            return MakeBVAdd(MakeBVMul(
+            return IntRep.MakeAdd(IntRep.MakeMul(
                             new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetGroupSize(dimension))),
                                 new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)));
         }
@@ -1987,7 +1922,14 @@ namespace GPUVerify
           }
           return false;
         }
-    
+
+
+        internal static void AddInlineAttribute(Declaration d)
+        {
+          d.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1)) });
+        }
+
+
     }
 
 

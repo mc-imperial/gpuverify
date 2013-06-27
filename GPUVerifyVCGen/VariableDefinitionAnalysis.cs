@@ -196,6 +196,7 @@ class VariableDefinitionAnalysis {
       VarDef def;
       if (!analysis.namedDefMap.TryGetValue(varName, out def)) {
         isSubstitutable = false;
+        isConstant = false;
         return null;
       }
       if (!def.Item2)

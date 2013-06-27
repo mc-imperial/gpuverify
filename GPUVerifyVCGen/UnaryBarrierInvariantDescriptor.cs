@@ -19,8 +19,9 @@ namespace GPUVerify {
     private List<Expr> InstantiationExprs;
 
     public UnaryBarrierInvariantDescriptor(Expr Predicate, Expr BarrierInvariant,
-        QKeyValue SourceLocationInfo, KernelDualiser Dualiser, string ProcName) : 
-      base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName) {
+        QKeyValue SourceLocationInfo, KernelDualiser Dualiser, string ProcName,
+        GPUVerifier Verifier) : 
+      base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName, Verifier) {
       InstantiationExprs = new List<Expr>();
     }
 

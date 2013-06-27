@@ -98,7 +98,7 @@ class ReducedStrengthAnalysis {
         return new StrideForm(StrideForm.Kind.Identity, e);
     }
 
-    if (GPUVerifier.IsBVAdd(e, out lhs, out rhs)) {
+    if (verifier.IntRep.IsAdd(e, out lhs, out rhs)) {
       var lhssf = ComputeStrideForm(v, lhs);
       var rhssf = ComputeStrideForm(v, rhs);
       if (lhssf.kind == StrideForm.Kind.Constant &&
@@ -112,10 +112,10 @@ class ReducedStrengthAnalysis {
         return new StrideForm(StrideForm.Kind.Product, rhs);
       else if (lhssf.kind == StrideForm.Kind.Constant &&
                rhssf.kind == StrideForm.Kind.Product)
-        return new StrideForm(StrideForm.Kind.Product, verifier.MakeBVAdd(lhs, rhssf.op));
+        return new StrideForm(StrideForm.Kind.Product, verifier.IntRep.MakeAdd(lhs, rhssf.op));
       else if (lhssf.kind == StrideForm.Kind.Product &&
                rhssf.kind == StrideForm.Kind.Constant)
-        return new StrideForm(StrideForm.Kind.Product, verifier.MakeBVAdd(lhssf.op, rhs));
+        return new StrideForm(StrideForm.Kind.Product, verifier.IntRep.MakeAdd(lhssf.op, rhs));
       else
         return new StrideForm(StrideForm.Kind.Bottom);
     }

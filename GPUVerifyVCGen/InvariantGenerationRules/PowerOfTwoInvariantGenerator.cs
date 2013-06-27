@@ -42,13 +42,15 @@ namespace GPUVerify.InvariantGenerationRules
                             for (int i = (1 << 15); i > 0; i >>= 1)
                             {
                                 verifier.AddCandidateInvariant(region, 
-                                    verifier.MakeBVSlt(
+                                    verifier.IntRep.MakeSlt(
                                     new IdentifierExpr(v.tok, v),
-                                    new LiteralExpr(v.tok, BigNum.FromInt(i), 32)), "pow2 less than " + i, InferenceStages.BASIC_CANDIDATE_STAGE);
+                                    verifier.IntRep.GetLiteral(i, 32)),
+                                    "pow2 less than " + i, InferenceStages.BASIC_CANDIDATE_STAGE);
                             }
                             verifier.AddCandidateInvariant(region,
                                 Expr.Neq(new IdentifierExpr(v.tok, v),
-                                new LiteralExpr(v.tok, BigNum.FromInt(0), 32)), "pow2 not zero", InferenceStages.BASIC_CANDIDATE_STAGE);
+                                verifier.IntRep.GetLiteral(0, 32)),
+                                "pow2 not zero", InferenceStages.BASIC_CANDIDATE_STAGE);
                         }
                     }
                 }
@@ -60,11 +62,13 @@ namespace GPUVerify.InvariantGenerationRules
             Expr result = null;
             for (int i = 1 << 15; i > 0; i >>= 1)
             {
-                Expr eq = Expr.Eq(new IdentifierExpr(v.tok, v), new LiteralExpr(v.tok, BigNum.FromInt(i), 32));
+                Expr eq = Expr.Eq(new IdentifierExpr(v.tok, v), 
+                  verifier.IntRep.GetLiteral(i, 32));
                 result = (result == null ? eq : Expr.Or(eq, result));
             }
 
-            return Expr.Or(Expr.Eq(new IdentifierExpr(v.tok, v), new LiteralExpr(v.tok, BigNum.FromInt(0), 32)), result);
+            return Expr.Or(Expr.Eq(new IdentifierExpr(v.tok, v),
+              verifier.IntRep.GetLiteral(0, 32)), result);
         }
 
     }
