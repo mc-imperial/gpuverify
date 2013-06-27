@@ -3,6 +3,7 @@
 import atexit
 import getopt
 import os
+import signal
 import subprocess
 import sys
 import timeit
@@ -163,12 +164,12 @@ class ToolWatcher(object):
 
   The class is reentrant
   """
-   
+
   def __handleTimeOut(self):
     if self.popenObject.poll() == None :
-      #Program is still running, let's kill it
+      # Program is still running, let's kill it
       self.__killed=True
-      self.popenObject.kill()
+      self.popenObject.terminate()
 
   """ Create a ToolWatcher instance with an existing "subprocess.Popen" instance
       and timeout.
@@ -182,11 +183,11 @@ class ToolWatcher(object):
 
     self.timer=threading.Timer(self.timeout, self.__handleTimeOut)
     self.timer.start()
-  
+
   """ Returns True if the timeout occurred """
   def timeOutOccured(self):
     return self.__killed
-  
+
   """ Cancel the timeout. You must call this if your program wishes
       to exit else exit() will block waiting for this class's Thread
       (threading.Timer) to finish.
@@ -205,15 +206,15 @@ def run(command,timeout=0):
     popenargs['bufsize']=0
     popenargs['stdout']=subprocess.PIPE
     popenargs['stderr']=subprocess.PIPE
-    
+
   killer=None
   def cleanupKiller():
     if killer!=None:
       killer.cancelTimeout()
-      
+
   proc = subprocess.Popen(command,**popenargs)
   if timeout > 0:
-    killer=ToolWatcher(proc,timeout)   
+    killer=ToolWatcher(proc,timeout)
   try:
     stdout, stderr = proc.communicate()
     if killer != None and killer.timeOutOccured():
@@ -225,7 +226,7 @@ def run(command,timeout=0):
   finally:
     #Need to kill the timer if it exists else exit() will block until the timer finishes
     cleanupKiller()
-    
+
   return stdout, stderr, proc.returncode
 
 class ErrorCodes(object):
@@ -238,7 +239,7 @@ class ErrorCodes(object):
   BOOGIE_ERROR = 6
   BOOGIE_TIMEOUT = 7
   CTRL_C = 8
-  
+
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool. 
       If the timeout is set to 0 then there will no timeout.
@@ -795,29 +796,44 @@ def main(argv=None):
   return 0
 
 def showTiming():
-  if Timing and CommandLineOptions.time:
-    tools, times = map(list, zip(*Timing))
-    total = sum(times)
-    if CommandLineOptions.timeCSVLabel is not None:
-      label = CommandLineOptions.timeCSVLabel
-      times.append(total)
-      row = [ '%.3f' % t for t in times ]
-      if len(label) > 0: row.insert(0, label)
-      if exitHook.code is ErrorCodes.SUCCESS:
-        row.append('PASS')
-        print ', '.join(row)
-      else:
-        row.append('FAIL(' + str(exitHook.code) + ')')
-        print >> sys.stderr, ', '.join(row) 
+  tools, times = map(list, zip(*Timing))
+  total = sum(times)
+  if CommandLineOptions.timeCSVLabel is not None:
+    label = CommandLineOptions.timeCSVLabel
+    times.append(total)
+    row = [ '%.3f' % t for t in times ]
+    if len(label) > 0: row.insert(0, label)
+    if exitHook.code is ErrorCodes.SUCCESS:
+      row.append('PASS')
+      print ', '.join(row)
     else:
-      padTool = max([ len(tool) for tool in tools ])
-      padTime = max([ len('%.3f secs' % t) for t in times ])
-      print "Timing information (%.2f secs):" % total
-      for (tool, t) in Timing:
-        print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+      row.append('FAIL(' + str(exitHook.code) + ')')
+      print >> sys.stderr, ', '.join(row) 
+  else:
+    padTool = max([ len(tool) for tool in tools ])
+    padTime = max([ len('%.3f secs' % t) for t in times ])
+    print "Timing information (%.2f secs):" % total
+    for (tool, t) in Timing:
+      print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+
+def killChildrenPosix():
+  def handler(signal,frame):
+    return
+
+  signal.signal(signal.SIGINT, handler)
+  os.killpg(0,signal.SIGINT)
+
+def exitHandler():
+  if Timing and CommandLineOptions.time:
+    showTiming()
+
   sys.stderr.flush()
   sys.stdout.flush()
 
+  # Kill child processes that might not have been killed, e.g., Z3
+  if os.name == 'posix':
+    killChildrenPosix()
+
 if __name__ == '__main__':
-  atexit.register(showTiming)
+  atexit.register(exitHandler)
   sys.exit(main())

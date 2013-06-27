@@ -80,9 +80,14 @@ GPUVerifyTesterErrorCodes=enum('SUCCESS', 'FILE_SEARCH_ERROR','KERNEL_PARSE_ERRO
 
 class GPUVerifyTestKernel:
     
-    def __init__(self,path):
+    def __init__(self,path,additionalOptions=None):
         """
-            Initialise. Upon successful parsing of a kernel the follow attributes should be available.
+            
+            Initialise CUDA/OpenCL GPUVerify test. 
+            path                : The absolute path to the test kernel
+            additionalOptions   : A list of additional command line options to pass to GPUVerify
+            
+            Upon successful parsing of a kernel the follow attributes should be available.
             .expectedReturnCode : The expected return code of GPUVerify
             .gpuverifyCmdArgs   : A list of command line arguments to pass to GPUVerify
             .regex              : A dictionary of regular expressions that map to Success True/False
@@ -90,7 +95,7 @@ class GPUVerifyTestKernel:
         logging.debug("Parsing kernel \"{0}\" for test parameters".format(path))
         self.path=path
         
-        #Use with so that if exception throw file is still closed
+        #Use with so that if exception thrown file is still closed
         #Note need to use universal line endings to handle DOS format (groan) kernels
         with open(self.path,'rU') as fileObject:
             
@@ -164,6 +169,11 @@ class GPUVerifyTestKernel:
 
             #Finished parsing
             logging.debug("Successfully parsed kernel \"{0}\" for test parameters".format(path))
+
+            #Add additional GPUVerify command line args
+            if additionalOptions != None:
+              logging.debug("Adding additional command line arguments" + str(additionalOptions))
+              self.gpuverifyCmdArgs.extend(additionalOptions)
             
      
     def run(self):
@@ -179,13 +189,23 @@ class GPUVerifyTestKernel:
         try:
             logging.info(threadStr + "Running test " + self.path)
             logging.debug(self) # show pre test information
+
+            # On POSIX systems put GPUVerify in its own process group.
+            # If GPUVerify tries to do something crazy like kill everything
+            # in its process group then we will be killed if we don't call
+            # use os.setsid()
+            _posixSession=None;
+            if os.name == 'posix':
+              _posixSession = os.setsid
+
             processInstance=subprocess.Popen(cmdLine,
                                              stdout=subprocess.PIPE, 
                                              stderr=subprocess.STDOUT,
-                                             cwd=os.path.dirname(self.path)
+                                             cwd=os.path.dirname(self.path),
+                                             preexec_fn=_posixSession
                                             )
             stdout=processInstance.communicate() #Allow program to run and wait for it to exit.    
-            
+
         except KeyboardInterrupt:
             logging.error("Received keyboard interrupt. Attempting to kill GPUVerify process")
             processInstance.kill()
@@ -193,8 +213,15 @@ class GPUVerifyTestKernel:
         
         
         #Record the true return code of GPUVerify
-        self.gpuverifyReturnCode=processInstance.returncode
-        logging.debug("GPUVerify return code:" + GPUVerifyErrorCodes.errorCodeToString[self.gpuverifyReturnCode])
+        if processInstance.returncode < 0:
+          # Treat the test as skipped.
+          logging.error(threadStr + 'An external program killed test "'+ 
+                        self.path + '" with signal ' + 
+                        str(-1*processInstance.returncode))
+          return 
+        else:
+          self.gpuverifyReturnCode=processInstance.returncode
+          logging.debug("GPUVerify return code:" + GPUVerifyErrorCodes.errorCodeToString[self.gpuverifyReturnCode])
         
         #Do Regex tests if the rest of the test went okay
         if self.gpuverifyReturnCode == self.expectedReturnCode:
@@ -500,23 +527,6 @@ class Worker(threading.Thread):
             test.run()
             #Notify the Queue that we finished our task
             self.theQueue.task_done()
-
-            #Hack: If we detect that that the return code was CTRL+C
-            # then we should probably trigger termination, we'll
-            # do this by trying to empty the queue so that eventually
-            # the main thread will unblock so that 
-            if test.gpuverifyReturnCode == GPUVerifyErrorCodes.CTRL_C:
-                logging.error("Detected CTRL+C, trying to stop any more tests being executed.")
-                while True:
-                    #Try to empty the queue
-                    try:
-                        self.theQueue.get()
-                        self.theQueue.task_done()
-                        logging.debug("Removed one item from queue is. There are now" + 
-                                      str(self.theQueue.qsize()) + " items left.")
-                    except Queue.empty:
-                        logging.debug("The queue is now empty.")
-                        break
                         
 class ThreadPool:
     def __init__(self, numberOfThreads):
@@ -535,7 +545,30 @@ class ThreadPool:
             tid.start()
 
     def waitForCompletion(self):
-        self.theQueue.join()
+      """ This will wait for the queue to empty.
+          We use a polling wait because Queue.join()
+          blocks until queue is empty, even if we get
+          sent signals like SIGTERM (i.e. We can't 
+          catch KeyboardInterrupt at the right time)
+
+      """
+      try:
+        # WARNING: unfinished_tasks is not part of public API
+        # so this might break in future. Cannot use Queue.empty()
+        # because that will return true before threads complete
+        while self.theQueue.unfinished_tasks > 0:
+          time.sleep(0.5)
+      except KeyboardInterrupt:
+        logging.error("Received keyboard interrupt. Clearing queue!")
+        
+        while not self.theQueue.empty():
+          try:
+            self.theQueue.get()
+            self.theQueue.task_done()
+          except Queue.Empty:
+            break #Handle potential race where the queue becomes empty whilst executing try block
+        
+        raise
 
 def main(arg):  
     parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
@@ -555,6 +588,9 @@ def main(arg):
     parser.add_argument("-p","--canonical-path-prefix",type=str, default="testsuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
     parser.add_argument("-r,","--compare-run", type=str ,default="", help="After performing test runs compare the result of that run with the runs recorded in a pickle file.")
     parser.add_argument("-j","--threads", type=int ,default=multiprocessing.cpu_count(), help="Number of tests to run in parallel (default: %(default)s)")
+    parser.add_argument("--gvopt=", type=str, default=None, action='append', 
+                        help="Pass a command line options to GPUVerify for all tests. This option can be specified multiple times.  E.g. --gvopt=--keep-temps --gvopt=--no-benign",
+                        metavar='GPUVerifyCmdLineOption')
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
@@ -618,7 +654,7 @@ def main(arg):
     tests=[]
     for kernelPath in kernelFiles:
         try: 
-            tests.append(GPUVerifyTestKernel(kernelPath))
+            tests.append(GPUVerifyTestKernel(kernelPath, getattr(args,'gvopt=') ))
         except KernelParseError as e:
             logging.error(e)
             if args.stop_on_fail:
@@ -643,7 +679,10 @@ def main(arg):
 
     #Start tests
     threadPool.start()
-    threadPool.waitForCompletion()
+    try:
+      threadPool.waitForCompletion()
+    except KeyboardInterrupt:
+      sys.exit(GPUVerifyTesterErrorCodes.GENERAL_ERROR)
 
     end = time.time()
     logging.info("Finished running tests.")

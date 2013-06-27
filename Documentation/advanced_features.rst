@@ -46,7 +46,7 @@ truth value of the loop guard.
 
 If the above example is analysed with a sufficiently small local
 size, the invariant is verified as holding.  However, for a local size
-larger than 128 the invariant is not maintained by the loop, and
+larger than 101 the invariant is not maintained by the loop, and
 GPUVerify detects this potential problem::
 
   gpuverify --local_size=128 --num_groups=16 assert-as-invariant.cl
@@ -125,18 +125,20 @@ Global assertions and pre-/post-conditions
 ------------------------------------------
 
 .. todo:: This will explain:
-* ``__global_requires``
 
-* ``__global_ensures``
+  * ``__global_requires``
 
-* ``__global_assert``
+  * ``__global_ensures``
+
+  * ``__global_assert``
 
 
 Reasoning about memory accesses
 -------------------------------
 
-.. todo:: ``__write_implies'', etc.  Be sure to comment on byte-level
-          reasoning issue.
+.. todo:: ``__write_implies``, etc.  Be sure to comment on byte-level reasoning 
+          issue.
+
 
 Barrier invariants
 ==================
