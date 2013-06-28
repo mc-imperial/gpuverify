@@ -29,7 +29,7 @@ namespace GPUVerify
         public static void Main(string[] args)
         {
 
-          try {
+          //try {
 
             int showHelp = CommandLineOptions.Parse(args);
 
@@ -56,7 +56,7 @@ namespace GPUVerify
 
             parseProcessOutput();
 
-          } catch (Exception e) {
+          /*} catch (Exception e) {
             Console.Error.WriteLine("Exception thrown in GPUVerifyVCGen");
             Console.Error.WriteLine(e);
 
@@ -65,7 +65,7 @@ namespace GPUVerify
             }
             
             Environment.Exit(1);
-          }
+          }*/
         }
 
         public static Program parse(out ResolutionContext rc)
