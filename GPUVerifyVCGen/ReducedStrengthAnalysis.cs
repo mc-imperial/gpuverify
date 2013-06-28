@@ -47,7 +47,10 @@ class ReducedStrengthAnalysis {
   void AnalyseRegion(IRegion region) {
     foreach (var c in region.CmdsChildRegions()) {
       var ac = c as AssignCmd;
-      if (ac != null) {
+      // We are only interested in processing commands that correspond
+      // to loop head regions, in which case the region identifier is
+      // non-null
+      if (ac != null && region.Identifier() != null) {
         foreach (var a in ac.Lhss.Zip(ac.Rhss)) {
           AddAssignment(region.Identifier(), a.Item1, a.Item2);
         }
