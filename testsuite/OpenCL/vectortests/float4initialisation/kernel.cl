@@ -27,7 +27,7 @@ __kernel void foo() {
   
   f = (float4)((float3)(20, 21, 22), 23); 
 
-  //  g = (float4)(24, (float3)(25, 26, 27));
+  g = (float4)(24, (float3)(25, 26, 27));
 
   float _0 = 0;
   float _1 = 1;
