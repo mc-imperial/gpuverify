@@ -47,10 +47,7 @@ class ReducedStrengthAnalysis {
   void AnalyseRegion(IRegion region) {
     foreach (var c in region.CmdsChildRegions()) {
       var ac = c as AssignCmd;
-      // We are only interested in processing commands that correspond
-      // to loop head regions, in which case the region identifier is
-      // non-null
-      if (ac != null && region.Identifier() != null) {
+      if (ac != null) {
         foreach (var a in ac.Lhss.Zip(ac.Rhss)) {
           AddAssignment(region.Identifier(), a.Item1, a.Item2);
         }
@@ -70,6 +67,8 @@ class ReducedStrengthAnalysis {
       bool def0IsConst, def1IsConst;
       var def0 = varDefs.SubstDefinitions(defs[0].Item2, impl.Name, out def0IsConst);
       var def1 = varDefs.SubstDefinitions(defs[1].Item2, impl.Name, out def1IsConst);
+      if (defs[0].Item1 == null && defs[1].Item1 == null)
+        continue;
       if (def0IsConst && !def1IsConst) {
         AddDefinitionPair(v, def0, def1, defs[1].Item1);
       } else if (!def0IsConst && def1IsConst) {
