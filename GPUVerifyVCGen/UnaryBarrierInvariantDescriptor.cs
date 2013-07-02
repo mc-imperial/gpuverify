@@ -29,14 +29,6 @@ namespace GPUVerify {
       InstantiationExprs.Add(InstantiationExpr);
     }
 
-    internal override AssertCmd GetAssertCmd() {
-      var vd = new VariableDualiser(1, Dualiser.verifier.uniformityAnalyser, ProcName);
-      return new AssertCmd(
-        Token.NoToken,
-        vd.VisitExpr(Expr.Imp(Predicate, BarrierInvariant)),
-        Dualiser.MakeThreadSpecificAttributes(SourceLocationInfo, 1));
-    }
-
     internal override List<AssumeCmd> GetInstantiationCmds() {
       var result = new List<AssumeCmd>();
       foreach (var Instantiation in InstantiationExprs) {

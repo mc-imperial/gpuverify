@@ -50,7 +50,13 @@ namespace GPUVerify {
       }
     }
 
-    internal abstract AssertCmd GetAssertCmd();
+    internal virtual AssertCmd GetAssertCmd() {
+      return new AssertCmd(
+        Token.NoToken,
+        new VariableDualiser(1, Dualiser.verifier.uniformityAnalyser, ProcName).VisitExpr(
+          Expr.Imp(Predicate, BarrierInvariant)),
+        Dualiser.MakeThreadSpecificAttributes(SourceLocationInfo, 1));
+    }
 
     internal abstract List<AssumeCmd> GetInstantiationCmds();
 

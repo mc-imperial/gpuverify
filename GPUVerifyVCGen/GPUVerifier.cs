@@ -407,7 +407,7 @@ namespace GPUVerify
             if (CommandLineOptions.Inference)
             {
 
-              foreach (var impl in Program.Implementations())
+              foreach (var impl in Program.Implementations().ToList())
                 {
                     LoopInvariantGenerator.PreInstrument(this, impl);
                 }
