@@ -358,7 +358,7 @@ namespace GPUVerify
 
         private void MergeBlocksIntoPredecessors()
         {
-            foreach (var impl in Program.TopLevelDeclarations.OfType<Implementation>())
+            foreach (var impl in Program.Implementations())
                 UniformityAnalyser.MergeBlocksIntoPredecessors(Program, impl, uniformityAnalyser);
         }
 
@@ -407,7 +407,7 @@ namespace GPUVerify
             if (CommandLineOptions.Inference)
             {
 
-              foreach (var impl in Program.TopLevelDeclarations.OfType<Implementation>().ToList())
+              foreach (var impl in Program.Implementations())
                 {
                     LoopInvariantGenerator.PreInstrument(this, impl);
                 }
@@ -529,15 +529,13 @@ namespace GPUVerify
 
         private void DoVariableDefinitionAnalysis()
         {
-            varDefAnalyses = Program.TopLevelDeclarations
-                .OfType<Implementation>()
+            varDefAnalyses = Program.Implementations()
                 .ToDictionary(i => i, i => VariableDefinitionAnalysis.Analyse(this, i));
         }
 
         private void DoReducedStrengthAnalysis()
         {
-            reducedStrengthAnalyses = Program.TopLevelDeclarations
-                .OfType<Implementation>()
+            reducedStrengthAnalyses = Program.Implementations()
                 .ToDictionary(i => i, i => ReducedStrengthAnalysis.Analyse(this, i));
         }
 
@@ -990,7 +988,7 @@ namespace GPUVerify
         }
 
         internal bool ProcedureHasNoImplementation(Procedure Proc) {
-          return !Program.TopLevelDeclarations.OfType<Implementation>().Select(i => i.Name).Contains(Proc.Name);
+          return !Program.Implementations().Select(i => i.Name).Contains(Proc.Name);
         }
 
         internal bool ProcedureIsInlined(Procedure Proc) {
@@ -1907,15 +1905,11 @@ namespace GPUVerify
         }
 
         internal bool ProgramUsesBarrierInvariants() {
-          foreach (Declaration d in Program.TopLevelDeclarations) {
-            if (d is Implementation) {
-              foreach (Block b in (d as Implementation).Blocks) {
-                foreach (Cmd c in b.Cmds) {
-                  if (c is CallCmd) {
-                    if (QKeyValue.FindBoolAttribute((c as CallCmd).Proc.Attributes, "barrier_invariant")) {
-                      return true;
-                    }
-                  }
+          foreach (var b in Program.Blocks()) {
+            foreach (Cmd c in b.Cmds) {
+              if (c is CallCmd) {
+                if (QKeyValue.FindBoolAttribute((c as CallCmd).Proc.Attributes, "barrier_invariant")) {
+                  return true;
                 }
               }
             }
@@ -1929,8 +1923,20 @@ namespace GPUVerify
           d.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1)) });
         }
 
-
     }
 
+    
+    public static class GPUVerifyUtilities {
+
+        public static IEnumerable<Implementation> Implementations(this Program p) {
+          return p.TopLevelDeclarations.OfType<Implementation>();
+        }
+
+        public static IEnumerable<Block> Blocks(this Program p) {
+          return p.Implementations().Select(Item => Item.Blocks).
+            SelectMany(Item => Item);
+        }
+
+    }
 
 }

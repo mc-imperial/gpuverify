@@ -451,8 +451,7 @@ namespace GPUVerify {
 
       Debug.Assert(CommandLineOptions.Clo.LoopUnrollCount != -1);
 
-
-      foreach(var impl in Program.TopLevelDeclarations.OfType<Implementation>()) {
+      foreach(var impl in Program.Implementations()) {
         impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds)); 
       }
 

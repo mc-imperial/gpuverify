@@ -28,7 +28,7 @@ namespace GPUVerify
     }
 
     internal void DoAbstractHoudiniTransform() {
-      foreach (var region in verifier.Program.TopLevelDeclarations.OfType<Implementation>()
+      foreach (var region in verifier.Program.Implementations()
         .Select(item => verifier.RootRegion(item).SubRegions()).SelectMany(item => item)) {
           TransformRegion(region);
       }
