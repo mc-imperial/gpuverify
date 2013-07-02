@@ -178,6 +178,8 @@ namespace GPUVerify {
             if (CommandLineOptions.BarrierAccessChecks) {
               foreach (Expr AccessExpr in BIDescriptor.GetAccessedExprs()) {
                 var Assert = new AssertCmd(Token.NoToken, AccessExpr, MakeThreadSpecificAttributes(SourceLocationInfo,1));
+                Assert.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant_access_check", 
+                  new List<object> { Expr.True }, Assert.Attributes);
                 cs.Add(vd.VisitAssertCmd(Assert));
               }
             }

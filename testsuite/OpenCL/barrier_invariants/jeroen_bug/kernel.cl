@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--local_size=128 --num_groups=64
-
+//insufficient permission
 
 #define SZ 128
 

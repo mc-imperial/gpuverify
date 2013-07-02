@@ -61,6 +61,12 @@ namespace GPUVerify {
         else if (AssertCex.FailingAssert is LoopInvMaintainedAssertCmd) {
           ReportInvariantMaintedFailure(AssertCex);
         }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "barrier_invariant")) {
+          ReportFailingBarrierInvariant(AssertCex);
+        }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "barrier_invariant_access_check")) {
+          ReportFailingBarrierInvariantAccessCheck(AssertCex);
+        }
         else {
           ReportFailingAssert(AssertCex);
         }
@@ -250,6 +256,14 @@ namespace GPUVerify {
 
     private static void ReportInvariantEntryFailure(AssertCounterexample err) {
       ReportThreadSpecificFailure(err, "loop invariant might not hold on entry");
+    }
+
+    private static void ReportFailingBarrierInvariant(AssertCounterexample err) {
+      ReportThreadSpecificFailure(err, "this barrier invariant might not hold");
+    }
+
+    private static void ReportFailingBarrierInvariantAccessCheck(AssertCounterexample err) {
+      ReportThreadSpecificFailure(err, "insufficient permission may be held for evaluation of this barrier invariant");
     }
 
     private static void ReportEnsuresFailure(Absy node) {
