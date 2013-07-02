@@ -433,7 +433,7 @@ namespace Microsoft.Boogie
 
       ConditionGeneration vcgen = null;
       try {
-        vcgen = new VCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend);
+        vcgen = new VCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend, new List<Checker>());
       }
       catch (ProverException e) {
         ErrorWriteLine("Fatal Error: ProverException: {0}", e);
