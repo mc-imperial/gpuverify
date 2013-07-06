@@ -23,6 +23,7 @@ namespace GPUVerify
 
         public static List<string> inputFiles = new List<string>();
         public static string outputFile = null;
+        public static bool DebugGPUVerify = false;
         public static bool OnlyDivergence = false;
         public static bool AdversarialAbstraction = false;
         public static bool EqualityAbstraction = false;
@@ -42,7 +43,8 @@ namespace GPUVerify
         public static bool AsymmetricAsserts = false;
         public static bool OnlyLog = false;
         public static bool StagedInference = false;
-
+        public static bool MathInt = false;
+        public static bool AbstractHoudini = false;
 
         public static int Parse(string[] args)
         {
@@ -79,22 +81,24 @@ namespace GPUVerify
                         outputFile = afterColon;
                     break;
 
+                    case "-debugGPUVerify":
+                    case "/debugGPUVerify":
+                    DebugGPUVerify = true;
+                    break;
+
                     case "-onlyDivergence":
                     case "/onlyDivergence":
                     OnlyDivergence = true;
-
                     break;
 
                     case "-adversarialAbstraction":
                     case "/adversarialAbstraction":
                     AdversarialAbstraction = true;
-
                     break;
 
                     case "-equalityAbstraction":
                     case "/equalityAbstraction":
                     EqualityAbstraction = true;
-
                     break;
 
                     case "-showStages":
@@ -177,6 +181,16 @@ namespace GPUVerify
                     StagedInference = true;
                     InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE = 1;
                     InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE = 2;
+                    break;
+
+                    case "-mathInt":
+                    case "/mathInt":
+                    MathInt = true;
+                    break;
+
+                    case "-abstractHoudini":
+                    case "/abstractHoudini":
+                    AbstractHoudini = true;
                     break;
 
                     default:

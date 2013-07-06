@@ -10,7 +10,8 @@ GPUVerifyHgErrorMessage='Error could not retrieve version from Mercurial'
 def getVersionStringFromMercurial():
   try:
     p = subprocess.Popen(['hg','log','-r',' -1','--template','Revision {rev}:{node}\n'],
-                       stdout=subprocess.PIPE)
+                       stdout=subprocess.PIPE,
+                       cwd=sys.path[0])
     (vs, stderr) = p.communicate()
 
     if p.returncode != 0:

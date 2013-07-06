@@ -61,6 +61,12 @@ namespace GPUVerify {
         else if (AssertCex.FailingAssert is LoopInvMaintainedAssertCmd) {
           ReportInvariantMaintedFailure(AssertCex);
         }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "barrier_invariant")) {
+          ReportFailingBarrierInvariant(AssertCex);
+        }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "barrier_invariant_access_check")) {
+          ReportFailingBarrierInvariantAccessCheck(AssertCex);
+        }
         else {
           ReportFailingAssert(AssertCex);
         }
@@ -153,13 +159,8 @@ namespace GPUVerify {
         }
       }
       Debug.Assert(state != null);
-      var element = state.TryGet(OffsetVar.Name);
-
-      Debug.Assert(element is Model.BitVector);
-      var BitVectorElement = ((Model.BitVector)element);
-
-      uint elemOffset = Convert.ToUInt32(BitVectorElement.Numeral);
-
+      var element = state.TryGet(OffsetVar.Name) as Model.Number;
+      uint elemOffset = Convert.ToUInt32(element.Numeral);
       Debug.Assert(OffsetVar.Attributes != null);
       uint elemWidth = (uint)QKeyValue.FindIntAttribute(OffsetVar.Attributes, "elem_width", int.MaxValue);
       Debug.Assert(elemWidth != int.MaxValue);
@@ -255,6 +256,14 @@ namespace GPUVerify {
 
     private static void ReportInvariantEntryFailure(AssertCounterexample err) {
       ReportThreadSpecificFailure(err, "loop invariant might not hold on entry");
+    }
+
+    private static void ReportFailingBarrierInvariant(AssertCounterexample err) {
+      ReportThreadSpecificFailure(err, "this barrier invariant might not hold");
+    }
+
+    private static void ReportFailingBarrierInvariantAccessCheck(AssertCounterexample err) {
+      ReportThreadSpecificFailure(err, "insufficient permission may be held for evaluation of this barrier invariant");
     }
 
     private static void ReportEnsuresFailure(Absy node) {
@@ -456,8 +465,7 @@ namespace GPUVerify {
 
       Debug.Assert(CommandLineOptions.Clo.LoopUnrollCount != -1);
 
-
-      foreach(var impl in Program.TopLevelDeclarations.OfType<Implementation>()) {
+      foreach(var impl in Program.Implementations()) {
         impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds)); 
       }
 

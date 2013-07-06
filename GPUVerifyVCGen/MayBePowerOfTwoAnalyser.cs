@@ -108,70 +108,51 @@ namespace GPUVerify
 
         private bool isPowerOfTwoOperation(Variable v, Expr expr)
         {
+          
             if (!(
-                v.TypedIdent.Type.Equals(
-                Microsoft.Boogie.Type.GetBvType(8))
-                ||
-                v.TypedIdent.Type.Equals(
-                Microsoft.Boogie.Type.GetBvType(16))
-                ||
-                v.TypedIdent.Type.Equals(
-                Microsoft.Boogie.Type.GetBvType(32))
+                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
+                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||
+                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32))
                 ))
             {
                 return false;
             }
+        
+            Expr lhs, rhs;
 
-            Microsoft.Boogie.Type bvType = v.TypedIdent.Type as BvType;
-
-            if (!(expr is NAryExpr))
-            {
-                return false;
-            }
-
-            NAryExpr nary = expr as NAryExpr;
-
-            string bvPrefix = "BV" + bvType.BvBits + "_";
-
-            if (nary.Fun.FunctionName.Equals(bvPrefix + "MUL"))
-            {
-                Debug.Assert(nary.Args.Length == 2);
+            if (IntegerRepresentationHelper.IsFun(expr, "MUL", out lhs, out rhs)) {
                 return
                    (
-                    (IsVariable(nary.Args[0], v) || IsVariable(nary.Args[1], v)) &&
-                    (IsConstant(nary.Args[0], 2) || IsConstant(nary.Args[1], 2))
+                    (IsVariable(lhs, v) || IsVariable(rhs, v)) &&
+                    (IsConstant(lhs, 2) || IsConstant(rhs, 2))
                     );
             }
-
-            if (nary.Fun.FunctionName.Equals(bvPrefix + "DIV"))
-            {
-                Debug.Assert(nary.Args.Length == 2);
+        
+            if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs)) {
                 return
                    (
-                    IsVariable(nary.Args[0], v) && IsConstant(nary.Args[1], 2)
+                    IsVariable(lhs, v) && IsConstant(rhs, 2)
                     );
             }
-
-            if (nary.Fun.FunctionName.Equals(bvPrefix + "SHL"))
-            {
+        
+            if (IntegerRepresentationHelper.IsFun(expr, "SHL", out lhs, out rhs)) {
                 return
                    (
-                    IsVariable(nary.Args[0], v) && IsConstant(nary.Args[1], 1)
+                    IsVariable(lhs, v) && IsConstant(rhs, 1)
                     );
             }
-
-            if (nary.Fun.FunctionName.Equals(bvPrefix + "ASHR"))
-            {
+        
+            if (IntegerRepresentationHelper.IsFun(expr, "ASHR", out lhs, out rhs)) {
                 return
                    (
-                    IsVariable(nary.Args[0], v) && IsConstant(nary.Args[1], 1)
+                    IsVariable(lhs, v) && IsConstant(rhs, 1)
                     );
             }
-
-            if (nary.Fun.FunctionName.Equals(bvPrefix + "LSHR")) {
+            
+            if (IntegerRepresentationHelper.IsFun(expr, "LSHR", out lhs, out rhs)) {
               return
                  (
-                  IsVariable(nary.Args[0], v) && IsConstant(nary.Args[1], 1)
+                  IsVariable(lhs, v) && IsConstant(rhs, 1)
                   );
             }
 
@@ -187,12 +168,18 @@ namespace GPUVerify
 
             LiteralExpr lit = expr as LiteralExpr;
 
-            if (!(lit.Val is BvConst))
+            if (lit.Val is BvConst)
             {
-                return false;
+                return (lit.Val as BvConst).Value.ToInt == x;
             }
 
-            return (lit.Val as BvConst).Value.ToInt == x;
+            if (lit.Val is Microsoft.Basetypes.BigNum)
+            {
+                return ((Microsoft.Basetypes.BigNum)lit.Val).ToInt == x;
+            }
+
+            return false;
+
         }
 
         private bool IsVariable(Expr expr, Variable v)

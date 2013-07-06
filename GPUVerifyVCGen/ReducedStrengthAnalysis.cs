@@ -67,6 +67,8 @@ class ReducedStrengthAnalysis {
       bool def0IsConst, def1IsConst;
       var def0 = varDefs.SubstDefinitions(defs[0].Item2, impl.Name, out def0IsConst);
       var def1 = varDefs.SubstDefinitions(defs[1].Item2, impl.Name, out def1IsConst);
+      if (defs[0].Item1 == null && defs[1].Item1 == null)
+        continue;
       if (def0IsConst && !def1IsConst) {
         AddDefinitionPair(v, def0, def1, defs[1].Item1);
       } else if (!def0IsConst && def1IsConst) {
@@ -98,7 +100,7 @@ class ReducedStrengthAnalysis {
         return new StrideForm(StrideForm.Kind.Identity, e);
     }
 
-    if (GPUVerifier.IsBVAdd(e, out lhs, out rhs)) {
+    if (verifier.IntRep.IsAdd(e, out lhs, out rhs)) {
       var lhssf = ComputeStrideForm(v, lhs);
       var rhssf = ComputeStrideForm(v, rhs);
       if (lhssf.kind == StrideForm.Kind.Constant &&
@@ -112,10 +114,10 @@ class ReducedStrengthAnalysis {
         return new StrideForm(StrideForm.Kind.Product, rhs);
       else if (lhssf.kind == StrideForm.Kind.Constant &&
                rhssf.kind == StrideForm.Kind.Product)
-        return new StrideForm(StrideForm.Kind.Product, verifier.MakeBVAdd(lhs, rhssf.op));
+        return new StrideForm(StrideForm.Kind.Product, verifier.IntRep.MakeAdd(lhs, rhssf.op));
       else if (lhssf.kind == StrideForm.Kind.Product &&
                rhssf.kind == StrideForm.Kind.Constant)
-        return new StrideForm(StrideForm.Kind.Product, verifier.MakeBVAdd(lhssf.op, rhs));
+        return new StrideForm(StrideForm.Kind.Product, verifier.IntRep.MakeAdd(lhssf.op, rhs));
       else
         return new StrideForm(StrideForm.Kind.Bottom);
     }

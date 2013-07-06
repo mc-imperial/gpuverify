@@ -15,7 +15,7 @@ __kernel void wrap_around() {
   // A = [ 2, 1, 4, 3, 6, 5, 0, 7 ]
   A[tid] = iseven(tid) ? ((tid+2)%N) : tid;
 
-  __barrier_invariant(A[tid] == __ite(iseven(tid), ((tid+2)%N), tid), tid, ((tid+1)%N));
+  __barrier_invariant_2(A[tid] == __ite(iseven(tid), ((tid+2)%N), tid), tid, ((tid+1)%N));
   barrier(CLK_LOCAL_MEM_FENCE);
 
   //       0  1  2  3  4  5  6  7

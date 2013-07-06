@@ -24,16 +24,18 @@ namespace GPUVerify {
     protected KernelDualiser Dualiser;
     protected string ProcName;
     protected List<Expr> AccessExprs;
+    protected GPUVerifier Verifier;
 
     public BarrierInvariantDescriptor(Expr Predicate, Expr BarrierInvariant,
           QKeyValue SourceLocationInfo,
-          KernelDualiser Dualiser, string ProcName) {
+          KernelDualiser Dualiser, string ProcName, GPUVerifier Verifier) {
       this.Predicate = Predicate;
       this.BarrierInvariant = BarrierInvariant;
       this.SourceLocationInfo = SourceLocationInfo;
       this.Dualiser = Dualiser;
       this.ProcName = ProcName;
       this.AccessExprs = new List<Expr>();
+      this.Verifier = Verifier;
 
       if (CommandLineOptions.BarrierAccessChecks) {
         var visitor = new SubExprVisitor();
@@ -48,17 +50,25 @@ namespace GPUVerify {
       }
     }
 
-    internal abstract AssertCmd GetAssertCmd();
+    internal virtual AssertCmd GetAssertCmd() {
+      AssertCmd result = new AssertCmd(
+        Token.NoToken,
+        new VariableDualiser(1, Dualiser.verifier.uniformityAnalyser, ProcName).VisitExpr(
+          Expr.Imp(Predicate, BarrierInvariant)),
+        Dualiser.MakeThreadSpecificAttributes(SourceLocationInfo, 1));
+      result.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant", new List<object> { Expr.True}, result.Attributes);
+      return result;
+    }
 
     internal abstract List<AssumeCmd> GetInstantiationCmds();
 
     protected Expr NonNegative(Expr e) {
-      return Dualiser.verifier.MakeBVSge(
-        e, GPUVerifier.ZeroBV());
+      return Dualiser.verifier.IntRep.MakeSge(
+        e, Verifier.IntRep.GetLiteral(0, 32));
     }
 
     protected Expr NotTooLarge(Expr e) {
-      return Dualiser.verifier.MakeBVSlt(e,
+      return Dualiser.verifier.IntRep.MakeSlt(e,
         new IdentifierExpr(Token.NoToken, 
           Dualiser.verifier.GetGroupSize("X")));
     }

@@ -141,9 +141,9 @@ namespace GPUVerify {
           var BIDescriptor = new UnaryBarrierInvariantDescriptor(
             verifier.uniformityAnalyser.IsUniform(Call.callee) ? Expr.True : Call.Ins[0],
             Expr.Neq(Call.Ins[verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1], 
-              new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 1)),
+              verifier.IntRep.GetLiteral(0, 1)),
               Call.Attributes,
-              this, procName);
+              this, procName, verifier);
           for (var i = 1 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1); i < Call.Ins.Count; i++) {
             BIDescriptor.AddInstantiationExpr(Call.Ins[i]);
           }
@@ -158,9 +158,9 @@ namespace GPUVerify {
           var BIDescriptor = new BinaryBarrierInvariantDescriptor(
             verifier.uniformityAnalyser.IsUniform(Call.callee) ? Expr.True : Call.Ins[0],
             Expr.Neq(Call.Ins[verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1],
-              new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 1)),
+              verifier.IntRep.GetLiteral(0, 1)),
               Call.Attributes,
-              this, procName);
+              this, procName, verifier);
           for (var i = 1 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1); i < Call.Ins.Count; i += 2) {
             BIDescriptor.AddInstantiationExprPair(Call.Ins[i], Call.Ins[i + 1]);
           }
@@ -178,6 +178,8 @@ namespace GPUVerify {
             if (CommandLineOptions.BarrierAccessChecks) {
               foreach (Expr AccessExpr in BIDescriptor.GetAccessedExprs()) {
                 var Assert = new AssertCmd(Token.NoToken, AccessExpr, MakeThreadSpecificAttributes(SourceLocationInfo,1));
+                Assert.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant_access_check", 
+                  new List<object> { Expr.True }, Assert.Attributes);
                 cs.Add(vd.VisitAssertCmd(Assert));
               }
             }

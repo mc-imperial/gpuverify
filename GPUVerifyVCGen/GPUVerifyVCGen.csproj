@@ -102,6 +102,9 @@
     <Reference Include="Graph">
       <HintPath>..\BoogieBinaries\Graph.dll</HintPath>
     </Reference>
+    <Reference Include="Houdini">
+      <HintPath>..\BoogieBinaries\Houdini.dll</HintPath>
+    </Reference>
     <Reference Include="Model, Version=2.2.30705.1126, Culture=neutral, PublicKeyToken=736440c9b414ea16, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\BoogieBinaries\Model.dll</HintPath>
@@ -126,6 +129,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AbstractHoudiniTransformation.cs" />
     <Compile Include="AccessCollector.cs" />
     <Compile Include="AccessRecord.cs" />
     <Compile Include="AdversarialAbstraction.cs" />
@@ -133,6 +137,7 @@
     <Compile Include="AsymmetricExpressionFinder.cs" />
     <Compile Include="BarrierInvariantDescriptor.cs" />
     <Compile Include="BinaryBarrierInvariantDescriptor.cs" />
+    <Compile Include="IntegerRepresentation.cs" />
     <Compile Include="StrideConstraint.cs" />
     <Compile Include="ReducedStrengthAnalysis.cs" />
     <Compile Include="UnaryBarrierInvariantDescriptor.cs" />

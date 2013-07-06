@@ -19,21 +19,14 @@ namespace GPUVerify {
     private List<Expr> InstantiationExprs;
 
     public UnaryBarrierInvariantDescriptor(Expr Predicate, Expr BarrierInvariant,
-        QKeyValue SourceLocationInfo, KernelDualiser Dualiser, string ProcName) : 
-      base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName) {
+        QKeyValue SourceLocationInfo, KernelDualiser Dualiser, string ProcName,
+        GPUVerifier Verifier) : 
+      base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName, Verifier) {
       InstantiationExprs = new List<Expr>();
     }
 
     public void AddInstantiationExpr(Expr InstantiationExpr) {
       InstantiationExprs.Add(InstantiationExpr);
-    }
-
-    internal override AssertCmd GetAssertCmd() {
-      var vd = new VariableDualiser(1, Dualiser.verifier.uniformityAnalyser, ProcName);
-      return new AssertCmd(
-        Token.NoToken,
-        vd.VisitExpr(Expr.Imp(Predicate, BarrierInvariant)),
-        Dualiser.MakeThreadSpecificAttributes(SourceLocationInfo, 1));
     }
 
     internal override List<AssumeCmd> GetInstantiationCmds() {

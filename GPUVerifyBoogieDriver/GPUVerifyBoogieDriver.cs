@@ -274,7 +274,7 @@ namespace Microsoft.Boogie
       var Candidates = prog.TopLevelDeclarations.OfType<Constant>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "existential")).Select(Item => Item.Name);
 
       HashSet<string> CandidatesToRemove = new HashSet<string>();
-      foreach (var b in ProgramBlocks(prog)) {
+      foreach (var b in prog.Blocks()) {
         CmdSeq newCmds = new CmdSeq();
         foreach(Cmd c in b.Cmds) {
           var callCmd = c as CallCmd;
@@ -381,7 +381,7 @@ namespace Microsoft.Boogie
 
       // Treat all assertions
       // TODO: do we need to also consider assumptions?
-      foreach (Block block in ProgramBlocks(program)) {
+      foreach (Block block in program.Blocks()) {
         CmdSeq newCmds = new CmdSeq();
         foreach (Cmd cmd in block.Cmds) {
           string c;
@@ -424,11 +424,6 @@ namespace Microsoft.Boogie
 
     }
 
-    private static IEnumerable<Block> ProgramBlocks(Program program) {
-      return program.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).
-        SelectMany(item => item);
-    }
-
     private static int VerifyProgram(Program program) {
       int errorCount = 0;
       int verified = 0;
@@ -438,7 +433,7 @@ namespace Microsoft.Boogie
 
       ConditionGeneration vcgen = null;
       try {
-        vcgen = new VCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend);
+        vcgen = new VCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend, new List<Checker>());
       }
       catch (ProverException e) {
         ErrorWriteLine("Fatal Error: ProverException: {0}", e);
@@ -504,7 +499,7 @@ namespace Microsoft.Boogie
 
 
     private static void DisableRaceChecking(Program program) {
-      foreach (var block in ProgramBlocks(program)) {
+      foreach (var block in program.Blocks()) {
         CmdSeq newCmds = new CmdSeq();
         foreach (Cmd c in block.Cmds) {
           CallCmd callCmd = c as CallCmd;
@@ -519,7 +514,7 @@ namespace Microsoft.Boogie
     }
 
     private static void DisableRaceLogging(Program program) {
-      foreach (var block in ProgramBlocks(program)) {
+      foreach (var block in program.Blocks()) {
         CmdSeq newCmds = new CmdSeq();
         foreach (Cmd c in block.Cmds) {
           CallCmd callCmd = c as CallCmd;

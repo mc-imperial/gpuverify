@@ -77,6 +77,9 @@ drives.
 #. Download the Windows 64-bit toolchain zip file from the GPUVerify `Download <http://multicore.doc.ic.ac.uk/tools/GPUVerify/download.php>`_ page.
    Please contact us if you require a 32-bit version.
 
+#. Right-click on the zip file and select "Properties".
+   Now unblock the zip file by clicking on "Unblock" next to "Security".
+
 #. Now unpack the zip file::
 
       > cd ${INSTALL_ROOT}

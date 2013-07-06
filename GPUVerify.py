@@ -3,6 +3,7 @@
 import atexit
 import getopt
 import os
+import signal
 import subprocess
 import sys
 import timeit
@@ -99,8 +100,7 @@ class CommandLineOptions(object):
   gpuVerifyBoogieDriverOptions = [ "/nologo",
                                    "/typeEncoding:m", 
                                    "/doModSetAnalysis", 
-                                   "/proverOpt:OPTIMIZE_FOR_BV=true", 
-                                   "/useArrayTheory",
+                                   "/useArrayTheory", 
                                    "/doNotUseLabels", 
                                    "/noinfer", 
                                    "/enhancedErrorMessages:1",
@@ -134,6 +134,7 @@ class CommandLineOptions(object):
   boogieMemout=0
   boogieTimeout=300
   keepTemps = False
+  mathInt = False
   asymmetricAsserts = False
   generateSmt2 = False
   useCVC4 = False
@@ -163,12 +164,12 @@ class ToolWatcher(object):
 
   The class is reentrant
   """
-   
+
   def __handleTimeOut(self):
     if self.popenObject.poll() == None :
-      #Program is still running, let's kill it
+      # Program is still running, let's kill it
       self.__killed=True
-      self.popenObject.kill()
+      self.popenObject.terminate()
 
   """ Create a ToolWatcher instance with an existing "subprocess.Popen" instance
       and timeout.
@@ -182,11 +183,11 @@ class ToolWatcher(object):
 
     self.timer=threading.Timer(self.timeout, self.__handleTimeOut)
     self.timer.start()
-  
+
   """ Returns True if the timeout occurred """
   def timeOutOccured(self):
     return self.__killed
-  
+
   """ Cancel the timeout. You must call this if your program wishes
       to exit else exit() will block waiting for this class's Thread
       (threading.Timer) to finish.
@@ -205,15 +206,15 @@ def run(command,timeout=0):
     popenargs['bufsize']=0
     popenargs['stdout']=subprocess.PIPE
     popenargs['stderr']=subprocess.PIPE
-    
+
   killer=None
   def cleanupKiller():
     if killer!=None:
       killer.cancelTimeout()
-      
+
   proc = subprocess.Popen(command,**popenargs)
   if timeout > 0:
-    killer=ToolWatcher(proc,timeout)   
+    killer=ToolWatcher(proc,timeout)
   try:
     stdout, stderr = proc.communicate()
     if killer != None and killer.timeOutOccured():
@@ -225,7 +226,7 @@ def run(command,timeout=0):
   finally:
     #Need to kill the timer if it exists else exit() will block until the timer finishes
     cleanupKiller()
-    
+
   return stdout, stderr, proc.returncode
 
 class ErrorCodes(object):
@@ -238,7 +239,7 @@ class ErrorCodes(object):
   BOOGIE_ERROR = 6
   BOOGIE_TIMEOUT = 7
   CTRL_C = 8
-  
+
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool. 
       If the timeout is set to 0 then there will no timeout.
@@ -304,6 +305,7 @@ def showHelpAndExit():
   print "  --boogie-file=X.bpl     Specify a supporting .bpl file to be used during verification"
   print "  --boogie-opt=...        Specify option to be passed to Boogie"
   print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
+  print "  --bugle-opt=...         Specify option to be passed to Bugle"
   print "  --clang-opt=...         Specify option to be passed to CLANG"
   print "  --debug                 Enable debugging of GPUVerify components: exceptions will"
   print "                          not be suppressed"
@@ -311,6 +313,8 @@ def showHelpAndExit():
   print "                          threads, at barriers"
   print "  --gen-smt2              Generate smt2 file"
   print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
+  print "  --math-int              Represent integer types using mathematical integers"
+  print "                          instead of bit-vectors"
   print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
@@ -451,6 +455,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.equalityAbstraction = True
     if o == "--keep-temps":
       CommandLineOptions.keepTemps = True
+    if o == "--math-int":
+      CommandLineOptions.mathInt = True
     if o == "--no-barrier-access-checks":
       CommandLineOptions.noBarrierAccessChecks = True
     if o == "--no-loop-predicate-invariants":
@@ -467,6 +473,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
     if o == "--boogie-opt":
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
+    if o == "--bugle-opt":
+      CommandLineOptions.bugleOptions += str(a).split(" ")
     if o == "--staged-inference":
       CommandLineOptions.stagedInference = True 
     if o == "--stop-at-gbpl":
@@ -582,9 +590,9 @@ def main(argv=None):
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
-              'vcgen-opt=', 'boogie-opt=',
+              'vcgen-opt=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
-              'blockDim=', 'gridDim=',
+              'blockDim=', 'gridDim=', 'math-int',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference',
@@ -655,6 +663,8 @@ def main(argv=None):
 
   if ext in [ ".cl", ".cu" ]:
     CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
+    if CommandLineOptions.mathInt:
+      CommandLineOptions.bugleOptions += [ "-i", "math" ]
   elif not CommandLineOptions.skip['bugle']:
     lang = CommandLineOptions.bugleLanguage
     if not lang: # try to infer
@@ -700,13 +710,15 @@ def main(argv=None):
   if CommandLineOptions.stagedInference:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/stagedInference" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/stagedInference" ]
+  if CommandLineOptions.mathInt:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/mathInt" ]
+
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
   elif CommandLineOptions.inference:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
-
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
 
@@ -715,14 +727,14 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
   else:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
-    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:RELEVANCY=0" ]
-    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:SOLVER=true" ]
 
   if CommandLineOptions.generateSmt2:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
-
   if CommandLineOptions.debugging:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/debugGPUVerify" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/debugGPUVerify" ]
+  if not CommandLineOptions.mathInt:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += ["/proverOpt:OPTIMIZE_FOR_BV=true", "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
 
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
@@ -795,29 +807,44 @@ def main(argv=None):
   return 0
 
 def showTiming():
-  if Timing and CommandLineOptions.time:
-    tools, times = map(list, zip(*Timing))
-    total = sum(times)
-    if CommandLineOptions.timeCSVLabel is not None:
-      label = CommandLineOptions.timeCSVLabel
-      times.append(total)
-      row = [ '%.3f' % t for t in times ]
-      if len(label) > 0: row.insert(0, label)
-      if exitHook.code is ErrorCodes.SUCCESS:
-        row.append('PASS')
-        print ', '.join(row)
-      else:
-        row.append('FAIL(' + str(exitHook.code) + ')')
-        print >> sys.stderr, ', '.join(row) 
+  tools, times = map(list, zip(*Timing))
+  total = sum(times)
+  if CommandLineOptions.timeCSVLabel is not None:
+    label = CommandLineOptions.timeCSVLabel
+    times.append(total)
+    row = [ '%.3f' % t for t in times ]
+    if len(label) > 0: row.insert(0, label)
+    if exitHook.code is ErrorCodes.SUCCESS:
+      row.append('PASS')
+      print ', '.join(row)
     else:
-      padTool = max([ len(tool) for tool in tools ])
-      padTime = max([ len('%.3f secs' % t) for t in times ])
-      print "Timing information (%.2f secs):" % total
-      for (tool, t) in Timing:
-        print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+      row.append('FAIL(' + str(exitHook.code) + ')')
+      print >> sys.stderr, ', '.join(row) 
+  else:
+    padTool = max([ len(tool) for tool in tools ])
+    padTime = max([ len('%.3f secs' % t) for t in times ])
+    print "Timing information (%.2f secs):" % total
+    for (tool, t) in Timing:
+      print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+
+def killChildrenPosix():
+  def handler(signal,frame):
+    return
+
+  signal.signal(signal.SIGINT, handler)
+  os.killpg(0,signal.SIGINT)
+
+def exitHandler():
+  if Timing and CommandLineOptions.time:
+    showTiming()
+
   sys.stderr.flush()
   sys.stdout.flush()
 
+  # Kill child processes that might not have been killed, e.g., Z3
+  if os.name == 'posix':
+    killChildrenPosix()
+
 if __name__ == '__main__':
-  atexit.register(showTiming)
+  atexit.register(exitHandler)
   sys.exit(main())

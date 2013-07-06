@@ -28,6 +28,7 @@ namespace GPUVerify
 
         public static void Main(string[] args)
         {
+
           try {
 
             int showHelp = CommandLineOptions.Parse(args);
@@ -58,6 +59,11 @@ namespace GPUVerify
           } catch (Exception e) {
             Console.Error.WriteLine("Exception thrown in GPUVerifyVCGen");
             Console.Error.WriteLine(e);
+
+            if(CommandLineOptions.DebugGPUVerify) {
+              throw e;
+            }
+            
             Environment.Exit(1);
           }
         }

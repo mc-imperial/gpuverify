@@ -102,8 +102,10 @@ namespace GPUVerify {
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, "READ", offsetPredicatesRead);
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, "WRITE", offsetPredicatesWrite);
         if (CommandLineOptions.InferSourceLocation) {
-          AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, "READ", new List<Expr>(offsetPredicatesRead.Zip(CollectSourceLocPredicates(region, v, "READ"), Expr.And)));
-          AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, "WRITE", new List<Expr>(offsetPredicatesWrite.Zip(CollectSourceLocPredicates(region, v, "WRITE"), Expr.And)));
+          AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, "READ", new List<Expr>(
+            offsetPredicatesRead.Zip(CollectSourceLocPredicates(region, v, "READ"), Expr.And)), true);
+          AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, "WRITE", new List<Expr>(
+            offsetPredicatesWrite.Zip(CollectSourceLocPredicates(region, v, "WRITE"), Expr.And)), true);
         }
       }
     }
@@ -140,7 +142,7 @@ namespace GPUVerify {
       return sourcePreds;
     }
     private List<Expr> CollectOffsetPredicates(Implementation impl, IRegion region, Variable v, string accessType) {
-      var offsetVar = new VariableDualiser(1, null, null).VisitVariable(GPUVerifier.MakeOffsetVariable(v.Name, accessType));
+      var offsetVar = new VariableDualiser(1, null, null).VisitVariable(verifier.MakeOffsetVariable(v.Name, accessType));
       var offsetExpr = new IdentifierExpr(Token.NoToken, offsetVar);
       var offsetPreds = new List<Expr>();
 
@@ -149,7 +151,6 @@ namespace GPUVerify {
         var def = verifier.varDefAnalyses[impl].SubstDefinitions(offset, impl.Name, out isConstant);
         if (def == null)
           continue;
-
         if (isConstant) {
           offsetPreds.Add(Expr.Eq(offsetExpr, def));
         }
@@ -393,11 +394,11 @@ namespace GPUVerify {
                 if(m.Name.Equals(GPUVerifier.MakeAccessHasOccurredVariableName(v.Name, "READ")) ||
                    m.Name.Equals(GPUVerifier.MakeOffsetVariableName(v.Name, "READ"))) {
                   AddToAccessSourceLocations("READ", v.Name);
-                  AccessSourceVariablesModifies.Add(GPUVerifier.MakeSourceVariable(v.Name, "READ"));
+                  AccessSourceVariablesModifies.Add(verifier.MakeSourceVariable(v.Name, "READ"));
                 } else if(m.Name.Equals(GPUVerifier.MakeAccessHasOccurredVariableName(v.Name, "WRITE")) ||
                    m.Name.Equals(GPUVerifier.MakeOffsetVariableName(v.Name, "WRITE"))) {
                      AddToAccessSourceLocations("WRITE", v.Name);
-                     AccessSourceVariablesModifies.Add(GPUVerifier.MakeSourceVariable(v.Name, "WRITE"));
+                     AccessSourceVariablesModifies.Add(verifier.MakeSourceVariable(v.Name, "WRITE"));
                 }
               }
             }
@@ -473,7 +474,7 @@ namespace GPUVerify {
       ExprSeq inParamsLog = new ExprSeq();
       inParamsLog.Add(ar.Index);
       MaybeAddValueParameter(inParamsLog, ar, Value);
-      inParamsLog.Add(new LiteralExpr(Token.NoToken, BigNum.FromInt(CurrStmtNo), 32));
+      inParamsLog.Add(verifier.IntRep.GetLiteral(CurrStmtNo, 32));
       Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
       verifier.OnlyThread1.Add(logProcedure.Name);
       CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new IdentifierExprSeq());
@@ -592,7 +593,7 @@ namespace GPUVerify {
 
       result.InParams = inParams;
 
-      result.AddAttribute("inline", new object[] { new LiteralExpr(v.tok, BigNum.FromInt(1)) });
+      GPUVerifier.AddInlineAttribute(result);
 
       return result;
     }
@@ -693,9 +694,9 @@ namespace GPUVerify {
       Debug.Assert(mt.Arguments.Length == 1);
 
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Variable AccessOffsetVariable = GPUVerifier.MakeOffsetVariable(v.Name, Access);
+      Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
       Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, mt.Result);
-      Variable AccessSourceVariable = GPUVerifier.MakeSourceVariable(v.Name, Access);
+      Variable AccessSourceVariable = verifier.MakeSourceVariable(v.Name, Access);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
@@ -734,7 +735,7 @@ namespace GPUVerify {
       bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));
 
       Implementation LogAccessImplementation = new Implementation(v.tok, "_LOG_" + Access + "_" + v.Name, new TypeVariableSeq(), LogAccessProcedure.InParams, new VariableSeq(), locals, new StmtList(bigblocks, v.tok));
-      LogAccessImplementation.AddAttribute("inline", new object[] { new LiteralExpr(v.tok, BigNum.FromInt(1)) });
+      GPUVerifier.AddInlineAttribute(LogAccessImplementation);
 
       LogAccessImplementation.Proc = LogAccessProcedure;
 
@@ -745,9 +746,6 @@ namespace GPUVerify {
 
     protected void AddCheckAccessProcedure(Variable v, string Access) {
       Procedure CheckAccessProcedure = MakeCheckAccessProcedureHeader(v, Access);
-
-      Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Variable AccessOffsetXVariable = GPUVerifier.MakeOffsetVariable(v.Name, Access);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
 
@@ -762,7 +760,7 @@ namespace GPUVerify {
       if (Access.Equals("READ")) {
         // Check read by thread 2 does not conflict with write by thread 1
         Variable WriteHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, "WRITE");
-        Variable WriteOffsetVariable = GPUVerifier.MakeOffsetVariable(v.Name, "WRITE");
+        Variable WriteOffsetVariable = verifier.MakeOffsetVariable(v.Name, "WRITE");
         Expr WriteReadGuard = new IdentifierExpr(Token.NoToken, VariableForThread(2, PredicateParameter));
         WriteReadGuard = Expr.And(WriteReadGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteHasOccurredVariable)));
         WriteReadGuard = Expr.And(WriteReadGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteOffsetVariable)),
@@ -792,7 +790,7 @@ namespace GPUVerify {
 
         // Check write by thread 2 does not conflict with write by thread 1
         Variable WriteHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, "WRITE");
-        Variable WriteOffsetVariable = GPUVerifier.MakeOffsetVariable(v.Name, "WRITE");
+        Variable WriteOffsetVariable = verifier.MakeOffsetVariable(v.Name, "WRITE");
 
         Expr WriteWriteGuard = new IdentifierExpr(Token.NoToken, VariableForThread(2, PredicateParameter));
         WriteWriteGuard = Expr.And(WriteWriteGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteHasOccurredVariable)));
@@ -818,7 +816,7 @@ namespace GPUVerify {
 
         // Check write by thread 2 does not conflict with read by thread 1
         Variable ReadHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, "READ");
-        Variable ReadOffsetVariable = GPUVerifier.MakeOffsetVariable(v.Name, "READ");
+        Variable ReadOffsetVariable = verifier.MakeOffsetVariable(v.Name, "READ");
 
         Expr ReadWriteGuard = new IdentifierExpr(Token.NoToken, VariableForThread(2, PredicateParameter));
         ReadWriteGuard = Expr.And(ReadWriteGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, ReadHasOccurredVariable)));
@@ -903,9 +901,9 @@ namespace GPUVerify {
       if (CommandLineOptions.InferSourceLocation) {
         foreach (var Proc in verifier.KernelProcedures.Keys) {
           Proc.Requires.Add(new Requires(false, Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(v.Name, "READ")),
-                                                                            GPUVerifier.ZeroBV())));
+                                                                            verifier.Zero())));
           Proc.Requires.Add(new Requires(false, Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(v.Name, "WRITE")),
-                                                                            GPUVerifier.ZeroBV())));
+                                                                            verifier.Zero())));
         }
       }
     }
@@ -1040,7 +1038,7 @@ namespace GPUVerify {
     {
       return Expr.Imp(Expr.Not(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(name, AccessType))),
                                                    Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(name, AccessType)),
-                                                           new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 32)));
+                                                           verifier.IntRep.GetLiteral(0, 32)));
     }
 
     private AssertCmd BuildNoAccessInvariant(string name, string AccessType)
@@ -1066,7 +1064,7 @@ namespace GPUVerify {
       foreach (int loc in AccessSourceLocations[key])
       {
         sourceLocExprs.Add(Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(key, AccessType)),
-                                   new LiteralExpr(Token.NoToken, BigNum.FromInt(loc), 32)));
+                                   verifier.IntRep.GetLiteral(loc, 32)));
       }
       return sourceLocExprs.Aggregate(Expr.Or);
     }
@@ -1080,10 +1078,12 @@ namespace GPUVerify {
     }
 
 
-    protected void AddOffsetsSatisfyPredicatesCandidateInvariant(IRegion region, Variable v, string ReadOrWrite, List<Expr> preds) {
+    protected void AddOffsetsSatisfyPredicatesCandidateInvariant(IRegion region, Variable v, string ReadOrWrite, List<Expr> preds,
+            bool SourceLocVersion = false) {
       if (preds.Count != 0) {
         Expr expr = AccessedOffsetsSatisfyPredicatesExpr(v, preds, ReadOrWrite, 1);
-        verifier.AddCandidateInvariant(region, expr, "accessed offsets satisfy predicates", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+        verifier.AddCandidateInvariant(region, expr, "accessed offsets satisfy predicates"
+          + (SourceLocVersion ? " (source)" : ""), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
       }
     }
 
@@ -1096,7 +1096,7 @@ namespace GPUVerify {
     private Expr AccessedOffsetIsThreadLocalIdExpr(Variable v, string ReadOrWrite, int Thread) {
       return Expr.Imp(
                 new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, ReadOrWrite))),
-                Expr.Eq(new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(GPUVerifier.MakeOffsetVariable(v.Name, ReadOrWrite))), 
+                Expr.Eq(new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(verifier.MakeOffsetVariable(v.Name, ReadOrWrite))), 
                   new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", Thread))));
     }
 
@@ -1111,27 +1111,27 @@ namespace GPUVerify {
     }
 
     private Expr MakeCTimesLocalIdRangeExpression(Variable v, Expr constant, string ReadOrWrite, int Thread) {
-      Expr CTimesLocalId = verifier.MakeBVMul(constant.Clone() as Expr,
+      Expr CTimesLocalId = verifier.IntRep.MakeMul(constant.Clone() as Expr,
           new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", Thread)));
 
-      Expr CTimesLocalIdPlusC = verifier.MakeBVAdd(verifier.MakeBVMul(constant.Clone() as Expr,
+      Expr CTimesLocalIdPlusC = verifier.IntRep.MakeAdd(verifier.IntRep.MakeMul(constant.Clone() as Expr,
           new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", Thread))), constant.Clone() as Expr);
 
-      Expr CTimesLocalIdLeqAccessedOffset = GPUVerifier.MakeBitVectorBinaryBoolean("BV32_LEQ", CTimesLocalId, OffsetXExpr(v, ReadOrWrite, Thread));
+      Expr CTimesLocalIdLeqAccessedOffset = verifier.IntRep.MakeSle(CTimesLocalId, OffsetXExpr(v, ReadOrWrite, Thread));
 
-      Expr AccessedOffsetLtCTimesLocalIdPlusC = verifier.MakeBVSlt(OffsetXExpr(v, ReadOrWrite, Thread), CTimesLocalIdPlusC);
+      Expr AccessedOffsetLtCTimesLocalIdPlusC = verifier.IntRep.MakeSlt(OffsetXExpr(v, ReadOrWrite, Thread), CTimesLocalIdPlusC);
 
       return Expr.Imp(
               AccessHasOccurred(v, ReadOrWrite, Thread),
               Expr.And(CTimesLocalIdLeqAccessedOffset, AccessedOffsetLtCTimesLocalIdPlusC));
     }
 
-    private static IdentifierExpr AccessHasOccurred(Variable v, string ReadOrWrite, int Thread) {
+    private IdentifierExpr AccessHasOccurred(Variable v, string ReadOrWrite, int Thread) {
       return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, ReadOrWrite)));
     }
 
-    private static IdentifierExpr OffsetXExpr(Variable v, string ReadOrWrite, int Thread) {
-      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(GPUVerifier.MakeOffsetVariable(v.Name, ReadOrWrite)));
+    private IdentifierExpr OffsetXExpr(Variable v, string ReadOrWrite, int Thread) {
+      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(verifier.MakeOffsetVariable(v.Name, ReadOrWrite)));
     }
 
     protected void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, string ReadOrWrite) {
@@ -1141,15 +1141,15 @@ namespace GPUVerify {
     }
 
     private Expr MakeCTimesGloalIdRangeExpr(Variable v, Expr constant, string ReadOrWrite, int Thread) {
-      Expr CTimesGlobalId = verifier.MakeBVMul(constant.Clone() as Expr,
+      Expr CTimesGlobalId = verifier.IntRep.MakeMul(constant.Clone() as Expr,
           GlobalIdExpr("X", Thread));
 
-      Expr CTimesGlobalIdPlusC = verifier.MakeBVAdd(verifier.MakeBVMul(constant.Clone() as Expr,
+      Expr CTimesGlobalIdPlusC = verifier.IntRep.MakeAdd(verifier.IntRep.MakeMul(constant.Clone() as Expr,
           GlobalIdExpr("X", Thread)), constant.Clone() as Expr);
 
-      Expr CTimesGlobalIdLeqAccessedOffset = GPUVerifier.MakeBitVectorBinaryBoolean("BV32_LEQ", CTimesGlobalId, OffsetXExpr(v, ReadOrWrite, Thread));
+      Expr CTimesGlobalIdLeqAccessedOffset = verifier.IntRep.MakeSle(CTimesGlobalId, OffsetXExpr(v, ReadOrWrite, Thread));
 
-      Expr AccessedOffsetLtCTimesGlobalIdPlusC = verifier.MakeBVSlt(OffsetXExpr(v, ReadOrWrite, Thread), CTimesGlobalIdPlusC);
+      Expr AccessedOffsetLtCTimesGlobalIdPlusC = verifier.IntRep.MakeSlt(OffsetXExpr(v, ReadOrWrite, Thread), CTimesGlobalIdPlusC);
 
       Expr implication = Expr.Imp(
               AccessHasOccurred(v, ReadOrWrite, Thread),
