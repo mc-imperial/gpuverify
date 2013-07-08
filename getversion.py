@@ -3,14 +3,18 @@ import sys
 import subprocess
 """ This module is responsible for trying to determine the GPUVerify version"""
 
-GPUVerifyDeployVersionFile='.gvdeployversion'
+GPUVerifyDeployVersionFile= os.path.join(
+                                          os.path.abspath( os.path.dirname(__file__) ),
+                                          '.gvdeployversion'
+                                        )
 GPUVerifyHgErrorMessage='Error could not retrieve version from Mercurial'
 
 
 def getVersionStringFromMercurial():
   try:
     p = subprocess.Popen(['hg','log','-r',' -1','--template','Revision {rev}:{node}\n'],
-                       stdout=subprocess.PIPE)
+                       stdout=subprocess.PIPE,
+                       cwd=sys.path[0])
     (vs, stderr) = p.communicate()
 
     if p.returncode != 0:
