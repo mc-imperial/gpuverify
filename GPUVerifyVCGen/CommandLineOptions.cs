@@ -35,7 +35,6 @@ namespace GPUVerify
         public static bool DoUniformityAnalysis = true;
         public static bool ShowMayBePowerOfTwoAnalysis = false;
         public static bool ShowArrayControlFlowAnalysis = false;
-        public static bool NoLoopPredicateInvariants = false;
         public static bool SmartPredication = true;
         public static bool OnlyIntraGroupRaceChecking = false;
         public static bool InferSourceLocation = true;
@@ -134,11 +133,6 @@ namespace GPUVerify
                     case "-showArrayControlFlowAnalysis":
                     case "/showArrayControlFlowAnalysis":
                     ShowArrayControlFlowAnalysis = true;
-                    break;
-
-                    case "-noLoopPredicateInvariants":
-                    case "/noLoopPredicateInvariants":
-                    NoLoopPredicateInvariants = true;
                     break;
 
                     case "-noSmartPredication":
