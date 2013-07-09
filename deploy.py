@@ -273,7 +273,7 @@ def main(argv):
   DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
   DirCopy( os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite') ),
-  CreateFileFromString(versionString, os.path.join(deployDir,getversion.GPUVerifyDeployVersionFile)) # file for version information
+  CreateFileFromString(versionString, os.path.join(deployDir, os.path.basename(getversion.GPUVerifyDeployVersionFile)) ) # file for version information
   ]
 
   for action in deployActions:
