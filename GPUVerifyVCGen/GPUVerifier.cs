@@ -489,6 +489,11 @@ namespace GPUVerify
 
             }
 
+            if (CommandLineOptions.WarpSync)
+            {
+              AddWarpSyncs();
+            }
+
             emitProgram(outputFilename);
 
         }
@@ -1921,6 +1926,83 @@ namespace GPUVerify
         internal static void AddInlineAttribute(Declaration d)
         {
           d.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1)) });
+        }
+
+        private void AddWarpSyncs()
+        {
+          // Append warp-syncs after log_writes
+          foreach (Declaration d in Program.TopLevelDeclarations)
+          {
+            if (d is Implementation)
+            {
+              Implementation impl = d as Implementation;
+              impl.Blocks = impl.Blocks.Select(AddWarpSyncs).ToList();
+            }
+          }
+
+          // Add the WarpSync prototype
+          Procedure proto = new Procedure(Token.NoToken,"_WARP_SYNC",new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new RequiresSeq(), new IdentifierExprSeq(), new EnsuresSeq());
+          proto.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
+          Program.TopLevelDeclarations.Add(proto);
+          ResContext.AddProcedure(proto); 
+          // And method
+          GenerateWarpSync();
+        }
+
+        private Block AddWarpSyncs(Block b)
+        {
+          var result = new CmdSeq();
+          foreach (Cmd c in b.Cmds)
+          {
+            result.Add(c);
+						if (c is CallCmd)
+						{
+							CallCmd call = c as CallCmd;
+							if (call.callee.StartsWith("_CHECK_"))
+							{
+								result.Add(new CallCmd(Token.NoToken,"_WARP_SYNC",new List<Expr>(),new List<IdentifierExpr>()));
+							}
+						}
+          }
+          b.Cmds = result;
+          return b;
+        }
+
+        private void GenerateWarpSync()
+        {
+          CmdSeq then = new CmdSeq();
+          foreach (Variable v in KernelArrayInfo.getAllNonLocalArrays())
+          {
+            foreach (string kind in new string[] { "READ", "WRITE", "ATOMIC" })
+            {
+              Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,kind);
+              then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
+            }
+          }
+
+          List<BigBlock> thenblocks = new List<BigBlock>();
+          thenblocks.Add(new BigBlock(Token.NoToken, "reset_warps", then, null, null));
+
+          Expr warpsize = Expr.Ident(CommandLineOptions.WarpSize + "bv32", new BvType(32));
+
+          Expr[] tids = (new int[] {1,2}).Select(x => 
+              IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",x)),IntRep.MakeAdd(
+              IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",x)),Expr.Ident(GetGroupSize("X"))),
+              IntRep.MakeMul(Expr.Ident(MakeThreadId("Z",x)),IntRep.MakeMul(Expr.Ident(GetGroupSize("X")),Expr.Ident(GetGroupSize("Y"))))))).ToArray();
+
+          // sides = {lhs,rhs};
+          Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
+
+          Expr condition = Expr.Eq(sides[0],sides[1]);
+          IfCmd ifcmd = new IfCmd (Token.NoToken, condition, new StmtList (thenblocks,Token.NoToken), /* another IfCmd for elsif */ null, /* then branch */ null);
+          
+          List<BigBlock> blocks = new List<BigBlock>();
+          blocks.Add(new BigBlock(Token.NoToken,"entry", new CmdSeq(),ifcmd ,null));
+
+          Implementation method = new Implementation(Token.NoToken,"_WARP_SYNC",new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new VariableSeq(), new StmtList(blocks,Token.NoToken));
+          method.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
+
+          Program.TopLevelDeclarations.Add(method);
         }
 
     }

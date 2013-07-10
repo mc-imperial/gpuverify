@@ -45,6 +45,8 @@ namespace GPUVerify
         public static bool StagedInference = false;
         public static bool MathInt = false;
         public static bool AbstractHoudini = false;
+        public static bool WarpSync = false;
+        public static int WarpSize = 32;
 
         public static int Parse(string[] args)
         {
@@ -191,6 +193,13 @@ namespace GPUVerify
                     case "-abstractHoudini":
                     case "/abstractHoudini":
                     AbstractHoudini = true;
+                    break;
+
+                    case "-doWarpSync":
+                    case "/doWarpSync":
+                    WarpSync = true;
+                    if (hasColonArgument)
+                        WarpSize = int.Parse(afterColon);
                     break;
 
                     default:

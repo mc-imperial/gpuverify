@@ -21,6 +21,7 @@ namespace GPUVerify
     Expr MakeSge(Expr lhs, Expr rhs);
     Expr MakeAdd(Expr lhs, Expr rhs);
     Expr MakeMul(Expr lhs, Expr rhs);
+    Expr MakeDiv(Expr lhs, Expr rhs);
     Expr MakeModPow2(Expr lhs, Expr rhs);
     bool IsAdd(Expr e, out Expr lhs, out Expr rhs);
     bool IsMul(Expr e, out Expr lhs, out Expr rhs);
@@ -119,6 +120,10 @@ namespace GPUVerify
       return MakeBitVectorBinaryBitVector("MUL", "bvmul", lhs, rhs);
     }
 
+    public Expr MakeDiv(Expr lhs, Expr rhs) {
+      return MakeBitVectorBinaryBitVector("DIV", "bvsdiv", lhs, rhs);
+    }
+
     public Expr MakeModPow2(Expr lhs, Expr rhs) {
       return MakeAnd(MakeSub(rhs, GetLiteral(1, 32)), lhs);
     }
@@ -191,6 +196,10 @@ namespace GPUVerify
 
     public Expr MakeMul(Expr lhs, Expr rhs) {
       return MakeIntBinaryInt("MUL", BinaryOperator.Opcode.Mul, lhs, rhs);
+    }
+
+    public Expr MakeDiv(Expr lhs, Expr rhs) {
+      return MakeIntBinaryInt("MUL", BinaryOperator.Opcode.Div, lhs, rhs);
     }
 
     public Expr MakeAnd(Expr lhs, Expr rhs) {

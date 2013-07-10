@@ -140,6 +140,8 @@ class CommandLineOptions(object):
   useCVC4 = False
   noBarrierAccessChecks = False
   testsuite = False
+  warpSync = False
+  warpSize = 32
   skip = { "clang": False,
            "opt": False,
            "bugle": False,
@@ -333,6 +335,7 @@ def showHelpAndExit():
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
   print "  --use-cvc4              Use the CVC4 SMT solver backend instead of the Z3 default"
+  print "  --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"         
@@ -494,6 +497,14 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.useCVC4 = True
     if o == "--testsuite":
       CommandLineOptions.testsuite = True
+    if o == "--warp-sync":
+      CommandLineOptions.warpSync = True
+      try:
+        if int(a) < 0 :
+          GPUVerifyError("negative value " + a + " provided as argument to --warp-sync", ErrorCodes.COMMAND_LINE_ERROR)
+        CommandLineOptions.warpSize = int(a)
+      except ValueError:
+        GPUVerifyError("non integer value '" + a + "' provided as argument to --warp-sync",ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--bugle-lang":
       if a.lower() in ("cl", "cu"):
         CommandLineOptions.bugleLanguage = a.lower()
@@ -596,7 +607,7 @@ def main(argv=None):
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference',
-              'use-cvc4'
+              'use-cvc4', 'warp-sync=',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -679,6 +690,8 @@ def main(argv=None):
     assert lang in [ "cl", "cu" ]
     CommandLineOptions.bugleOptions += [ "-l", lang, "-o", gbplFilename, optFilename ]
 
+  if CommandLineOptions.warpSync:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/doWarpSync:" + str(CommandLineOptions.warpSize) ]
   if CommandLineOptions.adversarialAbstraction:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/adversarialAbstraction" ]
   if CommandLineOptions.equalityAbstraction:
