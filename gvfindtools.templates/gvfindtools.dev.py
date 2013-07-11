@@ -38,6 +38,9 @@ gpuVerifyBoogieDriverBinDir = "/home/dan/documents/projects/gpuverify/gpuverify/
 #The path to the directory containing z3.exe
 z3BinDir = "/home/dan/documents/projects/gpuverify/z3/install/bin"
 
+#The path to the directory containing cvc4.exe
+cvc4BinDir = "/home/dan/documents/projects/gpuverify/cvc4/install/bin"
+
 def init(prefixPath):
   """This method does nothing"""
   pass

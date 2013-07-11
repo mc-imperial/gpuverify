@@ -101,7 +101,6 @@ class CommandLineOptions(object):
                                    "/typeEncoding:m", 
                                    "/doModSetAnalysis", 
                                    "/useArrayTheory", 
-				   "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe",
                                    "/doNotUseLabels", 
                                    "/noinfer", 
                                    "/enhancedErrorMessages:1",
@@ -138,8 +137,11 @@ class CommandLineOptions(object):
   mathInt = False
   asymmetricAsserts = False
   generateSmt2 = False
+  useCVC4 = False
   noBarrierAccessChecks = False
   testsuite = False
+  warpSync = False
+  warpSize = 32
   skip = { "clang": False,
            "opt": False,
            "bugle": False,
@@ -332,6 +334,8 @@ def showHelpAndExit():
   print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
+  print "  --use-cvc4              Use the CVC4 SMT solver backend instead of the Z3 default"
+  print "  --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"         
@@ -489,8 +493,18 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.asymmetricAsserts = True
     if o == "--gen-smt2":
       CommandLineOptions.generateSmt2 = True
+    if o == "--use-cvc4":
+      CommandLineOptions.useCVC4 = True
     if o == "--testsuite":
       CommandLineOptions.testsuite = True
+    if o == "--warp-sync":
+      CommandLineOptions.warpSync = True
+      try:
+        if int(a) < 0 :
+          GPUVerifyError("negative value " + a + " provided as argument to --warp-sync", ErrorCodes.COMMAND_LINE_ERROR)
+        CommandLineOptions.warpSize = int(a)
+      except ValueError:
+        GPUVerifyError("non integer value '" + a + "' provided as argument to --warp-sync",ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--bugle-lang":
       if a.lower() in ("cl", "cu"):
         CommandLineOptions.bugleLanguage = a.lower()
@@ -592,7 +606,8 @@ def main(argv=None):
               'blockDim=', 'gridDim=', 'math-int',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
-              'boogie-file=', 'staged-inference'
+              'boogie-file=', 'staged-inference',
+              'use-cvc4', 'warp-sync=',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -675,6 +690,8 @@ def main(argv=None):
     assert lang in [ "cl", "cu" ]
     CommandLineOptions.bugleOptions += [ "-l", lang, "-o", gbplFilename, optFilename ]
 
+  if CommandLineOptions.warpSync:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/doWarpSync:" + str(CommandLineOptions.warpSize) ]
   if CommandLineOptions.adversarialAbstraction:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/adversarialAbstraction" ]
   if CommandLineOptions.equalityAbstraction:
@@ -717,6 +734,13 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
+
+  if CommandLineOptions.useCVC4:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:SOLVER=cvc4" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
+  else:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
+
   if CommandLineOptions.generateSmt2:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
   if CommandLineOptions.debugging:
