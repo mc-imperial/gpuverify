@@ -181,7 +181,8 @@ namespace Microsoft.Boogie
             
             DisableCandidatesFromHigherStages(InvariantComputationProgram, CurrentStage);
 
-            Houdini.Houdini houdini = new Houdini.Houdini(InvariantComputationProgram);
+            var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
+            Houdini.Houdini houdini = new Houdini.Houdini(InvariantComputationProgram, houdiniStats);
             HoudiniInstances.Add(houdini);
 
             Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
@@ -199,11 +200,11 @@ namespace Microsoft.Boogie
               }
               Console.WriteLine("Number of true assignments = " + numTrueAssigns);
               Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
-              Console.WriteLine("Prover time = " + Houdini.HoudiniSession.proverTime.ToString("F2"));
-              Console.WriteLine("Unsat core prover time = " + Houdini.HoudiniSession.unsatCoreProverTime.ToString("F2"));
-              Console.WriteLine("Number of prover queries = " + Houdini.HoudiniSession.numProverQueries);
-              Console.WriteLine("Number of unsat core prover queries = " + Houdini.HoudiniSession.numUnsatCoreProverQueries);
-              Console.WriteLine("Number of unsat core prunings = " + Houdini.HoudiniSession.numUnsatCorePrunings);
+              Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
+              Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
+              Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
+              Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
+              Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
             }
 
             if (!AllImplementationsValid(outcome)) {
