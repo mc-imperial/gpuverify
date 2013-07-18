@@ -248,32 +248,58 @@ def main(argv):
   deployDir=os.path.abspath(deployDir)
   gvfindtoolsdeploy.init(deployDir)
 
+  #License path and string
+  licenseDest = os.path.join(deployDir, 'licenses')
+  licenseString = "Licenses can be found in the license directory\n"
+
   #Determine version and create version string
   versionString = getversion.getVersionStringFromMercurial()
   versionString += "Deployed on " + datetime.datetime.utcnow().ctime() + " (UTC)"
 
   #Specify actions to perform
   deployActions = [
+  # libclc
   DirCopy(gvfindtools.libclcDir, gvfindtoolsdeploy.libclcDir),
+  FileCopy(gvfindtools.libclcDir, 'LICENSE.TXT', licenseDest),
+  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'libclc.txt'),
+  # bugle
   DirCopy(gvfindtools.bugleSrcDir + os.sep + 'include-blang', gvfindtoolsdeploy.bugleSrcDir + os.sep + 'include-blang'),
+  FileCopy(gvfindtools.bugleSrcDir, 'LICENSE.TXT', licenseDest),
+  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'bugle.txt'),
+  RegexFileCopy(gvfindtools.bugleBinDir, r'bugle(\.exe)?$', gvfindtoolsdeploy.bugleBinDir),
+  # GPUVerify
   FileCopy(GPUVerifyRoot, 'GPUVerify.py', deployDir),
   FileCopy(GPUVerifyRoot, 'getversion.py', deployDir),
+  FileCopy(GPUVerifyRoot, 'LICENSE.TXT', licenseDest),
+  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'gpuverify-boogie.txt'),
   IfUsing('posix',FileCopy(GPUVerifyRoot, 'gpuverify', deployDir)),
   IfUsing('nt',FileCopy(GPUVerifyRoot, 'GPUVerify.bat', deployDir)),
   FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir),
   MoveFile(deployDir + os.sep + 'gvfindtoolsdeploy.py', deployDir + os.sep + 'gvfindtools.py'),
-  RegexFileCopy(gvfindtools.llvmBinDir, r'^clang(\.exe)?$', gvfindtoolsdeploy.llvmBinDir ),
-  RegexFileCopy(gvfindtools.llvmBinDir, r'^opt(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
-  RegexFileCopy(gvfindtools.llvmBinDir, r'^llvm-nm(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
-  RegexFileCopy(gvfindtools.bugleBinDir, r'bugle(\.exe)?$', gvfindtoolsdeploy.bugleBinDir),
   RegexFileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   FileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, 'UnivBackPred2.smt2', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   RegexFileCopy(gvfindtools.gpuVerifyVCGenBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyVCGenBinDir),
-  FileCopy(gvfindtools.z3BinDir, 'z3.exe', gvfindtoolsdeploy.z3BinDir),
-  DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
-  DirCopy( os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite') ),
-  CreateFileFromString(versionString, os.path.join(deployDir, os.path.basename(getversion.GPUVerifyDeployVersionFile)) ) # file for version information
+  DirCopy(os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite')),
+  # llvm, clang
+  FileCopy(gvfindtools.llvmSrcDir, 'LICENSE.TXT', licenseDest),
+  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'llvm.txt'),
+  FileCopy(os.path.join(gvfindtools.llvmSrcDir, 'tools' + os.sep + 'clang'), 'LICENSE.TXT', licenseDest),
+  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'clang.txt'),
+  FileCopy(os.path.join(gvfindtools.llvmSrcDir, 'projects' + os.sep + 'compiler-rt'), 'LICENSE.TXT', licenseDest),
+  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'compiler-rt.txt'),
+  RegexFileCopy(gvfindtools.llvmBinDir, r'^clang(\.exe)?$', gvfindtoolsdeploy.llvmBinDir ),
+  RegexFileCopy(gvfindtools.llvmBinDir, r'^opt(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
+  RegexFileCopy(gvfindtools.llvmBinDir, r'^llvm-nm(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
+  DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
+  # z3
+  FileCopy(gvfindtools.z3SrcDir, 'LICENSE.txt', licenseDest),
+  MoveFile(licenseDest + os.sep + 'LICENSE.txt', licenseDest + os.sep + 'z3.txt'),
+  FileCopy(gvfindtools.z3BinDir, 'z3.exe', gvfindtoolsdeploy.z3BinDir),
+  # file for version information
+  CreateFileFromString(versionString, os.path.join(deployDir, os.path.basename(getversion.GPUVerifyDeployVersionFile))),
+  # license file
+  CreateFileFromString(licenseString, os.path.join(deployDir, "LICENSE.TXT"))
   ]
 
   for action in deployActions:
