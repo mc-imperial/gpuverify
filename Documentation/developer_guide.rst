@@ -8,7 +8,7 @@ Building GPUVerify
 The GPUVerify toolchain is a pipeline that uses different components.
 This guide will walk you through the build process.
 
-There are specific instructions for Linux/OSX and Windows however they have
+There are specific instructions for Linux, OSX and Windows however they have
 a common set of prerequisites which are:
 
 * CMake >=2.8
@@ -73,11 +73,13 @@ Replace as appropriate or setup an environment variable.::
    PYTHON_EXECUTABLE=/usr/bin/python2.7`` to CMake.  If you would like more
    control over configure process use (``cmake-gui`` or ``ccmake`` instead of
    ``cmake``).
+
 #. Compile  LLVM and Clang::
 
      $ make -jN
 
    where ``N`` is the number of jobs to do in parallel.
+
 #. Now get libclc and build::
 
      $ cd ${BUILD_ROOT}
@@ -103,6 +105,7 @@ Replace as appropriate or setup an environment variable.::
     $ make -jN
 
    where ``N`` is the number of jobs to do in parallel.
+
 #. Get Z3 (SMT Solver) and build::
 
     $ cd ${BUILD_ROOT}
@@ -176,6 +179,191 @@ Replace as appropriate or setup an environment variable.::
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
+
+#. (Optional) Build the documentation. This requires the Sphinx python module,
+   which you can install using ``easy_install``.::
+
+    $ easy_install Sphinx
+    $ cd ${BUILD_ROOT}/gpuverify/Documentation
+    $ make html
+
+#. Run the GPUVerify test suite.
+   ::
+
+     $ cd ${BUILD_ROOT}/gpuverify
+     $ ./gvtester.py --write-pickle run.pickle testsuite/
+
+   You can also check that your test run matches the current baseline.
+   ::
+
+     $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
+
+   You should expect the last line of output to be.::
+
+     INFO:testsuite/baseline.pickle = new.pickle
+
+   This means that your install passes the regression suite.
+
+Mac OS X
+--------
+In addition to the common prerequisites a Mac build of GPUVerify requires
+a recent version of Mono since part of the toolchain uses C#.
+You should use a version of Mono >= 3.0.7.
+
+To build GPUVerify follow this guide in a bash shell.
+
+Note ``${BUILD_ROOT}`` refers to where ever you wish to build GPUVerify.
+Replace as appropriate or setup an environment variable.::
+
+     $ export BUILD_ROOT=/path/to/build
+
+#. (Optional) Install Mono locally::
+
+     $ cd ${BUILD_ROOT}
+     $ export MONO_VERSION=3.0.7
+     $ wget http://download.mono-project.com/sources/mono/mono-${MONO_VERSION}.tar.bz2
+     $ tar jxf mono-${MONO_VERSION}.tar.bz2
+     $ cd ${BUILD_ROOT}/mono-${MONO_VERSION}
+     $ ./configure --prefix=${BUILD_ROOT}/local --with-large-heap=yes --enable-nls=no
+     $ make
+     $ make install
+
+   Now add the Mono binaries to your path. You can add this permanently to
+   your ``.bashrc`` or create a ``sourceme.sh`` script to do this automatically::
+
+     $ export PATH=${BUILD_ROOT}/local/bin:$PATH
+
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.3)::
+
+     $ export LLVM_RELEASE=33
+     $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
+     $ cd ${BUILD_ROOT}/llvm_and_clang
+     $ svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
+     $ cd ${BUILD_ROOT}/llvm_and_clang/src/tools
+     $ svn co -q http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
+     $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
+     $ svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
+
+#. Configure LLVM and Clang for building (we will do an out of source build)::
+
+     $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
+     $ cd ${BUILD_ROOT}/llvm_and_clang/build
+     $ ../src/configure --enable-optimized --disable-assertions --enable-libcpp --enable-cxx11
+
+#. Compile  LLVM and Clang::
+
+     $ make -jN
+
+   where ``N`` is the number of jobs to do in parallel.
+
+#. Now get libclc and build::
+
+     $ cd ${BUILD_ROOT}
+     $ git clone http://llvm.org/git/libclc.git
+     $ cd libclc
+     $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
+                      nvptx--bugle
+     $ mv Makefile Makefile.old
+     $ sed "s#clang++ -o utils/prepare-builtins#clang++ -stdlib=libc++ -std=c++11 -o utils/prepare-builtins#" Makefile.old > Makefile
+     $ make
+
+#. Get Bugle and configure for building (we will do out of source build)::
+
+     $ cd ${BUILD_ROOT}
+     $ git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}/bugle/src
+     $ mkdir ${BUILD_ROOT}/bugle/build
+     $ cd ${BUILD_ROOT}/bugle/build
+     $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
+             -D CMAKE_BUILD_TYPE=Release \
+             -D LIBCLC_DIR=${BUILD_ROOT}/libclc \
+             ../src
+     $ CXXFLAGS="-std=c++11 -stdlib=libc++" cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
+                                                  -D CMAKE_BUILD_TYPE=Release \
+                                                  -D LIBCLC_DIR=${BUILD_ROOT}/libclc \
+                                                  ../src
+
+#. Compile Bugle::
+
+    $ make -jN
+
+   where ``N`` is the number of jobs to do in parallel.
+
+#. Get Z3 (SMT Solver) and build::
+
+    $ cd ${BUILD_ROOT}
+    $ git clone https://git01.codeplex.com/z3
+    $ cd ${BUILD_ROOT}/z3
+    $ autoconf
+    $ configure
+    $ python scripts/mk_make.py
+    $ cd build
+    $ make -jN
+
+   where ``N`` is the number of jobs to do in parallel.
+
+   Now we make a symbolic link because ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
+   ::
+
+    $ ln -s z3 z3.exe
+
+#. Get GPUVerify code and build C# components::
+
+     $ cd ${BUILD_ROOT}
+     $ hg clone https://hg.codeplex.com/gpuverify
+     $ cd ${BUILD_ROOT}/gpuverify
+     $ xbuild /p:Configuration=Release GPUVerify.sln
+
+#. Configure GPUVerify front end.
+   GPUVerify uses a front end python script (GPUVerify.py). This script needs
+   to be aware of the location of all its dependencies. We currently do this by
+   having an additional python script (gvfindtools.py) with hard coded absolute
+   paths that a developer must configure by hand. gvfindtools.py is ignored by
+   Mercurial so each developer can have their own configuration without
+   interfering with other users.
+   ::
+
+     $ cd ${BUILD_ROOT}/gpuverify
+     $ cp gvfindtools.templates/gvfindtools.dev.py gvfindtools.py
+
+   Now open gvfindtools.py in your favourite text editor and edit the paths.
+   If you followed this guide strictly then these paths will be as follows
+   and you should only need to change the ``rootDir`` variable.
+   ::
+
+      rootDir = "${BUILD_ROOT}" #< CHANGE THIS PATH
+
+      #The path to the Bugle Source directory. The include-blang/ folder should be in there
+      bugleSrcDir = rootDir + "/bugle/src"
+      
+      #The Path to the directory where the "bugle" executable can be found.
+      bugleBinDir = rootDir + "/bugle/build"
+      
+      #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
+      libclcDir = rootDir + "/libclc"
+      
+      #The path to the llvm Source directory.
+      llvmSrcDir = rootDir + "/llvm_and_clang/src"
+      
+      #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
+      llvmBinDir = rootDir + "/llvm_and_clang/build/Release/bin"
+      
+      #The path containing the llvm libraries
+      llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
+      
+      #The path to the directory containing GPUVerifyVCGen.exe
+      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
+      
+      #The path to the directory containing GPUVerifyBoogieDriver.exe
+      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+      
+      #The path to the z3 Source directory.
+      z3SrcDir = rootDir + "/z3"
+      
+      #The path to the directory containing z3.exe
+      z3BinDir = rootDir + "/z3/build"
+      
+      #The path to the directory containing cvc4.exe
+      cvc4BinDir = None
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
    which you can install using ``easy_install``.::
@@ -316,7 +504,7 @@ drives.
       rootDir = r"${BUILD_ROOT}" #< CHANGE THIS PATH
 
       #The path to the Bugle Source directory. The include-blang/ folder should be in there
-      bugleSrcDir = rootDir + r"\bugle"
+      bugleSrcDir = rootDir + r"\bugle\src"
 
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + r"\bugle\build\Release"
