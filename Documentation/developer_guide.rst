@@ -36,7 +36,7 @@ Replace as appropriate or setup an environment variable.::
   Code blocks must start and end with a blank line and code blocks must be
   further indented from the list text. 
 
-#. (Optional) Install Mono locally::
+#. Install Mono::
 
      $ cd ${BUILD_ROOT}
      $ export MONO_VERSION=3.0.7
@@ -47,7 +47,7 @@ Replace as appropriate or setup an environment variable.::
      $ make
      $ make install
 
-   Now add the Mono binaries to your path. You can add this permanently to
+   Add the Mono binaries to your path. You can add this permanently to
    your ``.bashrc`` or create a ``sourceme.sh`` script to do this automatically::
 
      $ export PATH=${BUILD_ROOT}/local/bin:$PATH
@@ -63,7 +63,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
      $ svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
 
-#. Configure LLVM and Clang for building (we will do an out of source build)::
+#. Configure LLVM and Clang for building (we do an out of source build)::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
@@ -89,7 +89,7 @@ Replace as appropriate or setup an environment variable.::
                       nvptx--bugle
      $ make
 
-#. Get Bugle and configure for building (we will do out of source build)::
+#. Get Bugle and configure for building (we do an out of source build)::
 
      $ cd ${BUILD_ROOT}
      $ git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}/bugle/src
@@ -217,21 +217,11 @@ Replace as appropriate or setup an environment variable.::
 
      $ export BUILD_ROOT=/path/to/build
 
-#. (Optional) Install Mono locally::
+#. Obtain Mono from::
 
-     $ cd ${BUILD_ROOT}
-     $ export MONO_VERSION=3.0.7
-     $ wget http://download.mono-project.com/sources/mono/mono-${MONO_VERSION}.tar.bz2
-     $ tar jxf mono-${MONO_VERSION}.tar.bz2
-     $ cd ${BUILD_ROOT}/mono-${MONO_VERSION}
-     $ ./configure --prefix=${BUILD_ROOT}/local --with-large-heap=yes --enable-nls=no
-     $ make
-     $ make install
+     http://www.mono-project.com
 
-   Now add the Mono binaries to your path. You can add this permanently to
-   your ``.bashrc`` or create a ``sourceme.sh`` script to do this automatically::
-
-     $ export PATH=${BUILD_ROOT}/local/bin:$PATH
+   and install.
 
 #. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.3)::
 
@@ -244,7 +234,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
      $ svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
 
-#. Configure LLVM and Clang for building (we will do an out of source build)::
+#. Configure LLVM and Clang for building (we do an out of source build)::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
@@ -267,20 +257,17 @@ Replace as appropriate or setup an environment variable.::
      $ sed "s#clang++ -o utils/prepare-builtins#clang++ -stdlib=libc++ -std=c++11 -o utils/prepare-builtins#" Makefile.old > Makefile
      $ make
 
-#. Get Bugle and configure for building (we will do out of source build)::
+#. Get Bugle and configure for building (we do an out of source build)::
 
      $ cd ${BUILD_ROOT}
      $ git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}/bugle/src
      $ mkdir ${BUILD_ROOT}/bugle/build
      $ cd ${BUILD_ROOT}/bugle/build
-     $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
+     $ CXXFLAGS="-std=c++11 -stdlib=libc++" \
+       cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
              -D CMAKE_BUILD_TYPE=Release \
              -D LIBCLC_DIR=${BUILD_ROOT}/libclc \
              ../src
-     $ CXXFLAGS="-std=c++11 -stdlib=libc++" cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
-                                                  -D CMAKE_BUILD_TYPE=Release \
-                                                  -D LIBCLC_DIR=${BUILD_ROOT}/libclc \
-                                                  ../src
 
 #. Compile Bugle::
 
@@ -334,36 +321,33 @@ Replace as appropriate or setup an environment variable.::
 
       #The path to the Bugle Source directory. The include-blang/ folder should be in there
       bugleSrcDir = rootDir + "/bugle/src"
-      
+
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
-      
+
       #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
       libclcDir = rootDir + "/libclc"
-      
+
       #The path to the llvm Source directory.
       llvmSrcDir = rootDir + "/llvm_and_clang/src"
-      
+
       #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
       llvmBinDir = rootDir + "/llvm_and_clang/build/Release/bin"
-      
+
       #The path containing the llvm libraries
       llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
-      
+
       #The path to the directory containing GPUVerifyVCGen.exe
       gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
-      
+
       #The path to the directory containing GPUVerifyBoogieDriver.exe
       gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
-      
+
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
-      
+
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
-      
-      #The path to the directory containing cvc4.exe
-      cvc4BinDir = None
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
    which you can install using ``easy_install``.::
@@ -430,7 +414,7 @@ drives.
       > cd ${BUILD_ROOT}\llvm_and_clang\src\projects
       > svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_$LLVM_RELEASE compiler-rt
 
-#. Configure LLVM and Clang for building (we will do an out of source build)::
+#. Configure LLVM and Clang for building (we do an out of source build)::
 
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
@@ -451,7 +435,7 @@ drives.
       > $dest  = $shell.namespace("${BUILD_ROOT}")
       > $dest.Copyhere($zip.items(), 0x14)
 
-#. Get Bugle and configure for building (we will do out of source build)::
+#. Get Bugle and configure for building (we do an out of source build)::
 
       > cd ${BUILD_ROOT}
       > git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}\bugle\src
