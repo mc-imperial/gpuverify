@@ -20,8 +20,11 @@ bugleSrcDir = "/home/dan/documents/projects/gpuverify/bugle/src"
 #The Path to the directory where the "bugle" executable can be found.
 bugleBinDir = "/home/dan/documents/projects/gpuverify/bugle/bin"
 
-#The path to the directory where libclc can be found. The nvptex--bugle/ and generic/ folders should be in there
+#The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
 libclcDir = "/home/dan/documents/projects/gpuverify/libclc-inst"
+
+#The path to the llvm Source directory.
+llvmSrcDir = "/home/dan/documents/projects/gpuverify/llvm_and_clang/src"
 
 #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
 llvmBinDir = "/home/dan/documents/projects/gpuverify/llvm_and_clang/bin/bin"
@@ -34,6 +37,9 @@ gpuVerifyVCGenBinDir = "/home/dan/documents/projects/gpuverify/gpuverify/GPUVeri
 
 #The path to the directory containing GPUVerifyBoogieDriver.exe
 gpuVerifyBoogieDriverBinDir = "/home/dan/documents/projects/gpuverify/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+
+#The path to the z3 Source directory.
+z3SrcDir = "/home/dan/documents/projects/gpuverify/z3/src"
 
 #The path to the directory containing z3.exe
 z3BinDir = "/home/dan/documents/projects/gpuverify/z3/install/bin"

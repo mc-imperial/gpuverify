@@ -75,7 +75,7 @@ clangCoreOptions = [ "-target", "nvptx--bugle",
 clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                        "-O0",
                        "-Xclang", "-mlink-bitcode-file",
-                       "-Xclang", gvfindtools.libclcDir + "/nvptx--bugle/lib/builtins.bc",
+                       "-Xclang", gvfindtools.libclcDir + "/built_libs/nvptx--bugle.bc",
                        "-include", "opencl.h"
                      ]
 clangOpenCLIncludes = [ gvfindtools.libclcDir + "/generic/include" ]

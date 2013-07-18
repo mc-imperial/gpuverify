@@ -30,8 +30,11 @@ def init(pathPrefix):
   #The Path to the directory where the "bugle" executable can be found.
   bugleBinDir = pathPrefix + os.sep + "bin"
 
-  #The path to the directory where libclc can be found. The nvptex--bugle/ and generic/ folder should be in there
+  #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folder should be in there
   libclcDir = pathPrefix + os.sep + "libclc"
+
+  #The path to the llvm Source directory. Not used in the deployed setting
+  llvmBinDir = pathPrefix + os.sep + "llvm"
 
   #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
   llvmBinDir = pathPrefix + os.sep + "bin"
@@ -44,6 +47,9 @@ def init(pathPrefix):
 
   #The path to the directory containing GPUVerifyBoogieDriver.exe
   gpuVerifyBoogieDriverBinDir = pathPrefix + os.sep + "bin"
+
+  #The path to the z3 Source directory. Not used in the deployed setting
+  z3SrcDir = pathPrefix + os.sep + "z3"
 
   #The path to the directory containing z3.exe
   z3BinDir = pathPrefix + os.sep + "bin"
