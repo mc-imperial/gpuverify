@@ -17,8 +17,8 @@ a common set of prerequisites which are:
 * Git
 * Subversion
 
-Linux/OSX
----------
+Linux
+-----
 In addition to the common prerequisites a Linux build of GPUVerify requires
 GCC >= 4.6 and a recent version of Mono since part of the toolchain uses C#.
 You should use a version of Mono >= 3.0.7.
@@ -52,17 +52,16 @@ Replace as appropriate or setup an environment variable.::
 
      $ export PATH=${BUILD_ROOT}/local/bin:$PATH
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on a specific revision)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.3)::
 
-     $ export LLVM_CLANG_VERSION=169118
+     $ export LLVM_RELEASE=33
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
-     $ svn co -q -r ${LLVM_CLANG_VERSION} http://llvm.org/svn/llvm-project/llvm/trunk src
+     $ svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
+     $ cd ${BUILD_ROOT}/llvm_and_clang/src/tools
+     $ svn co -q http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
-     $ svn co -q -r ${LLVM_CLANG_VERSION} http://llvm.org/svn/llvm-project/cfe/trunk clang
-     $ svn co -q -r ${LLVM_CLANG_VERSION} http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt 
-     $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects/clang/tools
-     $ svn co -q -r ${LLVM_CLANG_VERSION} http://llvm.org/svn/llvm-project/clang-tools-extra/trunk extra
+     $ svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
 
 #. Configure LLVM and Clang for building (we will do an out of source build)::
 
@@ -72,7 +71,7 @@ Replace as appropriate or setup an environment variable.::
 
    Note if you have python3 installed you may need to specifiy ``-D
    PYTHON_EXECUTABLE=/usr/bin/python2.7`` to CMake.  If you would like more
-   control over configure process use (``cmake-gui`` or ``ccmake`` instead of 
+   control over configure process use (``cmake-gui`` or ``ccmake`` instead of
    ``cmake``).
 #. Compile  LLVM and Clang::
 
@@ -85,21 +84,19 @@ Replace as appropriate or setup an environment variable.::
      $ git clone http://llvm.org/git/libclc.git
      $ cd libclc
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
-                      --prefix=${BUILD_ROOT}/libclc-inst \
                       nvptx--bugle
      $ make
-     $ make install
 
 #. Get Bugle and configure for building (we will do out of source build)::
 
      $ cd ${BUILD_ROOT}
-     $ git clone git://git.pcc.me.uk/~peter/bugle.git
+     $ git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}/bugle/src
      $ mkdir ${BUILD_ROOT}/bugle/build
      $ cd ${BUILD_ROOT}/bugle/build
      $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
              -D CMAKE_BUILD_TYPE=Release \
              -D LIBCLC_DIR=${BUILD_ROOT}/libclc \
-             ..
+             ../src
 
 #. Compile Bugle::
 
@@ -151,13 +148,16 @@ Replace as appropriate or setup an environment variable.::
       rootDir = "${BUILD_ROOT}" #< CHANGE THIS PATH
 
       #The path to the Bugle Source directory. The include-blang/ folder should be in there
-      bugleSrcDir = rootDir + "/bugle"
+      bugleSrcDir = rootDir + "/bugle/src"
 
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
 
-      #The path to the directory where libclc can be found. The nvptex--bugle/ and generic/ folders should be in there
+      #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
       libclcDir = rootDir + "/libclc"
+
+      #The path to the llvm Source directory.
+      llvmSrcDir = rootDir + "/llvm_and_clang/src"
 
       #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
       llvmBinDir = rootDir + "/llvm_and_clang/build/bin"
@@ -170,6 +170,9 @@ Replace as appropriate or setup an environment variable.::
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
       gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+
+      #The path to the z3 Source directory.
+      z3SrcDir = "rootDir + /z3"
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
@@ -196,7 +199,7 @@ Replace as appropriate or setup an environment variable.::
 
      INFO:testsuite/baseline.pickle = new.pickle
 
-   This means that your install passes the regression suite. 
+   This means that your install passes the regression suite.
 
 Windows
 -------
