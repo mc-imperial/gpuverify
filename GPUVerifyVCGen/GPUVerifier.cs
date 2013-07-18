@@ -134,6 +134,27 @@ namespace GPUVerify
                 Console.WriteLine("{0} GPUVerify format errors detected in {1}", errorCount, CommandLineOptions.inputFiles[CommandLineOptions.inputFiles.Count - 1]);
                 Environment.Exit(1);
             }
+
+            if (CommandLineOptions.EqualityAbstraction)
+            {
+              var impls = Program.TopLevelDeclarations.Where(d => d is Implementation).Select(d => d as Implementation);
+              var blocks = impls.SelectMany(impl => impl.Blocks);
+              foreach (Block b in blocks)
+              {
+                foreach (Cmd c in b.Cmds)
+                {
+                  if (c is CallCmd)
+                  {
+                    CallCmd call = c as CallCmd;
+                    if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
+                    {
+                      Console.WriteLine("GPUVerify: error: --equality-abstraction cannot be used with atomics.");
+                      Environment.Exit(1);
+                    }
+                  }
+                }
+              }
+            }
         }
 
         private Dictionary<Procedure, Implementation> GetKernelProcedures()

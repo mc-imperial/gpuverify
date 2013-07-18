@@ -46,6 +46,8 @@ namespace GPUVerify
         public static bool AbstractHoudini = false;
         public static bool WarpSync = false;
         public static int WarpSize = 32;
+        public static bool AtomicVsRead = true;
+        public static bool AtomicVsWrite = true;
 
         public static int Parse(string[] args)
         {
@@ -194,6 +196,34 @@ namespace GPUVerify
                     WarpSync = true;
                     if (hasColonArgument)
                         WarpSize = int.Parse(afterColon);
+                    break;
+
+                    case "-atomics":
+                    case "/atomics":
+                    if (hasColonArgument)
+                      switch(afterColon)
+                      {
+                        case "r":
+                          AtomicVsRead = true;
+                          AtomicVsWrite = false;
+                          break;
+                        case "w":
+                          AtomicVsRead = false;
+                          AtomicVsWrite = true;
+                          break;
+                        case "rw":
+                          AtomicVsRead = true;
+                          AtomicVsWrite = true;
+                          break;
+                        case "none":
+                          AtomicVsRead = false;
+                          AtomicVsWrite = false;
+                          break;
+                        default:
+                          AtomicVsRead = true;
+                          AtomicVsWrite = true;
+                          break;
+                      }
                     break;
 
                     default:

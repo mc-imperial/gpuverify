@@ -27,7 +27,11 @@ namespace GPUVerify {
     enum RaceType {
       WW,
       RW,
-      WR
+      WR,
+      AR,
+      AW,
+      RA,
+      WA
     };
 
     enum ErrorMsgType {
@@ -100,6 +104,22 @@ namespace GPUVerify {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "WRITE", ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WW);
       }
+      else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "atomic_read")) {
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "ATOMIC", ModelWithStates);
+        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AR);
+      }
+      else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "atomic_write")) {
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "ATOMIC", ModelWithStates);
+        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AW);
+      }
+      else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "read_atomic")) {
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "READ", ModelWithStates);
+        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RA);
+      }
+      else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_atomic")) {
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "WRITE", ModelWithStates);
+        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WA);
+      }
     }
 
     private static void ReportRace(CallCmd callNode, Requires reqNode, string thread1, string thread2, string group1, string group2, string arrName, uint byteOffset, RaceType raceType) {
@@ -125,6 +145,27 @@ namespace GPUVerify {
           access1 = "write";
           access2 = "write";
           break;
+        case RaceType.AR:
+          raceName = "atomic-read";
+          access1 = "atomic";
+          access2 = "read";
+          break;
+        case RaceType.AW:
+          raceName = "atomic-write";
+          access1 = "atomic";
+          access2 = "write";
+          break;
+        case RaceType.RA:
+          raceName = "read-atomic";
+          access1 = "read";
+          access2 = "atomic";
+          break;
+        case RaceType.WA:
+          raceName = "write-atomic";
+          access1 = "write";
+          access2 = "atomic";
+          break;
+
         default:
           raceName = null;
           access1 = null;
@@ -171,14 +212,21 @@ namespace GPUVerify {
       // The offset variable name can be exactly reconstructed from the attributes of the requires clause
       string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
       string AccessType;
-      if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
-         QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read")) {
+       if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
+         QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read") ||
+         QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic")) {
         AccessType = "WRITE";
       }
-      else {
-        Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write"));
+      else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write") ||
+          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic")) {
         AccessType = "READ";
       }
+      else {
+        Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read") ||
+            QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
+        AccessType = "ATOMIC";
+      }
+
       string OffsetVarName = "_" + AccessType + "_OFFSET_" + ArrayName + "$1";
 
       var VFV = new VariableFinderVisitor(OffsetVarName);
