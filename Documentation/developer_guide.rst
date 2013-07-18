@@ -321,7 +321,7 @@ drives.
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + r"\bugle\build\Release"
 
-      #The path to the directory where libclc can be found. The nvptex--bugle/ and generic/ folders should be in there
+      #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
       libclcDir = rootDir + r"\libclc-inst"
 
       #The path to the llvm Source directory.

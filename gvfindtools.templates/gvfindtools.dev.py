@@ -20,7 +20,7 @@ bugleSrcDir = "/home/dan/documents/projects/gpuverify/bugle/src"
 #The Path to the directory where the "bugle" executable can be found.
 bugleBinDir = "/home/dan/documents/projects/gpuverify/bugle/bin"
 
-#The path to the directory where libclc can be found. The nvptex--bugle/ and generic/ folders should be in there
+#The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
 libclcDir = "/home/dan/documents/projects/gpuverify/libclc-inst"
 
 #The path to the llvm Source directory.
