@@ -172,7 +172,7 @@ Replace as appropriate or setup an environment variable.::
       gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
 
       #The path to the z3 Source directory.
-      z3SrcDir = "rootDir + /z3"
+      z3SrcDir = rootDir + "/z3"
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
@@ -231,17 +231,16 @@ drives.
    You can add this permanently to your ``$profile`` so that the Microsoft
    compiler is always available at the command-line.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on a specific revision)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.3)::
 
-      > $LLVM_CLANG_VERSION=169118
+      > $LLVM_RELEASE=33
       > mkdir llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
-      > svn co -q -r $LLVM_CLANG_VERSION http://llvm.org/svn/llvm-project/llvm/trunk src
-      > cd src\projects
-      > svn co -q -r $LLVM_CLANG_VERSION http://llvm.org/svn/llvm-project/cfe/trunk clang
-      > svn co -q -r $LLVM_CLANG_VERSION http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt 
-      > cd clang\tools
-      > svn co -q -r $LLVM_CLANG_VERSION http://llvm.org/svn/llvm-project/clang-tools-extra/trunk extra
+      > svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
+      > cd ${BUILD_ROOT}\llvm_and_clang\src\tools
+      > svn co -q http://llvm.org/svn/llvm-project/cfe/branches/release_$LLVM_RELEASE clang
+      > cd ${BUILD_ROOT}\llvm_and_clang\src\projects
+      > svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_$LLVM_RELEASE compiler-rt
 
 #. Configure LLVM and Clang for building (we will do an out of source build)::
 
@@ -267,7 +266,7 @@ drives.
 #. Get Bugle and configure for building (we will do out of source build)::
 
       > cd ${BUILD_ROOT}
-      > git clone git://git.pcc.me.uk/~peter/bugle.git
+      > git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}\bugle\src
       > mkdir ${BUILD_ROOT}\bugle\build
       > cd ${BUILD_ROOT}\bugle\build
       > $LLVM_SRC = "${BUILD_ROOT}\llvm_and_clang\src"
@@ -277,12 +276,12 @@ drives.
               -D LLVM_BUILD=$LLVM_BUILD \
               -D LLVM_BUILD_TYPE=Release \
               -D LIBCLC_DIR=${BUILD_ROOT}/libclc-inst \
-              ..
+              ..\src
 
 #. Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
    for the command line, then::
-              
+
       > msbuild /p:Configuration=Release Bugle.sln
 
 #. Get Z3 (SMT Solver) and build::
@@ -315,28 +314,34 @@ drives.
    ::
 
       rootDir = r"${BUILD_ROOT}" #< CHANGE THIS PATH
-      
+
       #The path to the Bugle Source directory. The include-blang/ folder should be in there
       bugleSrcDir = rootDir + r"\bugle"
-      
+
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + r"\bugle\build\Release"
-      
+
       #The path to the directory where libclc can be found. The nvptex--bugle/ and generic/ folders should be in there
       libclcDir = rootDir + r"\libclc-inst"
-      
+
+      #The path to the llvm Source directory.
+      llvmSrcDir = rootDir + r"\llvm_and_clang\src"
+
       #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
       llvmBinDir = rootDir + r"\llvm_and_clang\build\bin\Release"
-      
+
       #The path containing the llvm libraries
       llvmLibDir = rootDir + r"\llvm_and_clang\build\lib"
-      
+
       #The path to the directory containing GPUVerifyVCGen.exe
       gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\GPUVerifyVCGen\bin\Release"
-      
+
       #The path to the directory containing GPUVerifyBoogieDriver.exe
       gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\GPUVerifyBoogieDriver\bin\Release"
-      
+
+      #The path to the z3 Source directory.
+      z3SrcDir = rootDir + r"\z3"
+
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + r"\z3\build"
 
