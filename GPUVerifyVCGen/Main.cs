@@ -133,8 +133,7 @@ namespace GPUVerify
 
             if (CommandLineOptions.BarrierAccessChecks)
             {
-                NoAccessInstrumenter ni = new NoAccessInstrumenter();
-                ni.setVerifier(g);
+                NoAccessInstrumenter ni = new NoAccessInstrumenter(g);
                 g.setNoAccessInstrumenter(ni);
             }
 

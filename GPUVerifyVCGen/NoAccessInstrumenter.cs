@@ -26,7 +26,7 @@ namespace GPUVerify {
 
     public IKernelArrayInfo NonLocalStateToCheck;
 
-    public void setVerifier(GPUVerifier verifier) {
+    public NoAccessInstrumenter(GPUVerifier verifier) {
       this.verifier = verifier;
       NonLocalStateToCheck = new KernelArrayInfoLists();
       foreach (Variable v in verifier.KernelArrayInfo.getGlobalArrays()) {
