@@ -75,10 +75,10 @@ clangCoreOptions = [ "-target", "nvptx--bugle",
 clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                        "-O0",
                        "-Xclang", "-mlink-bitcode-file",
-                       "-Xclang", gvfindtools.libclcDir + "/lib/clc/nvptx--bugle.bc",
+                       "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--bugle.bc",
                        "-include", "opencl.h"
                      ]
-clangOpenCLIncludes = [ gvfindtools.libclcDir + "/generic/include" ]
+clangOpenCLIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangOpenCLDefines = [ "cl_khr_fp64",
                        "cl_clang_storage_class_specifiers",
                        "__OPENCL_VERSION__"

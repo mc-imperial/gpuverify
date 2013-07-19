@@ -83,12 +83,14 @@ Replace as appropriate or setup an environment variable.::
 #. Now get libclc and build::
 
      $ cd ${BUILD_ROOT}
-     $ git clone http://llvm.org/git/libclc.git
-     $ cd libclc
+     $ git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}/libclc/src
+     $ cd libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
-                      --prefix=${BUILD_ROOT}/libclc-inst                                    \
+                      --prefix=${BUILD_ROOT}/libclc/install \
                       nvptx--bugle
      $ make
+     $ make install
+     $ cp LICENSE.TXT ${BUILD_ROOT}/libclc/install
 
 #. Get Bugle and configure for building (we do an out of source build)::
 
@@ -98,7 +100,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/bugle/build
      $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
              -D CMAKE_BUILD_TYPE=Release \
-             -D LIBCLC_DIR=${BUILD_ROOT}/libclc \
+             -D LIBCLC_DIR=${BUILD_ROOT}/libclc/install \
              ../src
 
 #. Compile Bugle::
@@ -158,7 +160,7 @@ Replace as appropriate or setup an environment variable.::
       bugleBinDir = rootDir + "/bugle/build"
 
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
-      libclcDir = rootDir + "/libclc-inst"
+      libclcInstallDir = rootDir + "/libclc/install"
 
       #The path to the llvm Source directory.
       llvmSrcDir = rootDir + "/llvm_and_clang/src"
@@ -192,7 +194,7 @@ Replace as appropriate or setup an environment variable.::
    ::
 
      $ cd ${BUILD_ROOT}/gpuverify
-     $ ./gvtester.py --write-pickle run.pickle testsuite/
+     $ ./gvtester.py --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
@@ -239,7 +241,8 @@ Replace as appropriate or setup an environment variable.::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
-     $ ../src/configure --enable-optimized --disable-assertions --enable-libcpp --enable-cxx11
+     $ ../src/configure --enable-optimized --disable-assertions \
+                        --enable-libcpp --enable-cxx11
 
 #. Compile  LLVM and Clang::
 
@@ -250,14 +253,16 @@ Replace as appropriate or setup an environment variable.::
 #. Now get libclc and build::
 
      $ cd ${BUILD_ROOT}
-     $ git clone http://llvm.org/git/libclc.git
-     $ cd libclc
+     $ git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}/libclc/src
+     $ cd libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
-                      --prefix=${BUILD_ROOT}/libclc-inst                                            \
+                      --prefix=${BUILD_ROOT}/libclc/install \
                       nvptx--bugle
      $ mv Makefile Makefile.old
      $ sed "s#clang++ -o utils/prepare-builtins#clang++ -stdlib=libc++ -std=c++11 -o utils/prepare-builtins#" Makefile.old > Makefile
      $ make
+     $ make install
+     $ cp LICENSE.TXT ${BUILD_ROOT}/libclc/install
 
 #. Get Bugle and configure for building (we do an out of source build)::
 
@@ -268,7 +273,7 @@ Replace as appropriate or setup an environment variable.::
      $ CXXFLAGS="-std=c++11 -stdlib=libc++" \
        cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
              -D CMAKE_BUILD_TYPE=Release \
-             -D LIBCLC_DIR=${BUILD_ROOT}/libclc \
+             -D LIBCLC_DIR=${BUILD_ROOT}/libclc/install \
              ../src
 
 #. Compile Bugle::
@@ -328,7 +333,7 @@ Replace as appropriate or setup an environment variable.::
       bugleBinDir = rootDir + "/bugle/build"
 
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
-      libclcDir = rootDir + "/libclc-inst"
+      libclcInstallDir = rootDir + "/libclc/install"
 
       #The path to the llvm Source directory.
       llvmSrcDir = rootDir + "/llvm_and_clang/src"
@@ -362,7 +367,7 @@ Replace as appropriate or setup an environment variable.::
    ::
 
      $ cd ${BUILD_ROOT}/gpuverify
-     $ ./gvtester.py --write-pickle run.pickle testsuite/
+     $ ./gvtester.py --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
@@ -428,7 +433,7 @@ drives.
 
       > msbuild /p:Configuration=Release LLVM.sln
 
-#. Now get libclc. You can download this from the GPUVerify website and unzip
+#. Get libclc. You can download this from the GPUVerify website and unzip
    this in ``${BUILD_ROOT}``. You can also do this at the command line::
 
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
@@ -445,11 +450,11 @@ drives.
       > cd ${BUILD_ROOT}\bugle\build
       > $LLVM_SRC = "${BUILD_ROOT}\llvm_and_clang\src"
       > $LLVM_BUILD = "${BUILD_ROOT}\llvm_and_clang\build"
-      > cmake -G "Visual Studio 10" \
-              -D LLVM_SRC=$LLVM_SRC \
-              -D LLVM_BUILD=$LLVM_BUILD \
-              -D LLVM_BUILD_TYPE=Release \
-              -D LIBCLC_DIR=${BUILD_ROOT}/libclc-inst \
+      > cmake -G "Visual Studio 10" `
+              -D LLVM_SRC=$LLVM_SRC `
+              -D LLVM_BUILD=$LLVM_BUILD `
+              -D LLVM_BUILD_TYPE=Release `
+              -D LIBCLC_DIR=${BUILD_ROOT}\libclc\install `
               ..\src
 
 #. Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
@@ -462,8 +467,8 @@ drives.
 
       > cd ${BUILD_ROOT}
       > git clone https://git01.codeplex.com/z3
-      > cd ${BUILD_ROOT}}/z3
-      > python scripts/mk_make.py
+      > cd ${BUILD_ROOT}}\z3
+      > python scripts\mk_make.py
       > cd build
       > nmake
 
@@ -478,8 +483,8 @@ drives.
 
 #. Configure GPUVerify front end.::
 
-     > cd ${BUILD_ROOT}/gpuverify
-     > cp gvfindtools.templates/gvfindtools.dev.py gvfindtools.py
+     > cd ${BUILD_ROOT}\gpuverify
+     > copy gvfindtools.templates\gvfindtools.dev.py gvfindtools.py
 
    Now open gvfindtools.py in your favourite text editor and edit the paths.
    If you followed this guide strictly then these paths will be as follows
@@ -496,7 +501,7 @@ drives.
       bugleBinDir = rootDir + r"\bugle\build\Release"
 
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
-      libclcDir = rootDir + r"\libclc-inst"
+      libclcInstallDir = rootDir + r"\libclc\install"
 
       #The path to the llvm Source directory.
       llvmSrcDir = rootDir + r"\llvm_and_clang\src"
@@ -523,25 +528,25 @@ drives.
    which you can install using ``easy_install``.::
 
     $ easy_install Sphinx
-    $ cd ${BUILD_ROOT}/gpuverify/Documentation
+    $ cd ${BUILD_ROOT}\gpuverify\Documentation
     $ make html
 
 #. Run the GPUVerify test suite.
    ::
 
-     $ cd ${BUILD_ROOT}/gpuverify
-     $ ./gvtester.py --write-pickle run.pickle testsuite/
+     $ cd ${BUILD_ROOT}\gpuverify
+     $ .\gvtester.py --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
 
-     $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
+     $ .\gvtester.py --compare-pickle testsuite\baseline.pickle run.pickle
 
    You should expect the last line of output to be.::
 
      INFO:testsuite/baseline.pickle = new.pickle
 
-   This means that your install passes the regression suite. 
+   This means that your install passes the regression suite.
 
 Deploying GPUVerify
 ===================

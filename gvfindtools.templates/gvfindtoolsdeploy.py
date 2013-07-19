@@ -30,8 +30,8 @@ def init(pathPrefix):
   #The Path to the directory where the "bugle" executable can be found.
   bugleBinDir = pathPrefix + os.sep + "bin"
 
-  #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folder should be in there
-  libclcDir = pathPrefix + os.sep + "libclc"
+  #The path to the directory where libclc can be found. The include/ and lib/clc/ folders should be there
+  libclcInstallDir = pathPrefix + os.sep + "libclc"
 
   #The path to the llvm Source directory. Not used in the deployed setting
   llvmBinDir = pathPrefix + os.sep + "llvm"
