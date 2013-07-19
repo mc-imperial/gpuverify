@@ -1,0 +1,58 @@
+ABOUT GPUVerifyRise4Fun 
+This is a python based web service that interacts with Microsoft's Rise4Fun[1] 
+online tool platform to allow use of the GPUVerify tool.
+
+DEPENDENCIES
+
+- Python 2.7.*
+- Flask >=0.10
+- Tornado >= 3.1
+- GPUVerify (development or deployed version)
+
+You can get hold of Flask and tornado by running
+
+$ pip install flask 
+$ pip install tornado
+
+You may want to use the virtualenv python package to isolate these dependencies
+from the rest of your system.
+
+CONFIGURATION
+
+A template file "config.py.template" is provided. You should copy this to
+"config.py" and edit this. This "config.py" is not under version control allowing
+different users to have different configurations without conflict.
+
+You need to set the paths in config.py approapriately for your configuration.
+These should be absolute paths.
+
+RUNNING
+
+GPUVerifyRise4Fun has two different servers. A development web server (built in
+Flask development server) and a production (Tornado) web server.
+
+To use the development web server run
+
+$ python webservice.py 
+
+To use the production web server run
+
+$ python production_server.py
+
+To see each server's options use "--help" as the first argument.
+
+EDITING/ADDING SAMPLES
+
+CUDA kernels live in cuda/samples and OpenCL kernels live in opencl/samples.
+Feel free to edit these. Please note the server will need to be restarted for
+the changes to be detected.
+
+To add new kernels just add a kernel with the right file extension to the
+correct directory and restart the server and they will be detected.
+
+
+ADDING/EDITING TUTORIALS
+
+Tutorials for CUDA live in cuda/tutorial and tutorials for opencl live in
+opencl/tutorial. Each tutorial should be placed in its own folder along with any
+example kernels used in the tutorial.
