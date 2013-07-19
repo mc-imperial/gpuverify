@@ -86,6 +86,7 @@ Replace as appropriate or setup an environment variable.::
      $ git clone http://llvm.org/git/libclc.git
      $ cd libclc
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
+                      --prefix=${BUILD_ROOT}/libclc-inst                                    \
                       nvptx--bugle
      $ make
 
@@ -156,8 +157,8 @@ Replace as appropriate or setup an environment variable.::
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
 
-      #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
-      libclcDir = rootDir + "/libclc"
+      #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
+      libclcDir = rootDir + "/libclc-inst"
 
       #The path to the llvm Source directory.
       llvmSrcDir = rootDir + "/llvm_and_clang/src"
@@ -252,6 +253,7 @@ Replace as appropriate or setup an environment variable.::
      $ git clone http://llvm.org/git/libclc.git
      $ cd libclc
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
+                      --prefix=${BUILD_ROOT}/libclc-inst                                            \
                       nvptx--bugle
      $ mv Makefile Makefile.old
      $ sed "s#clang++ -o utils/prepare-builtins#clang++ -stdlib=libc++ -std=c++11 -o utils/prepare-builtins#" Makefile.old > Makefile
@@ -325,8 +327,8 @@ Replace as appropriate or setup an environment variable.::
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
 
-      #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
-      libclcDir = rootDir + "/libclc"
+      #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
+      libclcDir = rootDir + "/libclc-inst"
 
       #The path to the llvm Source directory.
       llvmSrcDir = rootDir + "/llvm_and_clang/src"
@@ -493,7 +495,7 @@ drives.
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + r"\bugle\build\Release"
 
-      #The path to the directory where libclc can be found. The nvptx--bugle/ and generic/ folders should be in there
+      #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
       libclcDir = rootDir + r"\libclc-inst"
 
       #The path to the llvm Source directory.
