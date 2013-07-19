@@ -89,8 +89,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">cp ../../../BoogieBinaries/UnivBackPred2.smt2 .</PostBuildEvent>
-    <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">copy ..\BoogieBinaries\UnivBackPred2.smt2 .</PostBuildEvent>
+    <PostBuildEvent Condition=" '$(OS)' != 'Windows_NT' ">cp $(ProjectDir)/../BoogieBinaries/UnivBackPred2.smt2 .</PostBuildEvent>
+    <PostBuildEvent Condition=" '$(OS)' == 'Windows_NT' ">copy $(ProjectDir)\..\BoogieBinaries\UnivBackPred2.smt2 .</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
