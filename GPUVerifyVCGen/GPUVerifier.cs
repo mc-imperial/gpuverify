@@ -98,11 +98,6 @@ namespace GPUVerify
         internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
 
         internal GPUVerifier(string filename, Program program, ResolutionContext rc, IRaceInstrumenter raceInstrumenter)
-          : this(filename, program, rc, raceInstrumenter, false)
-        {
-        }
-
-        internal GPUVerifier(string filename, Program program, ResolutionContext rc, IRaceInstrumenter raceInstrumenter, bool skipCheck)
             : base((IErrorSink)null)
         {
             this.outputFilename = filename;
@@ -112,8 +107,7 @@ namespace GPUVerify
                 (IntegerRepresentation)new BVIntegerRepresentation(this);
             this.ResContext = rc;
             this.RaceInstrumenter = raceInstrumenter;
-            if(!skipCheck)
-                CheckWellFormedness();
+            CheckWellFormedness();
         }
 
         internal void setRaceInstrumenter(IRaceInstrumenter ri)
