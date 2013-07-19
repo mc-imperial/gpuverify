@@ -37,7 +37,7 @@ namespace GPUVerify {
 
     private Dictionary<string, Procedure> RaceCheckingProcedures = new Dictionary<string, Procedure>();
 
-    public void setVerifier(GPUVerifier verifier) {
+    public RaceInstrumenter(GPUVerifier verifier) {
       this.verifier = verifier;
       NonLocalStateToCheck = new KernelArrayInfoLists();
       foreach (Variable v in verifier.KernelArrayInfo.getGlobalArrays()) {

@@ -127,8 +127,7 @@ namespace GPUVerify
 
             if (!CommandLineOptions.OnlyDivergence)
             {
-                RaceInstrumenter ri = new RaceInstrumenter();
-                ri.setVerifier(g);
+                RaceInstrumenter ri = new RaceInstrumenter(g);
                 g.setRaceInstrumenter(ri);
             }
 
