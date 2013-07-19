@@ -34,6 +34,7 @@ class BasicMetaData(object):
       self.metadata = {
         "Name": "GPUVerify",
         "DisplayName": "GPUVerify",
+        "DisableErrorTable": True, # Request to not show Visual Studio style error/warning table on web page
         "Version": version,
         "Email": "fixme@imperial.ac.uk",
         "SupportEmail": "fixme@imperial.ac.uk",
