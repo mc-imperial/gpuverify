@@ -123,21 +123,7 @@ namespace GPUVerify
             }
             ResolutionContext rc;
             Program program = parse(out rc);
-            GPUVerifier g = new GPUVerifier(fn, program, rc, new NullRaceInstrumenter());
-
-            if (!CommandLineOptions.OnlyDivergence)
-            {
-                RaceInstrumenter ri = new RaceInstrumenter(g);
-                g.setRaceInstrumenter(ri);
-            }
-
-            if (CommandLineOptions.BarrierAccessChecks)
-            {
-                NoAccessInstrumenter ni = new NoAccessInstrumenter(g);
-                g.setNoAccessInstrumenter(ni);
-            }
-
-            g.doit();
+            new GPUVerifier(fn, program, rc).doit();
             
         }
 

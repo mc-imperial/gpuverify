@@ -97,27 +97,28 @@ namespace GPUVerify
         internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
         internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
 
-        internal GPUVerifier(string filename, Program program, ResolutionContext rc, IRaceInstrumenter raceInstrumenter)
+        internal GPUVerifier(string filename, Program program, ResolutionContext rc)
             : base((IErrorSink)null)
         {
             this.outputFilename = filename;
             this.Program = program;
+            this.ResContext = rc;
             this.IntRep = CommandLineOptions.MathInt ?
                 (IntegerRepresentation)new MathIntegerRepresentation(this) :
                 (IntegerRepresentation)new BVIntegerRepresentation(this);
-            this.ResContext = rc;
-            this.RaceInstrumenter = raceInstrumenter;
             CheckWellFormedness();
-        }
 
-        internal void setRaceInstrumenter(IRaceInstrumenter ri)
-        {
-            this.RaceInstrumenter = ri;
-        }
+            if (CommandLineOptions.BarrierAccessChecks)
+            {
+                this.NoAccessInstrumenter = new NoAccessInstrumenter(this);
+            }
+            if (!CommandLineOptions.OnlyDivergence)
+            {
+                this.RaceInstrumenter = new RaceInstrumenter(this);
+            } else {
+                this.RaceInstrumenter = new NullRaceInstrumenter();
+            }
 
-        internal void setNoAccessInstrumenter(INoAccessInstrumenter ni)
-        {
-            this.NoAccessInstrumenter = ni;
         }
 
         private void CheckWellFormedness()

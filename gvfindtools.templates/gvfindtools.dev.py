@@ -21,7 +21,7 @@ bugleSrcDir = "/home/dan/documents/projects/gpuverify/bugle/src"
 bugleBinDir = "/home/dan/documents/projects/gpuverify/bugle/bin"
 
 #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
-libclcDir = "/home/dan/documents/projects/gpuverify/libclc-inst"
+libclcInstallDir = "/home/dan/documents/projects/gpuverify/libclc-inst"
 
 #The path to the llvm Source directory.
 llvmSrcDir = "/home/dan/documents/projects/gpuverify/llvm_and_clang/src"

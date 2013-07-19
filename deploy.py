@@ -259,8 +259,8 @@ def main(argv):
   #Specify actions to perform
   deployActions = [
   # libclc
-  DirCopy(gvfindtools.libclcDir, gvfindtoolsdeploy.libclcDir),
-  FileCopy(gvfindtools.libclcDir, 'LICENSE.TXT', licenseDest),
+  DirCopy(gvfindtools.libclcInstallDir, gvfindtoolsdeploy.libclcInstallDir),
+  FileCopy(gvfindtools.libclcInstallDir, 'LICENSE.TXT', licenseDest),
   MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'libclc.txt'),
   # bugle
   DirCopy(gvfindtools.bugleSrcDir + os.sep + 'include-blang', gvfindtoolsdeploy.bugleSrcDir + os.sep + 'include-blang'),
