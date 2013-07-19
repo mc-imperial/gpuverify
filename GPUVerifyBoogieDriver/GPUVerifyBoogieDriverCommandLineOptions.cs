@@ -18,7 +18,6 @@ using Microsoft.Boogie;
 namespace GPUVerify {
   public class GPUVerifyBoogieDriverCommandLineOptions : CommandLineOptions {
 
-    public bool StagedInference = false;
     public string ArrayToCheck = null;
     public bool NoSourceLocInfer = false;
     public bool OnlyIntraGroupRaceChecking = false;
@@ -32,11 +31,6 @@ namespace GPUVerify {
 
       if (name == "debugGPUVerify") {
         DebugGPUVerify = true;
-        return true;
-      }
-
-      if (name == "stagedInference") {
-        StagedInference = true;
         return true;
       }
 

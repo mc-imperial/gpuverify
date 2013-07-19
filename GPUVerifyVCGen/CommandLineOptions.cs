@@ -41,7 +41,6 @@ namespace GPUVerify
         public static bool NoBenign = false;
         public static bool AsymmetricAsserts = false;
         public static bool OnlyLog = false;
-        public static bool StagedInference = false;
         public static bool MathInt = false;
         public static bool AbstractHoudini = false;
         public static bool WarpSync = false;
@@ -172,13 +171,6 @@ namespace GPUVerify
                     case "-onlyLog":
                     case "/onlyLog":
                     OnlyLog = true;
-                    break;
-
-                    case "-stagedInference":
-                    case "/stagedInference":
-                    StagedInference = true;
-                    InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE = 1;
-                    InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE = 2;
                     break;
 
                     case "-mathInt":
