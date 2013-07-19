@@ -194,9 +194,14 @@ namespace Microsoft.Boogie
         if (RaceCheckingProgram == null) {
           return 1;
         }
+        AddArrayToggles(RaceCheckingProgram);
         PipelineOutcome oc = ResolveAndTypecheck(RaceCheckingProgram, fileNames[fileNames.Count - 1]);
         if (oc != PipelineOutcome.ResolvedAndTypeChecked)
           return 1;
+
+        CommandLineOptions.Clo.PrintUnstructured = 2;
+        PrintBplFile("toggle.bpl", RaceCheckingProgram, false);
+
 
         if (GetCommandLineOptions().ArrayToCheck != null) {
           RestrictToArray(RaceCheckingProgram, GetCommandLineOptions().ArrayToCheck);
@@ -220,6 +225,34 @@ namespace Microsoft.Boogie
       }
       #endregion
 
+    }
+
+    private static void AddArrayToggles(Program RaceCheckingProgram)
+    {
+      Dictionary<string, Constant> ToggleVars = new Dictionary<string, Constant>();
+      foreach(var p in RaceCheckingProgram.TopLevelDeclarations.OfType<Procedure>()) {
+        foreach(Requires r in p.Requires) {
+          if(QKeyValue.FindBoolAttribute(r.Attributes, "race")) {
+            string arrayName;
+            if(p.Name.StartsWith("_CHECK_READ_")) {
+              arrayName = p.Name.Substring("_CHECK_READ_".Length);
+            } else if(p.Name.StartsWith("_CHECK_WRITE_")) {
+              arrayName = p.Name.Substring("_CHECK_WRITE_".Length);
+            } else if(p.Name.StartsWith("_CHECK_ATOMIC_")) {
+              arrayName = p.Name.Substring("_CHECK_ATOMIC_".Length);
+            } else {
+              continue;
+            }
+            if(!ToggleVars.ContainsKey(arrayName)) {
+              ToggleVars[arrayName] = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, "__toggle_" + arrayName, Type.Bool), false);
+              ToggleVars[arrayName].AddAttribute("toggle", new object[] { Expr.True });
+            }
+            Constant toggleVar = ToggleVars[arrayName];
+            r.Condition = Expr.Imp(new IdentifierExpr(Token.NoToken, toggleVar), r.Condition);
+          }
+        }
+      }
+      RaceCheckingProgram.TopLevelDeclarations.AddRange(ToggleVars.Values);
     }
 
     private static GPUVerifyBoogieDriverCommandLineOptions GetCommandLineOptions() {
