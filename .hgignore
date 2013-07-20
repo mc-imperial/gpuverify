@@ -34,3 +34,6 @@ Documentation/_build
 
 #Mac hidden files
 .DS_Store
+
+#gv-rise4fun configuration
+utils/GPUVerifyRise4Fun/config.py

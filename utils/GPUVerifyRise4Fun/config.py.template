@@ -1,0 +1,10 @@
+"""
+This is a template for the configuration. You should copy this file to config.py
+and edit the variables as appropriate. Note you don't have to use a development
+version of GPUVerify and instead you can use a deployed version.
+"""
+
+import os
+MAX_CONTENT_LENGTH = 2048 #Incoming data limit
+SRC_ROOT = os.path.abspath(os.path.dirname(__file__)) # Find where this file lives
+GPUVERIFY_ROOT_DIR= '/data/dev/gpuverify-web-build' # Development or deploy root directory for GPUVerify
