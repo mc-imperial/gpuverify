@@ -123,7 +123,9 @@ class OpenCLMetaData(BasicMetaData):
     import opencl.syntax
     super(self.__class__, self).__init__()
 
-    self.metadata['MimeType'] += 'opencl'
+    # FIXME: use 'x-opencl' and provide own syntax definition
+    self.metadata['MimeType'] += 'x-c' #HACK : Use 'C' language definition implicitly
+
     self.metadata['Question'] = 'Is this OpenCL kernel correct?'
 
     self.findSamplesAndTutorials(os.path.join(sourceRoot, self.folderName))
@@ -141,7 +143,9 @@ class CUDAMetaData(BasicMetaData):
     import cuda.syntax
     super(self.__class__, self).__init__()
 
-    self.metadata['MimeType'] += 'cuda'
+    # FIXME: use 'x-cuda' and provide own syntax definition
+    self.metadata['MimeType'] += 'x-c' #HACK: Use 'C' language definition implicitly
+
     self.metadata['Question'] = 'Is this CUDA kernel correct?'
 
     self.findSamplesAndTutorials(os.path.join(sourceRoot, self.folderName))
