@@ -11,20 +11,25 @@ def main():
       as a production server which uses Tornado as the HTTP
       server.
   """
-  # Setup the root logger before importing app so that the loggers used in app
-  # and its dependencies have a handler set
-  logging.basicConfig(level=logging.INFO)
-  from webservice import app
 
   import argparse
   parser = argparse.ArgumentParser(description=main.__doc__)
   parser.add_argument('-p', '--port', type=int, default=5000, help='Port to use. Default %(default)s')
   parser.add_argument('-f', '--forks', type=int, default=0, help='Number of processes to use. A value of zero will use the number of available cores on the machine. Default %(default)s')
+  parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['debug','info','warning','error'])
+  parser.add_argument("-o","--log-output",type=argparse.FileType(mode='w'), default='-', help='Write logging information to file. Default "%(default)s"')
 
   args = parser.parse_args()
 
+  # Setup the root logger before importing app so that the loggers used in app
+  # and its dependencies have a handler set
+  logging.basicConfig(level=getattr(logging,args.log_level.upper(),None), 
+                      stream=args.log_output,
+                      format='%(asctime)s:%(name)s:%(levelname)s: %(module)s.%(funcName)s() : %(message)s')
+  from webservice import app
+
   try:
-    print("Starting server on port " + str(args.port))
+    logging.info("Starting server on port " + str(args.port))
     http_server = HTTPServer(WSGIContainer(app))
     http_server.bind(args.port)
     http_server.start(args.forks) # Fork multiple sub-processes
@@ -32,7 +37,7 @@ def main():
   except KeyboardInterrupt:
     http_server.stop()
 
-  print("Exiting process:" + str(os.getpid()) )
+  logging.info("Exiting process:" + str(os.getpid()) )
 
 if __name__ == '__main__':
   main()
