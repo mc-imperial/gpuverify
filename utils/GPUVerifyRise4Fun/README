@@ -56,3 +56,7 @@ ADDING/EDITING TUTORIALS
 Tutorials for CUDA live in cuda/tutorial and tutorials for opencl live in
 opencl/tutorial. Each tutorial should be placed in its own folder along with any
 example kernels used in the tutorial.
+
+Running as a service
+The "service/" folder contains scripts for integrating GPUVerifyRise4Fun into
+a linux service manager like upstart (COMPLETE) or systemd (TODO)
