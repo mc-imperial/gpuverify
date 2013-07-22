@@ -48,7 +48,7 @@ class BasicMetaData(object):
         "MimeType": "text/", #To be populated
         "SupportsLanguageSyntax": False,
         "Title": "A verifier for CUDA/OpenCL kernels",
-        "Description": "This tool checks that a kernel is free from assertions failures, data races and barrier divergence" ,
+        "Description": "This tool checks that a kernel is free from assertion failures, data races and barrier divergence." ,
         "Question": "", #To be populated
         "Url": "http://multicore.doc.ic.ac.uk/tools/GPUVerify/",
         "VideoUrl": "http://www.youtube.com/watch?v=l8ysBPV8OvA",
