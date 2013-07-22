@@ -673,14 +673,14 @@ Baseline
 --------
 
 A pickle file ``testsuite/baseline.pickle`` is provided which should record
-``gvtester.py`` being run on ``testsuite/`` in the repository. It is intended
+``gvtester.py`` being run on ``testsuite`` in the repository. It is intended
 to be a point of reference for developers so they can see if their changes have
 broken anything. If you modify something in GPUVerify or add a new test you
 should re-generate the baseline.
 
 ::
 
-  $ ./gvtester.py --write-pickle ./new-baseline testsuite/
+  $ ./gvtester.py --write-pickle ./new-baseline testsuite
   $ ./gvtester.py -c testsuite/baseline.pickle ./new-baseline
 
 If the comparison looks good and you haven't broken anything then go ahead and
