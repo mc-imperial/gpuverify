@@ -50,7 +50,6 @@ the changes to be detected.
 To add new kernels just add a kernel with the right file extension to the
 correct directory and restart the server and they will be detected.
 
-
 ADDING/EDITING TUTORIALS
 
 Tutorials for CUDA live in cuda/tutorial and tutorials for opencl live in
@@ -60,3 +59,22 @@ example kernels used in the tutorial.
 Running as a service
 The "service/" folder contains scripts for integrating GPUVerifyRise4Fun into
 a linux service manager like upstart (COMPLETE) or systemd (TODO)
+
+OBSERVERS
+
+The GPUVerifyRise4Fun service implements the observer design pattern that
+allows observers to be notified about the results of executing a kernel.
+This could be used for example to save a kernel that causes GPUVerify to
+crash.
+
+To implement an observer do the following
+
+1. Add a <your_observer>.py file to observers/ . Inside this file you should
+   implement a class that descends from gvapi.GPUVerifyObserver that implements
+   the receive(...) method
+
+2. In webservice.py import your observer (e.g. import observers.Example)
+3. Register your observer with the tool inside the init() function using
+   the _tool.registerObserver() method.
+
+An example is provided (observers/example.py) but is commented out in webservice.py

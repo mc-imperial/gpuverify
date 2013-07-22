@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import re
 import logging
+import traceback
 
 #Internal logger
 _logging = logging.getLogger(__name__)
@@ -28,6 +29,18 @@ ErrorCodes.GPUVERIFYVCGEN_ERROR:"Could not generate invariants and/or perform tw
 ErrorCodes.BOOGIE_ERROR:"",
 ErrorCodes.BOOGIE_TIMEOUT:"Verification timed out."
 }
+
+# Observer design pattern
+class GPUVerifyObserver(object):
+  """
+      Receive a notification of a completed GPUVerify command.
+      source     : The input source code as a string
+      args       : List of command line options
+      returnCode : The return code given by GPUVerify
+      output     : The output of the GPUVerify Tool
+  """
+  def receive(self, source, args, returnCode, output):
+    pass
 
 class GPUVerifyTool(object):
   """
@@ -49,7 +62,20 @@ class GPUVerifyTool(object):
     self.toolPath = os.path.join(rootPath,'GPUVerify.py')
     if not os.path.exists(self.toolPath):
       raise Exception('Could not find GPUVerify at "' + self.toolPath + '"')
+
+    self.observers = [ ]
     
+  def registerObserver(self, observer):
+    """
+        Register an observer (of type GPUVerifyObserver) that will receive notifications
+        when the runCUDA() or runOpenCL() methods are executed.
+
+    """
+    if not isinstance(observer, GPUVerifyObserver):
+      raise Exception("Invalid observer")
+    else:
+      self.observers.append(observer)
+
   def extractOtherCmdArgs(self, source, args):
     """
       Extract command line arguments from the first line of the source code
@@ -212,7 +238,7 @@ class GPUVerifyTool(object):
                                     suffix=fileExtension, 
                                     delete=False,
                                     dir=self.tempDir)
-    responce=None
+    response=None
     try:
       f.write(source)
       f.close()
@@ -225,7 +251,16 @@ class GPUVerifyTool(object):
     finally:
       f.close()
       os.remove(f.name)
-      
+    
+    # Invoke any observers on the outcome of running the command
+    for observer in self.observers:
+      # Do not allow observers to cause their exceptions to cause the complete execution to fail.
+      try:
+        _logging.debug("Executing Observer " + str(observer.__class__))
+        observer.receive( source, cmdArgs, response[0], response[1])
+      except Exception as e:
+        _logging.error("Observer " + str(observer.__class__) + " raised exception " + str(e) + '\n' + traceback.format_exc()  )
+
     return response
 
 
@@ -285,3 +320,4 @@ class GPUVerifyTool(object):
       shutil.rmtree(tempDir)
     
     return ( returnCode, message )
+

@@ -5,6 +5,8 @@ import logging
 import pprint
 import traceback
 
+#import observers.example
+
 app = Flask(__name__)
 
 #Load configuration from config.py
@@ -15,11 +17,19 @@ _logging = logging.getLogger(__name__)
 
 cudaMetaData = {}
 openclMetaData = {} 
-def initMetaData():
+_tool = None
+
+def init():
   # Pre-compute metadata information
-  global cudaMetaData , openclMetaData 
+  global cudaMetaData , openclMetaData, _gpuverifyObservers, _tool
   cudaMetaData = CUDAMetaData(app.config['SRC_ROOT'])
   openclMetaData = OpenCLMetaData(app.config['SRC_ROOT'])
+
+  # Create GPUVerify tool instance
+  _tool = gvapi.GPUVerifyTool(app.config['GPUVERIFY_ROOT_DIR'], app.config['GPUVERIFY_TEMP_DIR'])
+
+  #Register observers
+  #_tool.registerObserver( observers.example.ExampleObserver() )
 
 #Setup routing
 @app.errorhandler(404)
@@ -75,8 +85,9 @@ def runGpuverify(lang):
   source = request.json['Source']
   _logging.debug('Received request:\n' + pprint.pformat(request.json))
 
+  # Assume _tool already initialised
+  assert _tool != None
 
-  tool = gvapi.GPUVerifyTool(app.config['GPUVERIFY_ROOT_DIR'], app.config['GPUVERIFY_TEMP_DIR'])
   returnMessage = { 'Version':None, 
                     'Outputs': [
                                  { "MimeType":"text/plain",
@@ -89,24 +100,24 @@ def runGpuverify(lang):
   dimMessage=""
   safeArgs=[]
   try:
-    tool.extractOtherCmdArgs(source,safeArgs)
+    _tool.extractOtherCmdArgs(source,safeArgs)
 
     if lang == CUDAMetaData.folderName:
       blockDim=[]
       gridDim=[]
-      tool.extractGridSizeFromSource(source, blockDim, gridDim)
+      _tool.extractGridSizeFromSource(source, blockDim, gridDim)
 
       returnMessage['Version'] = cudaMetaData.metadata['Version']
-      (returnCode, toolMessage) = tool.runCUDA(source, blockDim=blockDim , gridDim=gridDim, extraCmdLineArgs=safeArgs)
+      (returnCode, toolMessage) = _tool.runCUDA(source, blockDim=blockDim , gridDim=gridDim, extraCmdLineArgs=safeArgs)
 
     else:
       returnMessage['Version'] = openclMetaData.metadata['Version']
 
       localSize=[]
       numOfGroups=[]
-      tool.extractNDRangeFromSource(source,localSize, numOfGroups)
+      _tool.extractNDRangeFromSource(source,localSize, numOfGroups)
 
-      (returnCode, toolMessage) = tool.runOpenCL(source, localSize=localSize , numOfGroups=numOfGroups, extraCmdLineArgs=safeArgs)
+      (returnCode, toolMessage) = _tool.runOpenCL(source, localSize=localSize , numOfGroups=numOfGroups, extraCmdLineArgs=safeArgs)
 
     # We might have an extra message to show.
     extraHelpMessage=""
@@ -160,7 +171,7 @@ if __name__ == '__main__':
   if args.public:
     options['host'] = '0.0.0.0'
 
-  initMetaData() #Delay so debug output may be seen
+  init() #Delay so debug output may be seen
   app.run(debug=args.debug, port=args.port, **options)
 else:
-  initMetaData()
+  init()
