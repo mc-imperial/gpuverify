@@ -560,7 +560,7 @@ namespace GPUVerify {
       if (RaceCheckingProcedures.ContainsKey(name)) {
         return RaceCheckingProcedures[name];
       }
-      Procedure newProcedure = new Procedure(tok, name, new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new RequiresSeq(), new IdentifierExprSeq(), new EnsuresSeq());
+      Procedure newProcedure = new Procedure(tok, name, new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new List<Requires>(), new IdentifierExprSeq(), new List<Ensures>());
       RaceCheckingProcedures[name] = newProcedure;
       return newProcedure;
     }
@@ -591,7 +591,7 @@ namespace GPUVerify {
 
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
-      Debug.Assert(mt.Arguments.Length == 1);
+      Debug.Assert(mt.Arguments.Count == 1);
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
       Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
@@ -622,7 +622,7 @@ namespace GPUVerify {
 
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
-      Debug.Assert(mt.Arguments.Length == 1);
+      Debug.Assert(mt.Arguments.Count == 1);
       Debug.Assert(!(mt.Result is MapType));
 
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
@@ -708,7 +708,7 @@ namespace GPUVerify {
 
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
-      Debug.Assert(mt.Arguments.Length == 1);
+      Debug.Assert(mt.Arguments.Count == 1);
 
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
       Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
@@ -768,7 +768,7 @@ namespace GPUVerify {
 
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
-      Debug.Assert(mt.Arguments.Length == 1);
+      Debug.Assert(mt.Arguments.Count == 1);
       Debug.Assert(!(mt.Result is MapType));
 
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
@@ -995,7 +995,7 @@ namespace GPUVerify {
       if (!CommandLineOptions.NoBenign) {
         Debug.Assert(v.TypedIdent.Type is MapType);
         MapType mt = v.TypedIdent.Type as MapType;
-        Debug.Assert(mt.Arguments.Length == 1);
+        Debug.Assert(mt.Arguments.Count == 1);
         verifier.FindOrCreateValueVariable(v.Name, ReadOrWrite, mt.Result);
       }
     }
@@ -1013,7 +1013,7 @@ namespace GPUVerify {
       Expr result = new IdentifierExpr(v.tok, v.Clone() as Variable);
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
-      Debug.Assert(mt.Arguments.Length == 1);
+      Debug.Assert(mt.Arguments.Count == 1);
 
       result = Expr.Select(result,
           new Expr[] { offsetExpr });

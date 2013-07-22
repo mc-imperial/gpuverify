@@ -180,8 +180,8 @@ namespace GPUVerify
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", IntRep.GetIntType(1)), true),
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__global_fence", IntRep.GetIntType(1)), true) }),
                                   new VariableSeq(),
-                                  new RequiresSeq(), new IdentifierExprSeq(),
-                                  new EnsuresSeq(),
+                                  new List<Requires>(), new IdentifierExprSeq(),
+                                  new List<Ensures>(),
                                   new QKeyValue(Token.NoToken, "barrier", new List<object>(), null));
                 Program.TopLevelDeclarations.Add(p);
                 ResContext.AddProcedure(p);
@@ -197,8 +197,8 @@ namespace GPUVerify
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__cond", 
                                       Microsoft.Boogie.Type.Bool), true)
                               }),
-                              new VariableSeq(), new RequiresSeq(), new IdentifierExprSeq(),
-                              new EnsuresSeq(),
+                              new VariableSeq(), new List<Requires>(), new IdentifierExprSeq(),
+                              new List<Ensures>(),
                               new QKeyValue(Token.NoToken, "barrier_invariant", new List<object>(), null));
             Program.TopLevelDeclarations.Add(p);
             ResContext.AddProcedure(p);
@@ -216,8 +216,8 @@ namespace GPUVerify
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", 
                                       IntRep.GetIntType(32)), true)
                               }),
-                              new VariableSeq(), new RequiresSeq(), new IdentifierExprSeq(),
-                              new EnsuresSeq(),
+                              new VariableSeq(), new List<Requires>(), new IdentifierExprSeq(),
+                              new List<Ensures>(),
                               new QKeyValue(Token.NoToken, "barrier_invariant_instantiation", new List<object>(), null));
             Program.TopLevelDeclarations.Add(p);
             ResContext.AddProcedure(p);
@@ -1957,7 +1957,7 @@ namespace GPUVerify
           }
 
           // Add the WarpSync prototype
-          Procedure proto = new Procedure(Token.NoToken,"_WARP_SYNC",new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new RequiresSeq(), new IdentifierExprSeq(), new EnsuresSeq());
+          Procedure proto = new Procedure(Token.NoToken,"_WARP_SYNC",new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new List<Requires>(), new IdentifierExprSeq(), new List<Ensures>());
           proto.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
           Program.TopLevelDeclarations.Add(proto);
           ResContext.AddProcedure(proto); 

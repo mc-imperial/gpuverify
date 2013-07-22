@@ -55,7 +55,7 @@ namespace GPUVerify {
 
 
     private void AbstractRequiresClauses(Procedure proc) {
-      RequiresSeq newRequires = new RequiresSeq();
+      List<Requires> newRequires = new List<Requires>();
       foreach (Requires r in proc.Requires) {
         var visitor = new AccessesAdversarialArrayVisitor(verifier);
         visitor.VisitRequires(r);

@@ -81,7 +81,11 @@ namespace GPUVerify {
 
       string thread1, thread2, group1, group2, arrName;
 
-      Model ModelWithStates = CallCex.GetModelWithStates();
+      if (!CallCex.ModelHasStatesAlready) {
+        CallCex.PopulateModelWithStates();
+        CallCex.ModelHasStatesAlready = true;
+      }
+      Model ModelWithStates = CallCex.Model;
 
       uint byteOffset = GetOffsetInBytes(ExtractOffsetVar(CallCex), ModelWithStates, CallCex.FailingCall);
 

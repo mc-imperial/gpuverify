@@ -43,8 +43,8 @@ namespace GPUVerify {
       procName = null;
     }
 
-    private RequiresSeq DualiseRequires(RequiresSeq requiresSeq) {
-      RequiresSeq newRequires = new RequiresSeq();
+    private List<Requires> DualiseRequires(List<Requires> requiresSeq) {
+      List<Requires> newRequires = new List<Requires>();
       foreach (Requires r in requiresSeq) {
         newRequires.Add(MakeThreadSpecificRequires(r, 1));
         if (!ContainsAsymmetricExpression(r.Condition)
@@ -55,8 +55,8 @@ namespace GPUVerify {
       return newRequires;
     }
 
-    private EnsuresSeq DualiseEnsures(EnsuresSeq ensuresSeq) {
-      EnsuresSeq newEnsures = new EnsuresSeq();
+    private List<Ensures> DualiseEnsures(List<Ensures> ensuresSeq) {
+      List<Ensures> newEnsures = new List<Ensures>();
       foreach (Ensures e in ensuresSeq) {
         newEnsures.Add(MakeThreadSpecificEnsures(e, 1));
         if (!ContainsAsymmetricExpression(e.Condition)

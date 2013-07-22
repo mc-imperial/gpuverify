@@ -290,7 +290,7 @@ namespace Microsoft.Boogie
       }
 
       foreach (var p in prog.TopLevelDeclarations.OfType<Procedure>()) {
-        RequiresSeq newRequires = new RequiresSeq();
+        List<Requires> newRequires = new List<Requires>();
         foreach (Requires r in p.Requires) {
           if (ContainsAccessHasOccurredForOtherArray(r.Condition, arrayName)) {
             continue;
@@ -299,7 +299,7 @@ namespace Microsoft.Boogie
         }
         p.Requires = newRequires;
 
-        EnsuresSeq newEnsures = new EnsuresSeq();
+        List<Ensures> newEnsures = new List<Ensures>();
         foreach (Ensures r in p.Ensures) {
           if (ContainsAccessHasOccurredForOtherArray(r.Condition, arrayName)) {
             continue;
