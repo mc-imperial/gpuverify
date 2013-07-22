@@ -76,7 +76,7 @@ def runGpuverify(lang):
   _logging.debug('Received request:\n' + pprint.pformat(request.json))
 
 
-  tool = gvapi.GPUVerifyTool()
+  tool = gvapi.GPUVerifyTool(app.config['GPUVERIFY_ROOT_DIR'], app.config['GPUVERIFY_TEMP_DIR'])
   returnMessage = { 'Version':None, 
                     'Outputs': [
                                  { "MimeType":"text/plain",

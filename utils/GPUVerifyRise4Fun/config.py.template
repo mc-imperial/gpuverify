@@ -8,3 +8,4 @@ import os
 MAX_CONTENT_LENGTH = 2048 #Incoming data limit
 SRC_ROOT = os.path.abspath(os.path.dirname(__file__)) # Find where this file lives
 GPUVERIFY_ROOT_DIR= '/data/dev/gpuverify-web-build' # Development or deploy root directory for GPUVerify
+GPUVERIFY_TEMP_DIR=None # The directory to place temporary files during GPUVerify execution. None will use system default.

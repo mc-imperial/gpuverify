@@ -7,6 +7,7 @@ import re
 import os
 import gvapi
 import logging
+import config
 import pprint
 
 #Internal logger
@@ -28,7 +29,8 @@ class BasicMetaData(object):
       # Ideally we need to do something clever to the changesetID (640-bits)
       # and reduce it to 64-bits (16 * 4) so we can get a version number
       # that Rise4Fun expects
-      version, _NOT_USED = gvapi.GPUVerifyTool().getVersionString()
+      version, _NOT_USED = gvapi.GPUVerifyTool(config.GPUVERIFY_ROOT_DIR, 
+                                               config.GPUVERIFY_TEMP_DIR).getVersionString()
       version +=".0"
 
       self.metadata = {

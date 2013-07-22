@@ -30,8 +30,18 @@ ErrorCodes.BOOGIE_TIMEOUT:"Verification timed out."
 }
 
 class GPUVerifyTool(object):
-  def __init__(self, rootPath=config.GPUVERIFY_ROOT_DIR):
+  """
+      rootPath : Is the root directory of the GPUVerify tool ( development or deploy)
+      tempDir  : Is the directory to use for temporary files. If None set then use system default.
+  """
+  def __init__(self, rootPath, tempDir=None):
     rootPath = os.path.abspath(rootPath)
+    if tempDir:
+      self.tempDir = os.path.abspath(tempDir)
+      if not os.path.exists(tempDir):
+        raise Exception('Path to temporary directory must exist')
+    else:
+      self.tempDir = None
 
     if not os.path.exists(rootPath):
       raise Exception('Path to GPUVerify root must exist')
@@ -195,9 +205,13 @@ class GPUVerifyTool(object):
     cmdArgs = [ gst[0][2] + localSize, gst[1][2] + numOfGroups, '--timeout=' + str(timeout) ]
     if extraCmdLineArgs != None:
       cmdArgs += extraCmdLineArgs
-    # Create source file
 
-    f = tempfile.NamedTemporaryFile(prefix='gpuverify-source-', suffix=fileExtension, delete=False)
+
+    # Create source file inside self.tempDir
+    f = tempfile.NamedTemporaryFile(prefix='gpuverify-source-', 
+                                    suffix=fileExtension, 
+                                    delete=False,
+                                    dir=self.tempDir)
     responce=None
     try:
       f.write(source)
@@ -247,8 +261,8 @@ class GPUVerifyTool(object):
     
 
   def __runTool(self, cmdLineArgs):
-    # Make temporary working directory
-    tempDir = tempfile.mkdtemp(prefix='gpuverify-working-directory-temp')
+    # Make temporary working directory inside self.tempDir
+    tempDir = tempfile.mkdtemp(prefix='gpuverify-working-directory-temp',dir=self.tempDir)
     
     returnCode = 0
     message=""
