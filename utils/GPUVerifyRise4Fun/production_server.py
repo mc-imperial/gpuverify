@@ -18,33 +18,44 @@ def main():
   parser.add_argument('-p', '--port', type=int, default=5000, help='Port to use. Default %(default)s')
   parser.add_argument('-f', '--forks', type=int, default=0, help='Number of processes to use. A value of zero will use the number of available cores on the machine. Default %(default)s')
   parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['debug','info','warning','error'])
-  parser.add_argument("-o","--log-output",type=argparse.FileType(mode='w'), default='-', help='Write logging information to file. Default "%(default)s"')
+  parser.add_argument("-o","--log-output",type=str, default='-', help='Write logging information to file. "-" means standard output. Default "%(default)s"')
 
   args = parser.parse_args()
 
-  # Setup the root logger before importing app so that the loggers used in app
-  # and its dependencies have a handler set
-  logging.basicConfig(level=getattr(logging,args.log_level.upper(),None), 
-                      stream=args.log_output,
-                      format='%(asctime)s:%(name)s:%(levelname)s: %(module)s.%(funcName)s() : %(message)s')
-  from webservice import app
-
-  # Add signal handler for SIGTERM that will trigger the same exception that SIGINT does
-  def terminate(signum,frame):
-    logging.info("PID " + str(os.getpid()) + "Received signal " + str(signum))
-    raise KeyboardInterrupt()
-  signal.signal(signal.SIGTERM,terminate)
-
+  # Setup loging file
+  logStream=None
   try:
-    logging.info("Starting server on port " + str(args.port))
-    http_server = HTTPServer(WSGIContainer(app))
-    http_server.bind(args.port)
-    http_server.start(args.forks) # Fork multiple sub-processes
-    IOLoop.instance().start()
-  except KeyboardInterrupt:
-    http_server.stop()
+    if args.log_output == '-':
+      logStream=sys.stdout
+    else:
+      logStream = open(args.log_output,mode='a') # Append
 
-  logging.info("Exiting process:" + str(os.getpid()) )
+    # Setup the root logger before importing app so that the loggers used in app
+    # and its dependencies have a handler set
+    logging.basicConfig(level=getattr(logging,args.log_level.upper(),None), 
+                        stream=logStream,
+                        format='%(asctime)s:%(name)s:%(levelname)s: %(module)s.%(funcName)s() : %(message)s')
+    logging.info("Starting GPUVerifyRise4Fun")
+    from webservice import app
+
+    # Add signal handler for SIGTERM that will trigger the same exception that SIGINT does
+    def terminate(signum,frame):
+      logging.info("PID " + str(os.getpid()) + "Received signal " + str(signum))
+      raise KeyboardInterrupt()
+    signal.signal(signal.SIGTERM,terminate)
+
+    try:
+      logging.info("Starting server on port " + str(args.port))
+      http_server = HTTPServer(WSGIContainer(app))
+      http_server.bind(args.port)
+      http_server.start(args.forks) # Fork multiple sub-processes
+      IOLoop.instance().start()
+    except KeyboardInterrupt:
+      http_server.stop()
+
+    logging.info("Exiting process:" + str(os.getpid()) )
+  finally:
+    logStream.close() 
 
 if __name__ == '__main__':
   main()
