@@ -4,6 +4,7 @@ from tornado.ioloop import IOLoop
 import sys
 import os
 import logging
+import signal
 
 def main():
   """
@@ -27,6 +28,12 @@ def main():
                       stream=args.log_output,
                       format='%(asctime)s:%(name)s:%(levelname)s: %(module)s.%(funcName)s() : %(message)s')
   from webservice import app
+
+  # Add signal handler for SIGTERM that will trigger the same exception that SIGINT does
+  def terminate(signum,frame):
+    logging.info("PID " + str(os.getpid()) + "Received signal " + str(signum))
+    raise KeyboardInterrupt()
+  signal.signal(signal.SIGTERM,terminate)
 
   try:
     logging.info("Starting server on port " + str(args.port))
