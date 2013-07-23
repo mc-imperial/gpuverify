@@ -115,7 +115,7 @@ Replace as appropriate or setup an environment variable.::
     $ git clone https://git01.codeplex.com/z3
     $ cd ${BUILD_ROOT}/z3
     $ autoconf
-    $ configure
+    $ ./configure
     $ python scripts/mk_make.py
     $ cd build
     $ make -jN
@@ -126,6 +126,24 @@ Replace as appropriate or setup an environment variable.::
    ::
 
     $ ln -s z3 z3.exe
+
+#. (Optional) Get CVC4 (SMT Solver)::
+
+    $ cd ${BUILD_ROOT}
+    $ mkdir -p cvc4/build
+    $ cd ${BUILD_ROOT}/cvc4/build
+	
+   Download the latest optimised nightly-build from
+   `<http://cvc4.cs.nyu.edu/builds/x86_64-linux-opt/unstable/>`_ into the
+   ``${BUILD_ROOT}/cvc4/build`` directory.
+   ::
+	
+	$ mv cvc4-*-x86_64-linux-opt cvc4
+
+   Now we make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
+   ::
+
+    $ ln -s cvc4 cvc4.exe
 
 #. Get GPUVerify code and build C# components::
 
@@ -182,6 +200,9 @@ Replace as appropriate or setup an environment variable.::
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
+	  
+      #The path to the directory containing cvc4.exe
+      cvc4BinDir = rootDir + "/cvc4/build"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
    which you can install using ``easy_install``.::
@@ -195,6 +216,11 @@ Replace as appropriate or setup an environment variable.::
 
      $ cd ${BUILD_ROOT}/gpuverify
      $ ./gvtester.py --write-pickle run.pickle testsuite
+
+   To run the GPUVerify test suite using the CVC4 SMT Solver in the backend:
+   ::
+   
+     $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
@@ -288,7 +314,7 @@ Replace as appropriate or setup an environment variable.::
     $ git clone https://git01.codeplex.com/z3
     $ cd ${BUILD_ROOT}/z3
     $ autoconf
-    $ configure
+    $ ./configure
     $ python scripts/mk_make.py
     $ cd build
     $ make -jN
@@ -299,6 +325,22 @@ Replace as appropriate or setup an environment variable.::
    ::
 
     $ ln -s z3 z3.exe
+
+#. (Optional) Get CVC4 (SMT Solver).
+   To use CVC4 you will have to install `MacPorts <http://www.macports.org>`_. Then use
+   the following guide `<http://cvc4.cs.nyu.edu/builds/macos/ports/>`_ to install the
+   cvc4-devel package (nightly-build) in your /opt/local directory.
+   ::
+
+    $ cd ${BUILD_ROOT}
+    $ mkdir -p cvc4/build
+    $ cd ${BUILD_ROOT}/cvc4/build
+    $ cp /opt/local/cvc4 cvc4
+
+   Now we make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
+   ::
+
+    $ ln -s cvc4 cvc4.exe
 
 #. Get GPUVerify code and build C# components::
 
@@ -355,6 +397,9 @@ Replace as appropriate or setup an environment variable.::
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
+	  
+      #The path to the directory containing cvc4.exe
+      cvc4BinDir = rootDir + "/cvc4/build"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
    which you can install using ``easy_install``.::
@@ -368,7 +413,12 @@ Replace as appropriate or setup an environment variable.::
 
      $ cd ${BUILD_ROOT}/gpuverify
      $ ./gvtester.py --write-pickle run.pickle testsuite
-
+	 
+   To run the GPUVerify test suite using the CVC4 SMT Solver in the backend:
+   ::
+   
+     $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+ 
    You can also check that your test run matches the current baseline.
    ::
 
@@ -471,6 +521,14 @@ drives.
       > python scripts\mk_make.py
       > cd build
       > nmake
+	  
+#. (Optional) Get CVC4 (SMT Solver)::
+
+      > cd ${BUILD_ROOT}
+      > mkdir -p ${BUILD_ROOT}\cvc4\build
+	  > cd ${BUILD_ROOT}\cvc4\build
+	  > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2013-07-20-win32-opt.exe"
+	  > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
 
 #. Get GPUVerify code and build. You can do this by opening ``GPUVerify.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
@@ -523,6 +581,9 @@ drives.
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + r"\z3\build"
+	  
+      #The path to the directory containing cvc4.exe
+      cvc4BinDir = rootDir + r"\cvc4\build"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
    which you can install using ``easy_install``.::
@@ -536,6 +597,11 @@ drives.
 
      $ cd ${BUILD_ROOT}\gpuverify
      $ .\gvtester.py --write-pickle run.pickle testsuite
+	 
+   To run the GPUVerify test suite using the CVC4 SMT Solver in the backend:
+   ::
+   
+     $ .\gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
