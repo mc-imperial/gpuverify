@@ -143,6 +143,7 @@ class CommandLineOptions(object):
   warpSync = False
   warpSize = 32
   atomic = "rw"
+  noRefinedAtomics = False
   skip = { "clang": False,
            "opt": False,
            "bugle": False,
@@ -338,6 +339,7 @@ def showHelpAndExit():
   print "  --use-cvc4              Use the CVC4 SMT solver backend instead of the Z3 default"
   print "  --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32"
   print "  --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none) (Default is --atomic=rw)"
+  print "  --no-refined-atomics    Don't do abstraction refinement on the return values from atomics"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"         
@@ -512,6 +514,8 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.atomic = a.lower()
       else:
         GPUVerifyError("argument to --atomic must be 'r','w','rw', or 'none'", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--no-refined-atomics":
+      CommandLineOptions.noRefinedAtomics = True
     if o == "--bugle-lang":
       if a.lower() in ("cl", "cu"):
         CommandLineOptions.bugleLanguage = a.lower()
@@ -614,7 +618,7 @@ def main(argv=None):
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference',
-              'use-cvc4', 'warp-sync=', 'atomic=',
+              'use-cvc4', 'warp-sync=', 'atomic=', 'no-refined-atomics',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -700,6 +704,8 @@ def main(argv=None):
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/atomics:" + CommandLineOptions.atomic ]
   if CommandLineOptions.warpSync:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/doWarpSync:" + str(CommandLineOptions.warpSize) ]
+  if CommandLineOptions.noRefinedAtomics:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/noRefinedAtomics" ]
   if CommandLineOptions.adversarialAbstraction:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/adversarialAbstraction" ]
   if CommandLineOptions.equalityAbstraction:

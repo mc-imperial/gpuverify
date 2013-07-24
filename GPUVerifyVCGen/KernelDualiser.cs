@@ -319,6 +319,22 @@ namespace GPUVerify {
           newAss.Attributes = ass.Attributes;
           cs.Add(newAss);
         }
+        else if (QKeyValue.FindBoolAttribute(ass.Attributes, "atomic_refinement")) {
+
+          Expr variable = QKeyValue.FindExprAttribute(ass.Attributes, "variable");
+          Expr offset = QKeyValue.FindExprAttribute(ass.Attributes, "offset");
+
+          Expr dual_offsets = Expr.Eq(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr),
+              new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr));
+
+          Expr dual_vars = Expr.Neq(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr),
+              new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr));
+
+          AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Imp(dual_offsets, dual_vars));
+          newAss.Attributes = ass.Attributes;
+          cs.Add(newAss);
+
+        }
         else {
           AssumeCmd newAss = new AssumeCmd(c.tok, new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr));
           if (!ContainsAsymmetricExpression(ass.Expr)) {

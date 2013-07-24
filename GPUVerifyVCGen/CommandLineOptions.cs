@@ -47,6 +47,7 @@ namespace GPUVerify
         public static int WarpSize = 32;
         public static bool AtomicVsRead = true;
         public static bool AtomicVsWrite = true;
+        public static bool RefinedAtomics = true;
 
         public static int Parse(string[] args)
         {
@@ -216,6 +217,11 @@ namespace GPUVerify
                           AtomicVsWrite = true;
                           break;
                       }
+                    break;
+
+                    case "-noRefinedAtomics":
+                    case "/noRefinedAtomics":
+                    RefinedAtomics = false;
                     break;
 
                     default:
