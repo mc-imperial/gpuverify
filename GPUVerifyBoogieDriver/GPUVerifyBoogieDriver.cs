@@ -199,10 +199,6 @@ namespace Microsoft.Boogie
         if (oc != PipelineOutcome.ResolvedAndTypeChecked)
           return 1;
 
-        CommandLineOptions.Clo.PrintUnstructured = 2;
-        PrintBplFile("toggle.bpl", RaceCheckingProgram, false);
-
-
         if (GetCommandLineOptions().ArrayToCheck != null) {
           RestrictToArray(RaceCheckingProgram, GetCommandLineOptions().ArrayToCheck);
         }
