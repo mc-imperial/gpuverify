@@ -30,11 +30,11 @@ Replace as appropriate or setup an environment variable.::
 
      $ export BUILD_ROOT=/path/to/build
 
-.. 
+..
   Note Sphinx is incredibly picky about indentation in lists. Everything
   in the list must be indented aligned with first letter of list text.
   Code blocks must start and end with a blank line and code blocks must be
-  further indented from the list text. 
+  further indented from the list text.
 
 #. Install Mono::
 
@@ -48,7 +48,8 @@ Replace as appropriate or setup an environment variable.::
      $ make install
 
    Add the Mono binaries to your path. You can add this permanently to
-   your ``.bashrc`` or create a ``sourceme.sh`` script to do this automatically::
+   your ``.bashrc`` or create a ``sourceme.sh`` script to do this automatically
+   ::
 
      $ export PATH=${BUILD_ROOT}/local/bin:$PATH
 
@@ -63,24 +64,24 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
      $ svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
 
-#. Configure LLVM and Clang for building (we do an out of source build)::
+   Configure LLVM and Clang for building (we do an out of source build)::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
      $ cmake -D CMAKE_BUILD_TYPE=Release ../src
 
    Note if you have python3 installed you may need to specifiy ``-D
-   PYTHON_EXECUTABLE=/usr/bin/python2.7`` to CMake.  If you would like more
-   control over configure process use (``cmake-gui`` or ``ccmake`` instead of
-   ``cmake``).
+   PYTHON_EXECUTABLE=/usr/bin/python2.7`` to CMake.  If you would like to have
+   more control over the configure process use (``cmake-gui`` or ``ccmake``
+   instead of ``cmake``).
 
-#. Compile  LLVM and Clang::
+   Compile  LLVM and Clang::
 
      $ make -jN
 
-   where ``N`` is the number of jobs to do in parallel.
+   where ``N`` is the number of jobs to run in parallel.
 
-#. Now get libclc and build::
+#. Get libclc and build::
 
      $ cd ${BUILD_ROOT}
      $ git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}/libclc/src
@@ -103,13 +104,13 @@ Replace as appropriate or setup an environment variable.::
              -D LIBCLC_DIR=${BUILD_ROOT}/libclc/install \
              ../src
 
-#. Compile Bugle::
+   Compile Bugle::
 
     $ make -jN
 
-   where ``N`` is the number of jobs to do in parallel.
+   where ``N`` is the number of jobs to run in parallel.
 
-#. Get Z3 (SMT Solver) and build::
+#. Get the Z3 SMT Solver and build::
 
     $ cd ${BUILD_ROOT}
     $ git clone https://git01.codeplex.com/z3
@@ -120,27 +121,27 @@ Replace as appropriate or setup an environment variable.::
     $ cd build
     $ make -jN
 
-   where ``N`` is the number of jobs to do in parallel.
+   where ``N`` is the number of jobs to run in parallel.
 
-   Now we make a symbolic link because ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
+   Make a symbolic link because ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
    ::
 
     $ ln -s z3 z3.exe
 
-#. (Optional) Get CVC4 (SMT Solver)::
+#. (Optional) Get the CVC4 SMT Solver::
 
     $ cd ${BUILD_ROOT}
     $ mkdir -p cvc4/build
     $ cd ${BUILD_ROOT}/cvc4/build
-	
+
    Download the latest optimised nightly-build from
    `<http://cvc4.cs.nyu.edu/builds/x86_64-linux-opt/unstable/>`_ into the
    ``${BUILD_ROOT}/cvc4/build`` directory.
    ::
-	
-	$ mv cvc4-*-x86_64-linux-opt cvc4
 
-   Now we make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
+    $ mv cvc4-*-x86_64-linux-opt cvc4
+
+   Make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
    ::
 
     $ ln -s cvc4 cvc4.exe
@@ -164,7 +165,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/gpuverify
      $ cp gvfindtools.templates/gvfindtools.dev.py gvfindtools.py
 
-   Now open gvfindtools.py in your favourite text editor and edit the paths.
+   Open gvfindtools.py in a text editor and edit the paths.
    If you followed this guide strictly then these paths will be as follows
    and you should only need to change the ``rootDir`` variable.
    ::
@@ -200,7 +201,7 @@ Replace as appropriate or setup an environment variable.::
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
-	  
+
       #The path to the directory containing cvc4.exe
       cvc4BinDir = rootDir + "/cvc4/build"
 
@@ -217,9 +218,9 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/gpuverify
      $ ./gvtester.py --write-pickle run.pickle testsuite
 
-   To run the GPUVerify test suite using the CVC4 SMT Solver in the backend:
+   To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
-   
+
      $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
@@ -246,11 +247,7 @@ Replace as appropriate or setup an environment variable.::
 
      $ export BUILD_ROOT=/path/to/build
 
-#. Obtain Mono from::
-
-     http://www.mono-project.com
-
-   and install.
+#. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
 #. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.3)::
 
@@ -263,20 +260,20 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
      $ svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
 
-#. Configure LLVM and Clang for building (we do an out of source build)::
+   Configure LLVM and Clang for building (we do an out of source build)::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
      $ ../src/configure --enable-optimized --disable-assertions \
                         --enable-libcpp --enable-cxx11
 
-#. Compile  LLVM and Clang::
+   Compile  LLVM and Clang::
 
      $ make -jN
 
-   where ``N`` is the number of jobs to do in parallel.
+   where ``N`` is the number of jobs to run in parallel.
 
-#. Now get libclc and build::
+#. Get libclc and build::
 
      $ cd ${BUILD_ROOT}
      $ git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}/libclc/src
@@ -302,13 +299,13 @@ Replace as appropriate or setup an environment variable.::
              -D LIBCLC_DIR=${BUILD_ROOT}/libclc/install \
              ../src
 
-#. Compile Bugle::
+   Compile Bugle::
 
     $ make -jN
 
-   where ``N`` is the number of jobs to do in parallel.
+   where ``N`` is the number of jobs to run in parallel.
 
-#. Get Z3 (SMT Solver) and build::
+#. Get the Z3 SMT Solver and build::
 
     $ cd ${BUILD_ROOT}
     $ git clone https://git01.codeplex.com/z3
@@ -319,17 +316,18 @@ Replace as appropriate or setup an environment variable.::
     $ cd build
     $ make -jN
 
-   where ``N`` is the number of jobs to do in parallel.
+   where ``N`` is the number of jobs to run in parallel.
 
-   Now we make a symbolic link because ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
+   Make a symbolic link because ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
    ::
 
     $ ln -s z3 z3.exe
 
-#. (Optional) Get CVC4 (SMT Solver).
-   To use CVC4 you will have to install `MacPorts <http://www.macports.org>`_. Then use
-   the following guide `<http://cvc4.cs.nyu.edu/builds/macos/ports/>`_ to install the
-   cvc4-devel package (nightly-build) in your /opt/local directory.
+#. (Optional) Get the CVC4 SMT Solver.
+   To use CVC4 you will have to install `MacPorts <http://www.macports.org>`_.
+   Then use the following guide `<http://cvc4.cs.nyu.edu/builds/macos/ports/>`_
+   to install the cvc4-devel package (nightly-build) in your /opt/local
+   directory.
    ::
 
     $ cd ${BUILD_ROOT}
@@ -337,7 +335,7 @@ Replace as appropriate or setup an environment variable.::
     $ cd ${BUILD_ROOT}/cvc4/build
     $ cp /opt/local/cvc4 cvc4
 
-   Now we make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
+   Make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
    ::
 
     $ ln -s cvc4 cvc4.exe
@@ -361,7 +359,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/gpuverify
      $ cp gvfindtools.templates/gvfindtools.dev.py gvfindtools.py
 
-   Now open gvfindtools.py in your favourite text editor and edit the paths.
+   Open gvfindtools.py in a text editor and edit the paths.
    If you followed this guide strictly then these paths will be as follows
    and you should only need to change the ``rootDir`` variable.
    ::
@@ -397,7 +395,7 @@ Replace as appropriate or setup an environment variable.::
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
-	  
+
       #The path to the directory containing cvc4.exe
       cvc4BinDir = rootDir + "/cvc4/build"
 
@@ -413,12 +411,12 @@ Replace as appropriate or setup an environment variable.::
 
      $ cd ${BUILD_ROOT}/gpuverify
      $ ./gvtester.py --write-pickle run.pickle testsuite
-	 
-   To run the GPUVerify test suite using the CVC4 SMT Solver in the backend:
+
+   To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
-   
+
      $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
- 
+
    You can also check that your test run matches the current baseline.
    ::
 
@@ -471,13 +469,13 @@ drives.
       > cd ${BUILD_ROOT}\llvm_and_clang\src\projects
       > svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_$LLVM_RELEASE compiler-rt
 
-#. Configure LLVM and Clang for building (we do an out of source build)::
+   Configure LLVM and Clang for building (we do an out of source build)::
 
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
       > cmake -D CMAKE_BUILD_TYPE=Release ../src
 
-#. Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
+   Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
    for the command line, then::
 
@@ -507,13 +505,13 @@ drives.
               -D LIBCLC_DIR=${BUILD_ROOT}\libclc\install `
               ..\src
 
-#. Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
+   Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
    for the command line, then::
 
       > msbuild /p:Configuration=Release Bugle.sln
 
-#. Get Z3 (SMT Solver) and build::
+#. Get the Z3 SMT Solver and build::
 
       > cd ${BUILD_ROOT}
       > git clone https://git01.codeplex.com/z3
@@ -521,18 +519,18 @@ drives.
       > python scripts\mk_make.py
       > cd build
       > nmake
-	  
-#. (Optional) Get CVC4 (SMT Solver)::
+
+#. (Optional) Get the CVC4 SMT Solver::
 
       > cd ${BUILD_ROOT}
       > mkdir -p ${BUILD_ROOT}\cvc4\build
-	  > cd ${BUILD_ROOT}\cvc4\build
-	  > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2013-07-20-win32-opt.exe"
-	  > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
+      > cd ${BUILD_ROOT}\cvc4\build
+      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2013-07-20-win32-opt.exe"
+      > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
 
-#. Get GPUVerify code and build. You can do this by opening ``GPUVerify.sln`` in Visual
-   Studio and building, or alternatively, if you have setup the Microsoft tools
-   for the command line, then::
+#. Get GPUVerify code and build. You can do this by opening ``GPUVerify.sln``
+   in Visual Studio and building, or alternatively, if you have setup the
+   Microsoft tools for the command line, then::
 
       > cd ${BUILD_ROOT}
       > hg clone https://hg.codeplex.com/gpuverify
@@ -544,10 +542,9 @@ drives.
      > cd ${BUILD_ROOT}\gpuverify
      > copy gvfindtools.templates\gvfindtools.dev.py gvfindtools.py
 
-   Now open gvfindtools.py in your favourite text editor and edit the paths.
+   Open gvfindtools.py in a text editor and edit the paths.
    If you followed this guide strictly then these paths will be as follows
    and you should only need to change the ``rootDir`` variable.
-
    ::
 
       rootDir = r"${BUILD_ROOT}" #< CHANGE THIS PATH
@@ -581,7 +578,7 @@ drives.
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + r"\z3\build"
-	  
+
       #The path to the directory containing cvc4.exe
       cvc4BinDir = rootDir + r"\cvc4\build"
 
@@ -597,10 +594,10 @@ drives.
 
      $ cd ${BUILD_ROOT}\gpuverify
      $ .\gvtester.py --write-pickle run.pickle testsuite
-	 
-   To run the GPUVerify test suite using the CVC4 SMT Solver in the backend:
+
+   To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
-   
+
      $ .\gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
@@ -624,9 +621,9 @@ To deploy a stand alone version of GPUVerify run::
   $ ./deploy.py /path/to/deploy/gpuverify
 
 This will copy the necessary files to run a standalone copy of GPUVerify in an
-intelligent manner by 
+intelligent manner by
 
-- Reading ``gvfindtools.py`` to figure out where the 
+- Reading ``gvfindtools.py`` to figure out where the
   dependencies live.
 - Reading ``gvfindtools.templates/gvfindtoolsdeploy.py`` to determine
   the directory structure inside the deploy folder.
