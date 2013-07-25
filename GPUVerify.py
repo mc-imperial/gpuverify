@@ -129,6 +129,7 @@ class CommandLineOptions(object):
   stagedInference = False
   stopAtGbpl = False
   stopAtBpl = False
+  stopAtOpt = False
   time = False
   timeCSVLabel = None
   boogieMemout=0
@@ -332,6 +333,7 @@ def showHelpAndExit():
   print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
+  print "  --stop-at-opt           Stop after LLVM optimization pass"
   print "  --time-as-csv=label     Print timing as CSV row with label"
   print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
@@ -483,7 +485,9 @@ def processGeneralOptions(opts, args):
     if o == "--bugle-opt":
       CommandLineOptions.bugleOptions += str(a).split(" ")
     if o == "--staged-inference":
-      CommandLineOptions.stagedInference = True 
+      CommandLineOptions.stagedInference = True
+    if o == "--stop-at-opt":
+      CommandLineOptions.stopAtOpt = True 
     if o == "--stop-at-gbpl":
       CommandLineOptions.stopAtGbpl = True
     if o == "--stop-at-bpl":
@@ -606,7 +610,7 @@ def main(argv=None):
   progname = argv[0]
 
   try:
-    opts, args = getopt.getopt(argv[1:],'D:I:h', 
+    opts, args = getopt.gnu_getopt(argv[1:],'D:I:h', 
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
@@ -614,7 +618,7 @@ def main(argv=None):
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
-              'blockDim=', 'gridDim=', 'math-int',
+              'blockDim=', 'gridDim=', 'math-int', 'stop-at-opt',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference',
@@ -672,7 +676,7 @@ def main(argv=None):
       try: os.remove(filename)
       except OSError: pass
     atexit.register(DeleteFile, bcFilename)
-    atexit.register(DeleteFile, optFilename)
+    if not CommandLineOptions.stopAtOpt: atexit.register(DeleteFile, optFilename)
     if not CommandLineOptions.stopAtGbpl: atexit.register(DeleteFile, gbplFilename)
     if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, bplFilename)
     if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, locFilename)
@@ -780,6 +784,8 @@ def main(argv=None):
             [gvfindtools.llvmBinDir + "/opt"] + 
             CommandLineOptions.optOptions,
             ErrorCodes.OPT_ERROR)
+            
+  if CommandLineOptions.stopAtOpt: return 0
 
   """ RUN BUGLE """
   if not CommandLineOptions.skip["bugle"]:
