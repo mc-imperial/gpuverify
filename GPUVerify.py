@@ -606,7 +606,7 @@ def main(argv=None):
   progname = argv[0]
 
   try:
-    opts, args = getopt.getopt(argv[1:],'D:I:h', 
+    opts, args = getopt.gnu_getopt(argv[1:],'D:I:h', 
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
