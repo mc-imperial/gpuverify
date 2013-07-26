@@ -3,9 +3,9 @@
 
 void bar(__local float* pAlias)
 {
-  for(int i = 0; 
-    __invariant(__implies(__read(pAlias), __read_offset(pAlias) == get_local_id(0))),
-    __invariant(__implies(__write(pAlias), __write_offset(pAlias) == get_local_id(0))),
+  for(int i = 0;
+    __invariant(__implies(__read(pAlias), (__read_offset(pAlias)/sizeof(float)) == get_local_id(0))),
+    __invariant(__implies(__write(pAlias), (__write_offset(pAlias)/sizeof(float)) == get_local_id(0))),
     i < 100; i++) {
     pAlias[get_local_id(0)] = pAlias[get_local_id(0)] + 1.0f;
   }
@@ -14,8 +14,8 @@ void bar(__local float* pAlias)
 void baz(__local float* qAlias)
 {
   for(int i = 0;
-    __invariant(__implies(__read(qAlias), __read_offset(qAlias) == get_local_id(0))),
-    __invariant(__implies(__write(qAlias), __write_offset(qAlias) == get_local_id(0))), 
+    __invariant(__implies(__read(qAlias), (__read_offset(qAlias)/sizeof(float)) == get_local_id(0))),
+    __invariant(__implies(__write(qAlias), (__write_offset(qAlias)/sizeof(float)) == get_local_id(0))),
     i < 100; i++) {
    qAlias[get_local_id(0)] = qAlias[get_local_id(0)] + 1.0f;
   }
