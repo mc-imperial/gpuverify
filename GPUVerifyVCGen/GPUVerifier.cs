@@ -406,6 +406,9 @@ namespace GPUVerify
                 CommandLineOptions.BarrierAccessChecks = false;
             }
 
+            if (CommandLineOptions.RefinedAtomics)
+              RefineAtomicAbstraction();
+
             DoUniformityAnalysis();
 
             if (CommandLineOptions.ShowUniformityAnalysis) {
@@ -1942,6 +1945,75 @@ namespace GPUVerify
         internal static void AddInlineAttribute(Declaration d)
         {
           d.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1)) });
+        }
+
+        // This finds instances where the only atomic used on an array satisfy forall n,m f^n(x) != f^m(x)
+        // Technically unsound due to machine integers, but unlikely in practice due to, e.g., needing to callng atomic_inc >2^32 times
+        private void RefineAtomicAbstraction()
+        {
+          var implementations = Program.TopLevelDeclarations.Where(d => d is Implementation).Select(d => d as Implementation);
+          var blocks = implementations.SelectMany(impl => impl.Blocks);
+
+          // First, pass over the the program looking for uses of atomics, recording (Array,Function) pairs
+          Dictionary<Variable,HashSet<string>> funcs_used = new Dictionary<Variable,HashSet<string>> ();
+          foreach (Block b in blocks)
+            foreach (Cmd c in b.Cmds)
+              if (c is CallCmd)
+              {
+                CallCmd call = c as CallCmd;
+                if (QKeyValue.FindBoolAttribute(call.Attributes, "atomic"))
+                {
+                  Variable v = (call.Ins[0] as IdentifierExpr).Decl;
+                  if (funcs_used.ContainsKey(v))
+                    funcs_used[v].Add(QKeyValue.FindStringAttribute(call.Attributes, "atomic_function"));
+                  else
+                    funcs_used.Add(v, new HashSet<string> (new string[] { QKeyValue.FindStringAttribute(call.Attributes, "atomic_function") }));
+                }
+              }
+          // Then, for every array that only used a single monotonic atomic function, pass over the program again, logging offset constraints
+          string[] monotonics = new string[] { "__atomic_inc", "__atomic_dec", "__atomic_add", "__atomic_sub" };
+          Expr variables = null;
+          Expr offset = null;
+          int parts = 0;
+          foreach (KeyValuePair<Variable,HashSet<string>> pair in funcs_used)
+          {
+            if (pair.Value.Count == 1 && monotonics.Any(x => pair.Value.ToArray()[0].StartsWith(x)))
+            {
+              foreach (Block b in blocks)
+              {
+                CmdSeq result = new CmdSeq();
+                foreach (Cmd c in b.Cmds)
+                {
+                  result.Add(c);
+                  if (c is CallCmd)
+                  {
+                    CallCmd call = c as CallCmd;
+                    if (QKeyValue.FindBoolAttribute(call.Attributes, "atomic") && (call.Ins[0] as IdentifierExpr).Decl.Equals(pair.Key))
+                    {
+                      if (variables == null)
+                      {
+                        variables = call.Outs[0];
+                        offset = call.Ins[1];
+                        parts = QKeyValue.FindIntAttribute(call.Attributes, "parts", 0);
+                      }
+                      else
+                        variables = new BvConcatExpr(Token.NoToken,call.Outs[0], variables);
+                      if (QKeyValue.FindIntAttribute(call.Attributes, "part", -1) == parts)
+                      {
+                        AssumeCmd assume = new AssumeCmd(Token.NoToken, Expr.True);
+                        assume.Attributes = new QKeyValue(Token.NoToken, "atomic_refinement", new List<object>(new object [] {}), null);
+                        assume.Attributes = new QKeyValue(Token.NoToken, "variable", new List<object>(new object[] {variables}), assume.Attributes);
+                        assume.Attributes = new QKeyValue(Token.NoToken, "offset", new List<object>(new object[] {offset}), assume.Attributes);
+                        result.Add(assume);
+                        variables = null;
+                      }
+                    }
+                  }
+                }
+                b.Cmds = result;
+              }
+            }
+          }
         }
 
         private void AddWarpSyncs()

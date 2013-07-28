@@ -129,6 +129,7 @@ class CommandLineOptions(object):
   stagedInference = False
   stopAtGbpl = False
   stopAtBpl = False
+  stopAtOpt = False
   time = False
   timeCSVLabel = None
   boogieMemout=0
@@ -143,6 +144,7 @@ class CommandLineOptions(object):
   warpSync = False
   warpSize = 32
   atomic = "rw"
+  noRefinedAtomics = False
   skip = { "clang": False,
            "opt": False,
            "bugle": False,
@@ -331,6 +333,7 @@ def showHelpAndExit():
   print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
+  print "  --stop-at-opt           Stop after LLVM optimization pass"
   print "  --time-as-csv=label     Print timing as CSV row with label"
   print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
@@ -338,6 +341,7 @@ def showHelpAndExit():
   print "  --use-cvc4              Use the CVC4 SMT solver backend instead of the Z3 default"
   print "  --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32"
   print "  --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none) (Default is --atomic=rw)"
+  print "  --no-refined-atomics    Don't do abstraction refinement on the return values from atomics"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"         
@@ -481,7 +485,9 @@ def processGeneralOptions(opts, args):
     if o == "--bugle-opt":
       CommandLineOptions.bugleOptions += str(a).split(" ")
     if o == "--staged-inference":
-      CommandLineOptions.stagedInference = True 
+      CommandLineOptions.stagedInference = True
+    if o == "--stop-at-opt":
+      CommandLineOptions.stopAtOpt = True 
     if o == "--stop-at-gbpl":
       CommandLineOptions.stopAtGbpl = True
     if o == "--stop-at-bpl":
@@ -512,6 +518,8 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.atomic = a.lower()
       else:
         GPUVerifyError("argument to --atomic must be 'r','w','rw', or 'none'", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--no-refined-atomics":
+      CommandLineOptions.noRefinedAtomics = True
     if o == "--bugle-lang":
       if a.lower() in ("cl", "cu"):
         CommandLineOptions.bugleLanguage = a.lower()
@@ -602,7 +610,7 @@ def main(argv=None):
   progname = argv[0]
 
   try:
-    opts, args = getopt.getopt(argv[1:],'D:I:h', 
+    opts, args = getopt.gnu_getopt(argv[1:],'D:I:h', 
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
@@ -610,11 +618,11 @@ def main(argv=None):
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
-              'blockDim=', 'gridDim=', 'math-int',
+              'blockDim=', 'gridDim=', 'math-int', 'stop-at-opt',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference',
-              'use-cvc4', 'warp-sync=', 'atomic=',
+              'use-cvc4', 'warp-sync=', 'atomic=', 'no-refined-atomics',
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -668,7 +676,7 @@ def main(argv=None):
       try: os.remove(filename)
       except OSError: pass
     atexit.register(DeleteFile, bcFilename)
-    atexit.register(DeleteFile, optFilename)
+    if not CommandLineOptions.stopAtOpt: atexit.register(DeleteFile, optFilename)
     if not CommandLineOptions.stopAtGbpl: atexit.register(DeleteFile, gbplFilename)
     if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, bplFilename)
     if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, locFilename)
@@ -700,6 +708,8 @@ def main(argv=None):
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/atomics:" + CommandLineOptions.atomic ]
   if CommandLineOptions.warpSync:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/doWarpSync:" + str(CommandLineOptions.warpSize) ]
+  if CommandLineOptions.noRefinedAtomics:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/noRefinedAtomics" ]
   if CommandLineOptions.adversarialAbstraction:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/adversarialAbstraction" ]
   if CommandLineOptions.equalityAbstraction:
@@ -774,6 +784,8 @@ def main(argv=None):
             [gvfindtools.llvmBinDir + "/opt"] + 
             CommandLineOptions.optOptions,
             ErrorCodes.OPT_ERROR)
+            
+  if CommandLineOptions.stopAtOpt: return 0
 
   """ RUN BUGLE """
   if not CommandLineOptions.skip["bugle"]:
