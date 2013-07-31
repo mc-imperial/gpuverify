@@ -47,8 +47,8 @@ exitHook.hook()
 
 """ We support three analysis modes """
 class AnalysisMode(object):
-  """ This is the default mode.  Right now it is the same as VERIFY, 
-      but in future this mode will run verification and bug-finding in parallel 
+  """ This is the default mode.  Right now it is the same as VERIFY,
+      but in future this mode will run verification and bug-finding in parallel
   """
   ALL=0
   """ This is bug-finding only mode """
@@ -98,11 +98,11 @@ class CommandLineOptions(object):
   optOptions = [ "-mem2reg", "-globaldce" ]
   gpuVerifyVCGenOptions = []
   gpuVerifyBoogieDriverOptions = [ "/nologo",
-                                   "/typeEncoding:m", 
-                                   "/doModSetAnalysis", 
-                                   "/useArrayTheory", 
-                                   "/doNotUseLabels", 
-                                   "/noinfer", 
+                                   "/typeEncoding:m",
+                                   "/doModSetAnalysis",
+                                   "/useArrayTheory",
+                                   "/doNotUseLabels",
+                                   "/noinfer",
                                    "/enhancedErrorMessages:1",
                                    "/mv:-",
                                    "/errorLimit:20"
@@ -164,7 +164,7 @@ class Timeout(Exception):
 class ToolWatcher(object):
   """ This class is used by run() to implement a timeout for tools.
   It uses threading.Timer to implement the timeout and provides
-  a method for checking if the timeout occurred. It also provides a 
+  a method for checking if the timeout occurred. It also provides a
   method for cancelling the timeout.
 
   The class is reentrant
@@ -201,7 +201,7 @@ class ToolWatcher(object):
     self.timer.cancel()
 
 def run(command,timeout=0):
-  """ Run a command with an optional timeout. A timeout of zero 
+  """ Run a command with an optional timeout. A timeout of zero
       implies no timeout.
   """
   popenargs={}
@@ -246,7 +246,7 @@ class ErrorCodes(object):
   CTRL_C = 8
 
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
-  """ Run a tool. 
+  """ Run a tool.
       If the timeout is set to 0 then there will no timeout.
       If the timeout is > 0 then timeoutErrorCode MUST be set!
   """
@@ -256,12 +256,14 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
     stdout, stderr, returnCode = run(Command, timeout)
     end = timeit.default_timer()
   except Timeout:
-    if CommandLineOptions.time: Timing.append((ToolName, timeout))
+    if CommandLineOptions.time:
+      Timing.append((ToolName, timeout))
     GPUVerifyError(ToolName + " timed out.  Use --timeout=N with N > " + str(timeout) + " to increase timeout, or --timeout=0 to disable timeout.", timeoutErrorCode)
   except (OSError,WindowsError) as e:
     GPUVerifyError("While invoking " + ToolName + ": " + str(e),ErrorCode)
 
-  if CommandLineOptions.time: Timing.append((ToolName, end-start))
+  if CommandLineOptions.time:
+    Timing.append((ToolName, end-start))
   if returnCode != 0:
     if stdout: print >> sys.stderr, stdout
     if stderr: print >> sys.stderr, stderr
@@ -344,18 +346,18 @@ def showHelpAndExit():
   print "  --no-refined-atomics    Don't do abstraction refinement on the return values from atomics"
   print ""
   print "OPENCL OPTIONS:"
-  print "  --local_size=X          Specify whether work-group is 1D, 2D"         
+  print "  --local_size=X          Specify whether work-group is 1D, 2D"
   print "              =[X,Y]      or 3D and specify size for each"
   print "              =[X,Y,Z]    dimension"
-  print "  --num_groups=X          Specify whether grid of work-groups is"         
+  print "  --num_groups=X          Specify whether grid of work-groups is"
   print "              =[X,Y]      1D, 2D or 3D and specify size for each"
   print "              =[X,Y,Z]    dimension"
   print ""
   print "CUDA OPTIONS"
-  print "  --blockDim=X            Specify whether thread block is 1D, 2D"         
+  print "  --blockDim=X            Specify whether thread block is 1D, 2D"
   print "              =[X,Y]      or 3D and specify size for each"
   print "              =[X,Y,Z]    dimension"
-  print "  --gridDim=X             Specify whether grid of thread blocks is"         
+  print "  --gridDim=X             Specify whether grid of thread blocks is"
   print "              =[X,Y]      1D, 2D or 3D and specify size for each"
   print "              =[X,Y,Z]    dimension"
   sys.exit(0)
@@ -487,7 +489,7 @@ def processGeneralOptions(opts, args):
     if o == "--staged-inference":
       CommandLineOptions.stagedInference = True
     if o == "--stop-at-opt":
-      CommandLineOptions.stopAtOpt = True 
+      CommandLineOptions.stopAtOpt = True
     if o == "--stop-at-gbpl":
       CommandLineOptions.stopAtGbpl = True
     if o == "--stop-at-bpl":
@@ -579,7 +581,7 @@ def processCUDAOptions(opts, args):
       try:
         CommandLineOptions.groupSize = processVector(a)
       except ValueError:
-        GPUVerifyError("argument to --blockDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR) 
+        GPUVerifyError("argument to --blockDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
           GPUVerifyError("values specified for blockDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
@@ -589,7 +591,7 @@ def processCUDAOptions(opts, args):
       try:
         CommandLineOptions.numGroups = processVector(a)
       except ValueError:
-        GPUVerifyError("argument to --gridDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR) 
+        GPUVerifyError("argument to --gridDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for gridDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
@@ -771,20 +773,20 @@ def main(argv=None):
 
   """ RUN CLANG """
   if not CommandLineOptions.skip["clang"]:
-    RunTool("clang", 
-             [gvfindtools.llvmBinDir + "/clang"] + 
-             CommandLineOptions.clangOptions + 
-             [("-I" + str(o)) for o in CommandLineOptions.includes] + 
+    RunTool("clang",
+             [gvfindtools.llvmBinDir + "/clang"] +
+             CommandLineOptions.clangOptions +
+             [("-I" + str(o)) for o in CommandLineOptions.includes] +
              [("-D" + str(o)) for o in CommandLineOptions.defines],
              ErrorCodes.CLANG_ERROR)
 
   """ RUN OPT """
   if not CommandLineOptions.skip["opt"]:
     RunTool("opt",
-            [gvfindtools.llvmBinDir + "/opt"] + 
+            [gvfindtools.llvmBinDir + "/opt"] +
             CommandLineOptions.optOptions,
             ErrorCodes.OPT_ERROR)
-            
+
   if CommandLineOptions.stopAtOpt: return 0
 
   """ RUN BUGLE """
@@ -811,7 +813,7 @@ def main(argv=None):
   if CommandLineOptions.boogieTimeout > 0:
     timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
     timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
-    
+
   RunTool("gpuverifyboogiedriver",
           (["mono"] if os.name == "posix" else []) +
           [gvfindtools.gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver.exe"] +
@@ -820,7 +822,8 @@ def main(argv=None):
           **timeoutArguments)
 
   """ SUCCESS - REPORT STATUS """
-  if CommandLineOptions.silent: return 0
+  if CommandLineOptions.silent:
+    return 0
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     print "No defects were found while analysing: " + ", ".join(CommandLineOptions.sourceFiles)
@@ -852,7 +855,7 @@ def showTiming():
       print ', '.join(row)
     else:
       row.append('FAIL(' + str(exitHook.code) + ')')
-      print >> sys.stderr, ', '.join(row) 
+      print >> sys.stderr, ', '.join(row)
   else:
     padTool = max([ len(tool) for tool in tools ])
     padTime = max([ len('%.3f secs' % t) for t in times ])
