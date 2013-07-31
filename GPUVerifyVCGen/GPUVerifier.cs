@@ -513,6 +513,13 @@ namespace GPUVerify
               AddWarpSyncs();
             }
 
+            if (CommandLineOptions.OutlineBarrierIntervals) {
+              foreach(var impl in KernelProcedures.Values) {
+                IntraProceduralLiveVariableAnalysis iplva = new IntraProceduralLiveVariableAnalysis(impl);
+                iplva.RunAnalysis();
+              }
+            }
+
             emitProgram(outputFilename);
 
         }
