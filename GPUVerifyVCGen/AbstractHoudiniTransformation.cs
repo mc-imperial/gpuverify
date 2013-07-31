@@ -81,7 +81,7 @@ namespace GPUVerify
       if (oldCandidateInvariants.Count() > 0)
       {
 
-        VariableSeq args = new VariableSeq();
+        List<Variable> args = new List<Variable>();
         for (int i = 0; i < oldCandidateInvariants.Count(); i++)
         {
           args.Add(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x" + i, Microsoft.Boogie.Type.Bool)));
@@ -94,7 +94,7 @@ namespace GPUVerify
 
         existentialFunction.AddAttribute("existential", new object[] { Expr.True });
 
-        ExprSeq oldCandidateInvariantExprs = new ExprSeq();
+        List<Expr> oldCandidateInvariantExprs = new List<Expr>();
         foreach (var p in oldCandidateInvariants)
         {
           string c;
@@ -146,7 +146,7 @@ namespace GPUVerify
               toRemove.Add(p);
 
               Function implicationExistentialFunction = new Function(Token.NoToken, "_existential_func" + counter,
-                new VariableSeq { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x", Microsoft.Boogie.Type.Bool)),
+                new List<Variable> { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x", Microsoft.Boogie.Type.Bool)),
                                   new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "y", Microsoft.Boogie.Type.Bool))
                 },
                 new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.Bool)));
@@ -157,7 +157,7 @@ namespace GPUVerify
               implicationExistentialFunction.AddAttribute("absdomain", new object[] { "ImplicationDomain" });
 
               region.AddInvariant(new AssertCmd(Token.NoToken, new NAryExpr(Token.NoToken, new FunctionCall(implicationExistentialFunction),
-                new ExprSeq { antecedent, consequent })));
+                new List<Expr> { antecedent, consequent })));
 
               counter++;
 
@@ -190,7 +190,7 @@ namespace GPUVerify
           oldCandidateInvariants.RemoveAll(item => TryGetPow2VariableFromCandidate(item)
             != null && TryGetPow2VariableFromCandidate(item).Name.Equals(v.Name));
           Function pow2ExistentialFunction = new Function(Token.NoToken, "_existential_func" + counter,
-            new VariableSeq { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x", v.Type)) },
+            new List<Variable> { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x", v.Type)) },
             new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.Bool)));
 
           existentialFunctions.Add(pow2ExistentialFunction);
@@ -199,7 +199,7 @@ namespace GPUVerify
           pow2ExistentialFunction.AddAttribute("absdomain", new object[] { "PowDomain" });
 
           region.AddInvariant(new AssertCmd(Token.NoToken, new NAryExpr(Token.NoToken, new FunctionCall(pow2ExistentialFunction),
-            new ExprSeq { v })));
+            new List<Expr> { v })));
 
           counter++;
 

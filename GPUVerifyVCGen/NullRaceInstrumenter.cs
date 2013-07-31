@@ -36,7 +36,7 @@ namespace GPUVerify
 
         public Microsoft.Boogie.BigBlock MakeResetReadWriteSetStatements(Variable v, Expr ResetCondition)
         {
-            return new BigBlock(Token.NoToken, null, new CmdSeq(), null, null);
+            return new BigBlock(Token.NoToken, null, new List<Cmd>(), null, null);
         }
 
         public void AddRaceCheckingCandidateRequires(Procedure Proc)

@@ -165,7 +165,7 @@ namespace GPUVerify
             }
         }
 
-        private void Analyse(Implementation impl, CmdSeq cs)
+        private void Analyse(Implementation impl, List<Cmd> cs)
         {
             foreach (var c in cs)
             {
@@ -212,7 +212,7 @@ namespace GPUVerify
 
                         Implementation CalleeImplementation = verifier.GetImplementation(callCmd.callee);
                         if (CalleeImplementation != null) {
-                          for (int i = 0; i < CalleeImplementation.InParams.Length; i++) {
+                          for (int i = 0; i < CalleeImplementation.InParams.Count(); i++) {
                             VariablesOccurringInExpressionVisitor visitor = new VariablesOccurringInExpressionVisitor();
                             visitor.VisitExpr(callCmd.Ins[i]);
 
@@ -231,7 +231,7 @@ namespace GPUVerify
 
                           }
 
-                          for (int i = 0; i < CalleeImplementation.OutParams.Length; i++) {
+                          for (int i = 0; i < CalleeImplementation.OutParams.Count(); i++) {
                             foreach (String s in mayBeDerivedFrom[callCmd.callee][CalleeImplementation.OutParams[i].Name]) {
                               if (!mayBeDerivedFrom[impl.Name][callCmd.Outs[i].Name].Contains(s)) {
                                 SetMayBeDerivedFrom(impl.Name, callCmd.Outs[i].Name, s);

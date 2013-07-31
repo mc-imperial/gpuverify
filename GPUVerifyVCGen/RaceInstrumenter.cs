@@ -372,8 +372,8 @@ namespace GPUVerify {
       impl.Blocks = impl.Blocks.Select(AddRaceCheckCalls).ToList();
     }
 
-    private CmdSeq AddRaceCheckCalls(CmdSeq cs) {
-      var result = new CmdSeq();
+    private List<Cmd> AddRaceCheckCalls(List<Cmd> cs) {
+      var result = new List<Cmd>();
       foreach (Cmd c in cs) {
 
         if (c is AssertCmd) {
@@ -390,8 +390,8 @@ namespace GPUVerify {
           if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
           {
             AddLogAndCheckCalls(result,new AccessRecord((call.Ins[0] as IdentifierExpr).Decl,call.Ins[1]),"ATOMIC",null);
-            (result[result.Length - 1] as CallCmd).Attributes = new QKeyValue(Token.NoToken, "atomic_function", new List<object> (new object[] { QKeyValue.FindStringAttribute(call.Attributes, "atomic_function") }), (result[result.Length - 1] as CallCmd).Attributes);
-            result.Add(new HavocCmd(Token.NoToken, new IdentifierExprSeq(call.Outs.ToArray()))); // TODO: check this is right
+            (result[result.Count() - 1] as CallCmd).Attributes = new QKeyValue(Token.NoToken, "atomic_function", new List<object> (new object[] { QKeyValue.FindStringAttribute(call.Attributes, "atomic_function") }), (result[result.Count() - 1] as CallCmd).Attributes);
+            result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr>(call.Outs.ToArray()))); // TODO: check this is right
             continue;
           }
         }
@@ -460,7 +460,7 @@ namespace GPUVerify {
       return result;
     }
 
-    private void AddLogAndCheckCalls(CmdSeq result, AccessRecord ar, string Access, Expr Value) {
+    private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, string Access, Expr Value) {
       result.Add(MakeLogCall(ar, Access, Value));
       if (!CommandLineOptions.OnlyLog) {
         result.Add(MakeCheckCall(result, ar, Access, Value));
@@ -470,8 +470,8 @@ namespace GPUVerify {
       CurrStmtNo++;
     }
 
-    private CallCmd MakeCheckCall(CmdSeq result, AccessRecord ar, string Access, Expr Value) {
-      ExprSeq inParamsChk = new ExprSeq();
+    private CallCmd MakeCheckCall(List<Cmd> result, AccessRecord ar, string Access, Expr Value) {
+      List<Expr> inParamsChk = new List<Expr>();
       inParamsChk.Add(ar.Index);
       MaybeAddValueParameter(inParamsChk, ar, Value);
       Procedure checkProcedure = GetRaceCheckingProcedure(Token.NoToken, "_CHECK_" + Access + "_" + ar.v.Name);
@@ -484,7 +484,7 @@ namespace GPUVerify {
       captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
         "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
       result.Add(captureStateAssume);
-      CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new IdentifierExprSeq());
+      CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
       checkAccessCallCmd.Proc = checkProcedure;
       checkAccessCallCmd.Attributes = SourceLocationAttributes;
       checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "state_id", new List<object>() { CheckState }, checkAccessCallCmd.Attributes);
@@ -492,19 +492,19 @@ namespace GPUVerify {
     }
 
     private CallCmd MakeLogCall(AccessRecord ar, string Access, Expr Value) {
-      ExprSeq inParamsLog = new ExprSeq();
+      List<Expr> inParamsLog = new List<Expr>();
       inParamsLog.Add(ar.Index);
       MaybeAddValueParameter(inParamsLog, ar, Value);
       inParamsLog.Add(verifier.IntRep.GetLiteral(CurrStmtNo, 32));
       Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
       verifier.OnlyThread1.Add(logProcedure.Name);
-      CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new IdentifierExprSeq());
+      CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new List<IdentifierExpr>());
       logAccessCallCmd.Proc = logProcedure;
       logAccessCallCmd.Attributes = SourceLocationAttributes;
       return logAccessCallCmd;
     }
 
-    private void MaybeAddValueParameter(ExprSeq parameters, AccessRecord ar, Expr Value) {
+    private void MaybeAddValueParameter(List<Expr> parameters, AccessRecord ar, Expr Value) {
       if (!CommandLineOptions.NoBenign) {
         if (Value != null) {
           parameters.Add(Value);
@@ -560,14 +560,14 @@ namespace GPUVerify {
       if (RaceCheckingProcedures.ContainsKey(name)) {
         return RaceCheckingProcedures[name];
       }
-      Procedure newProcedure = new Procedure(tok, name, new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new List<Requires>(), new IdentifierExprSeq(), new List<Ensures>());
+      Procedure newProcedure = new Procedure(tok, name, new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
       RaceCheckingProcedures[name] = newProcedure;
       return newProcedure;
     }
 
 
     public BigBlock MakeResetReadWriteSetStatements(Variable v, Expr ResetCondition) {
-      BigBlock result = new BigBlock(Token.NoToken, null, new CmdSeq(), null, null);
+      BigBlock result = new BigBlock(Token.NoToken, null, new List<Cmd>(), null, null);
 
       foreach (string kind in new string[] {"READ","WRITE","ATOMIC"})
       {
@@ -585,7 +585,7 @@ namespace GPUVerify {
     }
 
     protected Procedure MakeLogAccessProcedureHeader(Variable v, string ReadOrWrite) {
-      VariableSeq inParams = new VariableSeq();
+      List<Variable> inParams = new List<Variable>();
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
 
@@ -616,7 +616,7 @@ namespace GPUVerify {
     }
 
     protected Procedure MakeCheckAccessProcedureHeader(Variable v, string ReadOrWrite) {
-      VariableSeq inParams = new VariableSeq();
+      List<Variable> inParams = new List<Variable>();
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
 
@@ -723,15 +723,15 @@ namespace GPUVerify {
       
       Debug.Assert(!(mt.Result is MapType));
 
-      VariableSeq locals = new VariableSeq();
+      List<Variable> locals = new List<Variable>();
       Variable TrackVariable = new LocalVariable(v.tok, new TypedIdent(v.tok, "track", Microsoft.Boogie.Type.Bool));
       locals.Add(TrackVariable);
 
       List<BigBlock> bigblocks = new List<BigBlock>();
 
-      CmdSeq simpleCmds = new CmdSeq();
+      List<Cmd> simpleCmds = new List<Cmd>();
 
-      simpleCmds.Add(new HavocCmd(v.tok, new IdentifierExprSeq(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
+      simpleCmds.Add(new HavocCmd(v.tok, new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
 
       Expr Condition = Expr.And(new IdentifierExpr(v.tok, VariableForThread(1, PredicateParameter)), new IdentifierExpr(v.tok, TrackVariable));
 
@@ -751,7 +751,7 @@ namespace GPUVerify {
 
       bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));
 
-      Implementation LogAccessImplementation = new Implementation(v.tok, "_LOG_" + Access + "_" + v.Name, new TypeVariableSeq(), LogAccessProcedure.InParams, new VariableSeq(), locals, new StmtList(bigblocks, v.tok));
+      Implementation LogAccessImplementation = new Implementation(v.tok, "_LOG_" + Access + "_" + v.Name, new List<TypeVariable>(), LogAccessProcedure.InParams, new List<Variable>(), locals, new StmtList(bigblocks, v.tok));
       GPUVerifier.AddInlineAttribute(LogAccessImplementation);
 
       LogAccessImplementation.Proc = LogAccessProcedure;
@@ -1005,7 +1005,7 @@ namespace GPUVerify {
       List<AssignLhs> lhss = new List<AssignLhs>();
       List<Expr> rhss = new List<Expr>();
       lhss.Add(new SimpleAssignLhs(lhs.tok, new IdentifierExpr(lhs.tok, lhs)));
-      rhss.Add(new NAryExpr(rhs.tok, new IfThenElse(rhs.tok), new ExprSeq(new Expr[] { condition, rhs, new IdentifierExpr(lhs.tok, lhs) })));
+      rhss.Add(new NAryExpr(rhs.tok, new IfThenElse(rhs.tok), new List<Expr>(new Expr[] { condition, rhs, new IdentifierExpr(lhs.tok, lhs) })));
       return new AssignCmd(lhs.tok, lhss, rhss);
     }
 

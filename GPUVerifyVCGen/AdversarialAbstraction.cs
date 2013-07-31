@@ -22,7 +22,7 @@ namespace GPUVerify {
 
     private GPUVerifier verifier;
 
-    private VariableSeq NewLocalVars = null;
+    private List<Variable> NewLocalVars = null;
     private int AbstractedCallArgCounter = 0;
 
     internal AdversarialAbstraction(GPUVerifier verifier) {
@@ -72,7 +72,7 @@ namespace GPUVerify {
     }
 
     private void AbstractModifiesSet(Procedure proc) {
-      IdentifierExprSeq NewModifies = new IdentifierExprSeq();
+      List<IdentifierExpr> NewModifies = new List<IdentifierExpr>();
       foreach (IdentifierExpr e in proc.Modifies) {
         var visitor = new AccessesAdversarialArrayVisitor(verifier);
         visitor.VisitIdentifierExpr(e);
@@ -84,7 +84,7 @@ namespace GPUVerify {
     }
 
     private void Abstract(Implementation impl) {
-      NewLocalVars = new VariableSeq();
+      NewLocalVars = new List<Variable>();
       AbstractedCallArgCounter = 0;
       foreach (Variable v in impl.LocVars) {
         Debug.Assert(!verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v));
@@ -98,7 +98,7 @@ namespace GPUVerify {
 
     private Block Abstract(Block b) {
 
-      var NewCmds = new CmdSeq();
+      var NewCmds = new List<Cmd>();
 
       foreach (Cmd c in b.Cmds) {
 
@@ -121,7 +121,7 @@ namespace GPUVerify {
               AbstractedCallArgCounter++;
               NewLocalVars.Add(lv);
               NewCmds.Add(new HavocCmd(Token.NoToken, 
-                new IdentifierExprSeq(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, lv) })));
+                new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, lv) })));
               call.Ins[i] = new IdentifierExpr(Token.NoToken, lv);
             }
           }
@@ -150,7 +150,7 @@ namespace GPUVerify {
 
             if (foundAdversarial) {
               Debug.Assert(lhs is SimpleAssignLhs);
-              NewCmds.Add(new HavocCmd(c.tok, new IdentifierExprSeq(new IdentifierExpr[] { (lhs as SimpleAssignLhs).AssignedVariable })));
+              NewCmds.Add(new HavocCmd(c.tok, new List<IdentifierExpr>(new IdentifierExpr[] { (lhs as SimpleAssignLhs).AssignedVariable })));
               continue;
             }
 

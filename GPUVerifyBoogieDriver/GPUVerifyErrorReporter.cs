@@ -524,8 +524,8 @@ namespace GPUVerify {
     }
 
     private Block FixStateIds(Block b) {
-      CmdSeq newCmds = new CmdSeq();
-      for (int i = 0; i < b.Cmds.Length; i++) {
+      List<Cmd> newCmds = new List<Cmd>();
+      for (int i = 0; i < b.Cmds.Count(); i++) {
         var a = b.Cmds[i] as AssumeCmd;
         if (a != null && (QKeyValue.FindStringAttribute(a.Attributes, "captureState") != null)) {
           // It is necessary to clone the assume and call command, because after loop unrolling
@@ -536,7 +536,7 @@ namespace GPUVerify {
           CallCmd c;
           do {
             i++;
-            Debug.Assert(i < b.Cmds.Length);
+            Debug.Assert(i < b.Cmds.Count());
             c = b.Cmds[i] as CallCmd;
             if(c == null) {
               newCmds.Add(b.Cmds[i]);

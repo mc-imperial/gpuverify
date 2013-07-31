@@ -83,7 +83,7 @@ namespace GPUVerify
     private Expr MakeBVFunctionCall(string functionName, string smtName, Microsoft.Boogie.Type resultType, params Expr[] args)
     {
         Function f = verifier.GetOrCreateBVFunction(functionName, smtName, resultType, args.Select(a => a.Type).ToArray());
-        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new ExprSeq(args));
+        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr>(args));
         e.Type = resultType;
         return e;
     }
@@ -172,7 +172,7 @@ namespace GPUVerify
     private Expr MakeIntFunctionCall(string functionName, BinaryOperator.Opcode infixOp, Microsoft.Boogie.Type resultType, Expr lhs, Expr rhs)
     {
         Function f = verifier.GetOrCreateIntFunction(functionName, infixOp, resultType, lhs.Type, rhs.Type);
-        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new ExprSeq { lhs, rhs });
+        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
         e.Type = resultType;
         return e;
     }
@@ -180,7 +180,7 @@ namespace GPUVerify
     private Expr MakeIntUFFunctionCall(string functionName, Microsoft.Boogie.Type resultType, Expr lhs, Expr rhs)
     {
         Function f = verifier.GetOrCreateBinaryUF(functionName, resultType, lhs.Type, rhs.Type);
-        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new ExprSeq { lhs, rhs });
+        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
         e.Type = resultType;
         return e;
     }

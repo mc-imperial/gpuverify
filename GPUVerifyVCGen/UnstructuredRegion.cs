@@ -105,12 +105,12 @@ class UnstructuredRegion : IRegion {
   }
 
   public void AddInvariant(PredicateCmd pc) {
-    header.Cmds = new CmdSeq((new Cmd[] {pc}.Concat(header.Cmds.Cast<Cmd>())).ToArray());
+    header.Cmds = new List<Cmd>((new Cmd[] {pc}.Concat(header.Cmds.Cast<Cmd>())).ToArray());
   }
 
   public List<PredicateCmd> RemoveInvariants() {
     List<PredicateCmd> result = new List<PredicateCmd>();
-    CmdSeq newCmds = new CmdSeq();
+    List<Cmd> newCmds = new List<Cmd>();
     bool RemovedAllInvariants = false;
     foreach (Cmd c in header.Cmds) {
       if (!(c is PredicateCmd)) {
