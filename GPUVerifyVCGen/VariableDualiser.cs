@@ -112,8 +112,8 @@ namespace GPUVerify
             var v = (node.Args[0] as IdentifierExpr).Decl;
             if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared")) {
               return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-                new ExprSeq(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
-                  new ExprSeq(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) })), 
+                new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
+                  new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) })), 
                   VisitExpr(node.Args[1]) }));
             }
           }
@@ -138,7 +138,7 @@ namespace GPUVerify
 
         // Do not dualise quantified variables
         public override QuantifierExpr VisitQuantifierExpr(QuantifierExpr node) {
-          VariableSeq vs = node.Dummies;
+          List<Variable> vs = node.Dummies;
           foreach (Variable dummy in vs)
           {
             quantifiedVars.Add(dummy);

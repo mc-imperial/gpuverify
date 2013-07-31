@@ -175,12 +175,12 @@ namespace GPUVerify
             var p = CheckSingleInstanceOfAttributedProcedure("barrier");
             if (p == null)
             {
-                p = new Procedure(Token.NoToken, "barrier", new TypeVariableSeq(),
-                                  new VariableSeq(new Variable[] { 
+                p = new Procedure(Token.NoToken, "barrier", new List<TypeVariable>(),
+                                  new List<Variable>(new Variable[] { 
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", IntRep.GetIntType(1)), true),
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__global_fence", IntRep.GetIntType(1)), true) }),
-                                  new VariableSeq(),
-                                  new List<Requires>(), new IdentifierExprSeq(),
+                                  new List<Variable>(),
+                                  new List<Requires>(), new List<IdentifierExpr>(),
                                   new List<Ensures>(),
                                   new QKeyValue(Token.NoToken, "barrier", new List<object>(), null));
                 Program.TopLevelDeclarations.Add(p);
@@ -192,12 +192,12 @@ namespace GPUVerify
         private Procedure FindOrCreateBarrierInvariantProcedure() {
           var p = CheckSingleInstanceOfAttributedProcedure("barrier_invariant");
           if (p == null) {
-            p = new Procedure(Token.NoToken, "barrier_invariant", new TypeVariableSeq(),
-                              new VariableSeq(new Variable[] { 
+            p = new Procedure(Token.NoToken, "barrier_invariant", new List<TypeVariable>(),
+                              new List<Variable>(new Variable[] { 
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__cond", 
                                       Microsoft.Boogie.Type.Bool), true)
                               }),
-                              new VariableSeq(), new List<Requires>(), new IdentifierExprSeq(),
+                              new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(),
                               new List<Ensures>(),
                               new QKeyValue(Token.NoToken, "barrier_invariant", new List<object>(), null));
             Program.TopLevelDeclarations.Add(p);
@@ -209,14 +209,14 @@ namespace GPUVerify
         private Procedure FindOrCreateBarrierInvariantInstantiationProcedure() {
           var p = CheckSingleInstanceOfAttributedProcedure("barrier_invariant_instantiation");
           if (p == null) {
-            p = new Procedure(Token.NoToken, "barrier_invariant_instantiation", new TypeVariableSeq(),
-                              new VariableSeq(new Variable[] { 
+            p = new Procedure(Token.NoToken, "barrier_invariant_instantiation", new List<TypeVariable>(),
+                              new List<Variable>(new Variable[] { 
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1", 
                                       IntRep.GetIntType(32)), true),
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", 
                                       IntRep.GetIntType(32)), true)
                               }),
-                              new VariableSeq(), new List<Requires>(), new IdentifierExprSeq(),
+                              new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(),
                               new List<Ensures>(),
                               new QKeyValue(Token.NoToken, "barrier_invariant_instantiation", new List<object>(), null));
             Program.TopLevelDeclarations.Add(p);
@@ -971,7 +971,7 @@ namespace GPUVerify
                 {
                     bool foundNonUniform = false;
                     int indexOfFirstNonUniformParameter;
-                    for (indexOfFirstNonUniformParameter = 0; indexOfFirstNonUniformParameter < Proc.InParams.Length; indexOfFirstNonUniformParameter++)
+                    for (indexOfFirstNonUniformParameter = 0; indexOfFirstNonUniformParameter < Proc.InParams.Count(); indexOfFirstNonUniformParameter++)
                     {
                         if (!uniformityAnalyser.IsUniform(Proc.Name, StripThreadIdentifier(Proc.InParams[indexOfFirstNonUniformParameter].Name)))
                         {
@@ -983,7 +983,7 @@ namespace GPUVerify
                     if (foundNonUniform)
                     {
                         // I have a feeling this will never be reachable!!!
-                        int numberOfNonUniformParameters = (Proc.InParams.Length - indexOfFirstNonUniformParameter) / 2;
+                        int numberOfNonUniformParameters = (Proc.InParams.Count() - indexOfFirstNonUniformParameter) / 2;
                         for (int i = indexOfFirstNonUniformParameter; i < numberOfNonUniformParameters; i++)
                         {
                             Proc.Requires.Add(new Requires(false,
@@ -1104,7 +1104,7 @@ namespace GPUVerify
                 return f;
 
             f = new Function(Token.NoToken, functionName,
-                              new VariableSeq(argTypes.Select(t => new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", t))).ToArray()),
+                              new List<Variable>(argTypes.Select(t => new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", t))).ToArray()),
                               new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
             f.AddAttribute("bvbuiltin", smtName);
             Program.TopLevelDeclarations.Add(f);
@@ -1118,7 +1118,7 @@ namespace GPUVerify
           if (f != null)
               return f;
 
-          VariableSeq inParams = new VariableSeq();
+          List<Variable> inParams = new List<Variable>();
           Variable lhs = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x", lhsType));
           Variable rhs = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "y", rhsType));
           inParams.Add(lhs);
@@ -1142,7 +1142,7 @@ namespace GPUVerify
               return f;
 
           f = new Function(Token.NoToken, functionName,
-                            new VariableSeq { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", lhsType)),
+                            new List<Variable> { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", lhsType)),
                                               new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", rhsType))},
                             new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
           Program.TopLevelDeclarations.Add(f);
@@ -1209,7 +1209,7 @@ namespace GPUVerify
             IToken tok = BarrierProcedure.tok;
 
             List<BigBlock> bigblocks = new List<BigBlock>();
-            BigBlock barrierEntryBlock = new BigBlock(tok, "__BarrierImpl", new CmdSeq(), null, null);
+            BigBlock barrierEntryBlock = new BigBlock(tok, "__BarrierImpl", new List<Cmd>(), null, null);
             bigblocks.Add(barrierEntryBlock);
 
             Expr P1 = null, P2 = null, LocalFence1 = null, LocalFence2 = null, GlobalFence1 = null, GlobalFence2 = null;
@@ -1281,7 +1281,7 @@ namespace GPUVerify
             if (!CommandLineOptions.OnlyDivergence)
             {
                 List<BigBlock> returnbigblocks = new List<BigBlock>();
-                returnbigblocks.Add(new BigBlock(tok, "__Disabled", new CmdSeq(), null, new ReturnCmd(tok)));
+                returnbigblocks.Add(new BigBlock(tok, "__Disabled", new List<Cmd>(), null, new ReturnCmd(tok)));
                 StmtList returnstatement = new StmtList(returnbigblocks, BarrierProcedure.tok);
 
                 Expr IfGuard = Expr.Or(Expr.And(Expr.Not(P1), Expr.Not(P2)), Expr.And(ThreadsInSameGroup(), Expr.Or(Expr.Not(P1), Expr.Not(P2))));
@@ -1305,7 +1305,7 @@ namespace GPUVerify
                     SharedArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
                     Enumerable.Empty<Variable>();
                   var HavocVars = SharedArrays.Concat(NoAccessVars).ToList();
-                  bigblocks.Add(new BigBlock(Token.NoToken, null, new CmdSeq(),
+                  bigblocks.Add(new BigBlock(Token.NoToken, null, new List<Cmd>(),
                     new IfCmd(Token.NoToken,
                       AtLeastOneEnabledWithLocalFence,
                       new StmtList(MakeHavocBlocks(HavocVars), Token.NoToken), null, null), null));
@@ -1329,7 +1329,7 @@ namespace GPUVerify
                     GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
                     Enumerable.Empty<Variable>();
                   var HavocVars = GlobalArrays.Concat(NoAccessVars).ToList();
-                  bigblocks.Add(new BigBlock(Token.NoToken, null, new CmdSeq(),
+                  bigblocks.Add(new BigBlock(Token.NoToken, null, new List<Cmd>(),
                     new IfCmd(Token.NoToken,
                       ThreadsInSameGroup_BothEnabled_AtLeastOneGlobalFence,
                       new StmtList(MakeHavocBlocks(HavocVars), Token.NoToken), null, null), null));
@@ -1338,8 +1338,8 @@ namespace GPUVerify
 
             StmtList statements = new StmtList(bigblocks, BarrierProcedure.tok);
             Implementation BarrierImplementation = 
-                new Implementation(BarrierProcedure.tok, BarrierProcedure.Name, new TypeVariableSeq(), 
-                    BarrierProcedure.InParams, BarrierProcedure.OutParams, new VariableSeq(), statements);
+                new Implementation(BarrierProcedure.tok, BarrierProcedure.Name, new List<TypeVariable>(), 
+                    BarrierProcedure.InParams, BarrierProcedure.OutParams, new List<Variable>(), statements);
 
             BarrierImplementation.Resolve(ResContext);
 
@@ -1413,11 +1413,11 @@ namespace GPUVerify
         private BigBlock HavocSharedArray(Variable v)
         {
             return new BigBlock(Token.NoToken, null, 
-              new CmdSeq(new Cmd[] { new HavocCmd(Token.NoToken, 
-                new IdentifierExprSeq(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, v) })) }), null, null);
+              new List<Cmd>(new Cmd[] { new HavocCmd(Token.NoToken, 
+                new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, v) })) }), null, null);
         }
 
-        internal static bool ModifiesSetContains(IdentifierExprSeq Modifies, IdentifierExpr v)
+        internal static bool ModifiesSetContains(List<IdentifierExpr> Modifies, IdentifierExpr v)
         {
             foreach (IdentifierExpr ie in Modifies)
             {
@@ -1650,8 +1650,8 @@ namespace GPUVerify
 
                   if (KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
                     Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
-                        v.Name, new MapType(Token.NoToken, new TypeVariableSeq(), 
-                        new TypeSeq(new Microsoft.Boogie.Type[] { Microsoft.Boogie.Type.Bool }),
+                        v.Name, new MapType(Token.NoToken, new List<TypeVariable>(), 
+                        new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.Bool },
                         v.TypedIdent.Type)));
                     newV.Attributes = v.Attributes;
                     NewTopLevelDeclarations.Add(newV);
@@ -1699,7 +1699,7 @@ namespace GPUVerify
                 return ErrorCount;
             }
 
-            if (BarrierProcedure.InParams.Length != 2)
+            if (BarrierProcedure.InParams.Count() != 2)
             {
                 Error(BarrierProcedure, "Barrier procedure must take exactly two arguments");
             }
@@ -1713,7 +1713,7 @@ namespace GPUVerify
               Error(BarrierProcedure, "Second argument to barrier procedure must have type bv1");
             }
 
-            if (BarrierProcedure.OutParams.Length != 0)
+            if (BarrierProcedure.OutParams.Count() != 0)
             {
                 Error(BarrierProcedure, "Barrier procedure must not return any results");
             }
@@ -1981,7 +1981,7 @@ namespace GPUVerify
             {
               foreach (Block b in blocks)
               {
-                CmdSeq result = new CmdSeq();
+                List<Cmd> result = new List<Cmd>();
                 foreach (Cmd c in b.Cmds)
                 {
                   result.Add(c);
@@ -2029,7 +2029,7 @@ namespace GPUVerify
           }
 
           // Add the WarpSync prototype
-          Procedure proto = new Procedure(Token.NoToken,"_WARP_SYNC",new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new List<Requires>(), new IdentifierExprSeq(), new List<Ensures>());
+          Procedure proto = new Procedure(Token.NoToken,"_WARP_SYNC",new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
           proto.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
           Program.TopLevelDeclarations.Add(proto);
           ResContext.AddProcedure(proto); 
@@ -2039,7 +2039,7 @@ namespace GPUVerify
 
         private Block AddWarpSyncs(Block b)
         {
-          var result = new CmdSeq();
+          var result = new List<Cmd>();
           foreach (Cmd c in b.Cmds)
           {
             result.Add(c);
@@ -2058,7 +2058,7 @@ namespace GPUVerify
 
         private void GenerateWarpSync()
         {
-          CmdSeq then = new CmdSeq();
+          List<Cmd> then = new List<Cmd>();
           foreach (Variable v in KernelArrayInfo.getAllNonLocalArrays())
           {
             foreach (string kind in new string[] { "READ", "WRITE", "ATOMIC" })
@@ -2085,9 +2085,9 @@ namespace GPUVerify
           IfCmd ifcmd = new IfCmd (Token.NoToken, condition, new StmtList (thenblocks,Token.NoToken), /* another IfCmd for elsif */ null, /* then branch */ null);
           
           List<BigBlock> blocks = new List<BigBlock>();
-          blocks.Add(new BigBlock(Token.NoToken,"entry", new CmdSeq(),ifcmd ,null));
+          blocks.Add(new BigBlock(Token.NoToken,"entry", new List<Cmd>(),ifcmd ,null));
 
-          Implementation method = new Implementation(Token.NoToken,"_WARP_SYNC",new TypeVariableSeq(), new VariableSeq(), new VariableSeq(), new VariableSeq(), new StmtList(blocks,Token.NoToken));
+          Implementation method = new Implementation(Token.NoToken,"_WARP_SYNC",new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Variable>(), new StmtList(blocks,Token.NoToken));
           method.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
 
           Program.TopLevelDeclarations.Add(method);

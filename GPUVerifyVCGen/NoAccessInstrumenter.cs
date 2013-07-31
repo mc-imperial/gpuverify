@@ -54,8 +54,8 @@ namespace GPUVerify {
       return b;
     }
 
-    private CmdSeq AddNoAccessAssumes(CmdSeq cs) {
-      var result = new CmdSeq();
+    private List<Cmd> AddNoAccessAssumes(List<Cmd> cs) {
+      var result = new List<Cmd>();
       foreach (Cmd c in cs) {
         result.Add(c);
         if (c is AssignCmd) {
@@ -83,7 +83,7 @@ namespace GPUVerify {
       return result;
     }
 
-    private void AddNoAccessAssumes(CmdSeq result, AccessRecord ar) {
+    private void AddNoAccessAssumes(List<Cmd> result, AccessRecord ar) {
     // Revisit: Following causes System.InvalidOperationException: Collection was modified; enumeration operation may not execute.
     //result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateNotAccessedVariable(ar.v.Name, ar.Index.Type)), ar.Index)));
       result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(new IdentifierExpr(Token.NoToken, GPUVerifier.MakeNotAccessedVariable(ar.v.Name, ar.Index.Type)), ar.Index)));

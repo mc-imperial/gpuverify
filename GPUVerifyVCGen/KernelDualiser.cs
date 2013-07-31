@@ -67,13 +67,13 @@ namespace GPUVerify {
       return newEnsures;
     }
 
-    private IdentifierExprSeq DualiseModifies(IdentifierExprSeq modifiesSeq) {
-      IdentifierExprSeq newModifies = new IdentifierExprSeq();
-      foreach (Expr m in modifiesSeq) {
-        newModifies.Add(MakeThreadSpecificExpr(m, 1));
+    private List<IdentifierExpr> DualiseModifies(List<IdentifierExpr> modifiesSeq) {
+      List<IdentifierExpr> newModifies = new List<IdentifierExpr>();
+      foreach (var m in modifiesSeq) {
+        newModifies.Add((IdentifierExpr)MakeThreadSpecificExpr(m, 1));
         if (!ContainsAsymmetricExpression(m)
             && !verifier.uniformityAnalyser.IsUniform(procName, m)) {
-          newModifies.Add(MakeThreadSpecificExpr(m, 2));
+          newModifies.Add((IdentifierExpr)MakeThreadSpecificExpr(m, 2));
         }
       }
       return newModifies;
@@ -131,7 +131,7 @@ namespace GPUVerify {
       return result;
     }
 
-    private void MakeDual(CmdSeq cs, Cmd c) {
+    private void MakeDual(List<Cmd> cs, Cmd c) {
       if (c is CallCmd) {
         CallCmd Call = c as CallCmd;
 
@@ -282,11 +282,11 @@ namespace GPUVerify {
       }
       else if (c is HavocCmd) {
         HavocCmd havoc = c as HavocCmd;
-        Debug.Assert(havoc.Vars.Length == 1);
+        Debug.Assert(havoc.Vars.Count() == 1);
 
         HavocCmd newHavoc;
 
-        newHavoc = new HavocCmd(havoc.tok, new IdentifierExprSeq(new IdentifierExpr[] { 
+        newHavoc = new HavocCmd(havoc.tok, new List<IdentifierExpr>(new IdentifierExpr[] { 
                     (IdentifierExpr)(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr)), 
                     (IdentifierExpr)(new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr))
                 }));
@@ -352,7 +352,7 @@ namespace GPUVerify {
     private BigBlock MakeDual(BigBlock bb) {
       // Not sure what to do about the transfer command
 
-      BigBlock result = new BigBlock(bb.tok, bb.LabelName, new CmdSeq(), null, bb.tc);
+      BigBlock result = new BigBlock(bb.tok, bb.LabelName, new List<Cmd>(), null, bb.tc);
 
       foreach (Cmd c in bb.simpleCmds) {
         MakeDual(result.simpleCmds, c);
@@ -393,7 +393,7 @@ namespace GPUVerify {
     }
 
     private Block MakeDual(Block b) {
-      var newCmds = new CmdSeq();
+      var newCmds = new List<Cmd>();
       foreach (Cmd c in b.Cmds) {
         MakeDual(newCmds, c);
       }
@@ -422,7 +422,7 @@ namespace GPUVerify {
     }
 
     private void MakeDualLocalVariables(Implementation impl) {
-      VariableSeq NewLocalVars = new VariableSeq();
+      List<Variable> NewLocalVars = new List<Variable>();
 
       foreach (LocalVariable v in impl.LocVars) {
         if (verifier.uniformityAnalyser.IsUniform(procName, v.Name)) {
@@ -445,9 +445,9 @@ namespace GPUVerify {
       return finder.foundAsymmetricExpr();
     }
 
-    private VariableSeq DualiseVariableSequence(VariableSeq seq) {
-      VariableSeq uniform = new VariableSeq();
-      VariableSeq nonuniform = new VariableSeq();
+    private List<Variable> DualiseVariableSequence(List<Variable> seq) {
+      List<Variable> uniform = new List<Variable>();
+      List<Variable> nonuniform = new List<Variable>();
 
       foreach (Variable v in seq) {
         if (verifier.uniformityAnalyser.IsUniform(procName, v.Name)) {
@@ -464,7 +464,7 @@ namespace GPUVerify {
         }
       }
 
-      VariableSeq result = uniform;
+      List<Variable> result = uniform;
       result.AddRange(nonuniform);
       return result;
     }
@@ -539,8 +539,8 @@ namespace GPUVerify {
         var v = (node.Args[0] as IdentifierExpr).Decl;
         if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared")) {
           return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-            new ExprSeq(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
-              new ExprSeq(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(Thread) })), VisitExpr(node.Args[1]) }));
+            new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
+              new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(Thread) })), VisitExpr(node.Args[1]) }));
         }
       }
       return base.VisitNAryExpr(node);
@@ -586,8 +586,8 @@ namespace GPUVerify {
 
         if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared")) {
           return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-            new ExprSeq(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
-              new ExprSeq(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(Thread) })), VisitExpr(node.Args[1]) }));
+            new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
+              new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(Thread) })), VisitExpr(node.Args[1]) }));
         }
       }
 

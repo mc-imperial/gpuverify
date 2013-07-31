@@ -5,6 +5,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GPUVerifyVCGen", "GPUVerify
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GPUVerifyBoogieDriver", "GPUVerifyBoogieDriver\GPUVerifyBoogieDriver.csproj", "{FD2A2C67-1BD6-4A1A-B65B-B057267E24A3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamicAnalysis", "DynamicAnalysis\DynamicAnalysis.csproj", "{328D351F-689A-48C9-9BD8-C87995CB20A2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Checked|Any CPU = Checked|Any CPU
@@ -63,6 +65,26 @@ Global
 		{FD2A2C67-1BD6-4A1A-B65B-B057267E24A3}.z3apidebug|Mixed Platforms.Build.0 = Release|x86
 		{FD2A2C67-1BD6-4A1A-B65B-B057267E24A3}.z3apidebug|x86.ActiveCfg = Release|x86
 		{FD2A2C67-1BD6-4A1A-B65B-B057267E24A3}.z3apidebug|x86.Build.0 = Release|x86
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Checked|Any CPU.ActiveCfg = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Checked|Any CPU.Build.0 = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Checked|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Checked|Mixed Platforms.Build.0 = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Checked|x86.ActiveCfg = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Debug|Mixed Platforms.ActiveCfg = Debug|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Debug|Mixed Platforms.Build.0 = Debug|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Release|Mixed Platforms.Build.0 = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.Release|x86.ActiveCfg = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.z3apidebug|Any CPU.ActiveCfg = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.z3apidebug|Any CPU.Build.0 = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.z3apidebug|Mixed Platforms.ActiveCfg = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.z3apidebug|Mixed Platforms.Build.0 = Release|Any CPU
+		{328D351F-689A-48C9-9BD8-C87995CB20A2}.z3apidebug|x86.ActiveCfg = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

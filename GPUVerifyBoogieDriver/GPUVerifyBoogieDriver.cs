@@ -266,7 +266,7 @@ namespace Microsoft.Boogie
 
       HashSet<string> CandidatesToRemove = new HashSet<string>();
       foreach (var b in prog.Blocks()) {
-        CmdSeq newCmds = new CmdSeq();
+        List<Cmd> newCmds = new List<Cmd>();
         foreach(Cmd c in b.Cmds) {
           var callCmd = c as CallCmd;
           if(callCmd != null && IsRaceInstrumentationProcedureForOtherArray(callCmd, arrayName)) {
@@ -440,7 +440,7 @@ namespace Microsoft.Boogie
 
     private static void DisableRaceChecking(Program program) {
       foreach (var block in program.Blocks()) {
-        CmdSeq newCmds = new CmdSeq();
+        List<Cmd> newCmds = new List<Cmd>();
         foreach (Cmd c in block.Cmds) {
           CallCmd callCmd = c as CallCmd;
           // TODO: refine into proper check
@@ -455,7 +455,7 @@ namespace Microsoft.Boogie
 
     private static void DisableRaceLogging(Program program) {
       foreach (var block in program.Blocks()) {
-        CmdSeq newCmds = new CmdSeq();
+        List<Cmd> newCmds = new List<Cmd>();
         foreach (Cmd c in block.Cmds) {
           CallCmd callCmd = c as CallCmd;
           // TODO: refine into proper check

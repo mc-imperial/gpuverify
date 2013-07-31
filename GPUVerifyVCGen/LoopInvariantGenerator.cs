@@ -202,7 +202,7 @@ namespace GPUVerify {
         return false;
       }
       NAryExpr nary = (NAryExpr)guard;
-      if(nary.Args.Length != 2) {
+      if(nary.Args.Count() != 2) {
         return false;
       }
       if(!(nary.Fun is BinaryOperator)) {
@@ -238,7 +238,7 @@ namespace GPUVerify {
       HashSet<Variable> result = new HashSet<Variable>();
 
       foreach (Cmd c in region.Cmds()) {
-        VariableSeq vars = new VariableSeq();
+        List<Variable> vars = new List<Variable>();
         c.AddAssignedVariables(vars);
         foreach (Variable v in vars) {
           result.Add(v);
