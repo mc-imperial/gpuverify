@@ -12,6 +12,9 @@ gvfindtools.py
 #Python temporary files
 *.pyc
 
+#Built binaries
+Binaries/*
+
 #GPUVerifyBoogieDriver build files
 GPUVerifyBoogieDriver/bin/*
 GPUVerifyBoogieDriver/obj/*
@@ -19,6 +22,10 @@ GPUVerifyBoogieDriver/obj/*
 #GPUVerifyVCGen build files
 GPUVerifyVCGen/bin/*
 GPUVerifyVCGen/obj/*
+
+#DynamicAnalysis build files
+DynamicAnalysis/bin/*
+DynamicAnalysis/obj/*
 
 #GPUVerify Temporary files
 *.bc
@@ -40,3 +47,6 @@ utils/GPUVerifyRise4Fun/config.py
 
 #gvtester dump
 run.pickle
+
+#Visual studio-related file
+GPUVerify.v11.suo
