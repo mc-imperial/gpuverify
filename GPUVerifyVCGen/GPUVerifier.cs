@@ -1649,12 +1649,16 @@ namespace GPUVerify
                   }
 
                   if (KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
-                    Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
-                        v.Name, new MapType(Token.NoToken, new List<TypeVariable>(), 
-                        new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.Bool },
-                        v.TypedIdent.Type)));
-                    newV.Attributes = v.Attributes;
-                    NewTopLevelDeclarations.Add(newV);
+                    if(!CommandLineOptions.OnlyIntraGroupRaceChecking) {
+                      Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
+                          v.Name, new MapType(Token.NoToken, new List<TypeVariable>(), 
+                          new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.Bool },
+                          v.TypedIdent.Type)));
+                      newV.Attributes = v.Attributes;
+                      NewTopLevelDeclarations.Add(newV);
+                    } else {
+                      NewTopLevelDeclarations.Add(v);
+                    }
                     continue;
                   }
 

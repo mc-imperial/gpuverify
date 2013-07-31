@@ -110,7 +110,7 @@ namespace GPUVerify
             Debug.Assert((node.Fun as MapSelect).Arity == 1);
             Debug.Assert(node.Args[0] is IdentifierExpr);
             var v = (node.Args[0] as IdentifierExpr).Decl;
-            if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared")) {
+            if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !CommandLineOptions.OnlyIntraGroupRaceChecking) {
               return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
                 new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
                   new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) })), 
@@ -154,7 +154,7 @@ namespace GPUVerify
         public override AssignLhs VisitMapAssignLhs(MapAssignLhs node) {
 
           var v = node.DeepAssignedVariable;
-          if(QKeyValue.FindBoolAttribute(v.Attributes, "group_shared")) {
+          if(QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !CommandLineOptions.OnlyIntraGroupRaceChecking) {
             return new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, node.Map,
               new List<Expr>(new Expr[] { GPUVerifier.GroupSharedIndexingExpr(id) })), 
               node.Indexes.Select(idx => this.VisitExpr(idx)).ToList());
