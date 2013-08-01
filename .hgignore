@@ -12,7 +12,7 @@ gvfindtools.py
 #Python temporary files
 *.pyc
 
-#Built binaries
+#Built binaries under MSVS and some versions of Mono
 Binaries/*
 
 #GPUVerifyBoogieDriver build files
