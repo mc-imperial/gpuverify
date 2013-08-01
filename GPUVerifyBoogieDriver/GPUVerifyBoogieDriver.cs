@@ -799,7 +799,6 @@ namespace Microsoft.Boogie
     /// </summary>
     static void CheckForQuantifiersAndSpecifyLogic(Program program)
     {
-      Console.WriteLine("TEST");
       if ((CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4") ||
            CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=CVC4")) &&
           CommandLineOptions.Clo.ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
