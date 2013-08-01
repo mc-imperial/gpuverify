@@ -191,10 +191,10 @@ Replace as appropriate or setup an environment variable.::
       llvmLibDir = rootDir + "/llvm_and_clang/build/lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
+      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
@@ -221,7 +221,7 @@ Replace as appropriate or setup an environment variable.::
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ ./gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
@@ -385,10 +385,10 @@ Replace as appropriate or setup an environment variable.::
       llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
+      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
@@ -415,7 +415,7 @@ Replace as appropriate or setup an environment variable.::
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ ./gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
@@ -568,10 +568,10 @@ drives.
       llvmLibDir = rootDir + r"\llvm_and_clang\build\lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\GPUVerifyVCGen\bin\Release"
+      gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\GPUVerifyBoogieDriver\bin\Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + r"\z3"
@@ -598,7 +598,7 @@ drives.
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ .\gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ .\gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
