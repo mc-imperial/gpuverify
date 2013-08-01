@@ -36,10 +36,10 @@ llvmBinDir = rootDir + "/llvm_and_clang/build/Release/bin"
 llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
 
 #The path to the directory containing GPUVerifyVCGen.exe
-gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
+gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
 #The path to the directory containing GPUVerifyBoogieDriver.exe
-gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
 #The path to the z3 Source directory.
 z3SrcDir = rootDir + "/z3"
