@@ -138,13 +138,14 @@ class CommandLineOptions(object):
   mathInt = False
   asymmetricAsserts = False
   generateSmt2 = False
-  useCVC4 = False
   noBarrierAccessChecks = False
   testsuite = False
   warpSync = False
   warpSize = 32
   atomic = "rw"
   noRefinedAtomics = False
+  solver = "z3"
+  logic = "QF_ALL_SUPPORTED"
   skip = { "clang": False,
            "opt": False,
            "bugle": False,
@@ -340,10 +341,14 @@ def showHelpAndExit():
   print "  --testsuite             Testing testsuite program"
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
-  print "  --use-cvc4              Use the CVC4 SMT solver backend instead of the Z3 default"
   print "  --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32"
-  print "  --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none) (Default is --atomic=rw)"
+  print "  --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none)"
+  print "                          (default is --atomic=rw)"
   print "  --no-refined-atomics    Don't do abstraction refinement on the return values from atomics"
+  print "  --solver=X              Choose which SMT Theorem Prover to use in the backend."
+  print "                          Available options: 'Z3' or 'cvc4' (default is Z3)"
+  print "  --logic=X               Define the logic to be used by the CVC4 SMT solver backend"
+  print "                          (default is QF_ALL_SUPPORTED)"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"
@@ -503,8 +508,6 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.asymmetricAsserts = True
     if o == "--gen-smt2":
       CommandLineOptions.generateSmt2 = True
-    if o == "--use-cvc4":
-      CommandLineOptions.useCVC4 = True
     if o == "--testsuite":
       CommandLineOptions.testsuite = True
     if o == "--warp-sync":
@@ -522,6 +525,16 @@ def processGeneralOptions(opts, args):
         GPUVerifyError("argument to --atomic must be 'r','w','rw', or 'none'", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--no-refined-atomics":
       CommandLineOptions.noRefinedAtomics = True
+    if o == "--solver":
+      if a.lower() in ("z3","cvc4"):
+        CommandLineOptions.solver = a.lower()
+      else:
+        GPUVerifyError("argument to --solver must be 'Z3' or 'CVC4'", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--logic":
+      if a.upper() in ("ALL_SUPPORTED","QF_ALL_SUPPORTED"):
+        CommandLineOptions.logic = a.upper()
+      else:
+        GPUVerifyError("argument to --logic must be 'ALL_SUPPORTED' or 'QF_ALL_SUPPORTED'", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--bugle-lang":
       if a.lower() in ("cl", "cu"):
         CommandLineOptions.bugleLanguage = a.lower()
@@ -624,7 +637,8 @@ def main(argv=None):
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference',
-              'use-cvc4', 'warp-sync=', 'atomic=', 'no-refined-atomics',
+              'warp-sync=', 'atomic=', 'no-refined-atomics',
+              'solver=', 'logic='
              ])
   except getopt.GetoptError as getoptError:
     GPUVerifyError(getoptError.msg + ".  Try --help for list of options", ErrorCodes.COMMAND_LINE_ERROR)
@@ -755,9 +769,10 @@ def main(argv=None):
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
 
-  if CommandLineOptions.useCVC4:
+  if CommandLineOptions.solver == "cvc4":
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:SOLVER=cvc4" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:LOGIC=" + CommandLineOptions.logic ]
   else:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
 
@@ -767,7 +782,9 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/debugGPUVerify" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/debugGPUVerify" ]
   if not CommandLineOptions.mathInt:
-    CommandLineOptions.gpuVerifyBoogieDriverOptions += ["/proverOpt:OPTIMIZE_FOR_BV=true", "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:OPTIMIZE_FOR_BV=true" ]
+    if CommandLineOptions.solver == "z3":
+      CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
 
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
