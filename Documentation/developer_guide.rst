@@ -191,10 +191,10 @@ Replace as appropriate or setup an environment variable.::
       llvmLibDir = rootDir + "/llvm_and_clang/build/lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
+      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
@@ -385,10 +385,10 @@ Replace as appropriate or setup an environment variable.::
       llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
+      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
@@ -568,10 +568,10 @@ drives.
       llvmLibDir = rootDir + r"\llvm_and_clang\build\lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\GPUVerifyVCGen\bin\Release"
+      gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\GPUVerifyBoogieDriver\bin\Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + r"\z3"
