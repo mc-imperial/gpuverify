@@ -20,6 +20,10 @@ GPUVerifyBoogieDriver/obj/*
 GPUVerifyVCGen/bin/*
 GPUVerifyVCGen/obj/*
 
+#DynamicAnalysis build files
+DynamicAnalysis/bin/*
+DynamicAnalysis/obj/*
+
 #GPUVerify Temporary files
 *.bc
 *.bpl
@@ -40,3 +44,6 @@ utils/GPUVerifyRise4Fun/config.py
 
 #gvtester dump
 run.pickle
+
+#Binaries directory on some versions of mono
+Binaries/*
