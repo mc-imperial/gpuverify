@@ -515,7 +515,7 @@ namespace GPUVerify
 
             if (CommandLineOptions.OutlineBarrierIntervals) {
               foreach(var impl in KernelProcedures.Values) {
-                IntraProceduralLiveVariableAnalysis iplva = new IntraProceduralLiveVariableAnalysis(impl);
+                IntraProceduralLiveVariableAnalysis iplva = new IntraProceduralLiveVariableAnalysis(Program, impl);
                 iplva.RunAnalysis();
               }
             }

@@ -10,21 +10,39 @@ namespace GPUVerify
 {
   class IntraProceduralLiveVariableAnalysis
   {
-    private Graph<Block> cfg;
-    private Dictionary<Block, HashSet<Variable>> liveIn;
-    private Dictionary<Block, HashSet<Variable>> liveOut;
+    private Implementation impl;
+    private Dictionary<string, LocalDescriptor> locals;
+    private Dictionary<string, GlobalDescriptor> globals;
+    private Dictionary<Block, HashSet<VariableDescriptor>> liveIn;
+    private Dictionary<Block, HashSet<VariableDescriptor>> liveOut;
 
-    public IntraProceduralLiveVariableAnalysis(Implementation impl)
+    public IntraProceduralLiveVariableAnalysis(Program prog, Implementation impl)
     {
-      this.cfg = Program.GraphFromImpl(impl);
+      this.impl = impl;
+      locals = new Dictionary<string,LocalDescriptor>();
+      foreach(var v in impl.InParams) {
+        locals[v.Name] = new LocalDescriptor(impl.Name, v.Name);
+      }
+      foreach(var v in impl.OutParams) {
+        locals[v.Name] = new LocalDescriptor(impl.Name, v.Name);
+      }
+      foreach(var v in impl.LocVars) {
+        locals[v.Name] = new LocalDescriptor(impl.Name, v.Name);
+      }
+      globals = new Dictionary<string,GlobalDescriptor>();
+      foreach(var v in prog.TopLevelDeclarations.OfType<Variable>()) {
+        globals[v.Name] = new GlobalDescriptor(v.Name);
+      }
     }
 
     public void RunAnalysis() {
-      liveIn = new Dictionary<Block,HashSet<Variable>>();
-      liveOut = new Dictionary<Block,HashSet<Variable>>();
+      liveIn = new Dictionary<Block,HashSet<VariableDescriptor>>();
+      liveOut = new Dictionary<Block,HashSet<VariableDescriptor>>();
+      Graph<Block> cfg = Program.GraphFromImpl(impl);
+
       foreach(var b in cfg.Nodes) {
-        liveIn[b] = new HashSet<Variable>();
-        liveOut[b] = new HashSet<Variable>();
+        liveIn[b] = new HashSet<VariableDescriptor>();
+        liveOut[b] = new HashSet<VariableDescriptor>();
       }
 
       bool changed = true;
@@ -36,7 +54,7 @@ namespace GPUVerify
           var GeneratedByBlock = GenKillForBlock.Item1;
           var KilledByBlock = GenKillForBlock.Item2;
 
-          var newLiveIn = new HashSet<Variable>(liveOut[b].Where(Item => !(KilledByBlock.Contains(Item))));
+          var newLiveIn = new HashSet<VariableDescriptor>(liveOut[b].Where(Item => !(KilledByBlock.Contains(Item))));
           newLiveIn.UnionWith(GeneratedByBlock);
 
           Debug.Assert(newLiveIn.Count() >= liveIn[b].Count());
@@ -46,12 +64,12 @@ namespace GPUVerify
             changed = true;
           }
 
-          var newLiveOut = new HashSet<Variable>();
+          var newLiveOut = new HashSet<VariableDescriptor>();
           foreach(var c in cfg.Successors(b)) {
             newLiveOut.UnionWith(liveIn[c]);
           }
           Debug.Assert(newLiveOut.Count() >= liveOut[b].Count());
-          if(newLiveOut.Count() > liveIn[b].Count()) {
+          if(newLiveOut.Count() > liveOut[b].Count()) {
             Debug.Assert(newLiveOut.Count() > liveOut[b].Count());
             liveOut[b] = newLiveOut;
             changed = true;
@@ -64,24 +82,25 @@ namespace GPUVerify
         Console.WriteLine("Block: " + b.Label);
         Console.WriteLine("Live on entry: ");
         foreach(var v in liveIn[b]) {
-          Console.WriteLine("  " + v.Name);
+          Console.WriteLine("  " + v);
         }
         Console.WriteLine("Live on exit: ");
         foreach(var v in liveOut[b]) {
-          Console.WriteLine("  " + v.Name);
+          Console.WriteLine("  " + v);
         }
       }
 
 
     }
 
-    private Dictionary<Block, Tuple<HashSet<Variable>, HashSet<Variable>>> GenKillCache = new Dictionary<Block,Tuple<HashSet<Variable>,HashSet<Variable>>>();
+    private Dictionary<Block, Tuple<HashSet<VariableDescriptor>, HashSet<VariableDescriptor>>> GenKillCache = 
+      new Dictionary<Block,Tuple<HashSet<VariableDescriptor>,HashSet<VariableDescriptor>>>();
 
-    private Tuple<HashSet<Variable>, HashSet<Variable>> GenKill(Block b) {
+    private Tuple<HashSet<VariableDescriptor>, HashSet<VariableDescriptor>> GenKill(Block b) {
       if(!GenKillCache.ContainsKey(b)) {
-        HashSet<Variable> GeneratedByBlock = new HashSet<Variable>();
-        HashSet<Variable> KilledByBlock = new HashSet<Variable>();
-        var result = new Tuple<HashSet<Variable>, HashSet<Variable>>(new HashSet<Variable>(), new HashSet<Variable>());
+        HashSet<VariableDescriptor> GeneratedByBlock = new HashSet<VariableDescriptor>();
+        HashSet<VariableDescriptor> KilledByBlock = new HashSet<VariableDescriptor>();
+        var result = new Tuple<HashSet<VariableDescriptor>, HashSet<VariableDescriptor>>(new HashSet<VariableDescriptor>(), new HashSet<VariableDescriptor>());
         foreach(Cmd c in b.Cmds) {
           foreach(var v in Gen(c)) {
             if(!KilledByBlock.Contains(v)) {
@@ -92,13 +111,13 @@ namespace GPUVerify
             KilledByBlock.Add(v);
           }
         }
-        GenKillCache[b] = new Tuple<HashSet<Variable>,HashSet<Variable>>(GeneratedByBlock, KilledByBlock);
+        GenKillCache[b] = new Tuple<HashSet<VariableDescriptor>,HashSet<VariableDescriptor>>(GeneratedByBlock, KilledByBlock);
       }
       return GenKillCache[b];
     }
 
-    private HashSet<Variable> Gen(Cmd c) {
-      HashSet<Variable> result = new HashSet<Variable>();
+    private HashSet<VariableDescriptor> Gen(Cmd c) {
+      HashSet<VariableDescriptor> result = new HashSet<VariableDescriptor>();
       var assignCmd = c as AssignCmd;
       if(assignCmd != null) {
         foreach(var rhs in assignCmd.Rhss) {
@@ -137,12 +156,12 @@ namespace GPUVerify
       throw new NotImplementedException();
     }
 
-    private HashSet<Variable> Kill(Cmd c) {
-      HashSet<Variable> result = new HashSet<Variable>();
+    private HashSet<VariableDescriptor> Kill(Cmd c) {
+      HashSet<VariableDescriptor> result = new HashSet<VariableDescriptor>();
       var assignCmd = c as AssignCmd;
       if(assignCmd != null) {
         foreach(var lhs in assignCmd.Lhss) {
-          result.Add(lhs.DeepAssignedVariable);
+          result.Add(MakeDescriptor(lhs.DeepAssignedVariable));
         }
         return result;
       }
@@ -153,17 +172,17 @@ namespace GPUVerify
       var havocCmd = c as HavocCmd;
       if(havocCmd != null) {
         foreach(var v in havocCmd.Vars.Select(Item => Item.Decl)) {
-          result.Add(v);
+          result.Add(MakeDescriptor(v));
         }
         return result;
       }
       var callCmd = c as CallCmd;
       if(callCmd != null) {
         foreach(var v in callCmd.Outs.Select(Item => Item.Decl)) {
-          result.Add(v);
+          result.Add(MakeDescriptor(v));
         }
         foreach(IdentifierExpr ie in callCmd.Proc.Modifies) {
-          result.Add(ie.Decl);
+          result.Add(MakeDescriptor(ie.Decl, true));
         }
         return result;
       }
@@ -172,11 +191,28 @@ namespace GPUVerify
       throw new NotImplementedException();
     }
 
-    private HashSet<Variable> UsedVars(Expr e)
+    private HashSet<VariableDescriptor> UsedVars(Expr e)
     {
       VariableCollector vc = new VariableCollector();
       vc.Visit(e);
-      return vc.usedVars;
+      HashSet<VariableDescriptor> result = new HashSet<VariableDescriptor>();
+      foreach(var v in vc.usedVars) {
+        var vd = MakeDescriptor(v);
+        if(vd != null) {
+          result.Add(vd);
+        }
+      }
+      return result;
+    }
+
+    private VariableDescriptor MakeDescriptor(Variable v, bool isGlobal = false) {
+      if(locals.ContainsKey(v.Name) && !isGlobal) {
+        return locals[v.Name];
+      }
+      if(globals.ContainsKey(v.Name)) {
+        return globals[v.Name];
+      }
+      return null;
     }
 
   }
