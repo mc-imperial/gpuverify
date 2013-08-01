@@ -78,6 +78,7 @@
     <Compile Include="GPUVerifyBoogieDriverCommandLineOptions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SourceLocationInfo.cs" />
+    <Compile Include="Util.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GPUVerifyVCGen\GPUVerifyVCGen.csproj">

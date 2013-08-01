@@ -144,6 +144,7 @@ namespace Microsoft.Boogie
             RestrictToArray(InvariantComputationProgram, GetCommandLineOptions().ArrayToCheck);
           }
           EliminateDeadVariablesAndInline(InvariantComputationProgram);
+          CheckForQuantifiersAndSpecifyLogic(InvariantComputationProgram);
 
           var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
           houdini = new Houdini.Houdini(InvariantComputationProgram, houdiniStats);
@@ -789,6 +790,21 @@ namespace Microsoft.Boogie
             }
           }
         }
+      }
+    }
+
+    /// <summary>
+    /// Checks if Quantifiers exists in the Boogie program. If they exist and the underlying
+    /// parser is CVC4 then it enables the corresponding Logic.
+    /// </summary>
+    static void CheckForQuantifiersAndSpecifyLogic(Program program)
+    {
+      if ((CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4") ||
+           CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=CVC4")) &&
+          CommandLineOptions.Clo.ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
+          CheckForQuantifiers.Found(program)) {
+        CommandLineOptions.Clo.ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
+        CommandLineOptions.Clo.ProverOptions.Add("LOGIC=ALL_SUPPORTED");
       }
     }
 

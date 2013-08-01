@@ -221,7 +221,7 @@ Replace as appropriate or setup an environment variable.::
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ ./gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
@@ -415,7 +415,7 @@ Replace as appropriate or setup an environment variable.::
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ ./gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
@@ -598,7 +598,7 @@ drives.
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ .\gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ .\gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
