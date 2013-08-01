@@ -577,38 +577,18 @@ namespace GPUVerify
 
         private void ComputeInvariant()
         {
-            for (int i = 0; i < Program.TopLevelDeclarations.Count; i++)
+            foreach (var Impl in Program.Implementations().ToList())
             {
-                if (Program.TopLevelDeclarations[i] is Implementation)
+                LoopInvariantGenerator.PostInstrument(this, Impl);
+                if (ProcedureIsInlined(Impl.Proc) || KernelProcedures.ContainsKey(Impl.Proc))
                 {
-
-                    Implementation Impl = Program.TopLevelDeclarations[i] as Implementation;
-
-                    LoopInvariantGenerator.PostInstrument(this, Impl);
-
-                    Procedure Proc = Impl.Proc;
-
-                    if (ProcedureIsInlined(Proc) || ProcedureHasNoImplementation(Proc))
-                    {
-                        continue;
-                    }
-
-                    if (KernelProcedures.ContainsKey(Proc))
-                    {
-                        continue;
-                    }
-
-                    AddCandidateRequires(Proc);
-                    RaceInstrumenter.AddRaceCheckingCandidateRequires(Proc);
-
-                    AddCandidateEnsures(Proc);
-                    RaceInstrumenter.AddRaceCheckingCandidateEnsures(Proc);
-
+                    continue;
                 }
-
-
+                AddCandidateRequires(Impl.Proc);
+                RaceInstrumenter.AddRaceCheckingCandidateRequires(Impl.Proc);
+                AddCandidateEnsures(Impl.Proc);
+                RaceInstrumenter.AddRaceCheckingCandidateEnsures(Impl.Proc);
             }
-
         }
 
         private void AddCandidateEnsures(Procedure Proc)
