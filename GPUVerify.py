@@ -868,10 +868,10 @@ def showTiming():
     row = [ '%.3f' % t for t in times ]
     if len(label) > 0: row.insert(0, label)
     if exitHook.code is ErrorCodes.SUCCESS:
-      row.append('PASS')
+      row.insert(1,'PASS')
       print ', '.join(row)
     else:
-      row.append('FAIL(' + str(exitHook.code) + ')')
+      row.insert(1,'FAIL(' + str(exitHook.code) + ')')
       print >> sys.stderr, ', '.join(row)
   else:
     padTool = max([ len(tool) for tool in tools ])

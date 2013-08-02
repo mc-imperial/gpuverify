@@ -674,6 +674,10 @@ def main(arg):
     threadPool = ThreadPool(args.threads)
 
     logging.info("Running tests...")
+
+    if args.time_as_csv:
+        print("kernel, status, clang, opt, bugle, vcgen, boogiedriver, total")
+
     start = time.time()
     for test in tests:
         if args.run_only_pass and test.expectedReturnCode != GPUVerifyErrorCodes.SUCCESS :
