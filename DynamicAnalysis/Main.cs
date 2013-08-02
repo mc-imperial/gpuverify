@@ -18,7 +18,8 @@ namespace DynamicAnalysis
 			Debug.Assert(errors == 0, String.Format("Parse errors discovered in '{0}'", file));
 			errors = program.Resolve();
 			errors = program.Typecheck();
-			using (TokenTextWriter writer = new TokenTextWriter(file + ".internal"))
+			Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
+			using (TokenTextWriter writer = new TokenTextWriter(file + ".unstructured"))
 			{
         		writer.WriteLine();
         		program.Emit(writer);

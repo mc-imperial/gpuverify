@@ -12,6 +12,11 @@ namespace DynamicAnalysis
 		{
 		}
 		
+		public void clear ()
+		{
+			bvLocations.Clear();
+		}
+		
 		public void store (string name, BitVector32 val)
 		{
 			bvLocations[name] = val;
@@ -25,7 +30,7 @@ namespace DynamicAnalysis
 		public void dump ()
 		{
 			Console.WriteLine("===== Memory contents =====");
-			foreach (KeyValuePair<string,BitVector32> item in bvLocations)
+			foreach (KeyValuePair<string, BitVector32> item in bvLocations)
 			{
 				Console.WriteLine(item.Key + " " + Convert.ToString(item.Value.Data));
 			}
