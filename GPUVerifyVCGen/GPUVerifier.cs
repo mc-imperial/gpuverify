@@ -1577,8 +1577,13 @@ namespace GPUVerify
 
             List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
 
-            foreach(var d in Program.TopLevelDeclarations.ToList())
+            // This loop really does have to be a "for(i ...)" loop.  The reason is
+            // that dualisation may add additional functions to the program, which
+            // get put into the program's top level declarations.
+            for(int i = 0; i < Program.TopLevelDeclarations.Count(); i++)
             {
+                Declaration d = Program.TopLevelDeclarations[i];
+
                 if (d is Axiom) {
 
                   VariableDualiser vd1 = new VariableDualiser(1, null, null);
