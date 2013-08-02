@@ -1950,6 +1950,7 @@ namespace GPUVerify
 
           // First, pass over the the program looking for uses of atomics, recording (Array,Function) pairs
           Dictionary<Variable,HashSet<string>> funcs_used = new Dictionary<Variable,HashSet<string>> ();
+          Dictionary<Variable,HashSet<Expr>> args_used = new Dictionary<Variable,HashSet<Expr>> ();
           foreach (Block b in blocks)
             foreach (Cmd c in b.Cmds)
               if (c is CallCmd)
@@ -1962,6 +1963,14 @@ namespace GPUVerify
                     funcs_used[v].Add(QKeyValue.FindStringAttribute(call.Attributes, "atomic_function"));
                   else
                     funcs_used.Add(v, new HashSet<string> (new string[] { QKeyValue.FindStringAttribute(call.Attributes, "atomic_function") }));
+                  Expr arg = QKeyValue.FindExprAttribute(call.Attributes, "arg1");
+                  if (arg != null)
+                  {
+                    if (args_used.ContainsKey(v))
+                      args_used[v].Add(arg);
+                    else
+                      args_used.Add(v, new HashSet<Expr> (new Expr[] { arg }));
+                  }
                 }
               }
           // Then, for every array that only used a single monotonic atomic function, pass over the program again, logging offset constraints
@@ -1971,7 +1980,9 @@ namespace GPUVerify
           int parts = 0;
           foreach (KeyValuePair<Variable,HashSet<string>> pair in funcs_used)
           {
-            if (pair.Value.Count == 1 && monotonics.Any(x => pair.Value.ToArray()[0].StartsWith(x)))
+            // If it's a refinable function, and either has no arguments (is inc or dec), or has only 1 argument used with it and that argument is a non-zero constant
+            if (pair.Value.Count == 1 && monotonics.Any(x => pair.Value.ToArray()[0].StartsWith(x)) && (!args_used.ContainsKey(pair.Key) || (args_used[pair.Key].Count == 1 &&
+                  args_used[pair.Key].All(arg => (arg is LiteralExpr) && ((arg as LiteralExpr).Val is BvConst) && ((arg as LiteralExpr).Val as BvConst).Value != BigNum.FromInt(0)))))
             {
               foreach (Block b in blocks)
               {
