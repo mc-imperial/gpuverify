@@ -227,7 +227,7 @@ Replace as appropriate or setup an environment variable.::
    ::
 
      $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
-	 
+
    You can also check that your CVC4 test run matches the current CVC4 baseline.
    ::
 
@@ -328,21 +328,21 @@ Replace as appropriate or setup an environment variable.::
 
     $ ln -s z3 z3.exe
 
-#. (Optional) Get the CVC4 SMT Solver.
-   To use CVC4 you will have to install `MacPorts <http://www.macports.org>`_.
-   Then use the following guide `<http://cvc4.cs.nyu.edu/builds/macos/ports/>`_
-   to install the cvc4-devel package (nightly-build) in your /opt/local
-   directory.
-   ::
+#. (Optional) Get the CVC4 SMT Solver and build::
 
     $ cd ${BUILD_ROOT}
-    $ mkdir -p cvc4/build
-    $ cd ${BUILD_ROOT}/cvc4/build
-    $ cp /opt/local/cvc4 cvc4
+    $ git clone https://github.com/CVC4/CVC4.git
+    $ cd ${BUILD_ROOT}/CVC4
+    $ MACHINE_TYPE="x86_64" contrib/get-antlr-3.4
+    $ ./autogen.sh
+    $ export ANTLR=${BUILD_ROOT}/CVC4/antlr-3.4/bin/antlr3
+    $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/antlr-3.4/bin
+    $ make
 
    Make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
    ::
 
+    $ cd builds/usr/local/bin
     $ ln -s cvc4 cvc4.exe
 
 #. Get GPUVerify code and build C# components::
@@ -402,7 +402,7 @@ Replace as appropriate or setup an environment variable.::
       z3BinDir = rootDir + "/z3/build"
 
       #The path to the directory containing cvc4.exe
-      cvc4BinDir = rootDir + "/cvc4/build"
+      cvc4BinDir = rootDir + "/CVC4/builds/usr/local/bin"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
    which you can install using ``easy_install``.::
