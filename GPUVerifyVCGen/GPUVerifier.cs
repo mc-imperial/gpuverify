@@ -1577,10 +1577,8 @@ namespace GPUVerify
 
             List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
 
-            for(int i = 0; i < Program.TopLevelDeclarations.Count; i++)
+            foreach(var d in Program.TopLevelDeclarations.ToList())
             {
-                Declaration d = Program.TopLevelDeclarations[i];
-
                 if (d is Axiom) {
 
                   VariableDualiser vd1 = new VariableDualiser(1, null, null);
