@@ -140,32 +140,32 @@ namespace DynamicAnalysis
 			if (expr is IdentifierExpr)
 			{
 				IdentifierExpr ident = (IdentifierExpr) expr;
-				BitVector32 val      = memory.getValue(ident.Name);
-				return val;
+				return memory.getValue(ident.Name);
 			}
 			if (expr is LiteralExpr)
 			{
 				LiteralExpr literal = (LiteralExpr) expr;
-				if (literal.isBigNum)
+				if (literal.Val is BvConst)
 				{
-					return new BitVector32(literal.asBigNum.ToIntSafe);
+					BvConst bv = (BvConst) literal.Val;
+					return new BitVector32(bv.Value.ToInt);
 				}
 			}
+			Print.ExitMessage("Unhandled expression");
 			return new BitVector32(0);
 		}
 		
 		private static bool evaluateBoolExpr (Expr expr)
 		{
 			if (expr is LiteralExpr)
-				return evaluateLiteralBoolExpr((LiteralExpr) expr);
+			{
+				LiteralExpr literal = (LiteralExpr) expr;
+				return literal.IsTrue;
+			}
 			if (expr is NAryExpr)
 				return evaluateNAryBoolExpr((NAryExpr) expr);
+			Print.ExitMessage("Unhandled boolean expression");
 			return false;
-		}
-				
-		private static bool evaluateLiteralBoolExpr (LiteralExpr literal)
-		{
-			return literal.IsTrue;
 		}
 		
 		private static bool evaluateNAryBoolExpr (NAryExpr nary)
