@@ -1,50 +1,33 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 
 namespace DynamicAnalysis
-{	
-	class Value<T>
-	{	
-		protected T val;
-		
-		public T getVal ()
-		{
-			return val;
-		}
-	}
-	
-	class IntVal : Value<int>
-	{
-		public IntVal (int val)
-		{
-			this.val = val;
-		}
-	}
-	
+{		
 	class Memory
 	{
-		private Dictionary<string, IntVal> integerLocations = new Dictionary<string, IntVal>();
+		private Dictionary<string, BitVector32> bvLocations = new Dictionary<string, BitVector32>();
 		
 		public Memory ()
 		{
 		}
 		
-		public void store (string name, int val)
+		public void store (string name, BitVector32 val)
 		{
-			integerLocations[name] = new IntVal(val);
+			bvLocations[name] = val;
 		}
 		
-		public IntVal getValue (string name)
+		public BitVector32 getValue (string name)
 		{
-			return integerLocations[name];
+			return bvLocations[name];
 		}
 		
 		public void dump ()
 		{
 			Console.WriteLine("===== Memory contents =====");
-			foreach (KeyValuePair<string,IntVal> item in integerLocations)
+			foreach (KeyValuePair<string,BitVector32> item in bvLocations)
 			{
-				Console.WriteLine(item.Key + " " + Convert.ToString(item.Value.getVal()));
+				Console.WriteLine(item.Key + " " + Convert.ToString(item.Value.Data));
 			}
 		}
 	}
