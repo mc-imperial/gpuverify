@@ -13,7 +13,6 @@ namespace DynamicAnalysis
 	{
 		private static Random random = new Random();
 		private static Memory memory = new Memory();
-		private static Dictionary<string, DeclWithFormals> functionDecls = new Dictionary<string, DeclWithFormals>();
 		private static Dictionary<string, Block> labelToBlock = new Dictionary<string, Block>();
 		
 		public static void interpret (Program program)
@@ -22,6 +21,8 @@ namespace DynamicAnalysis
 			{
 				if (decl is Implementation)
 				{
+					memory.clear();
+					labelToBlock.clear();
 					Implementation impl = decl as Implementation;
 					Print.VerboseMessage(String.Format("Found implementation '{0}'", impl.Name));
 					buildLabelMap(impl);
@@ -34,7 +35,6 @@ namespace DynamicAnalysis
 				{
 					DeclWithFormals functionDecl = decl as DeclWithFormals;
 					Print.VerboseMessage(String.Format("Found function declaration '{0}'", functionDecl.Name));
-					functionDecls[functionDecl.Name] = functionDecl;
 				}
 			}
 		}
@@ -94,7 +94,7 @@ namespace DynamicAnalysis
 					{
 			            SimpleAssignLhs lhs = (SimpleAssignLhs) LhsRhs.Item1;
 						string lhsName      = lhs.AssignedVariable.Name;
-						memory.store(lhsName, evaluateExpr(LhsRhs.Item2));
+						memory.store(lhsName, evaluateArithmeticExpr(LhsRhs.Item2));
 					}
 				}
 			}
@@ -109,20 +109,29 @@ namespace DynamicAnalysis
 			{
 				bool found    = false;
 				GotoCmd goto_ = transfer as GotoCmd;
-				// Loop through all potential successors and find one whose guard evaluates to true
-				foreach (string succLabel in goto_.labelNames)
+				if (goto_.labelNames.Count == 1)
 				{
-					Block succ                = labelToBlock[succLabel];
-					PredicateCmd predicateCmd = (PredicateCmd) succ.Cmds[0];
-					found                     = evaluateBoolExpr(predicateCmd.Expr);
-					if (found)
-					{
-						interpretBasicBlock(succ);
-						break;
-					}
+					string succLabel = goto_.labelNames[0];
+					Block succ       = labelToBlock[succLabel];
+					interpretBasicBlock(succ);
 				}
-				if (!found)
-					Print.ExitMessage("No successor guard evaluates to true");
+				else
+				{
+					// Loop through all potential successors and find one whose guard evaluates to true
+					foreach (string succLabel in goto_.labelNames)
+					{
+						Block succ                = labelToBlock[succLabel];
+						PredicateCmd predicateCmd = (PredicateCmd) succ.Cmds[0];
+						found                     = evaluateBoolExpr(predicateCmd.Expr);
+						if (found)
+						{
+							interpretBasicBlock(succ);
+							break;
+						}
+					}
+					if (!found)
+						Print.ExitMessage("No successor guard evaluates to true");
+				}
 			}
 			if (transfer is ReturnCmd)
 			{
@@ -135,7 +144,7 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static BitVector32 evaluateExpr (Expr expr)
+		private static BitVector32 evaluateArithmeticExpr (Expr expr)
 		{
 			if (expr is IdentifierExpr)
 			{
@@ -149,6 +158,27 @@ namespace DynamicAnalysis
 				{
 					BvConst bv = (BvConst) literal.Val;
 					return new BitVector32(bv.Value.ToInt);
+				}
+				else if (literal.Val is BigNum)
+				{
+					BigNum num = (BigNum) literal.Val;
+					return new BitVector32(num.ToInt);
+				}
+			}
+			if (expr is NAryExpr)
+			{
+				NAryExpr nary         = (NAryExpr) expr;
+				BinaryOperator binary = (BinaryOperator) nary.Fun;
+				BitVector32 lhs       = evaluateArithmeticExpr(nary.Args[0]);
+				BitVector32 rhs       = evaluateArithmeticExpr(nary.Args[1]);
+				switch (binary.Op)
+				{
+				case BinaryOperator.Opcode.Add:
+					return new BitVector32(lhs.Data + rhs.Data);
+				case BinaryOperator.Opcode.Mul:
+					return new BitVector32(lhs.Data * rhs.Data);
+				case BinaryOperator.Opcode.Sub:
+					return new BitVector32(lhs.Data - rhs.Data);
 				}
 			}
 			Print.ExitMessage("Unhandled expression");
@@ -173,8 +203,8 @@ namespace DynamicAnalysis
 			if (nary.Fun is BinaryOperator)
 			{
 				BinaryOperator binary = (BinaryOperator) nary.Fun;
-				BitVector32 lhs       = evaluateExpr(nary.Args[0]);
-				BitVector32 rhs       = evaluateExpr(nary.Args[1]);
+				BitVector32 lhs       = evaluateArithmeticExpr(nary.Args[0]);
+				BitVector32 rhs       = evaluateArithmeticExpr(nary.Args[1]);
 				switch (binary.Op)
 				{
 				case BinaryOperator.Opcode.Eq:
@@ -211,8 +241,8 @@ namespace DynamicAnalysis
 				if (Regex.IsMatch(call.FunctionName, "BV32", RegexOptions.IgnoreCase))
 				{
 					string op       = call.FunctionName.Substring(call.FunctionName.IndexOf('_')+1);
-					BitVector32 lhs = evaluateExpr(nary.Args[0]);
-					BitVector32 rhs = evaluateExpr(nary.Args[1]);
+					BitVector32 lhs = evaluateArithmeticExpr(nary.Args[0]);
+					BitVector32 rhs = evaluateArithmeticExpr(nary.Args[1]);
 					switch (op)
 					{
 					case "GT":
