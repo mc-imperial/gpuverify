@@ -11,41 +11,44 @@ import sys
 # SO IT WILL NOT BE UNDER VERSION CONTROL SO THAT YOU CAN MAINTAIN YOUR OWN PERSONAL
 # COPY OF "gvfindtools.py" WITHOUT AFFECTING OTHER DEVELOPERS.
 #
-# Please note Windows users should use "\\" for paths e.g.
-# bugleSrcDir="c:\\build folder\\bugle\\src"
+# Please note Windows users should use the following style:
+# rootDir = r"c:\projects\gpuverify"
+# bugleSrcDir = rootDir + r"\bugle\src"
+
+rootDir = "/home/dan/documents/projects/gpuverify"
 
 #The path to the Bugle Source directory. The include-blang/ folder should be in there
-bugleSrcDir = "/home/dan/documents/projects/gpuverify/bugle/src"
+bugleSrcDir = rootDir + "/bugle/src"
 
 #The Path to the directory where the "bugle" executable can be found.
-bugleBinDir = "/home/dan/documents/projects/gpuverify/bugle/bin"
+bugleBinDir = rootDir + "/bugle/build"
 
 #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
-libclcInstallDir = "/home/dan/documents/projects/gpuverify/libclc-inst"
+libclcInstallDir = rootDir + "/libclc/install"
 
 #The path to the llvm Source directory.
-llvmSrcDir = "/home/dan/documents/projects/gpuverify/llvm_and_clang/src"
+llvmSrcDir = rootDir + "/llvm_and_clang/src"
 
 #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
-llvmBinDir = "/home/dan/documents/projects/gpuverify/llvm_and_clang/bin/bin"
+llvmBinDir = rootDir + "/llvm_and_clang/build/Release/bin"
 
 #The path containing the llvm libraries
-llvmLibDir = "/home/dan/documents/projects/gpuverify/llvm_and_clang/bin/lib"
+llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
 
 #The path to the directory containing GPUVerifyVCGen.exe
-gpuVerifyVCGenBinDir = "/home/dan/documents/projects/gpuverify/gpuverify/GPUVerifyVCGen/bin/Release"
+gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
 #The path to the directory containing GPUVerifyBoogieDriver.exe
-gpuVerifyBoogieDriverBinDir = "/home/dan/documents/projects/gpuverify/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
 #The path to the z3 Source directory.
-z3SrcDir = "/home/dan/documents/projects/gpuverify/z3/src"
+z3SrcDir = rootDir + "/z3"
 
 #The path to the directory containing z3.exe
-z3BinDir = "/home/dan/documents/projects/gpuverify/z3/install/bin"
+z3BinDir = rootDir + "/z3/build"
 
 #The path to the directory containing cvc4.exe
-cvc4BinDir = "/home/dan/documents/projects/gpuverify/cvc4/install/bin"
+cvc4BinDir = rootDir + "/cvc4/build"
 
 def init(prefixPath):
   """This method does nothing"""

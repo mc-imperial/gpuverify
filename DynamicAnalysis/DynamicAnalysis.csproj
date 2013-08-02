@@ -32,6 +32,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Basetypes">
+      <HintPath>..\BoogieBinaries\Basetypes.dll</HintPath>
+    </Reference>
     <Reference Include="Core, Version=2.2.30705.1126, Culture=neutral, PublicKeyToken=736440c9b414ea16, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\BoogieBinaries\Core.dll</HintPath>
@@ -45,10 +48,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Program.cs" />
+    <Compile Include="Main.cs" />
+    <Compile Include="CommandLineOptions.cs" />
+    <Compile Include="BoogieInterpreter.cs" />
+    <Compile Include="Memory.cs" />
+    <Compile Include="Print.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="Clean">
+    <RemoveDir Directories="$(ProjectDir)\bin" />
+    <RemoveDir Directories="$(ProjectDir)\obj" />
+  </Target>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

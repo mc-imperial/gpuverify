@@ -8,8 +8,8 @@ Building GPUVerify
 The GPUVerify toolchain is a pipeline that uses different components.
 This guide will walk you through the build process.
 
-There are specific instructions for Linux, OSX and Windows however they have
-a common set of prerequisites which are:
+There are specific instructions for Linux, Mac OS X and Windows however they
+have a common set of prerequisites which are:
 
 * CMake >=2.8
 * Python 2.7
@@ -191,10 +191,10 @@ Replace as appropriate or setup an environment variable.::
       llvmLibDir = rootDir + "/llvm_and_clang/build/lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
+      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
@@ -221,12 +221,17 @@ Replace as appropriate or setup an environment variable.::
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ ./gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
 
      $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
+	 
+   You can also check that your CVC4 test run matches the current CVC4 baseline.
+   ::
+
+     $ ./gvtester.py --compare-pickle testsuite/baseline_cvc4.pickle run.pickle
 
    You should expect the last line of output to be.::
 
@@ -385,10 +390,10 @@ Replace as appropriate or setup an environment variable.::
       llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/GPUVerifyVCGen/bin/Release"
+      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/GPUVerifyBoogieDriver/bin/Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
@@ -415,12 +420,17 @@ Replace as appropriate or setup an environment variable.::
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ ./gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ ./gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
 
      $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
+	 
+   You can also check that your CVC4 test run matches the current CVC4 baseline.
+   ::
+
+     $ ./gvtester.py --compare-pickle testsuite/baseline_cvc4.pickle run.pickle
 
    You should expect the last line of output to be.::
 
@@ -568,10 +578,10 @@ drives.
       llvmLibDir = rootDir + r"\llvm_and_clang\build\lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\GPUVerifyVCGen\bin\Release"
+      gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\Binaries"
 
       #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\GPUVerifyBoogieDriver\bin\Release"
+      gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\Binaries"
 
       #The path to the z3 Source directory.
       z3SrcDir = rootDir + r"\z3"
@@ -598,12 +608,17 @@ drives.
    To run the GPUVerify test suite using the CVC4 SMT Solver:
    ::
 
-     $ .\gvtester.py --gvopt="--use-cvc4" --write-pickle run.pickle testsuite
+     $ .\gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
 
    You can also check that your test run matches the current baseline.
    ::
 
      $ .\gvtester.py --compare-pickle testsuite\baseline.pickle run.pickle
+	 
+   You can also check that your CVC4 test run matches the current CVC4 baseline.
+   ::
+
+     $ .\gvtester.py --compare-pickle testsuite\baseline_cvc4.pickle run.pickle
 
    You should expect the last line of output to be.::
 
@@ -638,12 +653,15 @@ Building Boogie
 
 The GPUVerify repository has a pre-built version of Boogie inside it to make
 building the project a little bit easier. If you wish to rebuild Boogie for use
-in GPUVerify then follow the steps below for Linux.::
+in GPUVerify then follow the steps below for Linux and Mac OS X.::
 
       $ cd ${BUILD_ROOT}
-      $ git clone https://hg.codeplex.com/boogie
+      $ hg clone https://hg.codeplex.com/boogie
       $ cd boogie
-      $ xbuild /p:Configuration=Release Boogie.sln
+      $ xbuild /p:TargetFrameworkProfile="" /p:Configuration=Release Boogie.sln
+      $ cd Binaries
+      $ ls ${BUILD_ROOT}/gpuverify/BoogieBinaries \
+             | xargs -I{} -t cp {} ${BUILD_ROOT}/gpuverify/BoogieBinaries
 
 Test framework
 ==============
