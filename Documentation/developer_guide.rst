@@ -331,19 +331,26 @@ Replace as appropriate or setup an environment variable.::
 #. (Optional) Get the CVC4 SMT Solver and build::
 
     $ cd ${BUILD_ROOT}
-    $ git clone https://github.com/CVC4/CVC4.git
-    $ cd ${BUILD_ROOT}/CVC4
+    $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
+    $ cd ${BUILD_ROOT}/CVC4/src
     $ MACHINE_TYPE="x86_64" contrib/get-antlr-3.4
     $ ./autogen.sh
-    $ export ANTLR=${BUILD_ROOT}/CVC4/antlr-3.4/bin/antlr3
-    $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/antlr-3.4/bin
+    $ export ANTLR=${BUILD_ROOT}/CVC4/src/antlr-3.4/bin/antlr3
+    $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/src/antlr-3.4 \
+                  --prefix=${BUILD_ROOT}/CVC4/install \
+                  --disable-shared --enable-static
     $ make
+    $ make install
 
    Make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
    ::
 
-    $ cd builds/usr/local/bin
+    $ cd ${BUILD_ROOT}/CVC4/install/bin
     $ ln -s cvc4 cvc4.exe
+
+   Note that if CVC4 needs to be deployed to a system different from the one
+   on which it is being built, the GMP libraries on the build system need to
+   be static and not dynamic.
 
 #. Get GPUVerify code and build C# components::
 
@@ -402,7 +409,7 @@ Replace as appropriate or setup an environment variable.::
       z3BinDir = rootDir + "/z3/build"
 
       #The path to the directory containing cvc4.exe
-      cvc4BinDir = rootDir + "/CVC4/builds/usr/local/bin"
+      cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
    which you can install using ``easy_install``.::
