@@ -11,9 +11,9 @@ namespace DynamicAnalysis
 {
 	public class BoogieInterpreter
 	{
-		private static Random random = new Random();
-		private static Memory memory = new Memory();
-		private static Dictionary<string, Block> labelToBlock = new Dictionary<string, Block>();
+		private static Random Random = new Random();
+		private static Memory Memory = new Memory();
+		private static Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
 		
 		public static void Interpret (Program program)
 		{
@@ -21,15 +21,15 @@ namespace DynamicAnalysis
 			{
 				if (decl is Implementation)
 				{
-					memory.Clear();
-					labelToBlock.Clear();
+					Memory.Clear();
+					LabelToBlock.Clear();
 					Implementation impl = decl as Implementation;
 					Print.VerboseMessage(String.Format("Found implementation '{0}'", impl.Name));
 					BuildLabelMap(impl);
 					InitialiseFormalParams(impl.InParams);
 					Block entry = impl.Blocks[0];
 					InterpretBasicBlock(entry);
-					memory.Dump();
+					Memory.Dump();
 				}
 				if (decl is DeclWithFormals)
 				{
@@ -43,7 +43,7 @@ namespace DynamicAnalysis
 		{
 			foreach (Block block in impl.Blocks)
 			{
-				labelToBlock[block.Label] = block;
+				LabelToBlock[block.Label] = block;
 			}
 		}
 		
@@ -56,12 +56,12 @@ namespace DynamicAnalysis
 				{
 					BvType bv = (BvType) v.TypedIdent.Type;
 					if (bv.Bits == 1)
-						memory.Store(v.Name, new BitVector32(random.Next(0, 1)));
+						Memory.Store(v.Name, new BitVector32(Random.Next(0, 1)));
 					else
 					{	
 						int lowestVal  = (int) -Math.Pow(2, bv.Bits-1);
 						int highestVal = (int) Math.Pow(2, bv.Bits-1) - 1;
-						memory.Store(v.Name, new BitVector32(random.Next(lowestVal, highestVal)));
+						Memory.Store(v.Name, new BitVector32(Random.Next(lowestVal, highestVal)));
 					}
 				}
 				else if (v.TypedIdent.Type is BasicType)
@@ -71,7 +71,7 @@ namespace DynamicAnalysis
 					{
 						int lowestVal  = (int) -Math.Pow(2, 32-1);
 						int highestVal = (int) Math.Pow(2, 32-1) - 1;
-						memory.Store(v.Name, new BitVector32(random.Next(lowestVal, highestVal)));
+						Memory.Store(v.Name, new BitVector32(Random.Next(lowestVal, highestVal)));
 					}
 					else
 						Print.ExitMessage(String.Format("Unhandled basic type '{0}'", basic.ToString()));
@@ -90,11 +90,32 @@ namespace DynamicAnalysis
 				if (cmd is AssignCmd)
 				{
 					AssignCmd assign = (AssignCmd) cmd;
-					foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) 
+					List<BitVector32> evaluations = new List<BitVector32>();
+					// First evaluate all RHS expressions
+					foreach (Expr expr in assign.Rhss) 
+					{ 
+						evaluations.Add(EvaluateArithmeticExpr(expr));
+					}
+					// Now update the store
+					foreach (var LhsEval in assign.Lhss.Zip(evaluations)) 
 					{
-			            SimpleAssignLhs lhs = (SimpleAssignLhs) LhsRhs.Item1;
-						string lhsName      = lhs.AssignedVariable.Name;
-						memory.Store(lhsName, EvaluateArithmeticExpr(LhsRhs.Item2));
+						if (LhsEval.Item1 is MapAssignLhs)
+						{
+							MapAssignLhs lhs = (MapAssignLhs) LhsEval.Item1;
+							Print.VerboseMessage(lhs.DeepAssignedVariable.Name);
+							SubscriptExpr subscriptExpr = new SubscriptExpr();
+							foreach (Expr index in lhs.Indexes)
+							{
+								BitVector32 subscript = EvaluateArithmeticExpr(index);
+								subscriptExpr.AddIndex(subscript);
+							}
+							Memory.Store(lhs.DeepAssignedVariable.Name, subscriptExpr, LhsEval.Item2);
+						}
+						else
+						{
+							SimpleAssignLhs lhs = (SimpleAssignLhs) LhsEval.Item1;
+							Memory.Store(lhs.AssignedVariable.Name, LhsEval.Item2);
+						}
 					}
 				}
 			}
@@ -112,7 +133,7 @@ namespace DynamicAnalysis
 				if (goto_.labelNames.Count == 1)
 				{
 					string succLabel = goto_.labelNames[0];
-					Block succ       = labelToBlock[succLabel];
+					Block succ       = LabelToBlock[succLabel];
 					InterpretBasicBlock(succ);
 				}
 				else
@@ -120,7 +141,7 @@ namespace DynamicAnalysis
 					// Loop through all potential successors and find one whose guard evaluates to true
 					foreach (string succLabel in goto_.labelNames)
 					{
-						Block succ                = labelToBlock[succLabel];
+						Block succ                = LabelToBlock[succLabel];
 						PredicateCmd predicateCmd = (PredicateCmd) succ.Cmds[0];
 						found                     = EvaluateBoolExpr(predicateCmd.Expr);
 						if (found)
@@ -149,7 +170,7 @@ namespace DynamicAnalysis
 			if (expr is IdentifierExpr)
 			{
 				IdentifierExpr ident = (IdentifierExpr) expr;
-				return memory.GetValue(ident.Name);
+				return Memory.GetValue(ident.Name);
 			}
 			if (expr is LiteralExpr)
 			{
