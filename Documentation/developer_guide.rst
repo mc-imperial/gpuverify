@@ -123,27 +123,29 @@ Replace as appropriate or setup an environment variable.::
 
    where ``N`` is the number of jobs to run in parallel.
 
-   Make a symbolic link because ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
+   Make a symbolic link; ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
    ::
 
     $ ln -s z3 z3.exe
 
-#. (Optional) Get the CVC4 SMT Solver::
+#. (Optional) Get the CVC4 SMT Solver and build::
 
     $ cd ${BUILD_ROOT}
-    $ mkdir -p cvc4/build
-    $ cd ${BUILD_ROOT}/cvc4/build
+    $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
+    $ cd ${BUILD_ROOT}/CVC4/src
+    $ MACHINE_TYPE="x86_64" contrib/get-antlr-3.4
+    $ ./autogen.sh
+    $ export ANTLR=${BUILD_ROOT}/CVC4/src/antlr-3.4/bin/antlr3
+    $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/src/antlr-3.4 \
+                  --prefix=${BUILD_ROOT}/CVC4/install \
+                  --enable-static-binary
+    $ make
+    $ make install
 
-   Download the latest optimised nightly-build from
-   `<http://cvc4.cs.nyu.edu/builds/x86_64-linux-opt/unstable/>`_ into the
-   ``${BUILD_ROOT}/cvc4/build`` directory.
+   Make a symbolic link; ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
    ::
 
-    $ mv cvc4-*-x86_64-linux-opt cvc4
-
-   Make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
-   ::
-
+    $ cd ${BUILD_ROOT}/CVC4/install/bin
     $ ln -s cvc4 cvc4.exe
 
 #. Get GPUVerify code and build C# components::
@@ -202,8 +204,11 @@ Replace as appropriate or setup an environment variable.::
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
 
+      #The path to the cvc4 Source directory.
+      cvc4SrcDir = rootDir + "/CVC4/src"
+
       #The path to the directory containing cvc4.exe
-      cvc4BinDir = rootDir + "/cvc4/build"
+      cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
    which you can install using ``easy_install``.::
@@ -323,7 +328,7 @@ Replace as appropriate or setup an environment variable.::
 
    where ``N`` is the number of jobs to run in parallel.
 
-   Make a symbolic link because ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
+   Make a symbolic link; ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
    ::
 
     $ ln -s z3 z3.exe
@@ -342,7 +347,7 @@ Replace as appropriate or setup an environment variable.::
     $ make
     $ make install
 
-   Make a symbolic link because ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
+   Make a symbolic link; ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
    ::
 
     $ cd ${BUILD_ROOT}/CVC4/install/bin
@@ -407,6 +412,9 @@ Replace as appropriate or setup an environment variable.::
 
       #The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
+
+      #The path to the cvc4 Source directory.
+      cvc4SrcDir = rootDir + "/CVC4/src"
 
       #The path to the directory containing cvc4.exe
       cvc4BinDir = rootDir + "/CVC4/install/bin"
