@@ -36,6 +36,16 @@ namespace DynamicAnalysis
 					DeclWithFormals functionDecl = decl as DeclWithFormals;
 					Print.VerboseMessage(String.Format("Found function declaration '{0}'", functionDecl.Name));
 				}
+				if (decl is Constant)
+				{
+					Constant const_ = decl as Constant;
+					Print.VerboseMessage(const_.Name);
+				}
+				if (decl is Axiom)
+				{
+					Axiom axiom = decl as Axiom;
+					Print.VerboseMessage(axiom.Expr.ToString());
+				}
 			}
 		}
 		
@@ -102,7 +112,6 @@ namespace DynamicAnalysis
 						if (LhsEval.Item1 is MapAssignLhs)
 						{
 							MapAssignLhs lhs = (MapAssignLhs) LhsEval.Item1;
-							Print.VerboseMessage(lhs.DeepAssignedVariable.Name);
 							SubscriptExpr subscriptExpr = new SubscriptExpr();
 							foreach (Expr index in lhs.Indexes)
 							{
@@ -194,18 +203,32 @@ namespace DynamicAnalysis
 		{
 			if (expr is NAryExpr)
 			{
-				NAryExpr nary         = (NAryExpr) expr;
-				BinaryOperator binary = (BinaryOperator) nary.Fun;
-				BitVector32 lhs       = EvaluateArithmeticExpr(nary.Args[0]);
-				BitVector32 rhs       = EvaluateArithmeticExpr(nary.Args[1]);
-				switch (binary.Op)
+				NAryExpr nary = (NAryExpr) expr;
+				if (nary.Fun is BinaryOperator)
 				{
-				case BinaryOperator.Opcode.Add:
-					return new BitVector32(lhs.Data + rhs.Data);
-				case BinaryOperator.Opcode.Mul:
-					return new BitVector32(lhs.Data * rhs.Data);
-				case BinaryOperator.Opcode.Sub:
-					return new BitVector32(lhs.Data - rhs.Data);
+					BinaryOperator binary = (BinaryOperator) nary.Fun;
+					BitVector32 lhs       = EvaluateArithmeticExpr(nary.Args[0]);
+					BitVector32 rhs       = EvaluateArithmeticExpr(nary.Args[1]);
+					switch (binary.Op)
+					{
+					case BinaryOperator.Opcode.Add:
+						return new BitVector32(lhs.Data + rhs.Data);
+					case BinaryOperator.Opcode.Mul:
+						return new BitVector32(lhs.Data * rhs.Data);
+					case BinaryOperator.Opcode.Sub:
+						return new BitVector32(lhs.Data - rhs.Data);
+					}
+				}
+				else if (nary.Fun is MapSelect)
+				{
+					IdentifierExpr basename = (IdentifierExpr) nary.Args[0];
+					SubscriptExpr subscriptExpr = new SubscriptExpr();
+					foreach (Expr index in nary.Args.GetRange(1, nary.Args.Count - 1))
+					{
+						BitVector32 subscript = EvaluateArithmeticExpr(index);
+						subscriptExpr.AddIndex(subscript);
+					}
+					return Memory.GetValue(basename.Name, subscriptExpr);
 				}
 			}
 			return EvaluateSymbol(expr);
@@ -278,14 +301,13 @@ namespace DynamicAnalysis
 					FunctionCall call = (FunctionCall) nary.Fun;
 					if (Regex.IsMatch(call.FunctionName, "BV32", RegexOptions.IgnoreCase))
 					{
-						string op       = call.FunctionName.Substring(call.FunctionName.IndexOf('_')+1);
 						BitVector32 lhs = EvaluateSymbol(nary.Args[0]);
 						BitVector32 rhs = EvaluateSymbol(nary.Args[1]);
-						switch (op)
+						switch (call.FunctionName)
 						{
-						case "GT":
+						case "BV32_GT":
 							return lhs.Data > rhs.Data;
-						case "LT":
+						case "BV32_LT":
 							return lhs.Data < rhs.Data;
 						default:
 							Print.ExitMessage("Unhandled BV operator");
