@@ -3,11 +3,14 @@ function BV32_GT (bv32, bv32) : bool;
 
 procedure bar(x: int, y: int)
 {
+  var $$arr : [bv32]bv32;
   var a : int;
   var b : int;
-   
-  a := 0;
-  b := 1;
+  
+  b := 4; 
+  a, b := b, 0;
+
+  $$arr[0bv32] := 12bv32; 
   while (a < 10)
   {
      b := b + 100 - 5;
