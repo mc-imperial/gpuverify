@@ -7,15 +7,11 @@ namespace DynamicAnalysis
 {
 	public class CommandLineOptions
 	{
-		private static Dictionary<string, object> values = new Dictionary<string, object>();
+		private static bool Help = false;
+		private static List<string> Files = new List<string>();
 		
 		public static void Parse(string[] args)
 		{	
-			values["help"]    = false;
-			values["verbose"] = false;
-			values["debug"]   = "0";
-			values["files"]   = new List<string>();
-			
 			for (int i = 0; i < args.Length; i++)
             {
                 string beforeColon;
@@ -39,42 +35,38 @@ namespace DynamicAnalysis
                 case "/help":
                 case "-?":
                 case "/?":
-					values["help"] = true;
+					Help = true;
 					break;
 					
 				case "-d":
 				case "/d":
-					values["debug"] = afterColon;
+					HandleDebug(afterColon);
 					break;
 					
 				case "-v":
 				case "/v":
-					values["verbose"] = true;
+					Print.verbose = true;
 					break;
 					
 				default:
-					((List<string>) values["files"]).Add(args[i]);
+					Files.Add(args[i]);
 					break;
 				}
 			}
 			
-			if ((bool) values["help"])
+			if (Help)
 				CommandLineOptions.Usage();
-			
-			Print.verbose = ((bool) values["verbose"]);
-			handleDebug();
-			handleFiles();			
+			else
+				HandleFiles();			
 		}
 		
-		public static string getBoogieFile ()
+		public static string GetBoogieFile ()
 		{
-			List<string> files = (List<string>) values["files"];
-			return files[0];
+			return Files[0];
 		}
 		
-		private static void handleDebug ()
+		private static void HandleDebug (string val)
 		{
-			string val   = (string) values["debug"];
 			short intVal = -1;
 			try
 			{
@@ -96,17 +88,16 @@ namespace DynamicAnalysis
 			Print.debug = intVal;
 		}
 		
-		private static void handleFiles ()
+		private static void HandleFiles ()
 		{
-			List<string> files = (List<string>) values["files"];
-			Debug.Assert(files.Count == 1, "You must pass a single .bpl file");		
-			string file = files[0];
+			Debug.Assert(Files.Count == 1, "You must only pass a single file");		
+			string file = Files[0];
 			string ext  = Path.GetExtension(file);
 			if (ext != null) 
 			{
                 ext = ext.ToLower();
             }
-			Debug.Assert(ext == ".bpl", String.Format("'{0}' is not a .bpl file", file));
+			Debug.Assert(ext == ".bpl" || ext == ".gbpl", String.Format("'{0}' is not a .bpl or .gbpl file", file));
 			Debug.Assert(File.Exists(file), String.Format("File '{0}' does not exist", file));
 		}
 		
