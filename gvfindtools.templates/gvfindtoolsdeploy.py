@@ -20,6 +20,8 @@ gpuVerifyVCGenBinDir = None
 gpuVerifyBoogieDriverBinDir = None
 z3SrcDir = None
 z3BinDir = None
+cvc4SrcDir=None
+cvc4BinDir=None
 
 def init(pathPrefix):
   """Modify this modules variables by adding a path prefix"""
@@ -27,7 +29,7 @@ def init(pathPrefix):
   global bugleSrcDir, bugleBinDir, libclcInstallDir
   global llvmSrcDir, llvmBinDir, llvmLibDir
   global gpuVerifyVCGenBinDir, gpuVerifyBoogieDriverBinDir
-  global z3SrcDir, z3BinDir
+  global z3SrcDir, z3BinDir, cvc4SrcDir, cvs4BinDir
   #The path to the Bugle Source directory. The include-blang/ folder should be in there
   bugleSrcDir = pathPrefix + os.sep + "bugle"
 
@@ -57,3 +59,9 @@ def init(pathPrefix):
 
   #The path to the directory containing z3.exe
   z3BinDir = pathPrefix + os.sep + "bin"
+
+  #The path to the cvc4 Source directory. Not used in the deployed setting
+  cvc4SrcDir = pathPrefix + os.sep + "cvc4"
+
+  #The path to the directory containing cvc4.exe
+  cvc4BinDir = pathPrefix + os.sep + "bin"
