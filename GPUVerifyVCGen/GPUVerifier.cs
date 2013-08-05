@@ -514,13 +514,81 @@ namespace GPUVerify
             }
 
             if (CommandLineOptions.OutlineBarrierIntervals) {
+
               foreach(var impl in KernelProcedures.Values) {
+                ExtractCommandsIntoBlocks(impl, Item => true);
+              }
+
+              /*foreach(var impl in KernelProcedures.Values) {
                 IntraProceduralLiveVariableAnalysis iplva = new IntraProceduralLiveVariableAnalysis(Program, impl);
                 iplva.RunAnalysis();
-              }
+              }*/
             }
 
             emitProgram(outputFilename);
+
+        }
+
+        void ExtractCommandsIntoBlocks(Implementation impl, Func<Cmd, bool> predicate) {
+          Dictionary<Block, Block> oldToNew = new Dictionary<Block,Block>();
+          HashSet<Block> newBlocks = new HashSet<Block>();
+          HashSet<Block> removedBlocks = new HashSet<Block>();
+          Block newEntryBlock = null;
+
+          foreach (Block b in impl.Blocks)
+          {
+            List<List<Cmd>> partition = InterproceduralReachabilityGraph.PartitionCmdsAccordingToPredicate(b.Cmds, Item => (Item is CallCmd && ((CallCmd)Item).Proc == BarrierProcedure));
+            if(partition.Count == 1) {
+              // Nothing to do: either no command in this block matches the predicate, or there
+              // is only one command in the block
+              continue;
+            }
+
+            removedBlocks.Add(b);
+
+            List<Block> newBlocksForPartitionEntry = new List<Block>();
+            for(int i = 0; i < partition.Count; i++) {
+              newBlocksForPartitionEntry.Add(new Block(b.tok, "__partitioned_block_" + b.Label + "_" + i, partition[i], null));
+              newBlocks.Add(newBlocksForPartitionEntry[i]);
+              if(i > 0) {
+                newBlocksForPartitionEntry[i - 1].TransferCmd = new GotoCmd(b.tok, new List<string> { newBlocksForPartitionEntry[i].Label }, new List<Block> { newBlocksForPartitionEntry[i] });
+              }
+              if(i == partition.Count - 1) {
+                newBlocksForPartitionEntry[i].TransferCmd = b.TransferCmd;
+              }
+            }
+            oldToNew[b] = newBlocksForPartitionEntry[0];
+            if(b == impl.Blocks[0]) {
+              Debug.Assert(newEntryBlock == null);
+              newEntryBlock = newBlocksForPartitionEntry[0];
+            }
+          }
+
+          impl.Blocks.RemoveAll(Item => removedBlocks.Contains(Item));
+
+          if(newEntryBlock != null) {
+            // Replace the entry block if necessary
+            impl.Blocks.Insert(0, newEntryBlock);
+            newBlocks.Remove(newEntryBlock);
+          }
+
+          // Add all new block that do not replace the entry block
+          impl.Blocks.AddRange(newBlocks);
+
+          foreach (var gc in impl.Blocks.Select(Item => Item.TransferCmd).OfType<GotoCmd>()) {
+            Debug.Assert(gc.labelNames.Count == gc.labelTargets.Count);
+            for(int i = 0; i < gc.labelTargets.Count; i++) {
+              if(oldToNew.ContainsKey(gc.labelTargets[i])) {
+                Block newBlock = oldToNew[gc.labelTargets[i]];
+                gc.labelTargets[i] = newBlock;
+                gc.labelNames[i] = newBlock.Label;
+              }
+              if(!impl.Blocks.Contains(gc.labelTargets[i])) {
+                Console.WriteLine("Block " + gc.labelTargets[i] + " still around!");
+              }
+              Debug.Assert(impl.Blocks.Contains(gc.labelTargets[i]));
+            }
+          }
 
         }
 
