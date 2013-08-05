@@ -15,21 +15,21 @@ namespace DynamicAnalysis
 		private static Memory memory = new Memory();
 		private static Dictionary<string, Block> labelToBlock = new Dictionary<string, Block>();
 		
-		public static void interpret (Program program)
+		public static void Interpret (Program program)
 		{
 			foreach (var decl in program.TopLevelDeclarations)
 			{
 				if (decl is Implementation)
 				{
-					memory.clear();
-					labelToBlock.clear();
+					memory.Clear();
+					labelToBlock.Clear();
 					Implementation impl = decl as Implementation;
 					Print.VerboseMessage(String.Format("Found implementation '{0}'", impl.Name));
-					buildLabelMap(impl);
-					initialiseFormalParams(impl.InParams);
+					BuildLabelMap(impl);
+					InitialiseFormalParams(impl.InParams);
 					Block entry = impl.Blocks[0];
-					interpretBasicBlock(entry);
-					memory.dump();
+					InterpretBasicBlock(entry);
+					memory.Dump();
 				}
 				if (decl is DeclWithFormals)
 				{
@@ -39,7 +39,7 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void buildLabelMap (Implementation impl)
+		private static void BuildLabelMap (Implementation impl)
 		{
 			foreach (Block block in impl.Blocks)
 			{
@@ -47,7 +47,7 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void initialiseFormalParams (List<Variable> formals)
+		private static void InitialiseFormalParams (List<Variable> formals)
 		{
 			foreach (Variable v in formals)
 			{
@@ -56,12 +56,12 @@ namespace DynamicAnalysis
 				{
 					BvType bv = (BvType) v.TypedIdent.Type;
 					if (bv.Bits == 1)
-						memory.store(v.Name, new BitVector32(random.Next(0, 1)));
+						memory.Store(v.Name, new BitVector32(random.Next(0, 1)));
 					else
 					{	
 						int lowestVal  = (int) -Math.Pow(2, bv.Bits-1);
 						int highestVal = (int) Math.Pow(2, bv.Bits-1) - 1;
-						memory.store(v.Name, new BitVector32(random.Next(lowestVal, highestVal)));
+						memory.Store(v.Name, new BitVector32(random.Next(lowestVal, highestVal)));
 					}
 				}
 				else if (v.TypedIdent.Type is BasicType)
@@ -71,7 +71,7 @@ namespace DynamicAnalysis
 					{
 						int lowestVal  = (int) -Math.Pow(2, 32-1);
 						int highestVal = (int) Math.Pow(2, 32-1) - 1;
-						memory.store(v.Name, new BitVector32(random.Next(lowestVal, highestVal)));
+						memory.Store(v.Name, new BitVector32(random.Next(lowestVal, highestVal)));
 					}
 					else
 						Print.ExitMessage(String.Format("Unhandled basic type '{0}'", basic.ToString()));
@@ -81,7 +81,7 @@ namespace DynamicAnalysis
 			}
 		}
 
-		private static void interpretBasicBlock (Block block)
+		private static void InterpretBasicBlock (Block block)
 		{
 			Print.VerboseMessage(String.Format("Entering basic block with label '{0}'", block.Label));
 			// Execute all the statements
@@ -94,15 +94,15 @@ namespace DynamicAnalysis
 					{
 			            SimpleAssignLhs lhs = (SimpleAssignLhs) LhsRhs.Item1;
 						string lhsName      = lhs.AssignedVariable.Name;
-						memory.store(lhsName, evaluateArithmeticExpr(LhsRhs.Item2));
+						memory.Store(lhsName, EvaluateArithmeticExpr(LhsRhs.Item2));
 					}
 				}
 			}
 			// Now transfer control
-			transferControl(block);
+			TransferControl(block);
 		}
 		
-		private static void transferControl (Block block)
+		private static void TransferControl (Block block)
 		{
 			TransferCmd transfer = block.TransferCmd;
 			if (transfer is GotoCmd)
@@ -113,7 +113,7 @@ namespace DynamicAnalysis
 				{
 					string succLabel = goto_.labelNames[0];
 					Block succ       = labelToBlock[succLabel];
-					interpretBasicBlock(succ);
+					InterpretBasicBlock(succ);
 				}
 				else
 				{
@@ -122,10 +122,10 @@ namespace DynamicAnalysis
 					{
 						Block succ                = labelToBlock[succLabel];
 						PredicateCmd predicateCmd = (PredicateCmd) succ.Cmds[0];
-						found                     = evaluateBoolExpr(predicateCmd.Expr);
+						found                     = EvaluateBoolExpr(predicateCmd.Expr);
 						if (found)
 						{
-							interpretBasicBlock(succ);
+							InterpretBasicBlock(succ);
 							break;
 						}
 					}
@@ -144,12 +144,12 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static BitVector32 evaluateArithmeticExpr (Expr expr)
+		private static BitVector32 EvaluateSymbol (Expr expr)
 		{
 			if (expr is IdentifierExpr)
 			{
 				IdentifierExpr ident = (IdentifierExpr) expr;
-				return memory.getValue(ident.Name);
+				return memory.GetValue(ident.Name);
 			}
 			if (expr is LiteralExpr)
 			{
@@ -165,12 +165,18 @@ namespace DynamicAnalysis
 					return new BitVector32(num.ToInt);
 				}
 			}
+			Print.ExitMessage("Unknown symbol: " + expr.ToString());
+			return new BitVector32(0);
+		}
+		
+		private static BitVector32 EvaluateArithmeticExpr (Expr expr)
+		{
 			if (expr is NAryExpr)
 			{
 				NAryExpr nary         = (NAryExpr) expr;
 				BinaryOperator binary = (BinaryOperator) nary.Fun;
-				BitVector32 lhs       = evaluateArithmeticExpr(nary.Args[0]);
-				BitVector32 rhs       = evaluateArithmeticExpr(nary.Args[1]);
+				BitVector32 lhs       = EvaluateArithmeticExpr(nary.Args[0]);
+				BitVector32 rhs       = EvaluateArithmeticExpr(nary.Args[1]);
 				switch (binary.Op)
 				{
 				case BinaryOperator.Opcode.Add:
@@ -181,84 +187,95 @@ namespace DynamicAnalysis
 					return new BitVector32(lhs.Data - rhs.Data);
 				}
 			}
-			Print.ExitMessage("Unhandled expression");
-			return new BitVector32(0);
+			return EvaluateSymbol(expr);
 		}
 		
-		private static bool evaluateBoolExpr (Expr expr)
+		private static bool IsLogicalBinaryOp (BinaryOperator.Opcode op)
+		{
+			return op == BinaryOperator.Opcode.Or || op == BinaryOperator.Opcode.And;
+		}
+		
+		private static bool EvaluateBoolExpr (Expr expr)
 		{
 			if (expr is LiteralExpr)
 			{
 				LiteralExpr literal = (LiteralExpr) expr;
 				return literal.IsTrue;
 			}
-			if (expr is NAryExpr)
-				return evaluateNAryBoolExpr((NAryExpr) expr);
-			Print.ExitMessage("Unhandled boolean expression");
-			return false;
-		}
-		
-		private static bool evaluateNAryBoolExpr (NAryExpr nary)
-		{
-			if (nary.Fun is BinaryOperator)
+			else if (expr is NAryExpr)
 			{
-				BinaryOperator binary = (BinaryOperator) nary.Fun;
-				BitVector32 lhs       = evaluateArithmeticExpr(nary.Args[0]);
-				BitVector32 rhs       = evaluateArithmeticExpr(nary.Args[1]);
-				switch (binary.Op)
+				NAryExpr nary = (NAryExpr) expr;				
+				if (nary.Fun is BinaryOperator)
 				{
-				case BinaryOperator.Opcode.Eq:
-					return lhs.Data == rhs.Data;
-				case BinaryOperator.Opcode.Le:
-					return lhs.Data <= rhs.Data;
-				case BinaryOperator.Opcode.Lt:
-					return lhs.Data < rhs.Data;
-				case BinaryOperator.Opcode.Ge:
-					return lhs.Data >= rhs.Data;
-				case BinaryOperator.Opcode.Gt:
-					return lhs.Data > rhs.Data;
-				default:
-					Print.ExitMessage("Unhandled binary operator");
-					return false;
-				}
-			}
-			else if (nary.Fun is UnaryOperator)
-			{
-				UnaryOperator unary = (UnaryOperator) nary.Fun;
-				bool arg            = evaluateBoolExpr(nary.Args[0]);
-				switch (unary.Op)
-				{
-				case UnaryOperator.Opcode.Not:
-					return !arg;
-				default:
-					Print.ExitMessage("Unhandled unary operator");
-					return false;
-				}
-			}
-			else if (nary.Fun is FunctionCall)
-			{
-				FunctionCall call = (FunctionCall) nary.Fun;
-				if (Regex.IsMatch(call.FunctionName, "BV32", RegexOptions.IgnoreCase))
-				{
-					string op       = call.FunctionName.Substring(call.FunctionName.IndexOf('_')+1);
-					BitVector32 lhs = evaluateArithmeticExpr(nary.Args[0]);
-					BitVector32 rhs = evaluateArithmeticExpr(nary.Args[1]);
-					switch (op)
+					BinaryOperator binary = (BinaryOperator) nary.Fun;
+					if (IsLogicalBinaryOp(binary.Op))
 					{
-					case "GT":
-						return lhs.Data > rhs.Data;
-					case "LT":
-						return lhs.Data < rhs.Data;
+						bool lhs = EvaluateBoolExpr(nary.Args[0]);
+						bool rhs = EvaluateBoolExpr(nary.Args[1]);
+						if (binary.Op == BinaryOperator.Opcode.Or)
+							return lhs || rhs;
+						else if (binary.Op == BinaryOperator.Opcode.And)
+							return lhs && rhs;
+					}
+					else
+					{
+						BitVector32 lhs = EvaluateSymbol(nary.Args[0]);
+						BitVector32 rhs = EvaluateSymbol(nary.Args[1]);
+						switch (binary.Op)
+						{
+						case BinaryOperator.Opcode.Eq:
+							return lhs.Data == rhs.Data;
+						case BinaryOperator.Opcode.Le:
+							return lhs.Data <= rhs.Data;
+						case BinaryOperator.Opcode.Lt:
+							return lhs.Data < rhs.Data;
+						case BinaryOperator.Opcode.Ge:
+							return lhs.Data >= rhs.Data;
+						case BinaryOperator.Opcode.Gt:
+							return lhs.Data > rhs.Data;
+						default:
+							Print.ExitMessage("Unhandled binary operator");
+							return false;
+						}
+					}
+				}
+				else if (nary.Fun is UnaryOperator)
+				{
+					UnaryOperator unary = (UnaryOperator) nary.Fun;
+					bool arg            = EvaluateBoolExpr(nary.Args[0]);
+					switch (unary.Op)
+					{
+					case UnaryOperator.Opcode.Not:
+						return !arg;
 					default:
-						Print.ExitMessage("Unhandled BV operator");
+						Print.ExitMessage("Unhandled unary operator");
 						return false;
 					}
 				}
-				else
+				else if (nary.Fun is FunctionCall)
 				{
-					Print.ExitMessage("Unknown function call");
+					FunctionCall call = (FunctionCall) nary.Fun;
+					if (Regex.IsMatch(call.FunctionName, "BV32", RegexOptions.IgnoreCase))
+					{
+						string op       = call.FunctionName.Substring(call.FunctionName.IndexOf('_')+1);
+						BitVector32 lhs = EvaluateSymbol(nary.Args[0]);
+						BitVector32 rhs = EvaluateSymbol(nary.Args[1]);
+						switch (op)
+						{
+						case "GT":
+							return lhs.Data > rhs.Data;
+						case "LT":
+							return lhs.Data < rhs.Data;
+						default:
+							Print.ExitMessage("Unhandled BV operator");
+							return false;
+						}
+					}
+					else
+						Print.ExitMessage("Unknown BV function call");
 				}
 			}
+			Print.ExitMessage("Unkknow Boolean expression: " + expr.ToString());
 			return false;
 		}
 	}

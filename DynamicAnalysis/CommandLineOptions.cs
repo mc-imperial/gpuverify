@@ -62,17 +62,17 @@ namespace DynamicAnalysis
 				CommandLineOptions.Usage();
 			
 			Print.verbose = ((bool) values["verbose"]);
-			handleDebug();
-			handleFiles();			
+			HandleDebug();
+			HandleFiles();			
 		}
 		
-		public static string getBoogieFile ()
+		public static string GetBoogieFile ()
 		{
 			List<string> files = (List<string>) values["files"];
 			return files[0];
 		}
 		
-		private static void handleDebug ()
+		private static void HandleDebug ()
 		{
 			string val   = (string) values["debug"];
 			short intVal = -1;
@@ -96,7 +96,7 @@ namespace DynamicAnalysis
 			Print.debug = intVal;
 		}
 		
-		private static void handleFiles ()
+		private static void HandleFiles ()
 		{
 			List<string> files = (List<string>) values["files"];
 			Debug.Assert(files.Count == 1, "You must pass a single .bpl file");		
