@@ -37,7 +37,10 @@ namespace DynamicAnalysis
 		
 		public BitVector32 GetValue (string name)
 		{
-			return scalars[name];
+			if (scalars.ContainsKey(name))
+				return scalars[name];
+			Print.ExitMessage(String.Format("Location '{0}' has not been initialised", name));
+			return new BitVector32(0);
 		}
 		
 		public BitVector32 GetValue (string name, SubscriptExpr subscript)
@@ -52,15 +55,37 @@ namespace DynamicAnalysis
 			return new BitVector32(0);
 		}
 		
+		private string getEmptySpaces (int maxLength, int length)
+		{
+			int size = maxLength - length;
+			StringBuilder sb = new StringBuilder(size);
+			for (int i = 0; i < size; ++i)
+				sb.Append(" ");
+			return sb.ToString();
+		}
+		
 		public void Dump ()
 		{
-			Console.WriteLine("===== Memory contents =====");
+			int maxLength = 0;
+			foreach (string name in scalars.Keys.ToList())
+				maxLength = Math.Max(maxLength, name.Length);
+			
+			Console.WriteLine("===== Scalar memory contents =====");
 			foreach (KeyValuePair<string, BitVector32> item in scalars)
-				Console.WriteLine(item.Key + " = " + Convert.ToString(item.Value.Data));
+				Console.WriteLine(item.Key 
+				                  + getEmptySpaces(maxLength, item.Key.Length) 
+				                  + " = " 
+				                  + Convert.ToString(item.Value.Data));
+			
+			Console.WriteLine("===== Array memory contents =====");
 			foreach (KeyValuePair<string, Dictionary <SubscriptExpr, BitVector32>> item in arrays)
 			{
 				foreach (KeyValuePair<SubscriptExpr, BitVector32> item2 in item.Value)
-					Console.WriteLine(item.Key + "[" + item2.Key.ToString() + "] = " + Convert.ToString(item2.Value.Data));
+					Console.WriteLine(item.Key + 
+					                  "[" + 
+					                  item2.Key.ToString() + 
+					                  "] = " + 
+					                  Convert.ToString(item2.Value.Data));
 			}
 		}
 	}

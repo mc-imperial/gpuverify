@@ -10,7 +10,7 @@ namespace DynamicAnalysis
 		public static void DebugMessage (string arg, short level)
 		{
 			if (level >= debug)
-				Console.Write(arg);
+				Console.WriteLine(arg);
 		}
 		
 		public static void VerboseMessage (string arg)
