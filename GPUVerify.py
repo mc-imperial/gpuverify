@@ -84,8 +84,10 @@ clangOpenCLDefines = [ "cl_khr_fp64",
                        "__OPENCL_VERSION__"
                      ]
 
-clangCUDAOptions = [ "-Xclang", "-fcuda-is-device" ]
-clangCUDAIncludes = []
+clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
+                       "-include", "cuda.h"
+                   ]
+clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
 """ Options for the tool """
