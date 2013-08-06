@@ -372,10 +372,11 @@ namespace GPUVerify
             }
         }
 
-        private void MergeBlocksIntoPredecessors()
+        private void MergeBlocksIntoPredecessors(bool UniformityMatters = true)
         {
             foreach (var impl in Program.Implementations())
-                UniformityAnalyser.MergeBlocksIntoPredecessors(Program, impl, uniformityAnalyser);
+                UniformityAnalyser.MergeBlocksIntoPredecessors(Program, impl,
+                  UniformityMatters ? uniformityAnalyser : null);
         }
 
         internal static string GetSourceLocFileName() {
@@ -469,7 +470,7 @@ namespace GPUVerify
                 emitProgram(outputFilename + "_predicated");
             }
 
-            MergeBlocksIntoPredecessors();
+            MergeBlocksIntoPredecessors(false);
 
             if (CommandLineOptions.ShowStages)
             {
@@ -514,10 +515,8 @@ namespace GPUVerify
             }
 
             if (CommandLineOptions.OutlineBarrierIntervals) {
-              foreach(var impl in KernelProcedures.Values) {
-                IntraProceduralLiveVariableAnalysis iplva = new IntraProceduralLiveVariableAnalysis(Program, impl);
-                iplva.RunAnalysis();
-              }
+              var BarrierIntervalsAnalysis = new BarrierIntervalsAnalysis(this);
+              BarrierIntervalsAnalysis.Compute();
             }
 
             emitProgram(outputFilename);
