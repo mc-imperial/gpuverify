@@ -1,5 +1,5 @@
 
-function BV32_GT (bv32, bv32) : bool;
+function BV32_SGT (bv32, bv32) : bool;
 
 procedure bar(x: int, y: int)
 {
@@ -29,12 +29,12 @@ procedure bar(x: int, y: int)
   }
 }
 
-procedure foo (x: bv32, y: bv32)
+procedure {:kernel} foo (x: bv32, y: bv32)
 {
   var a : bv32;
   var b : bv32;
 
-  if (BV32_GT(x, y))
+  if (BV32_SGT(x, y))
   {
     a := x;
     b := y;

@@ -26,7 +26,7 @@ namespace DynamicAnalysis
 			IEnumerable<Axiom> axioms = program.TopLevelDeclarations.OfType<Axiom>();
 			foreach (Axiom axiom in axioms)
 			{
-				ExprTree tree = new ExprTree(axiom.Expr);
+				EvaulateAxiom(axiom);
 			}
 			
 			IEnumerable<Constant> constants = program.TopLevelDeclarations.OfType<Constant>();
@@ -40,8 +40,18 @@ namespace DynamicAnalysis
 					else
 						Memory.Store(constant.Name, False);
 				}
-				else if (GPU.IsLocalIDName(constant.Name))
-					Memory.Store(constant.Name, new BitVector32(Random.Next(1, 10)));
+				else if (Regex.IsMatch(constant.Name, "local_id_x", RegexOptions.IgnoreCase))
+					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.blockDim[DIMENSION.X])));
+				else if (Regex.IsMatch(constant.Name, "local_id_y", RegexOptions.IgnoreCase))
+					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.blockDim[DIMENSION.Y])));
+				else if (Regex.IsMatch(constant.Name, "local_id_z", RegexOptions.IgnoreCase))
+					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.blockDim[DIMENSION.Z])));
+				else if (Regex.IsMatch(constant.Name, "group_id_x", RegexOptions.IgnoreCase))
+					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.gridDim[DIMENSION.X])));
+				else if (Regex.IsMatch(constant.Name, "group_id_y", RegexOptions.IgnoreCase))
+					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.gridDim[DIMENSION.Y])));
+				else if (Regex.IsMatch(constant.Name, "group_id_z", RegexOptions.IgnoreCase))
+					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.gridDim[DIMENSION.Z])));
 			}
 			
 			IEnumerable<Implementation> implementations = program.TopLevelDeclarations.OfType<Implementation>().
@@ -67,6 +77,52 @@ namespace DynamicAnalysis
 				{
 					Console.WriteLine(assert.ToString());
 				}
+			}
+		}
+				
+		private static ExprTree GetExprTree (Expr expr)
+		{
+			if (!ExprTrees.ContainsKey(expr))
+				ExprTrees[expr] = new ExprTree(expr);
+			return ExprTrees[expr];
+		}
+		
+		private static void EvaulateAxiom (Axiom axiom)
+		{
+			ExprTree tree = GetExprTree(axiom.Expr);
+			Stack<Node> stack = new Stack<Node>();
+			stack.Push(tree.Root());
+			bool search = true;
+			while (search && stack.Count > 0)
+			{
+				Node node = stack.Pop();
+				if (node is BinaryNode<bool>)
+				{
+					BinaryNode<bool> binary = (BinaryNode<bool>) node;
+					if (binary.op == "==")
+					{
+						// Assume that equality is actually assignment into the variable of interest
+						search = false;
+						ScalarSymbolNode<BitVector32> left = (ScalarSymbolNode<BitVector32>) binary.GetChildren()[0];
+						LiteralNode<BitVector32> right     = (LiteralNode<BitVector32>) binary.GetChildren()[1];
+						if (left.symbol == "group_size_x")
+							gpu.blockDim[DIMENSION.X] = right.evaluation.Data;
+						else if (left.symbol == "group_size_y")
+							gpu.blockDim[DIMENSION.Y] = right.evaluation.Data;
+						else if (left.symbol == "group_size_z")
+							gpu.blockDim[DIMENSION.Z] = right.evaluation.Data;
+						else if (left.symbol == "num_groups_x")
+							gpu.gridDim[DIMENSION.X] = right.evaluation.Data;
+						else if (left.symbol == "num_groups_y")
+							gpu.gridDim[DIMENSION.Y] = right.evaluation.Data;
+						else if (left.symbol == "num_groups_z")
+							gpu.gridDim[DIMENSION.Z] = right.evaluation.Data;
+						else
+							Print.ExitMessage("Unhandled axiom: " + axiom.ToString());
+					}
+				}
+				foreach (Node child in node.GetChildren())
+					stack.Push(child);
 			}
 		}
 		
@@ -371,13 +427,6 @@ namespace DynamicAnalysis
 				tree.evaluation = bvRoot.evaluation;
 			}
 		}
-		
-		private static ExprTree GetExprTree (Expr expr)
-		{
-			if (!ExprTrees.ContainsKey(expr))
-				ExprTrees[expr] = new ExprTree(expr);
-			return ExprTrees[expr];
-		}
 
 		private static void InterpretBasicBlock (Block block)
 		{
@@ -420,21 +469,20 @@ namespace DynamicAnalysis
 							Memory.Store(lhs.AssignedVariable.Name, tree.evaluation);
 						}
 					}
-					
-					Print.VerboseMessage(assign.ToString());
-					Memory.Dump();
 				}
 				if (cmd is AssertCmd)
 				{
 					AssertCmd assert = cmd as AssertCmd;
 					ExprTree exprTree = GetExprTree(assert.Expr);
-					EvaluateExprTree(exprTree);
-					if (exprTree.evaluation.Equals(False))
+					if (!failedAsserts.Contains(assert))
 					{
-						Print.VerboseMessage("Falsifying assertion: " + assert.ToString());
-						failedAsserts.Add(assert);
+						EvaluateExprTree(exprTree);
+						if (exprTree.evaluation.Equals(False))
+						{
+							Print.VerboseMessage("Falsifying assertion: " + assert.ToString());
+							failedAsserts.Add(assert);
+						}
 					}
-					Memory.Dump();
 				}
 			}
 			// Now transfer control

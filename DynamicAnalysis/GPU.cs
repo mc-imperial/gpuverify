@@ -8,8 +8,8 @@ namespace DynamicAnalysis
 	
 	public class GPU
 	{
-		public Dictionary<DIMENSION, short> gridDim;
-		public Dictionary<DIMENSION, short> blockDim;
+		public Dictionary<DIMENSION, int> gridDim;
+		public Dictionary<DIMENSION, int> blockDim;
 		
 		public GPU ()
 		{
@@ -18,8 +18,8 @@ namespace DynamicAnalysis
 		
 		public void Clear ()
 		{
-			gridDim = new Dictionary<DIMENSION, short>();
-			blockDim = new Dictionary<DIMENSION, short>();
+			gridDim = new Dictionary<DIMENSION, int>();
+			blockDim = new Dictionary<DIMENSION, int>();
 			gridDim[DIMENSION.X] = 1;
 			gridDim[DIMENSION.Y] = 1;
 			gridDim[DIMENSION.Z] = 1;
