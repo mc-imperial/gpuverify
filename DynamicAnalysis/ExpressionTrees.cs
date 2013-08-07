@@ -98,7 +98,11 @@ namespace DynamicAnalysis
 					Node one   = CreateFromExpr(nary.Args[0]);
 					Node two   = CreateFromExpr(nary.Args[1]);
 					Node three = CreateFromExpr(nary.Args[2]);
-					TernaryNode<BitVector32> parent = new TernaryNode<BitVector32>(nary.Fun.FunctionName, one, two, three);
+					Node parent;
+					if (two is ExprNode<bool> || three is ExprNode<bool>)
+						parent = new TernaryNode<bool>(nary.Fun.FunctionName, one, two, three);
+					else
+						parent = new TernaryNode<BitVector32>(nary.Fun.FunctionName, one, two, three);
 					one.parent     = parent;
 					two.parent     = parent;
 					three.parent   = parent;
@@ -117,7 +121,8 @@ namespace DynamicAnalysis
 					    binOp.Op == BinaryOperator.Opcode.Ge  ||
 					    binOp.Op == BinaryOperator.Opcode.Gt  ||
 					    binOp.Op == BinaryOperator.Opcode.Eq  ||
-					    binOp.Op == BinaryOperator.Opcode.Neq)
+					    binOp.Op == BinaryOperator.Opcode.Neq ||
+					    binOp.Op == BinaryOperator.Opcode.Imp)
 						parent = new BinaryNode<bool>(nary.Fun.FunctionName, one, two);
 					else
 						parent = new BinaryNode<BitVector32>(nary.Fun.FunctionName, one, two);
@@ -136,10 +141,10 @@ namespace DynamicAnalysis
 				{
 					FunctionCall call = nary.Fun as FunctionCall;
 					Node parent;
-					if (call.FunctionName == "BV32_GT"  || 
-					    call.FunctionName == "BV32_GTE" ||
-					    call.FunctionName == "BV32_LT"  || 
-					    call.FunctionName == "BV32_LE")
+					if (call.FunctionName == "BV32_SGT" || 
+					    call.FunctionName == "BV32_SGE" ||
+					    call.FunctionName == "BV32_SLT" || 
+					    call.FunctionName == "BV32_SLE")
 						parent = new NaryNode<bool>(call.FunctionName);
 					else
 						parent = new NaryNode<BitVector32>(call.FunctionName);
@@ -220,7 +225,7 @@ namespace DynamicAnalysis
 			
 		public override string ToString ()
 		{
-			return op;
+			return op + " (" + evaluation.GetType().ToString() + ")";
 		}
 	}
 	

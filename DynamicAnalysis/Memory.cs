@@ -27,6 +27,11 @@ namespace DynamicAnalysis
 			scalars[name] = val;
 		}
 		
+		public bool Contains (string name)
+		{
+			return scalars.ContainsKey(name);
+		}
+		
 		public void Store (string name, SubscriptExpr subscript, BitVector32 val)
 		{
 			if (!arrays.ContainsKey(name))
@@ -76,8 +81,9 @@ namespace DynamicAnalysis
 				                  + getEmptySpaces(maxLength, item.Key.Length) 
 				                  + " = " 
 				                  + Convert.ToString(item.Value.Data));
+			Console.WriteLine("==================================");
 			
-			Console.WriteLine("===== Array memory contents =====");
+			Console.WriteLine("===== Array memory contents ======");
 			foreach (KeyValuePair<string, Dictionary <SubscriptExpr, BitVector32>> item in arrays)
 			{
 				foreach (KeyValuePair<SubscriptExpr, BitVector32> item2 in item.Value)
@@ -87,6 +93,7 @@ namespace DynamicAnalysis
 					                  "] = " + 
 					                  Convert.ToString(item2.Value.Data));
 			}
+			Console.WriteLine("==================================");
 		}
 	}
 	

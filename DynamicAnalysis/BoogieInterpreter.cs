@@ -17,6 +17,7 @@ namespace DynamicAnalysis
 		private static Memory Memory = new Memory();
 		private static Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>(); 
 		private static Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
+		private static HashSet<AssertCmd> failedAsserts = new HashSet<AssertCmd>();
 		private static BitVector32 False = new BitVector32(0);
 		private static BitVector32 True = new BitVector32(1);
 		
@@ -43,10 +44,11 @@ namespace DynamicAnalysis
 					Memory.Store(constant.Name, new BitVector32(Random.Next(1, 10)));
 			}
 			
-			IEnumerable<Implementation> implementations = program.TopLevelDeclarations.OfType<Implementation>();
+			IEnumerable<Implementation> implementations = program.TopLevelDeclarations.OfType<Implementation>().
+				Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel"));
 			foreach (Implementation impl in implementations)
 			{
-				Print.VerboseMessage(String.Format("Found implementation '{0}'", impl.Name));
+				Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
 				LabelToBlock.Clear();
 				foreach (Block block in impl.Blocks)
 				{
@@ -56,6 +58,15 @@ namespace DynamicAnalysis
 				Block entry = impl.Blocks[0];
 				InterpretBasicBlock(entry);
 				Memory.Dump();
+			}
+			
+			if (failedAsserts.Count > 0)
+			{
+				Console.WriteLine("The following asserts were disproven");
+				foreach (AssertCmd assert in failedAsserts)
+				{
+					Console.WriteLine(assert.ToString());
+				}
 			}
 		}
 		
@@ -107,10 +118,14 @@ namespace DynamicAnalysis
 					else if (node is ScalarSymbolNode<bool>)
 					{
 						ScalarSymbolNode<bool> scalar = node as ScalarSymbolNode<bool>;
-						if (Memory.GetValue(scalar.symbol).Equals(True))
-							scalar.evaluation = true;
-						else
-							scalar.evaluation = false;
+						if (Memory.Contains(scalar.symbol) ||
+						    !(tree.Root() is TernaryNode<bool> || tree.Root() is TernaryNode<BitVector32>))
+						{
+							if (Memory.GetValue(scalar.symbol).Equals(True))
+								scalar.evaluation = true;
+							else
+								scalar.evaluation = false;
+						}
 					}
 					else if (node is MapSymbolNode<BitVector32>)
 					{
@@ -126,7 +141,7 @@ namespace DynamicAnalysis
 					else if (node is MapSymbolNode<bool>)
 					{
 						MapSymbolNode<bool> map = node as MapSymbolNode<bool>;
-						Print.VerboseMessage("Map: " + map.ToString());
+						Print.ExitMessage("Map: " + map.ToString());
 					}
 					else if (node is UnaryNode<bool>)
 					{
@@ -159,6 +174,9 @@ namespace DynamicAnalysis
 							break;
 						case "/":
 							binary.evaluation = new BitVector32(left.evaluation.Data / right.evaluation.Data);
+							break;
+						default:
+							Print.ExitMessage("Unhandled bv binary op: " + binary.op);
 							break;
 						}
 					}
@@ -195,6 +213,20 @@ namespace DynamicAnalysis
 							binary.evaluation = left.evaluation.Data >= right.evaluation.Data;
 							break;
 						}
+						case "==":
+						{
+							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) binary.GetChildren()[0];
+							ExprNode<BitVector32> right = (ExprNode<BitVector32>) binary.GetChildren()[1];
+							binary.evaluation = left.evaluation.Data == right.evaluation.Data;
+							break;
+						}
+						case "!=":
+						{
+							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) binary.GetChildren()[0];
+							ExprNode<BitVector32> right = (ExprNode<BitVector32>) binary.GetChildren()[1];
+							binary.evaluation = left.evaluation.Data != right.evaluation.Data;
+							break;
+						}
 						case "||":
 						{
 							ExprNode<bool> left  = (ExprNode<bool>) binary.GetChildren()[0];
@@ -202,49 +234,121 @@ namespace DynamicAnalysis
 							binary.evaluation = left.evaluation || right.evaluation;
 							break;
 						}
+						case "&&":
+						{
+							ExprNode<bool> left  = (ExprNode<bool>) binary.GetChildren()[0];
+							ExprNode<bool> right = (ExprNode<bool>) binary.GetChildren()[1];
+							binary.evaluation = left.evaluation && right.evaluation;
+							break;
+						}
+						case "==>":
+						{
+							ExprNode<bool> left  = (ExprNode<bool>) binary.GetChildren()[0];
+							ExprNode<bool> right = (ExprNode<bool>) binary.GetChildren()[1];
+							if (left.evaluation && !right.evaluation)
+								binary.evaluation = false;
+							else
+								binary.evaluation = true;
+							break;
+						}
+						default:
+						{
+							Print.ExitMessage("Unhandled bool binary op: " + binary.op);
+							break;
+						}
 						}
 					}
 					else if (node is TernaryNode<bool>)
 					{
 						TernaryNode<bool> ternary = node as TernaryNode<bool>;
-						Print.VerboseMessage("Ternary: " + ternary.ToString());
+						ExprNode<bool> one   = (ExprNode<bool>) ternary.GetChildren()[0];
+						ExprNode<bool> two   = (ExprNode<bool>) ternary.GetChildren()[1];
+						ExprNode<bool> three = (ExprNode<bool>) ternary.GetChildren()[2];
+						if (one.evaluation)
+							ternary.evaluation = two.evaluation;
+						else
+							ternary.evaluation = three.evaluation;
+					}
+					else if (node is TernaryNode<BitVector32>)
+					{
+						TernaryNode<BitVector32> ternary = node as TernaryNode<BitVector32>;
+						ExprNode<bool> one          = (ExprNode<bool>) ternary.GetChildren()[0];
+						ExprNode<BitVector32> two   = (ExprNode<BitVector32>) ternary.GetChildren()[1];
+						ExprNode<BitVector32> three = (ExprNode<BitVector32>) ternary.GetChildren()[2];
+						if (one.evaluation)
+							ternary.evaluation = two.evaluation;
+						else
+							ternary.evaluation = three.evaluation;
 					}
 					else if (node is NaryNode<BitVector32>)
 					{
 						NaryNode<BitVector32> nary = node as NaryNode<BitVector32>;
-						Print.VerboseMessage("Nary: " + nary.ToString());
+						switch (nary.op)
+						{
+						case "BV32_SUB":
+						{
+							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) nary.GetChildren()[0];
+							ExprNode<BitVector32> right = (ExprNode<BitVector32>) nary.GetChildren()[1];
+							nary.evaluation = new BitVector32(left.evaluation.Data - right.evaluation.Data);
+							break;
+						}
+						case "BV32_ADD":
+						{
+							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) nary.GetChildren()[0];
+							ExprNode<BitVector32> right = (ExprNode<BitVector32>) nary.GetChildren()[1];
+							nary.evaluation = new BitVector32(left.evaluation.Data + right.evaluation.Data);
+							break;
+						}
+						case "BV32_AND":
+						{
+							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) nary.GetChildren()[0];
+							ExprNode<BitVector32> right = (ExprNode<BitVector32>) nary.GetChildren()[1];
+							nary.evaluation = new BitVector32(left.evaluation.Data & right.evaluation.Data);
+							break;
+						}
+						default:
+						{
+							Print.ExitMessage("Unhandled bv nary op: " + nary.op);
+							break;
+						}
+						}
 					}
 					else if (node is NaryNode<bool>)
 					{
 						NaryNode<bool> nary = node as NaryNode<bool>;
 						switch (nary.op)
 						{
-						case "BV32_LT":
+						case "BV32_SLT":
 						{
 							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) nary.GetChildren()[0];
 							ExprNode<BitVector32> right = (ExprNode<BitVector32>) nary.GetChildren()[1];
 							nary.evaluation = left.evaluation.Data < right.evaluation.Data;
 							break;
 						}
-						case "BV32_LTE":
+						case "BV32_SLE":
 						{
 							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) nary.GetChildren()[0];
 							ExprNode<BitVector32> right = (ExprNode<BitVector32>) nary.GetChildren()[1];
 							nary.evaluation = left.evaluation.Data <= right.evaluation.Data;
 							break;
 						}
-						case "BV32_GT":							
+						case "BV32_SGT":
 						{
 							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) nary.GetChildren()[0];
 							ExprNode<BitVector32> right = (ExprNode<BitVector32>) nary.GetChildren()[1];
 							nary.evaluation = left.evaluation.Data > right.evaluation.Data;
 							break;
 						}
-						case "BV32_GTE":
+						case "BV32_SGE":
 						{
 							ExprNode<BitVector32> left  = (ExprNode<BitVector32>) nary.GetChildren()[0];
 							ExprNode<BitVector32> right = (ExprNode<BitVector32>) nary.GetChildren()[1];
 							nary.evaluation = left.evaluation.Data >= right.evaluation.Data;
+							break;
+						}
+						default:
+						{
+							Print.ExitMessage("Unhandled bool nary op: " + nary.op);
 							break;
 						}
 						}
@@ -267,6 +371,13 @@ namespace DynamicAnalysis
 				tree.evaluation = bvRoot.evaluation;
 			}
 		}
+		
+		private static ExprTree GetExprTree (Expr expr)
+		{
+			if (!ExprTrees.ContainsKey(expr))
+				ExprTrees[expr] = new ExprTree(expr);
+			return ExprTrees[expr];
+		}
 
 		private static void InterpretBasicBlock (Block block)
 		{
@@ -281,7 +392,7 @@ namespace DynamicAnalysis
 					// First evaluate all RHS expressions
 					foreach (Expr expr in assign.Rhss) 
 					{ 
-						ExprTree exprTree = new ExprTree(expr);
+						ExprTree exprTree = GetExprTree(expr);
 						EvaluateExprTree(exprTree);
 						evaluations.Add(exprTree);
 					}
@@ -294,7 +405,7 @@ namespace DynamicAnalysis
 							SubscriptExpr subscriptExpr = new SubscriptExpr();
 							foreach (Expr index in lhs.Indexes)
 							{
-								ExprTree exprTree = new ExprTree(index);
+								ExprTree exprTree = GetExprTree(index);
 								EvaluateExprTree(exprTree);
 								BitVector32 subscript = exprTree.evaluation;
 								subscriptExpr.AddIndex(subscript);
@@ -307,15 +418,23 @@ namespace DynamicAnalysis
 							SimpleAssignLhs lhs = (SimpleAssignLhs) LhsEval.Item1;
 							ExprTree tree       = LhsEval.Item2;
 							Memory.Store(lhs.AssignedVariable.Name, tree.evaluation);
-							Print.VerboseMessage(lhs.AssignedVariable.Name);
 						}
 					}
+					
+					Print.VerboseMessage(assign.ToString());
+					Memory.Dump();
 				}
 				if (cmd is AssertCmd)
 				{
 					AssertCmd assert = cmd as AssertCmd;
-					ExprTree exprTree = new ExprTree(assert.Expr);
+					ExprTree exprTree = GetExprTree(assert.Expr);
 					EvaluateExprTree(exprTree);
+					if (exprTree.evaluation.Equals(False))
+					{
+						Print.VerboseMessage("Falsifying assertion: " + assert.ToString());
+						failedAsserts.Add(assert);
+					}
+					Memory.Dump();
 				}
 			}
 			// Now transfer control
@@ -324,7 +443,6 @@ namespace DynamicAnalysis
 		
 		private static void TransferControl (Block block)
 		{
-			Print.DebugMessage("Now transferring control", 1);
 			TransferCmd transfer = block.TransferCmd;
 			if (transfer is GotoCmd)
 			{
@@ -343,7 +461,7 @@ namespace DynamicAnalysis
 					{
 						Block succ                = LabelToBlock[succLabel];
 						PredicateCmd predicateCmd = (PredicateCmd) succ.Cmds[0];
-						ExprTree exprTree         = new ExprTree(predicateCmd.Expr);
+						ExprTree exprTree         = GetExprTree(predicateCmd.Expr);
 						EvaluateExprTree(exprTree);
 						if (exprTree.evaluation.Equals(True))
 						{
@@ -356,15 +474,10 @@ namespace DynamicAnalysis
 						Print.ExitMessage("No successor guard evaluates to true");
 				}
 			}
-			if (transfer is ReturnCmd)
-			{
-				ReturnCmd return_ = (ReturnCmd) transfer;
+			else if (transfer is ReturnCmd)
 				Print.VerboseMessage("Execution done");
-			}
-			if (transfer is ReturnExprCmd)
-			{
-				ReturnExprCmd return_ = (ReturnExprCmd) transfer;
-			}
+			else
+				Print.ExitMessage("Unhandled control transfer command: " + transfer.ToString());
 		}
 	}
 }
