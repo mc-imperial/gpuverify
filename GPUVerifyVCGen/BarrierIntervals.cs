@@ -210,7 +210,7 @@ namespace GPUVerify
       {
         // m is a variable modified by a call in the barrier interval
         Variable v;
-        if(verifier.TryGetArrayFromAccessHasOccurred(GPUVerifier.StripThreadIdentifier(m.Name), "WRITE", out v)) {
+        if(verifier.TryGetArrayFromAccessHasOccurred(GPUVerifier.StripThreadIdentifier(m.Name), AccessType.WRITE, out v)) {
           if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
             result.Add(v);
           }

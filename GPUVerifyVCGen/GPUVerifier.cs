@@ -22,6 +22,26 @@ using Microsoft.Basetypes;
 namespace GPUVerify
 {
 
+    public sealed class AccessType {
+
+      private readonly String name;
+
+      public static readonly AccessType READ = new AccessType ("READ");
+      public static readonly AccessType WRITE = new AccessType ("WRITE");
+      public static readonly AccessType ATOMIC = new AccessType ("ATOMIC");
+
+      public static readonly IEnumerable<AccessType> Types = new List<AccessType> { READ, WRITE, ATOMIC };
+
+      private AccessType(String name) {
+        this.name = name;
+      }
+
+      public override String ToString(){
+        return name;
+      }
+
+    }
+
     public class InferenceStages {
       public const int BASIC_CANDIDATE_STAGE = 0;
       internal static int NO_READ_WRITE_CANDIDATE_STAGE = 0;
@@ -543,9 +563,9 @@ namespace GPUVerify
               CallCmd callCmd = c as CallCmd;
               if(callCmd != null) {
                 Variable v;
-                TryGetArrayFromLogProcedure(callCmd.callee, "READ", out v);
+                TryGetArrayFromLogProcedure(callCmd.callee, AccessType.READ, out v);
                 if(v == null) {
-                  TryGetArrayFromCheckProcedure(callCmd.callee, "READ", out v);
+                  TryGetArrayFromCheckProcedure(callCmd.callee, AccessType.READ, out v);
                 }
                 if(v != null && arrays.Contains(v)) {
                   continue;
@@ -564,7 +584,7 @@ namespace GPUVerify
           foreach (var modifiedVariable in KernelProcedures.Keys.Select(Item => Item.Modifies).SelectMany(Item => Item))
           {
             Variable a;
-            if (TryGetArrayFromAccessHasOccurred(StripThreadIdentifier(modifiedVariable.Name), "WRITE", out a))
+            if (TryGetArrayFromAccessHasOccurred(StripThreadIdentifier(modifiedVariable.Name), AccessType.WRITE, out a))
             {
               result.Add(a);
             }
@@ -1469,33 +1489,33 @@ namespace GPUVerify
           new AdversarialAbstraction(this).Abstract();
         }
 
-        internal static string MakeOffsetVariableName(string Name, string Access)
+        internal static string MakeOffsetVariableName(string Name, AccessType Access)
         {
             return "_" + Access + "_OFFSET_" + Name;
         }
 
-        internal GlobalVariable MakeOffsetVariable(string Name, string Access)
+        internal GlobalVariable MakeOffsetVariable(string Name, AccessType Access)
         {
           return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access), 
             IntRep.GetIntType(32)));
         }
 
-        internal static string MakeSourceVariableName(string Name, string Access)
+        internal static string MakeSourceVariableName(string Name, AccessType Access)
         {
           return "_" + Access + "_SOURCE_" + Name;
         }
 
-        internal GlobalVariable MakeSourceVariable(string name, string Access)
+        internal GlobalVariable MakeSourceVariable(string name, AccessType Access)
         {
           return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeSourceVariableName(name, Access),
             IntRep.GetIntType(32)));
         }
 
-        internal static string MakeValueVariableName(string Name, string Access) {
+        internal static string MakeValueVariableName(string Name, AccessType Access) {
           return "_" + Access + "_VALUE_" + Name;
         }
 
-        internal static GlobalVariable MakeValueVariable(string name, string Access, Microsoft.Boogie.Type Type) {
+        internal static GlobalVariable MakeValueVariable(string name, AccessType Access, Microsoft.Boogie.Type Type) {
           return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeValueVariableName(name, Access),
             Type));
         }
@@ -1518,9 +1538,9 @@ namespace GPUVerify
 
         }
 
-        internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, string accessType)
+        internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, AccessType Access)
         {
-            string name = MakeAccessHasOccurredVariableName(varName, accessType) + "$1";
+            string name = MakeAccessHasOccurredVariableName(varName, Access) + "$1";
             foreach(Declaration D in Program.TopLevelDeclarations)
             {
                 if(D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
@@ -1530,16 +1550,16 @@ namespace GPUVerify
             }
 
             GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-                MakeAccessHasOccurredVariable(varName, accessType)) as GlobalVariable;
+                MakeAccessHasOccurredVariable(varName, Access)) as GlobalVariable;
 
             Program.TopLevelDeclarations.Add(result);
             return result;
 
         }
 
-        internal GlobalVariable FindOrCreateOffsetVariable(string varName, string accessType)
+        internal GlobalVariable FindOrCreateOffsetVariable(string varName, AccessType Access)
         {
-            string name = MakeOffsetVariableName(varName, accessType) + "$1";
+            string name = MakeOffsetVariableName(varName, Access) + "$1";
             foreach (Declaration D in Program.TopLevelDeclarations)
             {
                 if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
@@ -1549,15 +1569,15 @@ namespace GPUVerify
             }
 
             GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-                MakeOffsetVariable(varName, accessType)) as GlobalVariable;
+                MakeOffsetVariable(varName, Access)) as GlobalVariable;
 
             Program.TopLevelDeclarations.Add(result);
             return result;
 
         }
 
-        internal GlobalVariable FindOrCreateSourceVariable(string varName, string accessType) {
-          string name = MakeSourceVariableName(varName, accessType) + "$1";
+        internal GlobalVariable FindOrCreateSourceVariable(string varName, AccessType Access) {
+          string name = MakeSourceVariableName(varName, Access) + "$1";
           foreach (Declaration D in Program.TopLevelDeclarations) {
             if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name)) {
               return D as GlobalVariable;
@@ -1565,16 +1585,16 @@ namespace GPUVerify
           }
 
           GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-              MakeSourceVariable(varName, accessType)) as GlobalVariable;
+              MakeSourceVariable(varName, Access)) as GlobalVariable;
 
           Program.TopLevelDeclarations.Add(result);
           return result;
 
         }
 
-        internal GlobalVariable FindOrCreateValueVariable(string varName, string accessType,
+        internal GlobalVariable FindOrCreateValueVariable(string varName, AccessType Access,
               Microsoft.Boogie.Type Type) {
-          string name = MakeValueVariableName(varName, accessType) + "$1";
+          string name = MakeValueVariableName(varName, Access) + "$1";
           foreach (Declaration D in Program.TopLevelDeclarations) {
             if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name)) {
               return D as GlobalVariable;
@@ -1582,7 +1602,7 @@ namespace GPUVerify
           }
 
           GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-              MakeValueVariable(varName, accessType, Type)) as GlobalVariable;
+              MakeValueVariable(varName, Access, Type)) as GlobalVariable;
 
           Program.TopLevelDeclarations.Add(result);
           return result;
@@ -1600,19 +1620,19 @@ namespace GPUVerify
             return "_NOT_ACCESSED_" + varName;
         }
 
-        internal static GlobalVariable MakeAccessHasOccurredVariable(string varName, string accessType)
+        internal static GlobalVariable MakeAccessHasOccurredVariable(string varName, AccessType Access)
         {
-            return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeAccessHasOccurredVariableName(varName, accessType), Microsoft.Boogie.Type.Bool));
+            return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeAccessHasOccurredVariableName(varName, Access), Microsoft.Boogie.Type.Bool));
         }
 
-        internal static string MakeAccessHasOccurredVariableName(string varName, string accessType)
+        internal static string MakeAccessHasOccurredVariableName(string varName, AccessType Access)
         {
-            return "_" + accessType + "_HAS_OCCURRED_" + varName;
+            return "_" + Access + "_HAS_OCCURRED_" + varName;
         }
 
-        internal static IdentifierExpr MakeAccessHasOccurredExpr(string varName, string accessType)
+        internal static IdentifierExpr MakeAccessHasOccurredExpr(string varName, AccessType Access)
         {
-            return new IdentifierExpr(Token.NoToken, MakeAccessHasOccurredVariable(varName, accessType));
+            return new IdentifierExpr(Token.NoToken, MakeAccessHasOccurredVariable(varName, Access));
         }
 
         internal static bool IsIntOrBv32(Microsoft.Boogie.Type type)
@@ -2114,7 +2134,7 @@ namespace GPUVerify
           List<Cmd> then = new List<Cmd>();
           foreach (Variable v in KernelArrayInfo.getAllNonLocalArrays())
           {
-            foreach (string kind in new string[] { "READ", "WRITE", "ATOMIC" })
+            foreach (var kind in AccessType.Types)
             {
               Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,kind);
               then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
@@ -2159,23 +2179,23 @@ namespace GPUVerify
           return false;
         }
 
-        internal bool TryGetArrayFromAccessHasOccurred(string s, string accessType, out Variable v) {
-          return TryGetArrayFromPrefixedString(s, "_" + accessType + "_HAS_OCCURRED_", out v);
+        internal bool TryGetArrayFromAccessHasOccurred(string s, AccessType Access, out Variable v) {
+          return TryGetArrayFromPrefixedString(s, "_" + Access + "_HAS_OCCURRED_", out v);
         }
 
-        internal bool TryGetArrayFromLogOrCheckProcedure(string s, string accessType, string logOrCheck, out Variable v)
+        internal bool TryGetArrayFromLogOrCheckProcedure(string s, AccessType Access, string logOrCheck, out Variable v)
         {
-          return TryGetArrayFromPrefixedString(s, "_" + logOrCheck + "_" + accessType + "_", out v);
+          return TryGetArrayFromPrefixedString(s, "_" + logOrCheck + "_" + Access + "_", out v);
         }
 
-        internal bool TryGetArrayFromLogProcedure(string s, string accessType, out Variable v)
+        internal bool TryGetArrayFromLogProcedure(string s, AccessType Access, out Variable v)
         {
-          return TryGetArrayFromLogOrCheckProcedure(s, accessType, "LOG", out v);
+          return TryGetArrayFromLogOrCheckProcedure(s, Access, "LOG", out v);
         }
 
-        internal bool TryGetArrayFromCheckProcedure(string s, string accessType, out Variable v)
+        internal bool TryGetArrayFromCheckProcedure(string s, AccessType Access, out Variable v)
         {
-          return TryGetArrayFromLogOrCheckProcedure(s, accessType, "CHECK", out v);
+          return TryGetArrayFromLogOrCheckProcedure(s, Access, "CHECK", out v);
         }
 
     }

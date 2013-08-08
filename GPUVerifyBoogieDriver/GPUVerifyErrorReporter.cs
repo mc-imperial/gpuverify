@@ -96,32 +96,32 @@ namespace GPUVerify {
       Debug.Assert(arrName != null);
 
       if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_read")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "WRITE", ModelWithStates);
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WR);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "read_write")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "READ", ModelWithStates);
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.READ, ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RW);
 
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_write")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "WRITE", ModelWithStates);
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WW);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "atomic_read")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "ATOMIC", ModelWithStates);
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.ATOMIC, ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AR);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "atomic_write")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "ATOMIC", ModelWithStates);
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.ATOMIC, ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AW);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "read_atomic")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "READ", ModelWithStates);
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.READ, ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RA);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_atomic")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, "WRITE", ModelWithStates);
+        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WA);
       }
     }
@@ -215,20 +215,20 @@ namespace GPUVerify {
     private static Variable ExtractOffsetVar(CallCounterexample err) {
       // The offset variable name can be exactly reconstructed from the attributes of the requires clause
       string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
-      string Access;
+      AccessType Access;
        if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read") ||
          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic")) {
-        Access = "WRITE";
+        Access = AccessType.WRITE;
       }
       else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write") ||
           QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic")) {
-        Access = "READ";
+        Access = AccessType.READ;
       }
       else {
         Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read") ||
             QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
-        Access = "ATOMIC";
+        Access = AccessType.ATOMIC;
       }
 
       string OffsetVarName = "_" + Access + "_OFFSET_" + ArrayName + "$1";
@@ -461,7 +461,7 @@ namespace GPUVerify {
       return linekv;
     }
 
-    static QKeyValue GetSourceLocInfo(CallCounterexample err, string Access, Model ModelWithStates) {
+    static QKeyValue GetSourceLocInfo(CallCounterexample err, AccessType Access, Model ModelWithStates) {
       string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
       Debug.Assert(ArrayName != null);
       string StateId = QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id");
