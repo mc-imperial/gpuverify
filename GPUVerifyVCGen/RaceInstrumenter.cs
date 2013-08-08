@@ -122,12 +122,12 @@ namespace GPUVerify {
       return !visitor.found;
     }
 
-    private int ParameterOffsetForSource() {
-      if (CommandLineOptions.NoBenign) {
-        return 2;
+    private int ParameterOffsetForSource(AccessType Access) {
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+        return 3;
       }
       else {
-        return 3;
+        return 2;
       }
     }
 
@@ -140,7 +140,7 @@ namespace GPUVerify {
         if (c is CallCmd) {
           CallCmd call = c as CallCmd;
           if (call.callee == "_LOG_" + Access + "_" + v.Name) {
-            sourcePreds.Add(Expr.Eq(sourceExpr, call.Ins[ParameterOffsetForSource()]));
+            sourcePreds.Add(Expr.Eq(sourceExpr, call.Ins[ParameterOffsetForSource(Access)]));
           }
         }
       }
@@ -473,7 +473,7 @@ namespace GPUVerify {
     private CallCmd MakeCheckCall(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
       List<Expr> inParamsChk = new List<Expr>();
       inParamsChk.Add(ar.Index);
-      MaybeAddValueParameter(inParamsChk, ar, Value);
+      MaybeAddValueParameter(inParamsChk, ar, Value, Access);
       Procedure checkProcedure = GetRaceCheckingProcedure(Token.NoToken, "_CHECK_" + Access + "_" + ar.v.Name);
       verifier.OnlyThread2.Add(checkProcedure.Name);
       string CheckState = "check_state_" + CheckStateCounter;
@@ -494,7 +494,7 @@ namespace GPUVerify {
     private CallCmd MakeLogCall(AccessRecord ar, AccessType Access, Expr Value) {
       List<Expr> inParamsLog = new List<Expr>();
       inParamsLog.Add(ar.Index);
-      MaybeAddValueParameter(inParamsLog, ar, Value);
+      MaybeAddValueParameter(inParamsLog, ar, Value, Access);
       inParamsLog.Add(verifier.IntRep.GetLiteral(CurrStmtNo, 32));
       Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
       verifier.OnlyThread1.Add(logProcedure.Name);
@@ -504,8 +504,8 @@ namespace GPUVerify {
       return logAccessCallCmd;
     }
 
-    private void MaybeAddValueParameter(List<Expr> parameters, AccessRecord ar, Expr Value) {
-      if (!CommandLineOptions.NoBenign) {
+    private void MaybeAddValueParameter(List<Expr> parameters, AccessRecord ar, Expr Value, AccessType Access) {
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         if (Value != null) {
           parameters.Add(Value);
         }
@@ -599,7 +599,7 @@ namespace GPUVerify {
 
       inParams.Add(VariableForThread(1, PredicateParameter));
       inParams.Add(VariableForThread(1, OffsetParameter));
-      if(!CommandLineOptions.NoBenign) {
+      if(!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         inParams.Add(VariableForThread(1, ValueParameter));
       }
       inParams.Add(VariableForThread(1, SourceParameter));
@@ -630,7 +630,7 @@ namespace GPUVerify {
 
       inParams.Add(VariableForThread(2, PredicateParameter));
       inParams.Add(VariableForThread(2, OffsetParameter));
-      if (!CommandLineOptions.NoBenign) {
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         inParams.Add(VariableForThread(2, ValueParameter));
       }
 
@@ -740,7 +740,7 @@ namespace GPUVerify {
       simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessOffsetVariable),
           Condition,
           new IdentifierExpr(v.tok, VariableForThread(1, OffsetParameter))));
-      if (!CommandLineOptions.NoBenign) {
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessValueVariable),
           Condition,
           new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter))));
@@ -783,13 +783,6 @@ namespace GPUVerify {
         WriteReadGuard = Expr.And(WriteReadGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteOffsetVariable)),
                                         new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
 
-        if (!CommandLineOptions.NoBenign) {
-          WriteReadGuard = Expr.And(WriteReadGuard, Expr.Neq(
-              new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result))),
-              new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))
-              ));
-        }
-
         if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
           WriteReadGuard = Expr.And(WriteReadGuard, GPUVerifier.ThreadsInSameGroup());
         }
@@ -810,13 +803,6 @@ namespace GPUVerify {
           AtomicReadGuard = Expr.And(AtomicReadGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, AtomicHasOccurredVariable)));
           AtomicReadGuard = Expr.And(AtomicReadGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, AtomicOffsetVariable)),
                                           new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
-          if (!CommandLineOptions.NoBenign) {
-            AtomicReadGuard = Expr.And(AtomicReadGuard, Expr.Neq(
-                new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.ATOMIC, mt.Result))),
-                new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))
-                ));
-          }
-
           if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
             AtomicReadGuard = Expr.And(AtomicReadGuard, GPUVerifier.ThreadsInSameGroup());
           }
@@ -868,11 +854,6 @@ namespace GPUVerify {
         ReadWriteGuard = Expr.And(ReadWriteGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, ReadHasOccurredVariable)));
         ReadWriteGuard = Expr.And(ReadWriteGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, ReadOffsetVariable)),
                                         new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
-        if (!CommandLineOptions.NoBenign) {
-          ReadWriteGuard = Expr.And(ReadWriteGuard, Expr.Neq(
-              new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result))),
-              new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))));
-        }
 
         if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
           ReadWriteGuard = Expr.And(ReadWriteGuard, GPUVerifier.ThreadsInSameGroup());
@@ -892,12 +873,6 @@ namespace GPUVerify {
           AtomicWriteGuard = Expr.And(AtomicWriteGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, AtomicHasOccurredVariable)));
           AtomicWriteGuard = Expr.And(AtomicWriteGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, AtomicOffsetVariable)),
                                           new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
-          if (!CommandLineOptions.NoBenign) {
-            AtomicWriteGuard = Expr.And(AtomicWriteGuard, Expr.Neq(
-                new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.ATOMIC, mt.Result))),
-                new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))
-                ));
-          }
 
           if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
             AtomicWriteGuard = Expr.And(AtomicWriteGuard, GPUVerifier.ThreadsInSameGroup());
@@ -923,12 +898,6 @@ namespace GPUVerify {
           WriteAtomicGuard = Expr.And(WriteAtomicGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteHasOccurredVariable)));
           WriteAtomicGuard = Expr.And(WriteAtomicGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteOffsetVariable)),
                                           new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
-          if (!CommandLineOptions.NoBenign) {
-            WriteAtomicGuard = Expr.And(WriteAtomicGuard, Expr.Neq(
-                new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result))),
-                new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))
-                ));
-          }
 
           if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
             WriteAtomicGuard = Expr.And(WriteAtomicGuard, GPUVerifier.ThreadsInSameGroup());
@@ -951,12 +920,6 @@ namespace GPUVerify {
           ReadAtomicGuard = Expr.And(ReadAtomicGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, ReadHasOccurredVariable)));
           ReadAtomicGuard = Expr.And(ReadAtomicGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, ReadOffsetVariable)),
                                           new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
-          if (!CommandLineOptions.NoBenign) {
-            ReadAtomicGuard = Expr.And(ReadAtomicGuard, Expr.Neq(
-                new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result))),
-                new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))
-                ));
-          }
 
           if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
             ReadAtomicGuard = Expr.And(ReadAtomicGuard, GPUVerifier.ThreadsInSameGroup());
@@ -992,7 +955,7 @@ namespace GPUVerify {
       verifier.FindOrCreateOffsetVariable(v.Name, Access);
       verifier.FindOrCreateSourceVariable(v.Name, Access);
 
-      if (!CommandLineOptions.NoBenign) {
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         Debug.Assert(v.TypedIdent.Type is MapType);
         MapType mt = v.TypedIdent.Type as MapType;
         Debug.Assert(mt.Arguments.Count == 1);
