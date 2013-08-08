@@ -269,7 +269,9 @@ def main(argv):
 
         print cvsOutHeader
 
-        for kernelName in timeData:
+        kernelNames = sorted(timeData.keys())
+
+        for kernelName in kernelNames:
             timeData[kernelName].checkNumberOfEntries(len(args))
             timeData[kernelName].computeStatistics()
             print timeData[kernelName].generateMeanCsvEntry(padding)
