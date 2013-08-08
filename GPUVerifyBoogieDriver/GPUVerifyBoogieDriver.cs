@@ -327,8 +327,8 @@ namespace Microsoft.Boogie
       }
 
       public override Variable VisitVariable(Variable node) {
-        foreach (var AccessType in new string[] { "READ", "WRITE" }) {
-          string prefix = "_" + AccessType + "_HAS_OCCURRED_";
+        foreach (var Access in new string[] { "READ", "WRITE" }) {
+          string prefix = "_" + Access + "_HAS_OCCURRED_";
           if (node.Name.StartsWith(prefix)) {
             if (!node.Name.Substring(prefix.Length).Equals(arrayName + "$1")) {
               Found = true;
@@ -352,9 +352,9 @@ namespace Microsoft.Boogie
     }
 
     private static bool IsRaceInstrumentationProcedureForOtherArray(CallCmd callCmd, string arrayName) {
-      foreach (var AccessType in new string[] { "READ", "WRITE" }) {
+      foreach (var Access in new string[] { "READ", "WRITE" }) {
         foreach (var ProcedureType in new string[] { "LOG", "CHECK" }) {
-          var prefix = "_" + ProcedureType + "_" + AccessType + "_";
+          var prefix = "_" + ProcedureType + "_" + Access + "_";
           if(callCmd.callee.StartsWith(prefix)) {
             return !callCmd.callee.Substring(prefix.Length).Equals(arrayName);
           }

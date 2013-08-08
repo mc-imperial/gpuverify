@@ -215,23 +215,23 @@ namespace GPUVerify {
     private static Variable ExtractOffsetVar(CallCounterexample err) {
       // The offset variable name can be exactly reconstructed from the attributes of the requires clause
       string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
-      string AccessType;
+      string Access;
        if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read") ||
          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic")) {
-        AccessType = "WRITE";
+        Access = "WRITE";
       }
       else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write") ||
           QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic")) {
-        AccessType = "READ";
+        Access = "READ";
       }
       else {
         Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read") ||
             QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
-        AccessType = "ATOMIC";
+        Access = "ATOMIC";
       }
 
-      string OffsetVarName = "_" + AccessType + "_OFFSET_" + ArrayName + "$1";
+      string OffsetVarName = "_" + Access + "_OFFSET_" + ArrayName + "$1";
 
       var VFV = new VariableFinderVisitor(OffsetVarName);
       VFV.Visit(err.FailingRequires.Condition);
@@ -461,7 +461,7 @@ namespace GPUVerify {
       return linekv;
     }
 
-    static QKeyValue GetSourceLocInfo(CallCounterexample err, string AccessType, Model ModelWithStates) {
+    static QKeyValue GetSourceLocInfo(CallCounterexample err, string Access, Model ModelWithStates) {
       string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
       Debug.Assert(ArrayName != null);
       string StateId = QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id");
@@ -480,7 +480,7 @@ namespace GPUVerify {
       }
       Debug.Assert(CapturedState != null);
 
-      string SourceVarName = "_" + AccessType + "_SOURCE_" + ArrayName + "$1";
+      string SourceVarName = "_" + Access + "_SOURCE_" + ArrayName + "$1";
       int SourceValue = CapturedState.TryGet(SourceVarName).AsInt();
 
       try {

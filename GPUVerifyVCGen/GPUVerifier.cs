@@ -1469,34 +1469,34 @@ namespace GPUVerify
           new AdversarialAbstraction(this).Abstract();
         }
 
-        internal static string MakeOffsetVariableName(string Name, string AccessType)
+        internal static string MakeOffsetVariableName(string Name, string Access)
         {
-            return "_" + AccessType + "_OFFSET_" + Name;
+            return "_" + Access + "_OFFSET_" + Name;
         }
 
-        internal GlobalVariable MakeOffsetVariable(string Name, string AccessType)
+        internal GlobalVariable MakeOffsetVariable(string Name, string Access)
         {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, AccessType), 
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access), 
             IntRep.GetIntType(32)));
         }
 
-        internal static string MakeSourceVariableName(string Name, string AccessType)
+        internal static string MakeSourceVariableName(string Name, string Access)
         {
-          return "_" + AccessType + "_SOURCE_" + Name;
+          return "_" + Access + "_SOURCE_" + Name;
         }
 
-        internal GlobalVariable MakeSourceVariable(string name, string AccessType)
+        internal GlobalVariable MakeSourceVariable(string name, string Access)
         {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeSourceVariableName(name, AccessType),
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeSourceVariableName(name, Access),
             IntRep.GetIntType(32)));
         }
 
-        internal static string MakeValueVariableName(string Name, string AccessType) {
-          return "_" + AccessType + "_VALUE_" + Name;
+        internal static string MakeValueVariableName(string Name, string Access) {
+          return "_" + Access + "_VALUE_" + Name;
         }
 
-        internal static GlobalVariable MakeValueVariable(string name, string AccessType, Microsoft.Boogie.Type Type) {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeValueVariableName(name, AccessType),
+        internal static GlobalVariable MakeValueVariable(string name, string Access, Microsoft.Boogie.Type Type) {
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeValueVariableName(name, Access),
             Type));
         }
 
