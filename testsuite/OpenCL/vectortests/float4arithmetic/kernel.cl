@@ -1,9 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64
-
-
-__axiom (get_local_size(0) == 4096);
-__axiom (get_num_groups(0) == 1024);
+//--local_size=4096 --num_groups=1024
 
 static __attribute__((always_inline)) bool __equal_floats(float* p, float* q) {
   char* cp = (char*)p;
