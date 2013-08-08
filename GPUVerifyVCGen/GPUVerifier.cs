@@ -1474,9 +1474,9 @@ namespace GPUVerify
             return "_" + AccessType + "_OFFSET_" + Name;
         }
 
-        internal GlobalVariable MakeOffsetVariable(string Name, string ReadOrWrite)
+        internal GlobalVariable MakeOffsetVariable(string Name, string AccessType)
         {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, ReadOrWrite), 
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, AccessType), 
             IntRep.GetIntType(32)));
         }
 
@@ -1485,9 +1485,9 @@ namespace GPUVerify
           return "_" + AccessType + "_SOURCE_" + Name;
         }
 
-        internal GlobalVariable MakeSourceVariable(string name, string ReadOrWrite)
+        internal GlobalVariable MakeSourceVariable(string name, string AccessType)
         {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeSourceVariableName(name, ReadOrWrite),
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeSourceVariableName(name, AccessType),
             IntRep.GetIntType(32)));
         }
 
@@ -1495,8 +1495,8 @@ namespace GPUVerify
           return "_" + AccessType + "_VALUE_" + Name;
         }
 
-        internal static GlobalVariable MakeValueVariable(string name, string ReadOrWrite, Microsoft.Boogie.Type Type) {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeValueVariableName(name, ReadOrWrite),
+        internal static GlobalVariable MakeValueVariable(string name, string AccessType, Microsoft.Boogie.Type Type) {
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeValueVariableName(name, AccessType),
             Type));
         }
 
