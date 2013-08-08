@@ -85,11 +85,15 @@ namespace DynamicAnalysis
 			
 			if (failedAsserts.Count > 0)
 			{
-				Console.WriteLine("The following asserts were disproven");
+				Console.WriteLine("The following asserts do NOT hold");
 				foreach (AssertCmd assert in failedAsserts)
-				{
 					Console.WriteLine(assert.ToString());
-				}
+			}
+			if (passedAsserts.Count > 0)
+			{
+				Console.WriteLine("The following asserts HOLD");
+				foreach (AssertCmd assert in passedAsserts)
+					Console.WriteLine(assert.ToString());
 			}
 		}
 		
@@ -124,6 +128,7 @@ namespace DynamicAnalysis
 						search = false;
 						ScalarSymbolNode<BitVector32> left = (ScalarSymbolNode<BitVector32>) binary.GetChildren()[0];
 						LiteralNode<BitVector32> right     = (LiteralNode<BitVector32>) binary.GetChildren()[1];
+						Memory.Store(left.symbol, right.evaluations[0]);
 						if (left.symbol == "group_size_x")
 							gpu.blockDim[DIMENSION.X] = right.evaluations[0].Data;
 						else if (left.symbol == "group_size_y")
@@ -283,7 +288,10 @@ namespace DynamicAnalysis
 						{
 							Print.VerboseMessage("Falsifying assertion: " + assert.ToString());
 							failedAsserts.Add(assert);
+							passedAsserts.Remove(assert);
 						}
+						else if (!passedAsserts.Contains(assert))
+							passedAsserts.Add(assert);
 					}
 				}
 			}
