@@ -8,20 +8,28 @@ using Microsoft.Boogie.GraphUtil;
 
 namespace GPUVerify
 {
+
+  internal enum BarrierStrength {
+    GROUP_SHARED, GLOBAL, ALL
+  }
+
   internal class BarrierIntervalsAnalysis
   {
 
     private GPUVerifier verifier;
+    private Dictionary<Implementation, HashSet<BarrierInterval>> intervals;
+    private BarrierStrength strength;
 
-    internal BarrierIntervalsAnalysis(GPUVerifier verifier) {
+    internal BarrierIntervalsAnalysis(GPUVerifier verifier, BarrierStrength strength) {
       this.verifier = verifier;
+      this.strength = strength;
     }
 
-
     internal void Compute() {
-      Dictionary<Implementation, HashSet<BarrierInterval>> result = new Dictionary<Implementation,HashSet<BarrierInterval>>();
+      Debug.Assert(intervals == null);
+      intervals = new Dictionary<Implementation,HashSet<BarrierInterval>>();
       foreach(var impl in verifier.KernelProcedures.Values) {
-        ComputeBarrierIntervals(impl);
+        intervals[impl] = ComputeBarrierIntervals(impl);
       }
 
       /*foreach(var impl in KernelProcedures.Values) {
@@ -30,7 +38,7 @@ namespace GPUVerify
       }*/
     }
 
-    private void ComputeBarrierIntervals(Implementation impl)
+    private HashSet<BarrierInterval> ComputeBarrierIntervals(Implementation impl)
     {
       HashSet<BarrierInterval> result = new HashSet<BarrierInterval>();
 
@@ -45,7 +53,6 @@ namespace GPUVerify
         Block smallestBarrierIntervalEnd = null;
         foreach (var postdominator in impl.Blocks.Where(Item => Item != dominator &&
             StartsWithUnconditionalBarrier(Item) &&
-            BarrierParametersMatch(Item, dominator) &&
             dom.DominatedBy(Item, dominator) &&
             pdom.DominatedBy(dominator, Item)))
         {
@@ -63,6 +70,8 @@ namespace GPUVerify
           result.Add(new BarrierInterval(dominator, smallestBarrierIntervalEnd, dom, pdom, impl));
         }
       }
+
+      return result;
     }
 
     private bool StartsWithUnconditionalBarrier(Block b)
@@ -75,6 +84,19 @@ namespace GPUVerify
         return false;
       }
       if(verifier.uniformityAnalyser.IsUniform(verifier.BarrierProcedure.Name)) {
+        Debug.Assert(c.Ins.Count() == 2);
+        if(strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL) {
+          if(!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1))) {
+            return false;
+          }
+        } else if(strength == BarrierStrength.GLOBAL || strength == BarrierStrength.ALL) {
+          if(!c.Ins[1].Equals(verifier.IntRep.GetLiteral(1, 1))) {
+            return false;
+          }
+        } else {
+          // All cases should be covered by the above
+          Debug.Assert(false);
+        }
         return true;
       }
       throw new NotImplementedException();
@@ -143,21 +165,19 @@ namespace GPUVerify
 
     }
 
-    private bool BarrierParametersMatch(Block b1, Block b2)
+
+    internal void RemoveRedundantReads()
     {
-      Debug.Assert(b1.Cmds.Count > 0);
-      Debug.Assert(b2.Cmds.Count > 0);
-      CallCmd barrier1 = b1.Cmds[0] as CallCmd;
-      CallCmd barrier2 = b2.Cmds[0] as CallCmd;
-      Debug.Assert(barrier1 != null && barrier1.Proc == verifier.BarrierProcedure);
-      Debug.Assert(barrier2 != null && barrier2.Proc == verifier.BarrierProcedure);
-      Debug.Assert(barrier1.Ins.Count == barrier2.Ins.Count);
-      foreach(var inPair in barrier1.Ins.Zip(barrier2.Ins)) {
-        if(!(inPair.Item1.ToString().Equals(inPair.Item2.ToString()))) {
-          return false;
-        }
+      if(strength == BarrierStrength.GLOBAL) {
+        return;
       }
-      return true;
+
+      foreach(BarrierInterval interval in intervals.Values.SelectMany(Item => Item)) {
+        var WrittenGroupSharedArrays = interval.FindWrittenGroupSharedArrays(verifier);
+        verifier.RemoveReads(interval.Blocks,
+          verifier.KernelArrayInfo.getGroupSharedArrays().Where(Item =>
+             !WrittenGroupSharedArrays.Contains(Item)));
+      }
     }
 
   }
@@ -168,6 +188,10 @@ namespace GPUVerify
     private Block end;
     private IEnumerable<Block> blocks;
 
+    public IEnumerable<Block> Blocks {
+      get { return blocks; }
+    }
+
     public BarrierInterval(Block start, Block end, DomRelation<Block> dom, DomRelation<Block> pdom, Implementation impl)
     {
       this.start = start;
@@ -177,6 +201,24 @@ namespace GPUVerify
         dom.DominatedBy(Item, start) &&
         pdom.DominatedBy(Item, end)).ToList();
     }
+
+    internal HashSet<Variable> FindWrittenGroupSharedArrays(GPUVerifier verifier)
+    {
+      HashSet<Variable> result = new HashSet<Variable>();
+      foreach (var m in Blocks.Select(Item => Item.Cmds).SelectMany(Item => Item).OfType<CallCmd>()
+        .Select(Item => Item.Proc.Modifies).SelectMany(Item => Item))
+      {
+        // m is a variable modified by a call in the barrier interval
+        Variable v;
+        if(verifier.TryGetArrayFromAccessHasOccurred(GPUVerifier.StripThreadIdentifier(m.Name), "WRITE", out v)) {
+          if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
+            result.Add(v);
+          }
+        }
+      }
+      return result;
+    }
+
   }
 
 }

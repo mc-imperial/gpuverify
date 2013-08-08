@@ -488,6 +488,12 @@ namespace GPUVerify
 
             GenerateBarrierImplementation();
 
+            // We now do modset analysis here because the previous passes add new
+            // global variables
+            Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
+
+            OptimiseReads();
+
             GenerateStandardKernelContract();
 
             if (CommandLineOptions.ShowStages)
@@ -497,9 +503,6 @@ namespace GPUVerify
 
             if (CommandLineOptions.Inference)
             {
-              // We must do modset analysis here because the previous passes add new
-              // global variables
-              Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
               ComputeInvariant();
 
               if (CommandLineOptions.AbstractHoudini)
@@ -514,13 +517,59 @@ namespace GPUVerify
               AddWarpSyncs();
             }
 
-            if (CommandLineOptions.OutlineBarrierIntervals) {
-              var BarrierIntervalsAnalysis = new BarrierIntervalsAnalysis(this);
-              BarrierIntervalsAnalysis.Compute();
-            }
-
             emitProgram(outputFilename);
 
+        }
+
+        private void OptimiseReads()
+        {
+          if (!CommandLineOptions.OptimiseReads) {
+            return;
+          }
+
+          var writtenArrays = GetWrittenArrays();
+          RemoveReads(Program.Implementations().Select(Item => Item.Blocks).SelectMany(Item => Item),
+            KernelArrayInfo.getAllNonLocalArrays().Where(Item => !writtenArrays.Contains(Item)));
+
+          var BarrierIntervalsAnalysis = new BarrierIntervalsAnalysis(this, BarrierStrength.GROUP_SHARED);
+          BarrierIntervalsAnalysis.Compute();
+          BarrierIntervalsAnalysis.RemoveRedundantReads();
+        }
+
+        internal void RemoveReads(IEnumerable<Block> blocks, IEnumerable<Variable> arrays) {
+          foreach(var b in blocks) {
+            List<Cmd> newCmds = new List<Cmd>();
+            foreach(var c in b.Cmds) {
+              CallCmd callCmd = c as CallCmd;
+              if(callCmd != null) {
+                Variable v;
+                TryGetArrayFromLogProcedure(callCmd.callee, "READ", out v);
+                if(v == null) {
+                  TryGetArrayFromCheckProcedure(callCmd.callee, "READ", out v);
+                }
+                if(v != null && arrays.Contains(v)) {
+                  continue;
+                }
+              }
+              newCmds.Add(c);
+            }
+            b.Cmds = newCmds;
+          }
+        }
+
+        private HashSet<Variable> GetWrittenArrays()
+        {
+          // Precondition: mod set analysis must have been performed
+          var result = new HashSet<Variable>();
+          foreach (var modifiedVariable in KernelProcedures.Keys.Select(Item => Item.Modifies).SelectMany(Item => Item))
+          {
+            Variable a;
+            if (TryGetArrayFromAccessHasOccurred(StripThreadIdentifier(modifiedVariable.Name), "WRITE", out a))
+            {
+              result.Add(a);
+            }
+          }
+          return result;
         }
 
         private void DoMayBePowerOfTwoAnalysis()
@@ -2095,6 +2144,38 @@ namespace GPUVerify
           method.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
 
           Program.TopLevelDeclarations.Add(method);
+        }
+
+        internal bool TryGetArrayFromPrefixedString(string s, string prefix, out Variable v) {
+          v = null;
+          if(s.StartsWith(prefix)) {
+            foreach(var a in KernelArrayInfo.getAllNonLocalArrays()) {
+              if(a.Name.Equals(s.Substring(prefix.Length))) {
+                v = a;
+                return true;
+              }
+            }
+          }
+          return false;
+        }
+
+        internal bool TryGetArrayFromAccessHasOccurred(string s, string accessType, out Variable v) {
+          return TryGetArrayFromPrefixedString(s, "_" + accessType + "_HAS_OCCURRED_", out v);
+        }
+
+        internal bool TryGetArrayFromLogOrCheckProcedure(string s, string accessType, string logOrCheck, out Variable v)
+        {
+          return TryGetArrayFromPrefixedString(s, "_" + logOrCheck + "_" + accessType + "_", out v);
+        }
+
+        internal bool TryGetArrayFromLogProcedure(string s, string accessType, out Variable v)
+        {
+          return TryGetArrayFromLogOrCheckProcedure(s, accessType, "LOG", out v);
+        }
+
+        internal bool TryGetArrayFromCheckProcedure(string s, string accessType, out Variable v)
+        {
+          return TryGetArrayFromLogOrCheckProcedure(s, accessType, "CHECK", out v);
         }
 
     }
