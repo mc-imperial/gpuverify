@@ -586,6 +586,7 @@ namespace DynamicAnalysis
 							
 		private static void LogRead (CallCmd call)
 		{
+			Print.DebugMessage("In log read", 10);
 			int dollarIndex = call.callee.IndexOf('$');
 			Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
 			string raceArrayOffsetName = "_READ_OFFSET_" + call.callee.Substring(dollarIndex) + "$1";
@@ -598,7 +599,7 @@ namespace DynamicAnalysis
 		
 		private static void LogWrite (CallCmd call)
 		{
-			Print.VerboseMessage("In log write");
+			Print.DebugMessage("In log write", 10);
 			int dollarIndex = call.callee.IndexOf('$');
 			Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
 			string raceArrayOffsetName = "_WRITE_OFFSET_" + call.callee.Substring(dollarIndex) + "$1";

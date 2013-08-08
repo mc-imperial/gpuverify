@@ -124,7 +124,7 @@ namespace DynamicAnalysis
 			{
 				Console.Write(item.Key + getEmptySpaces(maxLength, item.Key.Length));
 				Console.Write(" = {");
-				int i = 1;
+				int i = 0;
 				foreach (BitVector32 offset in item.Value)
 				{
 					Console.Write(Convert.ToString(offset.Data));
