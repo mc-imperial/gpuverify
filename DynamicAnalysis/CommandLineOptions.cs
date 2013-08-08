@@ -67,10 +67,10 @@ namespace DynamicAnalysis
 		
 		private static void HandleDebug (string val)
 		{
-			short intVal = -1;
+			int intVal = -1;
 			try
 			{
-				intVal = Convert.ToInt16(val);
+				intVal = Convert.ToInt32(val);
 			}
 			catch (FormatException)
 	        {

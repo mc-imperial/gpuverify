@@ -11,6 +11,7 @@ namespace DynamicAnalysis
 	{
 		private Dictionary<string, BitVector32> scalars = new Dictionary<string, BitVector32>();
 		private Dictionary<string, Dictionary <SubscriptExpr, BitVector32>> arrays = new Dictionary<string, Dictionary <SubscriptExpr, BitVector32>>();
+		private Dictionary<string, HashSet<BitVector32>> raceArrayOffsets = new Dictionary<string, HashSet<BitVector32>>();
 		
 		public Memory ()
 		{
@@ -20,6 +21,26 @@ namespace DynamicAnalysis
 		{
 			scalars.Clear();
 			arrays.Clear();
+		}
+		
+		public bool HadRaceArrayVariable (string name)
+		{
+			return raceArrayOffsets.ContainsKey(name);
+		}
+		
+		public void AddRaceArrayVariable (string name)
+		{
+			raceArrayOffsets[name] = new HashSet<BitVector32>();
+		}
+		
+		public void AddRaceArrayOffset (string name, BitVector32 offset)
+		{
+			raceArrayOffsets[name].Add(offset);
+		}
+		
+		public HashSet<BitVector32> GetRaceArrayOffsets (string name)
+		{
+			return raceArrayOffsets[name];
 		}
 		
 		public void Store (string name, BitVector32 val)
@@ -92,6 +113,25 @@ namespace DynamicAnalysis
 					                  item2.Key.ToString() + 
 					                  "] = " + 
 					                  Convert.ToString(item2.Value.Data));
+			}
+			Console.WriteLine("==================================");
+			
+			maxLength = 0;
+			foreach (string name in raceArrayOffsets.Keys.ToList())
+				maxLength = Math.Max(maxLength, name.Length);
+			Console.WriteLine("=========== Write sets ===========");
+			foreach (KeyValuePair<string, HashSet<BitVector32>> item in raceArrayOffsets)
+			{
+				Console.Write(item.Key + getEmptySpaces(maxLength, item.Key.Length));
+				Console.Write(" = {");
+				int i = 1;
+				foreach (BitVector32 offset in item.Value)
+				{
+					Console.Write(Convert.ToString(offset.Data));
+					if (++i < item.Value.Count)
+						Console.Write(", ");
+				}
+				Console.WriteLine("}");
 			}
 			Console.WriteLine("==================================");
 		}
