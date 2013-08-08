@@ -48,7 +48,7 @@ namespace GPUVerify
         public static bool AtomicVsRead = true;
         public static bool AtomicVsWrite = true;
         public static bool RefinedAtomics = true;
-        public static bool OutlineBarrierIntervals = false;
+        public static bool OptimiseReads = false;
 
         public static int Parse(string[] args)
         {
@@ -225,11 +225,10 @@ namespace GPUVerify
                     RefinedAtomics = false;
                     break;
 
-                    case "-outlineBarrierIntervals":
-                    case "/outlineBarrierIntervals":
-                    OutlineBarrierIntervals = true;
+                    case "-optimiseReads":
+                    case "/optimiseReads":
+                    OptimiseReads = true;
                     break;
-
 
                     default:
                         inputFiles.Add(args[i]);

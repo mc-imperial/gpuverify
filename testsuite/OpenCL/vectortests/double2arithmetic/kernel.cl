@@ -1,9 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64 --equality-abstraction
-
-
-__axiom (get_local_size(0) == 2048);
-__axiom (get_num_groups(0) == 1111);
+//--local_size=2048 --num_groups=1111 --equality-abstraction
 
 static __attribute((always_inline)) bool __equal_doubles(double* p, double* q) {
   char* cp = (char*)p;

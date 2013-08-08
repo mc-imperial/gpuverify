@@ -2,7 +2,6 @@
 //--local_size=8 --num_groups=1
 
 #define N 8
-__axiom(get_local_size(0) ==  N);
 
 #define tid get_local_id(0)
 

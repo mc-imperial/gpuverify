@@ -264,6 +264,7 @@ class GPUVerifyTestKernel:
         if self.timeAsCSV:
             #Print csv output for user to see
             print(stdout[0].split('\n')[-2])
+            sys.stdout.flush()
 
         logging.debug(self) #Show after test information
 

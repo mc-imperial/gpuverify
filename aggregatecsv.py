@@ -53,9 +53,9 @@ class CsvData:
     def addTimes(self, data):
         length = len(data)
 
-        if length < 4:
+        if length < 3:
             raise CsvError("Row with " + str(length) + " entries found\n" \
-                           + "\n  Expected at least 4 entries")
+                           + "\n  Expected at least 3 entries")
         elif length > 8:
             raise CsvError("Row with " + str(length) + " entries found\n" \
                            + "\n  Expected at at most 8 entries")
@@ -248,7 +248,7 @@ def showHelp(programName, opts):
 
 def main(argv):
     try:
-        opts, args = getopt.gnu_getopt(argv[1:], 'p:h',
+        opts, args = getopt.gnu_getopt(argv[1:], 'hp',
                                        ['help', 'padding'])
     except getopt.GetoptError as getoptError:
         print >> sys.stderr, getoptError.msg, "\nTry --help for option list"
@@ -269,7 +269,9 @@ def main(argv):
 
         print cvsOutHeader
 
-        for kernelName in timeData:
+        kernelNames = sorted(timeData.keys())
+
+        for kernelName in kernelNames:
             timeData[kernelName].checkNumberOfEntries(len(args))
             timeData[kernelName].computeStatistics()
             print timeData[kernelName].generateMeanCsvEntry(padding)

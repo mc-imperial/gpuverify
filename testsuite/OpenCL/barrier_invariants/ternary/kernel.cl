@@ -2,7 +2,6 @@
 //--local_size=8 --num_groups=1
 
 #define N 8
-__axiom(get_local_size(0) ==  N);
 
 #define tid get_local_id(0)
 #define iseven(x) ((x % 2) == 0)
@@ -22,6 +21,9 @@ __kernel void wrap_around() {
   // B = [ 5, 0, 7, 2, 1, 4, 3, 6 ]
   B[A[(tid+1)%N]] = tid;
 
+  __barrier_invariant_1(B[(tid + (iseven(tid) ? 1 : 3))%N] == tid, tid);
+  barrier(CLK_LOCAL_MEM_FENCE);
+                        
   // ternary assert okay
   __assert(B[(tid + (iseven(tid) ? 1 : 3))%N] == tid);
   // rephrased assert okay
