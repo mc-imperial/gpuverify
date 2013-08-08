@@ -440,21 +440,6 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.verbose = True
     if o == "--silent":
       CommandLineOptions.silent = True
-    if o == "--loop-unwind":
-      CommandLineOptions.mode = AnalysisMode.FINDBUGS
-      try:
-        if int(a) < 0:
-          GPUVerifyError("negative value " + a + " provided as argument to --loop-unwind", ErrorCodes.COMMAND_LINE_ERROR) 
-        CommandLineOptions.loopUnwindDepth = int(a)
-      except ValueError:
-        GPUVerifyError("non integer value '" + a + "' provided as argument to --loop-unwind", ErrorCodes.COMMAND_LINE_ERROR) 
-    if o == "--memout":
-      try:
-        CommandLineOptions.boogieMemout = int(a)
-        if CommandLineOptions.boogieMemout < 0:
-          raise ValueError
-      except ValueError as e:
-          GPUVerifyError("Invalid memout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--no-benign":
       CommandLineOptions.noBenign = True
     if o == "--only-divergence":
@@ -463,14 +448,6 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.onlyIntraGroup = True
     if o == "--only-log":
       CommandLineOptions.onlyLog = True
-    if o == "--adversarial-abstraction":
-      if CommandLineOptions.equalityAbstraction:
-        GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
-      CommandLineOptions.adversarialAbstraction = True
-    if o == "--equality-abstraction":
-      if CommandLineOptions.adversarialAbstraction:
-        GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
-      CommandLineOptions.equalityAbstraction = True
     if o == "--keep-temps":
       CommandLineOptions.keepTemps = True
     if o == "--math-int":
@@ -512,6 +489,33 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.generateSmt2 = True
     if o == "--testsuite":
       CommandLineOptions.testsuite = True
+    if o == "--no-refined-atomics":
+      CommandLineOptions.noRefinedAtomics = True
+
+  for o, a in opts:
+    if o == "--loop-unwind":
+      CommandLineOptions.mode = AnalysisMode.FINDBUGS
+      try:
+        if int(a) < 0:
+          GPUVerifyError("negative value " + a + " provided as argument to --loop-unwind", ErrorCodes.COMMAND_LINE_ERROR)
+        CommandLineOptions.loopUnwindDepth = int(a)
+      except ValueError:
+        GPUVerifyError("non integer value '" + a + "' provided as argument to --loop-unwind", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--memout":
+      try:
+        CommandLineOptions.boogieMemout = int(a)
+        if CommandLineOptions.boogieMemout < 0:
+          raise ValueError
+      except ValueError as e:
+          GPUVerifyError("Invalid memout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--adversarial-abstraction":
+      if CommandLineOptions.equalityAbstraction:
+        GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.adversarialAbstraction = True
+    if o == "--equality-abstraction":
+      if CommandLineOptions.adversarialAbstraction:
+        GPUVerifyError("illegal to specify both adversarial and equality abstractions", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.equalityAbstraction = True
     if o == "--warp-sync":
       CommandLineOptions.warpSync = True
       try:
@@ -525,8 +529,6 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.atomic = a.lower()
       else:
         GPUVerifyError("argument to --atomic must be 'r','w','rw', or 'none'", ErrorCodes.COMMAND_LINE_ERROR)
-    if o == "--no-refined-atomics":
-      CommandLineOptions.noRefinedAtomics = True
     if o == "--solver":
       if a.lower() in ("z3","cvc4"):
         CommandLineOptions.solver = a.lower()
@@ -862,8 +864,13 @@ def main(argv=None):
   return 0
 
 def showTiming():
-  tools, times = map(list, zip(*Timing))
-  total = sum(times)
+  if Timing:
+    tools, times = map(list, zip(*Timing))
+    total = sum(times)
+  else:
+    tools, times = [], []
+    total = 0.0
+
   if CommandLineOptions.timeCSVLabel is not None:
     label = CommandLineOptions.timeCSVLabel
     times.append(total)
@@ -876,11 +883,14 @@ def showTiming():
       row.insert(1,'FAIL(' + str(exitHook.code) + ')')
       print >> sys.stderr, ', '.join(row)
   else:
-    padTool = max([ len(tool) for tool in tools ])
-    padTime = max([ len('%.3f secs' % t) for t in times ])
     print "Timing information (%.2f secs):" % total
-    for (tool, t) in Timing:
-      print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+    if tools:
+      padTool = max([ len(tool) for tool in tools ])
+      padTime = max([ len('%.3f secs' % t) for t in times ])
+      for (tool, t) in Timing:
+        print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+    else:
+      print "- no tools ran"
 
 def killChildrenPosix():
   def handler(signal,frame):
@@ -890,7 +900,7 @@ def killChildrenPosix():
   os.killpg(0,signal.SIGINT)
 
 def exitHandler():
-  if Timing and CommandLineOptions.time:
+  if CommandLineOptions.time:
     showTiming()
 
   sys.stderr.flush()

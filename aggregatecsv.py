@@ -53,9 +53,9 @@ class CsvData:
     def addTimes(self, data):
         length = len(data)
 
-        if length < 4:
+        if length < 3:
             raise CsvError("Row with " + str(length) + " entries found\n" \
-                           + "\n  Expected at least 4 entries")
+                           + "\n  Expected at least 3 entries")
         elif length > 8:
             raise CsvError("Row with " + str(length) + " entries found\n" \
                            + "\n  Expected at at most 8 entries")
