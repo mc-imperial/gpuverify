@@ -10,6 +10,7 @@ namespace DynamicAnalysis
 	public class ExprTree : System.Collections.IEnumerable
 	{
 		protected Dictionary<int, HashSet<Node>> levels = new Dictionary<int, HashSet<Node>>();
+		protected List<Node> nodes = new List<Node>();
 		protected Node root = null;
 		protected int height = 0;
 		public BitVector32 evaluation;
@@ -24,6 +25,7 @@ namespace DynamicAnalysis
 		
 		private void SetLevels (Node parent, int level)
 		{
+			nodes.Add(parent);
 			int newLevel = level+1;
 			height = Math.Max(height, newLevel);
 			if (!levels.ContainsKey(newLevel))
@@ -32,6 +34,15 @@ namespace DynamicAnalysis
 			{
 				levels[newLevel].Add(child);
 				SetLevels(child, newLevel);
+			}
+		}
+		
+		public void ClearEvaluations ()
+		{
+			foreach (Node node in nodes)
+			{
+				if (!(node is LiteralNode<bool> || node is LiteralNode<BitVector32>))
+					node.ClearEvaluations();
 			}
 		}
 		
@@ -64,7 +75,7 @@ namespace DynamicAnalysis
 		}
 	}
 	
-	public class Node
+	public abstract class Node
 	{
 		protected List<Node> children = new List<Node>();
 		protected Node parent = null;
@@ -87,6 +98,8 @@ namespace DynamicAnalysis
 		{
 			return parent;
 		}
+		
+		public abstract void ClearEvaluations ();
 		
 		public static Node CreateFromExpr (Expr expr)
 		{
@@ -140,20 +153,18 @@ namespace DynamicAnalysis
 				else if (nary.Fun is FunctionCall)
 				{
 					FunctionCall call = nary.Fun as FunctionCall;
+					Node one          = CreateFromExpr(nary.Args[0]);
+					Node two          = CreateFromExpr(nary.Args[1]);
 					Node parent;
 					if (call.FunctionName == "BV32_SGT" || 
 					    call.FunctionName == "BV32_SGE" ||
 					    call.FunctionName == "BV32_SLT" || 
 					    call.FunctionName == "BV32_SLE")
-						parent = new NaryNode<bool>(call.FunctionName);
+						parent = new BinaryNode<bool>(call.FunctionName, one, two);
 					else
-						parent = new NaryNode<BitVector32>(call.FunctionName);
-					foreach (Expr childExpr in nary.Args)
-					{
-						Node child = CreateFromExpr(childExpr);
-						parent.children.Add(child);
-						child.parent = parent;
-					}
+						parent = new BinaryNode<BitVector32>(call.FunctionName, one, two);
+					one.parent = parent;
+					two.parent = parent;
 					return parent;
 				}
 				else if (nary.Fun is MapSelect)
@@ -210,7 +221,12 @@ namespace DynamicAnalysis
 	
 	public class ExprNode<T> : Node
 	{
-		public T evaluation;
+		public List<T> evaluations = new List<T>();
+		
+		public override void ClearEvaluations ()
+		{
+			evaluations.Clear();
+		}
 	}
 	
 	public class OpNode<T> : ExprNode<T>
@@ -225,7 +241,7 @@ namespace DynamicAnalysis
 			
 		public override string ToString ()
 		{
-			return op + " (" + evaluation.GetType().ToString() + ")";
+			return op + " (" + typeof(T).ToString() + ")";
 		}
 	}
 	
@@ -301,12 +317,12 @@ namespace DynamicAnalysis
 	{
 		public LiteralNode (T val)
 		{
-			this.evaluation = val;
+			evaluations.Add(val);
 		}
 		
 		public override string ToString ()
 		{
-			return evaluation.ToString();
+			return evaluations[0].ToString();
 		}
 	}
 }
