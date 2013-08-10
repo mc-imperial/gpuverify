@@ -153,6 +153,7 @@ class CommandLineOptions(object):
            "bugle": False,
            "vcgen": False, }
   bugleLanguage = None
+  vcgenTimeout=0
 
 def SplitFilenameExt(f):
   filename, ext = os.path.splitext(f)
@@ -247,6 +248,7 @@ class ErrorCodes(object):
   BOOGIE_ERROR = 6
   BOOGIE_TIMEOUT = 7
   CTRL_C = 8
+  GPUVERIFYVCGEN_TIMEOUT = 9
 
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool.
@@ -341,6 +343,7 @@ def showHelpAndExit():
   print "  --stop-at-opt           Stop after LLVM optimization pass"
   print "  --time-as-csv=label     Print timing as CSV row with label"
   print "  --testsuite             Testing testsuite program"
+  print "  --vcgen-timeout=X       Allow VCGen to run for X seconds."
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
   print "  --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32"
@@ -466,6 +469,13 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.clangOptions += str(a).split(" ")
     if o == "--vcgen-opt":
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
+    if o == "--vcgen-timeout":
+      try:
+        CommandLineOptions.vcgenTimeout = int(a)
+        if CommandLineOptions.vcgenTimeout < 0:
+          raise ValueError
+      except ValueError as e:
+          GPUVerifyError("Invalid VCGen timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--boogie-opt":
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
     if o == "--bugle-opt":
@@ -635,7 +645,7 @@ def main(argv=None):
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
-              'vcgen-opt=', 'boogie-opt=', 'bugle-opt=',
+              'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=', 'math-int', 'stop-at-opt',
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
@@ -820,12 +830,17 @@ def main(argv=None):
   if CommandLineOptions.stopAtGbpl: return 0
 
   """ RUN GPUVERIFYVCGEN """
+  timeoutArguments={}
+  if CommandLineOptions.vcgenTimeout > 0:
+    timeoutArguments['timeout']= CommandLineOptions.vcgenTimeout
+    timeoutArguments['timeoutErrorCode']=ErrorCodes.GPUVERIFYVCGEN_TIMEOUT
   if not CommandLineOptions.skip["vcgen"]:
     RunTool("gpuverifyvcgen",
             (["mono"] if os.name == "posix" else []) +
             [gvfindtools.gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
             CommandLineOptions.gpuVerifyVCGenOptions,
-            ErrorCodes.GPUVERIFYVCGEN_ERROR)
+            ErrorCodes.GPUVERIFYVCGEN_ERROR,
+            **timeoutArguments)
 
   if CommandLineOptions.stopAtBpl: return 0
 
