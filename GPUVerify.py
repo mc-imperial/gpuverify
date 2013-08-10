@@ -426,6 +426,9 @@ def showVersionIfRequested(opts):
       showVersionAndExit()
 
 def processGeneralOptions(opts, args):
+  # All options that can be processed without resulting in an error go
+  # in this loop. Some of these we want to handle even when some other
+  # option results in an error, e.g., the time related options.
   for o, a in opts:
     if o == "-D":
       CommandLineOptions.defines.append(a)
@@ -469,13 +472,6 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.clangOptions += str(a).split(" ")
     if o == "--vcgen-opt":
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
-    if o == "--vcgen-timeout":
-      try:
-        CommandLineOptions.vcgenTimeout = int(a)
-        if CommandLineOptions.vcgenTimeout < 0:
-          raise ValueError
-      except ValueError as e:
-          GPUVerifyError("Invalid VCGen timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--boogie-opt":
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
     if o == "--bugle-opt":
@@ -502,6 +498,8 @@ def processGeneralOptions(opts, args):
     if o == "--no-refined-atomics":
       CommandLineOptions.noRefinedAtomics = True
 
+  # All options whose processing can result in an error go in this loop.
+  # See also the comment above the previous loop.
   for o, a in opts:
     if o == "--loop-unwind":
       CommandLineOptions.mode = AnalysisMode.FINDBUGS
@@ -561,6 +559,13 @@ def processGeneralOptions(opts, args):
           raise ValueError
       except ValueError as e:
           GPUVerifyError("Invalid timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--vcgen-timeout":
+      try:
+        CommandLineOptions.vcgenTimeout = int(a)
+        if CommandLineOptions.vcgenTimeout < 0:
+          raise ValueError
+      except ValueError as e:
+          GPUVerifyError("Invalid VCGen timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--boogie-file":
       filename, ext = SplitFilenameExt(a)
       if ext != ".bpl":
