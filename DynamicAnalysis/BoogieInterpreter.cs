@@ -13,7 +13,6 @@ namespace DynamicAnalysis
 	public class BoogieInterpreter
 	{
 		private static Random Random = new Random();
-		private static GPU gpu = new GPU();
 		private static Memory Memory = new Memory();
 		private static Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>(); 
 		private static Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
@@ -42,17 +41,47 @@ namespace DynamicAnalysis
 						Memory.Store(constant.Name, False);
 				}
 				else if (Regex.IsMatch(constant.Name, "local_id_x", RegexOptions.IgnoreCase))
-					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.blockDim[DIMENSION.X])));
+				{
+					if (GPU.Instance.IsUserSetThreadID(DIMENSION.X))
+						Memory.Store(constant.Name, new BitVector32(GPU.Instance.threadID[DIMENSION.X]));
+					else
+						Memory.Store(constant.Name, new BitVector32(Random.Next(1, GPU.Instance.blockDim[DIMENSION.X])));
+				}
 				else if (Regex.IsMatch(constant.Name, "local_id_y", RegexOptions.IgnoreCase))
-					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.blockDim[DIMENSION.Y])));
+				{
+					if (GPU.Instance.IsUserSetThreadID(DIMENSION.Y))
+						Memory.Store(constant.Name, new BitVector32(GPU.Instance.threadID[DIMENSION.Y]));
+					else
+						Memory.Store(constant.Name, new BitVector32(Random.Next(1, GPU.Instance.blockDim[DIMENSION.Y])));
+				}
 				else if (Regex.IsMatch(constant.Name, "local_id_z", RegexOptions.IgnoreCase))
-					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.blockDim[DIMENSION.Z])));
+				{
+					if (GPU.Instance.IsUserSetThreadID(DIMENSION.Z))
+						Memory.Store(constant.Name, new BitVector32(GPU.Instance.threadID[DIMENSION.Z]));
+					else
+						Memory.Store(constant.Name, new BitVector32(Random.Next(1, GPU.Instance.blockDim[DIMENSION.Z])));
+				}
 				else if (Regex.IsMatch(constant.Name, "group_id_x", RegexOptions.IgnoreCase))
-					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.gridDim[DIMENSION.X])));
+				{
+					if (GPU.Instance.IsUserSetGroupID(DIMENSION.X))
+						Memory.Store(constant.Name, new BitVector32(GPU.Instance.groupID[DIMENSION.X]));
+					else
+						Memory.Store(constant.Name, new BitVector32(Random.Next(1, GPU.Instance.gridDim[DIMENSION.X])));
+				}
 				else if (Regex.IsMatch(constant.Name, "group_id_y", RegexOptions.IgnoreCase))
-					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.gridDim[DIMENSION.Y])));
+				{
+					if (GPU.Instance.IsUserSetGroupID(DIMENSION.Y))
+						Memory.Store(constant.Name, new BitVector32(GPU.Instance.groupID[DIMENSION.Y]));
+					else
+						Memory.Store(constant.Name, new BitVector32(Random.Next(1, GPU.Instance.gridDim[DIMENSION.Y])));
+				}
 				else if (Regex.IsMatch(constant.Name, "group_id_z", RegexOptions.IgnoreCase))
-					Memory.Store(constant.Name, new BitVector32(Random.Next(1, gpu.gridDim[DIMENSION.Z])));
+				{
+					if (GPU.Instance.IsUserSetGroupID(DIMENSION.Z))
+						Memory.Store(constant.Name, new BitVector32(GPU.Instance.groupID[DIMENSION.Z]));
+					else
+						Memory.Store(constant.Name, new BitVector32(Random.Next(1, GPU.Instance.gridDim[DIMENSION.Z])));
+				}
 			}
 			
 			IEnumerable<NamedDeclaration> raceVariables = program.TopLevelDeclarations.OfType<NamedDeclaration>().
@@ -130,17 +159,17 @@ namespace DynamicAnalysis
 						LiteralNode<BitVector32> right     = (LiteralNode<BitVector32>) binary.GetChildren()[1];
 						Memory.Store(left.symbol, right.evaluations[0]);
 						if (left.symbol == "group_size_x")
-							gpu.blockDim[DIMENSION.X] = right.evaluations[0].Data;
+							GPU.Instance.blockDim[DIMENSION.X] = right.evaluations[0].Data;
 						else if (left.symbol == "group_size_y")
-							gpu.blockDim[DIMENSION.Y] = right.evaluations[0].Data;
+							GPU.Instance.blockDim[DIMENSION.Y] = right.evaluations[0].Data;
 						else if (left.symbol == "group_size_z")
-							gpu.blockDim[DIMENSION.Z] = right.evaluations[0].Data;
+							GPU.Instance.blockDim[DIMENSION.Z] = right.evaluations[0].Data;
 						else if (left.symbol == "num_groups_x")
-							gpu.gridDim[DIMENSION.X] = right.evaluations[0].Data;
+							GPU.Instance.gridDim[DIMENSION.X] = right.evaluations[0].Data;
 						else if (left.symbol == "num_groups_y")
-							gpu.gridDim[DIMENSION.Y] = right.evaluations[0].Data;
+							GPU.Instance.gridDim[DIMENSION.Y] = right.evaluations[0].Data;
 						else if (left.symbol == "num_groups_z")
-							gpu.gridDim[DIMENSION.Z] = right.evaluations[0].Data;
+							GPU.Instance.gridDim[DIMENSION.Z] = right.evaluations[0].Data;
 						else
 							Print.ExitMessage("Unhandled axiom: " + axiom.ToString());
 					}

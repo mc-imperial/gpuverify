@@ -8,24 +8,74 @@ namespace DynamicAnalysis
 	
 	public class GPU
 	{
-		public Dictionary<DIMENSION, int> gridDim;
-		public Dictionary<DIMENSION, int> blockDim;
+		private static GPU instance;
+		public Dictionary<DIMENSION, int> gridDim  = new Dictionary<DIMENSION, int>();
+		public Dictionary<DIMENSION, int> blockDim = new Dictionary<DIMENSION, int>();
+		public Dictionary<DIMENSION, int> threadID = new Dictionary<DIMENSION, int>();
+		public Dictionary<DIMENSION, int> groupID  = new Dictionary<DIMENSION, int>();
 		
-		public GPU ()
+		private GPU ()
 		{
-			Clear();
-		}
-		
-		public void Clear ()
-		{
-			gridDim = new Dictionary<DIMENSION, int>();
-			blockDim = new Dictionary<DIMENSION, int>();
 			gridDim[DIMENSION.X] = 1;
 			gridDim[DIMENSION.Y] = 1;
 			gridDim[DIMENSION.Z] = 1;
 			blockDim[DIMENSION.X] = 1;
 			blockDim[DIMENSION.Y] = 1;
 			blockDim[DIMENSION.Z] = 1;
+			threadID[DIMENSION.X] = -1;
+			threadID[DIMENSION.Y] = -1;
+			threadID[DIMENSION.Z] = -1;
+			groupID[DIMENSION.X] = -1;
+			groupID[DIMENSION.Y] = -1;
+			groupID[DIMENSION.Z] = -1;
+		}
+		
+		public static GPU Instance
+		{
+			get
+			{
+				if (instance == null)
+					instance = new GPU();
+				return instance;
+			}
+		}
+		
+		public void SetBlockDim (Tuple<int, int, int> blockDim)
+		{
+			this.blockDim[DIMENSION.X] = blockDim.Item1;
+			this.blockDim[DIMENSION.Y] = blockDim.Item2;
+			this.blockDim[DIMENSION.Z] = blockDim.Item3;
+		}
+		
+		public void SetGridDim (Tuple<int, int, int> gridDim)
+		{
+			this.gridDim[DIMENSION.X] = gridDim.Item1;
+			this.gridDim[DIMENSION.Y] = gridDim.Item2;
+			this.gridDim[DIMENSION.Z] = gridDim.Item3;
+		}
+		
+		public void SetThreadID (Tuple<int, int, int> threadID)
+		{
+			this.threadID[DIMENSION.X] = threadID.Item1;
+			this.threadID[DIMENSION.Y] = threadID.Item2;
+			this.threadID[DIMENSION.Z] = threadID.Item3;
+		}
+		
+		public void SetGroupID (Tuple<int, int, int> groupID)
+		{
+			this.groupID[DIMENSION.X] = groupID.Item1;
+			this.groupID[DIMENSION.Y] = groupID.Item2;
+			this.groupID[DIMENSION.Z] = groupID.Item3;
+		}
+		
+		public bool IsUserSetThreadID (DIMENSION dim)
+		{
+			return threadID[dim] != -1;
+		}
+		
+		public bool IsUserSetGroupID (DIMENSION dim)
+		{
+			return groupID[dim] != -1;
 		}
 		
 		public static bool IsLocalIDName (string name)
