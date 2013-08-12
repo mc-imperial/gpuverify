@@ -75,8 +75,11 @@ class CsvData:
                            + self.exitStatus + " and " + exitStatus)
 
         try:
-            self.clangTime.append(float(data.pop(0)))
-            numTimes = 1
+            numTimes = 0
+
+            if len(data) > 1:
+                self.clangTime.append(float(data.pop(0)))
+                numTimes += 1
 
             if len(data) > 1:
                 self.optTime.append(float(data.pop(0)))
@@ -137,7 +140,8 @@ class CsvData:
             return mean, error
         # end of compute
 
-        self.clangMean, self.clangError = compute(self.clangTime)
+        if len(self.optTime) > 0:
+            self.clangMean, self.clangError = compute(self.clangTime)
 
         if len(self.optTime) > 0:
             self.optMean, self.optError = compute(self.optTime)
@@ -156,9 +160,13 @@ class CsvData:
     def generateMeanCsvEntry(self, alignColumns):
         entry  = self.kernelName \
                  + ", " + self.exitStatus \
-                 + ", " + str(self.addCount) \
-                 + (', %.3f' % self.clangMean) \
-                 + (', %.3f' % self.clangError)
+                 + ", " + str(self.addCount)
+
+        if len(self.clangTime) > 0:
+            entry += ', %.3f' % self.clangMean \
+                     + ', %.3f' % self.clangError
+        elif alignColumns:
+            entry += ", -, -"
 
         if len(self.optTime) > 0:
             entry += ', %.3f' % self.optMean \

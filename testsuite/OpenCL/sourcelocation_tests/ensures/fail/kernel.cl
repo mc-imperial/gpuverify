@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--local_size=1024 --num_groups=1024
-//[\s]*kernel.cl:11:36:[\s]+error:[\s]+postcondition might not hold on all return paths[\s]+__ensures\(__implies\(__enabled\(\), __return_val_int\(\) > 0\)\);
+//[\s]*kernel.cl:11:[\d]+:[\s]+error:[\s]+postcondition might not hold on all return paths[\s]+__ensures\(__implies\(__enabled\(\), __return_val_int\(\) > 0\)\);
 
 
 

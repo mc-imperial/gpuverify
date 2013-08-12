@@ -700,6 +700,7 @@ instruct ``gvtester.py`` what to do. The syntax is as follows::
                    "OPT_ERROR" |
                    "BUGLE_ERROR" |
                    "GPUVERIFYVCGEN_ERROR" |
+                   "GPUVERIFYVCGEN_TIMEOUT" |
                    "BOOGIE_ERROR" |
                    "BOOGIE_TIMEOUT"
 
