@@ -12,6 +12,7 @@ namespace DynamicAnalysis
 {
 	public class BoogieInterpreter
 	{
+		private static Block current = null;
 		private static Random Random = new Random();
 		private static Memory Memory = new Memory();
 		private static Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>(); 
@@ -96,21 +97,31 @@ namespace DynamicAnalysis
 			
 			IEnumerable<Implementation> implementations = program.TopLevelDeclarations.OfType<Implementation>().
 				Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel"));
-			foreach (Implementation impl in implementations)
+			try
 			{
-				Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
-				foreach (Requires requires in impl.Proc.Requires)
+				foreach (Implementation impl in implementations)
 				{
-					EvaluateRequires(requires, raceVariables);
+					Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
+					foreach (Requires requires in impl.Proc.Requires)
+					{
+						EvaluateRequires(requires, raceVariables);
+					}
+					Print.DebugMessage(Memory.Dump, 5);
+					foreach (Block block in impl.Blocks)
+					{
+						LabelToBlock[block.Label] = block;
+					}
+					InitialiseFormalParams(impl.InParams);
+					current = impl.Blocks[0];
+					while (current != null)
+					{
+						InterpretBasicBlock();
+						current = TransferControl();
+					}
 				}
-				Print.DebugMessage(Memory.Dump, 5);
-				foreach (Block block in impl.Blocks)
-				{
-					LabelToBlock[block.Label] = block;
-				}
-				InitialiseFormalParams(impl.InParams);
-				Block entry = impl.Blocks[0];
-				InterpretBasicBlock(entry);
+			}
+			finally
+			{
 				Memory.Dump();
 			}
 			
@@ -279,16 +290,16 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void InterpretBasicBlock (Block block)
+		private static void InterpretBasicBlock ()
 		{
-			Print.DebugMessage(String.Format("Entering basic block with label '{0}'", block.Label), 5);
+			Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", current.Label), 5);
 			// Execute all the statements
-			foreach (Cmd cmd in block.Cmds)
+			foreach (Cmd cmd in current.Cmds)
 			{
 				if (cmd is AssignCmd)
 				{
 					AssignCmd assign = cmd as AssignCmd;
-					Print.DebugMessage(assign.ToString(), 5);
+					Print.DebugMessage(assign.ToString().Replace("\n", String.Empty), 5);
 					List<ExprTree> evaluations = new List<ExprTree>();
 					// First evaluate all RHS expressions
 					foreach (Expr expr in assign.Rhss) 
@@ -333,7 +344,7 @@ namespace DynamicAnalysis
 				if (cmd is AssertCmd)
 				{
 					AssertCmd assert = cmd as AssertCmd;					
-					Print.DebugMessage(assert.ToString(), 5);
+					Print.DebugMessage(assert.ToString().Replace("\n", String.Empty), 5);
 					ExprTree exprTree = GetExprTree(assert.Expr);
 					if (!failedAsserts.Contains(assert))
 					{
@@ -349,13 +360,11 @@ namespace DynamicAnalysis
 					}
 				}
 			}
-			// Now transfer control
-			TransferControl(block);
 		}
 		
 		private static void EvaluateBinaryNode (BinaryNode<BitVector32> binary)
 		{
-			Print.DebugMessage("Evaluating binary bv node", 5);
+			Print.DebugMessage("Evaluating binary bv node", 10);
 			ExprNode<BitVector32> left  = binary.GetChildren()[0] as ExprNode<BitVector32>;
 			ExprNode<BitVector32> right = binary.GetChildren()[1] as ExprNode<BitVector32>;
 			if (left != null && right != null)
@@ -380,6 +389,20 @@ namespace DynamicAnalysis
 							case "/":
 								binary.evaluations.Add(new BitVector32(lhs.Data / rhs.Data));
 								break;
+							case "BV32_UREM":
+							{
+								int lhsUnsigned = lhs.Data >= 0 ? lhs.Data : lhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+								int rhsUnsigned = rhs.Data >= 0 ? rhs.Data : rhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+								binary.evaluations.Add(new BitVector32(lhsUnsigned % rhsUnsigned));
+								break;
+							}
+							case "BV32_UDIV":
+							{
+								int lhsUnsigned = lhs.Data >= 0 ? lhs.Data : lhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+								int rhsUnsigned = rhs.Data >= 0 ? rhs.Data : rhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+								binary.evaluations.Add(new BitVector32(lhsUnsigned/rhsUnsigned));
+								break;
+							}
 							case "BV32_ADD":
 								binary.evaluations.Add(new BitVector32(lhs.Data + rhs.Data));
 								break;
@@ -407,7 +430,7 @@ namespace DynamicAnalysis
 		
 		private static void EvaluateBinaryNode (BinaryNode<bool> binary)
 		{
-			Print.DebugMessage("Evaluating binary bool node", 5);
+			Print.DebugMessage("Evaluating binary bool node", 10);
 			if (binary.op == "||"  ||
 			    binary.op == "&&"  ||
 			    binary.op == "==>")
@@ -481,6 +504,34 @@ namespace DynamicAnalysis
 									case "!=":
 										binary.evaluations.Add(lhs.Data != rhs.Data);
 										break;
+									case "BV32_ULT":
+									{
+										int lhsUnsigned = lhs.Data >= 0 ? lhs.Data : lhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+										int rhsUnsigned = rhs.Data >= 0 ? rhs.Data : rhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+										binary.evaluations.Add(lhsUnsigned < rhsUnsigned);
+										break;
+									}
+									case "BV32_ULE":
+									{
+										int lhsUnsigned = lhs.Data >= 0 ? lhs.Data : lhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+										int rhsUnsigned = rhs.Data >= 0 ? rhs.Data : rhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+										binary.evaluations.Add(lhsUnsigned <= rhsUnsigned);
+										break;
+									}
+									case "BV32_UGT":
+									{
+										int lhsUnsigned = lhs.Data >= 0 ? lhs.Data : lhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+										int rhsUnsigned = rhs.Data >= 0 ? rhs.Data : rhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+										binary.evaluations.Add(lhsUnsigned > rhsUnsigned);
+										break;
+									}
+									case "BV32_UGE":
+									{
+										int lhsUnsigned = lhs.Data >= 0 ? lhs.Data : lhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+										int rhsUnsigned = rhs.Data >= 0 ? rhs.Data : rhs.Data & ((int) Math.Pow(2, 32)) - 1; 
+										binary.evaluations.Add(lhsUnsigned >= rhsUnsigned);
+										break;
+									}
 									case "BV32_SLT":
 										binary.evaluations.Add(lhs.Data < rhs.Data);
 										break;
@@ -664,18 +715,17 @@ namespace DynamicAnalysis
 			Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
 		}
 		
-		private static void TransferControl (Block block)
+		private static Block TransferControl ()
 		{
-			TransferCmd transfer = block.TransferCmd;
+			TransferCmd transfer = current.TransferCmd;
 			if (transfer is GotoCmd)
 			{
-				bool found    = false;
 				GotoCmd goto_ = transfer as GotoCmd;
 				if (goto_.labelNames.Count == 1)
 				{
 					string succLabel = goto_.labelNames[0];
 					Block succ       = LabelToBlock[succLabel];
-					InterpretBasicBlock(succ);
+					return succ;
 				}
 				else
 				{
@@ -687,20 +737,16 @@ namespace DynamicAnalysis
 						ExprTree exprTree         = GetExprTree(predicateCmd.Expr);
 						EvaluateExprTree(exprTree);
 						if (exprTree.evaluation.Equals(True))
-						{
-							InterpretBasicBlock(succ);
-							found = true;
-							break;
-						}
+							return succ;
 					}
-					if (!found)
-						Print.ExitMessage("No successor guard evaluates to true");
+					Print.ExitMessage("No successor guard evaluates to true");
 				}
 			}
 			else if (transfer is ReturnCmd)
 				Print.VerboseMessage("Execution done");
 			else
 				Print.ExitMessage("Unhandled control transfer command: " + transfer.ToString());
+			return null;
 		}
 	}
 }
