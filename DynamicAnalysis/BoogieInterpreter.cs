@@ -84,6 +84,8 @@ namespace DynamicAnalysis
 				}
 			}
 			
+			Print.VerboseMessage(GPU.Instance.ToString());
+			
 			IEnumerable<NamedDeclaration> raceVariables = program.TopLevelDeclarations.OfType<NamedDeclaration>().
 				Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "race_checking"));
 			foreach (NamedDeclaration decl in raceVariables)
@@ -157,21 +159,44 @@ namespace DynamicAnalysis
 						search = false;
 						ScalarSymbolNode<BitVector32> left = (ScalarSymbolNode<BitVector32>) binary.GetChildren()[0];
 						LiteralNode<BitVector32> right     = (LiteralNode<BitVector32>) binary.GetChildren()[1];
-						Memory.Store(left.symbol, right.evaluations[0]);
-						if (left.symbol == "group_size_x")
-							GPU.Instance.blockDim[DIMENSION.X] = right.evaluations[0].Data;
+						if (left.symbol == "group_size_x") 
+						{
+							if (!GPU.Instance.IsUserSetBlockDim(DIMENSION.X))
+								GPU.Instance.blockDim[DIMENSION.X] = right.evaluations[0].Data;
+							Memory.Store(left.symbol, new BitVector32(GPU.Instance.blockDim[DIMENSION.X]));
+						}
 						else if (left.symbol == "group_size_y")
-							GPU.Instance.blockDim[DIMENSION.Y] = right.evaluations[0].Data;
+						{
+							if (!GPU.Instance.IsUserSetBlockDim(DIMENSION.Y))
+								GPU.Instance.blockDim[DIMENSION.Y] = right.evaluations[0].Data;
+							Memory.Store(left.symbol, new BitVector32(GPU.Instance.blockDim[DIMENSION.Y]));
+						}
 						else if (left.symbol == "group_size_z")
-							GPU.Instance.blockDim[DIMENSION.Z] = right.evaluations[0].Data;
+						{
+							if (!GPU.Instance.IsUserSetBlockDim(DIMENSION.Z))
+								GPU.Instance.blockDim[DIMENSION.Z] = right.evaluations[0].Data;
+							Memory.Store(left.symbol, new BitVector32(GPU.Instance.blockDim[DIMENSION.Z]));
+						}
 						else if (left.symbol == "num_groups_x")
-							GPU.Instance.gridDim[DIMENSION.X] = right.evaluations[0].Data;
+						{
+							if (!GPU.Instance.IsUserSetGridDim(DIMENSION.X))
+								GPU.Instance.gridDim[DIMENSION.X] = right.evaluations[0].Data;
+							Memory.Store(left.symbol, new BitVector32(GPU.Instance.gridDim[DIMENSION.X]));
+						}
 						else if (left.symbol == "num_groups_y")
-							GPU.Instance.gridDim[DIMENSION.Y] = right.evaluations[0].Data;
+						{
+							if (!GPU.Instance.IsUserSetGridDim(DIMENSION.Y))
+								GPU.Instance.gridDim[DIMENSION.Y] = right.evaluations[0].Data;
+							Memory.Store(left.symbol, new BitVector32(GPU.Instance.gridDim[DIMENSION.Y]));
+						}
 						else if (left.symbol == "num_groups_z")
-							GPU.Instance.gridDim[DIMENSION.Z] = right.evaluations[0].Data;
+						{
+							if (!GPU.Instance.IsUserSetGridDim(DIMENSION.Z))
+								GPU.Instance.gridDim[DIMENSION.Z] = right.evaluations[0].Data;
+							Memory.Store(left.symbol, new BitVector32(GPU.Instance.gridDim[DIMENSION.Z]));
+						}
 						else
-							Print.ExitMessage("Unhandled axiom: " + axiom.ToString());
+							Print.ExitMessage("Unhandled GPU axiom: " + axiom.ToString());
 					}
 				}
 				foreach (Node child in node.GetChildren())
@@ -256,7 +281,7 @@ namespace DynamicAnalysis
 		
 		private static void InterpretBasicBlock (Block block)
 		{
-			Print.VerboseMessage(String.Format("Entering basic block with label '{0}'", block.Label));
+			Print.DebugMessage(String.Format("Entering basic block with label '{0}'", block.Label), 5);
 			// Execute all the statements
 			foreach (Cmd cmd in block.Cmds)
 			{

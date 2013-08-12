@@ -61,14 +61,14 @@ namespace DynamicAnalysis
 					GPU.Instance.SetGroupID(groupID);
 					break;
 					
-				case "--local_size":
-				case "/local_size":
+				case "-blockDim":
+				case "/blockDim":
 					Tuple<int, int, int> blockDim = HandleTuple(afterColon);
 					GPU.Instance.SetBlockDim(blockDim);
 					break;
 					
-				case "--num_groups":
-				case "/num_groups":
+				case "-gridDim":
+				case "/gridDim":
 					Tuple<int, int, int> gridDim = HandleTuple(afterColon);
 					GPU.Instance.SetGridDim(gridDim);
 					break;
@@ -114,7 +114,7 @@ namespace DynamicAnalysis
 		{
 			Print.ConditionalExitMessage(val.StartsWith("]") || val.EndsWith("]"), String.Format("Tuple string '{0}' must begin with '[' and end with ']'", val));
 			string newval = val.Replace("[", "").Replace("]", "");
-			string[] lexemes = Regex.Split(newval, @"\s*,\s*"); 
+			string[] lexemes = Regex.Split(newval, @","); 
 			int x = 1, y = 1, z = 1;
 			DIMENSION dim = DIMENSION.X;
 			foreach (string lex in lexemes)
