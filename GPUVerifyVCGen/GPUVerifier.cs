@@ -36,10 +36,13 @@ namespace GPUVerify
         this.name = name;
       }
 
-      public override String ToString(){
+      public override String ToString() {
         return name;
       }
 
+      public bool isReadOrWrite() {
+        return this == READ || this == WRITE;
+      }
     }
 
     public class InferenceStages {
