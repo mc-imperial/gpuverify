@@ -854,6 +854,12 @@ namespace GPUVerify {
         ReadWriteGuard = Expr.And(ReadWriteGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, ReadOffsetVariable)),
                                         new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
 
+        if (!CommandLineOptions.NoBenign) {
+          ReadWriteGuard = Expr.And(ReadWriteGuard, Expr.Neq(
+              new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result))),
+              new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter))));
+        }
+
         if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
           ReadWriteGuard = Expr.And(ReadWriteGuard, GPUVerifier.ThreadsInSameGroup());
         }
