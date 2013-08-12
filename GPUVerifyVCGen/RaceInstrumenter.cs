@@ -123,7 +123,10 @@ namespace GPUVerify {
     }
 
     private int ParameterOffsetForSource(AccessType Access) {
-      if (!CommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+        return 4;
+      }
+      else if (!CommandLineOptions.NoBenign && Access == AccessType.READ) {
         return 3;
       }
       else {
@@ -348,6 +351,9 @@ namespace GPUVerify {
       {
         AddLogRaceDeclarations(v, kind);
         AddLogAccessProcedure(v, kind);
+        if (!CommandLineOptions.NoBenign) {
+          AddLogFlagProcedure(v, kind);
+        }
         AddCheckAccessProcedure(v, kind);
       }
     }
@@ -395,8 +401,6 @@ namespace GPUVerify {
             continue;
           }
         }
-
-        result.Add(c);
 
         if (c is CallCmd) {
           CallCmd call = c as CallCmd;
@@ -456,12 +460,18 @@ namespace GPUVerify {
             }
           }
         }
+
+        result.Add(c);
+
       }
       return result;
     }
 
     private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
       result.Add(MakeLogCall(ar, Access, Value));
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+        result.Add(MakeFlagCall(ar, Access));
+      }
       if (!CommandLineOptions.OnlyLog) {
         result.Add(MakeCheckCall(result, ar, Access, Value));
       }
@@ -495,6 +505,7 @@ namespace GPUVerify {
       List<Expr> inParamsLog = new List<Expr>();
       inParamsLog.Add(ar.Index);
       MaybeAddValueParameter(inParamsLog, ar, Value, Access);
+      MaybeAddValueOldParameter(inParamsLog, ar, Access);
       inParamsLog.Add(verifier.IntRep.GetLiteral(CurrStmtNo, 32));
       Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
       verifier.OnlyThread1.Add(logProcedure.Name);
@@ -516,6 +527,25 @@ namespace GPUVerify {
         }
       }
     }
+
+    private void MaybeAddValueOldParameter(List<Expr> parameters, AccessRecord ar, AccessType Access) {
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+          Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
+          e.Type = (ar.v.TypedIdent.Type as MapType).Result;
+          parameters.Add(e);
+      }
+    }
+
+    private CallCmd MakeFlagCall(AccessRecord ar, AccessType Access) {
+      List<Expr> inParamsLogFlag = new List<Expr>();
+      inParamsLogFlag.Add(ar.Index);
+      Procedure logFlagProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_FLAG_" + Access + "_" + ar.v.Name);
+      verifier.OnlyThread2.Add(logFlagProcedure.Name);
+      CallCmd logFlagCallCmd = new CallCmd(Token.NoToken, logFlagProcedure.Name, inParamsLogFlag, new List<IdentifierExpr>());
+      logFlagCallCmd.Proc = logFlagProcedure;
+      return logFlagCallCmd;
+    }
+
 
     private void TryWriteSourceLocToFile() {
       if (QKeyValue.FindStringAttribute(SourceLocationAttributes, "fname") != null) {
@@ -594,6 +624,7 @@ namespace GPUVerify {
       Debug.Assert(mt.Arguments.Count == 1);
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
+      Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
       Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
       Debug.Assert(!(mt.Result is MapType));
 
@@ -602,9 +633,37 @@ namespace GPUVerify {
       if(!CommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         inParams.Add(VariableForThread(1, ValueParameter));
       }
+      if(!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+        inParams.Add(VariableForThread(1, ValueOldParameter));
+      }
       inParams.Add(VariableForThread(1, SourceParameter));
 
       string LogProcedureName = "_LOG_" + Access + "_" + v.Name;
+
+      Procedure result = GetRaceCheckingProcedure(v.tok, LogProcedureName);
+
+      result.InParams = inParams;
+
+      GPUVerifier.AddInlineAttribute(result);
+
+      return result;
+    }
+
+    protected Procedure MakeLogFlagProcedureHeader(Variable v, AccessType Access) {
+      List<Variable> inParams = new List<Variable>();
+
+      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
+
+      Debug.Assert(v.TypedIdent.Type is MapType);
+      MapType mt = v.TypedIdent.Type as MapType;
+      Debug.Assert(mt.Arguments.Count == 1);
+      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
+      Debug.Assert(!(mt.Result is MapType));
+
+      inParams.Add(VariableForThread(2, PredicateParameter));
+      inParams.Add(VariableForThread(2, OffsetParameter));
+
+      string LogProcedureName = "_LOG_FLAG_" + Access + "_" + v.Name;
 
       Procedure result = GetRaceCheckingProcedure(v.tok, LogProcedureName);
 
@@ -719,8 +778,8 @@ namespace GPUVerify {
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
+      Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
       Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
-      Variable FlagParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_flag", Microsoft.Boogie.Type.Bool));
 
       Debug.Assert(!(mt.Result is MapType));
 
@@ -748,7 +807,9 @@ namespace GPUVerify {
       }
       if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessFlagVariable),
-          Condition, Expr.False));
+          Condition,
+          Expr.Neq(new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter)),
+            new IdentifierExpr(v.tok, VariableForThread(1, ValueOldParameter)))));
       }
       simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessSourceVariable),
           Condition,
@@ -765,6 +826,46 @@ namespace GPUVerify {
       verifier.Program.TopLevelDeclarations.Add(LogAccessImplementation);
     }
 
+    protected void AddLogFlagProcedure(Variable v, AccessType Access) {
+      if (Access == AccessType.WRITE) {
+        Procedure LogFlagProcedure = MakeLogFlagProcedureHeader(v, Access);
+
+        Debug.Assert(v.TypedIdent.Type is MapType);
+        MapType mt = v.TypedIdent.Type as MapType;
+        Debug.Assert(mt.Arguments.Count == 1);
+
+        Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
+        Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
+        Variable AccessFlagVariable = GPUVerifier.MakeFlagVariable(v.Name, Access);
+
+        Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
+        Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
+
+        Debug.Assert(!(mt.Result is MapType));
+
+        List<Variable> locals = new List<Variable>();
+        List<BigBlock> bigblocks = new List<BigBlock>();
+        List<Cmd> simpleCmds = new List<Cmd>();
+
+        Expr Condition = Expr.And(new IdentifierExpr(v.tok, VariableForThread(2, PredicateParameter)),
+                           Expr.And(new IdentifierExpr(v.tok, VariableForThread(1, AccessHasOccurredVariable)),
+                             Expr.Eq(new IdentifierExpr(v.tok, VariableForThread(1, AccessOffsetVariable)),
+                               new IdentifierExpr(v.tok, VariableForThread(2, OffsetParameter)))));
+
+        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessFlagVariable),
+            Condition, Expr.False));
+
+        bigblocks.Add(new BigBlock(v.tok, "_LOG_FLAG_" + Access + "", simpleCmds, null, null));
+
+        Implementation LogFlagImplementation = new Implementation(v.tok, "_LOG_FLAG_" + Access + "_" + v.Name, new List<TypeVariable>(), LogFlagProcedure.InParams, new List<Variable>(), locals, new StmtList(bigblocks, v.tok));
+        GPUVerifier.AddInlineAttribute(LogFlagImplementation);
+
+        LogFlagImplementation.Proc = LogFlagProcedure;
+
+        verifier.Program.TopLevelDeclarations.Add(LogFlagProcedure);
+        verifier.Program.TopLevelDeclarations.Add(LogFlagImplementation);
+      }
+    }
 
     protected void AddCheckAccessProcedure(Variable v, AccessType Access) {
       Procedure CheckAccessProcedure = MakeCheckAccessProcedureHeader(v, Access);
@@ -779,7 +880,7 @@ namespace GPUVerify {
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
 
-      if (Access.Equals(AccessType.READ)) {
+      if (Access == AccessType.READ) {
         // Check read by thread 2 does not conflict with write by thread 1
         Variable WriteHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
         Variable WriteFlagVariable = GPUVerifier.MakeFlagVariable(v.Name, AccessType.WRITE);
@@ -788,7 +889,7 @@ namespace GPUVerify {
         WriteReadGuard = Expr.And(WriteReadGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteHasOccurredVariable)));
 
         if (!CommandLineOptions.NoBenign) {
-          WriteReadGuard = Expr.And(WriteReadGuard, Expr.Not(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteFlagVariable))));
+          WriteReadGuard = Expr.And(WriteReadGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteFlagVariable)));
         }
 
         WriteReadGuard = Expr.And(WriteReadGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteOffsetVariable)),
@@ -829,7 +930,7 @@ namespace GPUVerify {
         }
 
       }
-      else if (Access.Equals(AccessType.WRITE)) {
+      else if (Access == AccessType.WRITE) {
 
         // Check write by thread 2 does not conflict with write by thread 1
         Variable WriteHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
@@ -905,8 +1006,7 @@ namespace GPUVerify {
           CheckAccessProcedure.Requires.Add(NoAtomicWriteRaceRequires);
         }
       }
-
-      else if (Access.Equals(AccessType.ATOMIC)) {
+      else if (Access == AccessType.ATOMIC) {
         if (CommandLineOptions.AtomicVsWrite) {
           // Check atomic by thread 2 does not conflict with write by thread 1
           Variable WriteHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
@@ -1179,7 +1279,7 @@ namespace GPUVerify {
       return Expr.Imp(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(name, Access)),
                                          Expr.False);
     }
-    
+
     private AssertCmd BuildAccessOccurredFalseInvariant(string name, AccessType Access)
     {
       return new AssertCmd(Token.NoToken, BuildAccessOccurredFalseExpr(name, Access));
@@ -1211,7 +1311,7 @@ namespace GPUVerify {
     private Expr BuildDisjunctionFromAccessSourceLocations(string key, AccessType Access)
     {
       List<Expr> sourceLocExprs = new List<Expr>();
-      Dictionary<string, List<int>> AccessSourceLocations = (Access.Equals(AccessType.WRITE)) ? WriteAccessSourceLocations : (Access.Equals(AccessType.READ) ? ReadAccessSourceLocations : AtomicAccessSourceLocations);
+      Dictionary<string, List<int>> AccessSourceLocations = (Access == AccessType.WRITE) ? WriteAccessSourceLocations : ((Access == AccessType.READ) ? ReadAccessSourceLocations : AtomicAccessSourceLocations);
       foreach (int loc in AccessSourceLocations[key])
       {
         sourceLocExprs.Add(Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(key, Access)),
@@ -1310,13 +1410,13 @@ namespace GPUVerify {
 
     private void writeSourceLocToFile(QKeyValue kv, string path) {
       TextWriter tw = new StreamWriter(path, true);
-      tw.Write("\n" + QKeyValue.FindIntAttribute(SourceLocationAttributes, "line", -1) 
-                    + "#" + QKeyValue.FindIntAttribute(SourceLocationAttributes, "col", -1) 
-                    + "#" + QKeyValue.FindStringAttribute(SourceLocationAttributes, "fname") 
+      tw.Write("\n" + QKeyValue.FindIntAttribute(SourceLocationAttributes, "line", -1)
+                    + "#" + QKeyValue.FindIntAttribute(SourceLocationAttributes, "col", -1)
+                    + "#" + QKeyValue.FindStringAttribute(SourceLocationAttributes, "fname")
                     + "#" + QKeyValue.FindStringAttribute(SourceLocationAttributes, "dir"));
       tw.Close();
     }
-    
+
     protected void AddAccessedOffsetIsThreadLocalIdCandidateRequires(Procedure Proc, Variable v, AccessType Access, int Thread) {
       verifier.AddCandidateRequires(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access, Thread), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
     }
