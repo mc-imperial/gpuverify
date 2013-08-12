@@ -199,7 +199,7 @@ namespace GPUVerify
             if (p == null)
             {
                 p = new Procedure(Token.NoToken, "barrier", new List<TypeVariable>(),
-                                  new List<Variable>(new Variable[] { 
+                                  new List<Variable>(new Variable[] {
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", IntRep.GetIntType(1)), true),
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__global_fence", IntRep.GetIntType(1)), true) }),
                                   new List<Variable>(),
@@ -216,8 +216,8 @@ namespace GPUVerify
           var p = CheckSingleInstanceOfAttributedProcedure("barrier_invariant");
           if (p == null) {
             p = new Procedure(Token.NoToken, "barrier_invariant", new List<TypeVariable>(),
-                              new List<Variable>(new Variable[] { 
-                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__cond", 
+                              new List<Variable>(new Variable[] {
+                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__cond",
                                       Microsoft.Boogie.Type.Bool), true)
                               }),
                               new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(),
@@ -233,10 +233,10 @@ namespace GPUVerify
           var p = CheckSingleInstanceOfAttributedProcedure("barrier_invariant_instantiation");
           if (p == null) {
             p = new Procedure(Token.NoToken, "barrier_invariant_instantiation", new List<TypeVariable>(),
-                              new List<Variable>(new Variable[] { 
-                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1", 
+                              new List<Variable>(new Variable[] {
+                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1",
                                       IntRep.GetIntType(32)), true),
-                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", 
+                                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2",
                                       IntRep.GetIntType(32)), true)
                               }),
                               new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(),
@@ -288,8 +288,8 @@ namespace GPUVerify
         private void ReportMultipleAttributeError(string attribute, IToken first, IToken second)
         {
             Error(
-                second, 
-                "Can only have one {0} attribute, but previously saw this attribute at ({1}, {2})", 
+                second,
+                "Can only have one {0} attribute, but previously saw this attribute at ({1}, {2})",
                 attribute,
                 first.filename,
                 first.line, first.col - 1);
@@ -314,7 +314,7 @@ namespace GPUVerify
         {
             if (constFieldRef == null)
             {
-                constFieldRef = new Constant(Token.NoToken, 
+                constFieldRef = new Constant(Token.NoToken,
                   new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(32)), /*unique=*/false);
                 constFieldRef.AddAttribute(attr);
                 Program.TopLevelDeclarations.Add(constFieldRef);
@@ -326,8 +326,8 @@ namespace GPUVerify
             bool success = true;
             foreach (Declaration D in Program.TopLevelDeclarations)
             {
-                if (D is Variable && 
-                    (D as Variable).IsMutable && 
+                if (D is Variable &&
+                    (D as Variable).IsMutable &&
                     (D as Variable).TypedIdent.Type is MapType &&
                     !ReservedNames.Contains((D as Variable).Name))
                 {
@@ -1499,7 +1499,7 @@ namespace GPUVerify
 
         internal GlobalVariable MakeOffsetVariable(string Name, AccessType Access)
         {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access), 
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access),
             IntRep.GetIntType(32)));
         }
 
@@ -1523,6 +1523,16 @@ namespace GPUVerify
             Type));
         }
 
+        internal static string MakeFlagVariableName(string Name, AccessType Access) {
+          return "_" + Access + "_FLAG_" + Name;
+        }
+
+        internal static GlobalVariable MakeFlagVariable(string name, AccessType Access) {
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeFlagVariableName(name, Access),
+            Microsoft.Boogie.Type.Bool));
+        }
+
+
         internal GlobalVariable FindOrCreateNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
         {
             string name = MakeNotAccessedVariableName(varName);
@@ -1538,7 +1548,6 @@ namespace GPUVerify
 
             Program.TopLevelDeclarations.Add(result);
             return result;
-
         }
 
         internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, AccessType Access)
@@ -1557,7 +1566,6 @@ namespace GPUVerify
 
             Program.TopLevelDeclarations.Add(result);
             return result;
-
         }
 
         internal GlobalVariable FindOrCreateOffsetVariable(string varName, AccessType Access)
@@ -1576,7 +1584,6 @@ namespace GPUVerify
 
             Program.TopLevelDeclarations.Add(result);
             return result;
-
         }
 
         internal GlobalVariable FindOrCreateSourceVariable(string varName, AccessType Access) {
@@ -1592,7 +1599,6 @@ namespace GPUVerify
 
           Program.TopLevelDeclarations.Add(result);
           return result;
-
         }
 
         internal GlobalVariable FindOrCreateValueVariable(string varName, AccessType Access,
@@ -1609,8 +1615,26 @@ namespace GPUVerify
 
           Program.TopLevelDeclarations.Add(result);
           return result;
-
         }
+
+        internal GlobalVariable FindOrCreateFlagVariable(string varName, AccessType Access)
+        {
+            string name = MakeFlagVariableName(varName, Access) + "$1";
+            foreach (Declaration D in Program.TopLevelDeclarations)
+            {
+                if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
+                {
+                    return D as GlobalVariable;
+                }
+            }
+
+            GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
+                MakeFlagVariable(varName, Access)) as GlobalVariable;
+
+            Program.TopLevelDeclarations.Add(result);
+            return result;
+        }
+
 
         internal static GlobalVariable MakeNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
         {

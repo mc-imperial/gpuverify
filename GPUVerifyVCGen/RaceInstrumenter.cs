@@ -714,11 +714,13 @@ namespace GPUVerify {
       Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
       Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, mt.Result);
       Variable AccessSourceVariable = verifier.MakeSourceVariable(v.Name, Access);
+      Variable AccessFlagVariable = GPUVerifier.MakeFlagVariable(v.Name, Access);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
       Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
+      Variable FlagParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_flag", Microsoft.Boogie.Type.Bool));
 
       Debug.Assert(!(mt.Result is MapType));
 
@@ -743,6 +745,10 @@ namespace GPUVerify {
         simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessValueVariable),
           Condition,
           new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter))));
+      }
+      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessFlagVariable),
+          Condition, Expr.False));
       }
       simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessSourceVariable),
           Condition,
@@ -776,9 +782,15 @@ namespace GPUVerify {
       if (Access.Equals(AccessType.READ)) {
         // Check read by thread 2 does not conflict with write by thread 1
         Variable WriteHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
+        Variable WriteFlagVariable = GPUVerifier.MakeFlagVariable(v.Name, AccessType.WRITE);
         Variable WriteOffsetVariable = verifier.MakeOffsetVariable(v.Name, AccessType.WRITE);
         Expr WriteReadGuard = new IdentifierExpr(Token.NoToken, VariableForThread(2, PredicateParameter));
         WriteReadGuard = Expr.And(WriteReadGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteHasOccurredVariable)));
+
+        if (!CommandLineOptions.NoBenign) {
+          WriteReadGuard = Expr.And(WriteReadGuard, Expr.Not(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteFlagVariable))));
+        }
+
         WriteReadGuard = Expr.And(WriteReadGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteOffsetVariable)),
                                         new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
 
@@ -966,6 +978,13 @@ namespace GPUVerify {
         Debug.Assert(mt.Arguments.Count == 1);
         verifier.FindOrCreateValueVariable(v.Name, Access, mt.Result);
       }
+
+     if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+        Debug.Assert(v.TypedIdent.Type is MapType);
+        MapType mt = v.TypedIdent.Type as MapType;
+        Debug.Assert(mt.Arguments.Count == 1);
+        verifier.FindOrCreateFlagVariable(v.Name, Access);
+     }
     }
 
 
