@@ -9,6 +9,7 @@ import sys
 import timeit
 import threading
 import getversion
+import pprint
 
 #Try to import the paths need for GPUVerify's tools
 if os.path.isfile(sys.path[0] + os.sep + 'gvfindtools.py'):
@@ -265,7 +266,7 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
       Timing.append((ToolName, timeout))
     GPUVerifyError(ToolName + " timed out.  Use --timeout=N with N > " + str(timeout) + " to increase timeout, or --timeout=0 to disable timeout.", timeoutErrorCode)
   except (OSError,WindowsError) as e:
-    GPUVerifyError("While invoking " + ToolName + ": " + str(e),ErrorCode)
+    GPUVerifyError("While invoking " + ToolName + ": " + str(e) + "\nWith command line args:\n" + pprint.pformat(Command),ErrorCode)
 
   if CommandLineOptions.time:
     Timing.append((ToolName, end-start))
