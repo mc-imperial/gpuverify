@@ -619,7 +619,7 @@ namespace GPUVerify
             }
 
             var nonUniformVars = new List<Variable> { _X, _Y, _Z };
-            
+
             if(!CommandLineOptions.OnlyIntraGroupRaceChecking) {
                 nonUniformVars.AddRange(new Variable[] { _GROUP_X, _GROUP_Y, _GROUP_Z } );
             }
@@ -790,7 +790,7 @@ namespace GPUVerify
         }
 
         internal static bool IsPredicateOrTemp(string lv) {
-          
+
           // We should improve this by having a general convention
           // for names of temporary or predicate variables
 
@@ -814,9 +814,6 @@ namespace GPUVerify
                   (lv.Length > 3 && lv.Substring(0,3).Equals("_LC")) ||
                   (lv.Length > 5 && lv.Substring(0,5).Equals("_temp"));
         }
-
-        
-
 
         internal bool ProgramIsOK(Declaration d)
         {
@@ -863,8 +860,6 @@ namespace GPUVerify
             }
             return true;
         }
-
-        
 
         public static Microsoft.Boogie.Type GetTypeOfIdX()
         {
@@ -1060,7 +1055,7 @@ namespace GPUVerify
                 continue;
               }
               Implementation Impl = D as Implementation;
-              
+
               foreach (IRegion subregion in RootRegion(Impl).SubRegions())
               {
                 RaceInstrumenter.AddSourceLocationLoopInvariants(Impl, subregion);
@@ -1523,15 +1518,14 @@ namespace GPUVerify
             Type));
         }
 
-        internal static string MakeFlagVariableName(string Name, AccessType Access) {
-          return "_" + Access + "_FLAG_" + Name;
+        internal static string MakeBenignFlagVariableName(string Name) {
+          return "_WRITE_READ_BENIGN_FLAG_" + Name;
         }
 
-        internal static GlobalVariable MakeFlagVariable(string name, AccessType Access) {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeFlagVariableName(name, Access),
+        internal static GlobalVariable MakeBenignFlagVariable(string name) {
+          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeBenignFlagVariableName(name),
             Microsoft.Boogie.Type.Bool));
         }
-
 
         internal GlobalVariable FindOrCreateNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
         {
@@ -1617,9 +1611,9 @@ namespace GPUVerify
           return result;
         }
 
-        internal GlobalVariable FindOrCreateFlagVariable(string varName, AccessType Access)
+        internal GlobalVariable FindOrCreateBenignFlagVariable(string varName)
         {
-            string name = MakeFlagVariableName(varName, Access) + "$1";
+            string name = MakeBenignFlagVariableName(varName) + "$1";
             foreach (Declaration D in Program.TopLevelDeclarations)
             {
                 if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
@@ -1629,7 +1623,7 @@ namespace GPUVerify
             }
 
             GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-                MakeFlagVariable(varName, Access)) as GlobalVariable;
+                MakeBenignFlagVariable(varName)) as GlobalVariable;
 
             Program.TopLevelDeclarations.Add(result);
             return result;
@@ -2132,7 +2126,7 @@ namespace GPUVerify
           Procedure proto = new Procedure(Token.NoToken,"_WARP_SYNC",new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
           proto.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
           Program.TopLevelDeclarations.Add(proto);
-          ResContext.AddProcedure(proto); 
+          ResContext.AddProcedure(proto);
           // And method
           GenerateWarpSync();
         }
@@ -2143,14 +2137,14 @@ namespace GPUVerify
           foreach (Cmd c in b.Cmds)
           {
             result.Add(c);
-						if (c is CallCmd)
-						{
-							CallCmd call = c as CallCmd;
-							if (call.callee.StartsWith("_CHECK_"))
-							{
-								result.Add(new CallCmd(Token.NoToken,"_WARP_SYNC",new List<Expr>(),new List<IdentifierExpr>()));
-							}
-						}
+            if (c is CallCmd)
+            {
+              CallCmd call = c as CallCmd;
+              if (call.callee.StartsWith("_CHECK_"))
+              {
+                result.Add(new CallCmd(Token.NoToken,"_WARP_SYNC",new List<Expr>(),new List<IdentifierExpr>()));
+              }
+            }
           }
           b.Cmds = result;
           return b;
@@ -2173,7 +2167,7 @@ namespace GPUVerify
 
           Expr warpsize = Expr.Ident(CommandLineOptions.WarpSize + "bv32", new BvType(32));
 
-          Expr[] tids = (new int[] {1,2}).Select(x => 
+          Expr[] tids = (new int[] {1,2}).Select(x =>
               IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",x)),IntRep.MakeAdd(
               IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",x)),Expr.Ident(GetGroupSize("X"))),
               IntRep.MakeMul(Expr.Ident(MakeThreadId("Z",x)),IntRep.MakeMul(Expr.Ident(GetGroupSize("X")),Expr.Ident(GetGroupSize("Y"))))))).ToArray();
@@ -2183,7 +2177,7 @@ namespace GPUVerify
 
           Expr condition = Expr.Eq(sides[0],sides[1]);
           IfCmd ifcmd = new IfCmd (Token.NoToken, condition, new StmtList (thenblocks,Token.NoToken), /* another IfCmd for elsif */ null, /* then branch */ null);
-          
+
           List<BigBlock> blocks = new List<BigBlock>();
           blocks.Add(new BigBlock(Token.NoToken,"entry", new List<Cmd>(),ifcmd ,null));
 
@@ -2227,7 +2221,7 @@ namespace GPUVerify
 
     }
 
-    
+
     public static class GPUVerifyUtilities {
 
         public static IEnumerable<Implementation> Implementations(this Program p) {

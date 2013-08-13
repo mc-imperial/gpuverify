@@ -351,10 +351,10 @@ namespace GPUVerify {
       {
         AddLogRaceDeclarations(v, kind);
         AddLogAccessProcedure(v, kind);
-        if (!CommandLineOptions.NoBenign) {
-          AddLogFlagProcedure(v, kind);
-        }
         AddCheckAccessProcedure(v, kind);
+      }
+      if (!CommandLineOptions.NoBenign) {
+        AddUpdateBenignFlagProcedure(v);
       }
     }
 
@@ -470,7 +470,7 @@ namespace GPUVerify {
     private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
       result.Add(MakeLogCall(ar, Access, Value));
       if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-        result.Add(MakeFlagCall(ar, Access));
+        result.Add(MakeUpdateBenignFlagCall(ar));
       }
       if (!CommandLineOptions.OnlyLog) {
         result.Add(MakeCheckCall(result, ar, Access, Value));
@@ -536,14 +536,14 @@ namespace GPUVerify {
       }
     }
 
-    private CallCmd MakeFlagCall(AccessRecord ar, AccessType Access) {
-      List<Expr> inParamsLogFlag = new List<Expr>();
-      inParamsLogFlag.Add(ar.Index);
-      Procedure logFlagProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_FLAG_" + Access + "_" + ar.v.Name);
-      verifier.OnlyThread2.Add(logFlagProcedure.Name);
-      CallCmd logFlagCallCmd = new CallCmd(Token.NoToken, logFlagProcedure.Name, inParamsLogFlag, new List<IdentifierExpr>());
-      logFlagCallCmd.Proc = logFlagProcedure;
-      return logFlagCallCmd;
+    private CallCmd MakeUpdateBenignFlagCall(AccessRecord ar) {
+      List<Expr> inParamsUpdateBenignFlag = new List<Expr>();
+      inParamsUpdateBenignFlag.Add(ar.Index);
+      Procedure updateBenignFlagProcedure = GetRaceCheckingProcedure(Token.NoToken, "_UPDATE_WRITE_READ_BENIGN_FLAG_" + ar.v.Name);
+      verifier.OnlyThread2.Add(updateBenignFlagProcedure.Name);
+      CallCmd updateBenignFlagCallCmd = new CallCmd(Token.NoToken, updateBenignFlagProcedure.Name, inParamsUpdateBenignFlag, new List<IdentifierExpr>());
+      updateBenignFlagCallCmd.Proc = updateBenignFlagProcedure;
+      return updateBenignFlagCallCmd;
     }
 
 
@@ -649,7 +649,7 @@ namespace GPUVerify {
       return result;
     }
 
-    protected Procedure MakeLogFlagProcedureHeader(Variable v, AccessType Access) {
+    protected Procedure MakeUpdateBenignFlagProcedureHeader(Variable v) {
       List<Variable> inParams = new List<Variable>();
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
@@ -663,9 +663,9 @@ namespace GPUVerify {
       inParams.Add(VariableForThread(2, PredicateParameter));
       inParams.Add(VariableForThread(2, OffsetParameter));
 
-      string LogProcedureName = "_LOG_FLAG_" + Access + "_" + v.Name;
+      string UpdateBenignFlagProcedureName = "_UPDATE_WRITE_READ_BENIGN_FLAG_" + v.Name;
 
-      Procedure result = GetRaceCheckingProcedure(v.tok, LogProcedureName);
+      Procedure result = GetRaceCheckingProcedure(v.tok, UpdateBenignFlagProcedureName);
 
       result.InParams = inParams;
 
@@ -772,8 +772,8 @@ namespace GPUVerify {
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
       Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
       Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, mt.Result);
+      Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
       Variable AccessSourceVariable = verifier.MakeSourceVariable(v.Name, Access);
-      Variable AccessFlagVariable = GPUVerifier.MakeFlagVariable(v.Name, Access);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
@@ -806,7 +806,7 @@ namespace GPUVerify {
           new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter))));
       }
       if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessFlagVariable),
+        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessBenignFlagVariable),
           Condition,
           Expr.Neq(new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter)),
             new IdentifierExpr(v.tok, VariableForThread(1, ValueOldParameter)))));
@@ -826,45 +826,43 @@ namespace GPUVerify {
       verifier.Program.TopLevelDeclarations.Add(LogAccessImplementation);
     }
 
-    protected void AddLogFlagProcedure(Variable v, AccessType Access) {
-      if (Access == AccessType.WRITE) {
-        Procedure LogFlagProcedure = MakeLogFlagProcedureHeader(v, Access);
+    protected void AddUpdateBenignFlagProcedure(Variable v) {
+      Procedure UpdateBenignFlagProcedure = MakeUpdateBenignFlagProcedureHeader(v);
 
-        Debug.Assert(v.TypedIdent.Type is MapType);
-        MapType mt = v.TypedIdent.Type as MapType;
-        Debug.Assert(mt.Arguments.Count == 1);
+      Debug.Assert(v.TypedIdent.Type is MapType);
+      MapType mt = v.TypedIdent.Type as MapType;
+      Debug.Assert(mt.Arguments.Count == 1);
 
-        Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-        Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
-        Variable AccessFlagVariable = GPUVerifier.MakeFlagVariable(v.Name, Access);
+      Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
+      Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, AccessType.WRITE);
+      Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
 
-        Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
-        Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
+      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
+      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
 
-        Debug.Assert(!(mt.Result is MapType));
+      Debug.Assert(!(mt.Result is MapType));
 
-        List<Variable> locals = new List<Variable>();
-        List<BigBlock> bigblocks = new List<BigBlock>();
-        List<Cmd> simpleCmds = new List<Cmd>();
+      List<Variable> locals = new List<Variable>();
+      List<BigBlock> bigblocks = new List<BigBlock>();
+      List<Cmd> simpleCmds = new List<Cmd>();
 
-        Expr Condition = Expr.And(new IdentifierExpr(v.tok, VariableForThread(2, PredicateParameter)),
-                           Expr.And(new IdentifierExpr(v.tok, VariableForThread(1, AccessHasOccurredVariable)),
-                             Expr.Eq(new IdentifierExpr(v.tok, VariableForThread(1, AccessOffsetVariable)),
-                               new IdentifierExpr(v.tok, VariableForThread(2, OffsetParameter)))));
+      Expr Condition = Expr.And(new IdentifierExpr(v.tok, VariableForThread(2, PredicateParameter)),
+                         Expr.And(new IdentifierExpr(v.tok, VariableForThread(1, AccessHasOccurredVariable)),
+                           Expr.Eq(new IdentifierExpr(v.tok, VariableForThread(1, AccessOffsetVariable)),
+                             new IdentifierExpr(v.tok, VariableForThread(2, OffsetParameter)))));
 
-        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessFlagVariable),
+        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessBenignFlagVariable),
             Condition, Expr.False));
 
-        bigblocks.Add(new BigBlock(v.tok, "_LOG_FLAG_" + Access + "", simpleCmds, null, null));
+        bigblocks.Add(new BigBlock(v.tok, "_UPDATE_BENIGN_FLAG", simpleCmds, null, null));
 
-        Implementation LogFlagImplementation = new Implementation(v.tok, "_LOG_FLAG_" + Access + "_" + v.Name, new List<TypeVariable>(), LogFlagProcedure.InParams, new List<Variable>(), locals, new StmtList(bigblocks, v.tok));
-        GPUVerifier.AddInlineAttribute(LogFlagImplementation);
+        Implementation UpdateBenignFlagImplementation = new Implementation(v.tok, "_UPDATE_WRITE_READ_BENIGN_FLAG_" + v.Name, new List<TypeVariable>(), UpdateBenignFlagProcedure.InParams, new List<Variable>(), locals, new StmtList(bigblocks, v.tok));
+        GPUVerifier.AddInlineAttribute(UpdateBenignFlagImplementation);
 
-        LogFlagImplementation.Proc = LogFlagProcedure;
+        UpdateBenignFlagImplementation.Proc = UpdateBenignFlagProcedure;
 
-        verifier.Program.TopLevelDeclarations.Add(LogFlagProcedure);
-        verifier.Program.TopLevelDeclarations.Add(LogFlagImplementation);
-      }
+        verifier.Program.TopLevelDeclarations.Add(UpdateBenignFlagProcedure);
+        verifier.Program.TopLevelDeclarations.Add(UpdateBenignFlagImplementation);
     }
 
     protected void AddCheckAccessProcedure(Variable v, AccessType Access) {
@@ -883,13 +881,13 @@ namespace GPUVerify {
       if (Access == AccessType.READ) {
         // Check read by thread 2 does not conflict with write by thread 1
         Variable WriteHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
-        Variable WriteFlagVariable = GPUVerifier.MakeFlagVariable(v.Name, AccessType.WRITE);
+        Variable WriteReadBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
         Variable WriteOffsetVariable = verifier.MakeOffsetVariable(v.Name, AccessType.WRITE);
         Expr WriteReadGuard = new IdentifierExpr(Token.NoToken, VariableForThread(2, PredicateParameter));
         WriteReadGuard = Expr.And(WriteReadGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteHasOccurredVariable)));
 
         if (!CommandLineOptions.NoBenign) {
-          WriteReadGuard = Expr.And(WriteReadGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteFlagVariable)));
+          WriteReadGuard = Expr.And(WriteReadGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteReadBenignFlagVariable)));
         }
 
         WriteReadGuard = Expr.And(WriteReadGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteOffsetVariable)),
@@ -1083,7 +1081,7 @@ namespace GPUVerify {
         Debug.Assert(v.TypedIdent.Type is MapType);
         MapType mt = v.TypedIdent.Type as MapType;
         Debug.Assert(mt.Arguments.Count == 1);
-        verifier.FindOrCreateFlagVariable(v.Name, Access);
+        verifier.FindOrCreateBenignFlagVariable(v.Name);
      }
     }
 
