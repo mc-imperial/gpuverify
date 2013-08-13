@@ -29,7 +29,7 @@ def init(pathPrefix):
   global bugleSrcDir, bugleBinDir, libclcInstallDir
   global llvmSrcDir, llvmBinDir, llvmLibDir
   global gpuVerifyVCGenBinDir, gpuVerifyBoogieDriverBinDir
-  global z3SrcDir, z3BinDir, cvc4SrcDir, cvs4BinDir
+  global z3SrcDir, z3BinDir, cvc4SrcDir, cvc4BinDir
   #The path to the Bugle Source directory. The include-blang/ folder should be in there
   bugleSrcDir = pathPrefix + os.sep + "bugle"
 

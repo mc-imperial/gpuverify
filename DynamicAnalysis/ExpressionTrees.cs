@@ -156,7 +156,11 @@ namespace DynamicAnalysis
 					Node one          = CreateFromExpr(nary.Args[0]);
 					Node two          = CreateFromExpr(nary.Args[1]);
 					Node parent;
-					if (call.FunctionName == "BV32_SGT" || 
+					if (call.FunctionName == "BV32_UGT" ||
+						call.FunctionName == "BV32_UGE" ||
+					    call.FunctionName == "BV32_ULT" ||
+						call.FunctionName == "BV32_ULE" ||
+					    call.FunctionName == "BV32_SGT" || 
 					    call.FunctionName == "BV32_SGE" ||
 					    call.FunctionName == "BV32_SLT" || 
 					    call.FunctionName == "BV32_SLE")
