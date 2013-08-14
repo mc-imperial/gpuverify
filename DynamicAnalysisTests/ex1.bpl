@@ -33,6 +33,8 @@ procedure {:kernel} foo (x: bv32, y: bv32)
 {
   var a : bv32;
   var b : bv32;
+  var c : bv32;
+  var d : bv32;
 
   if (BV32_SGT(x, y))
   {
@@ -41,8 +43,9 @@ procedure {:kernel} foo (x: bv32, y: bv32)
   }
   else
   {
-    a := 0bv32;
-    b := 1bv32;
+    c := 17bv32;
+    a := 2147483647bv32;
+    b := 4294967294bv32;
   }
 }
 

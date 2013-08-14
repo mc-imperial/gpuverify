@@ -13,10 +13,12 @@ namespace DynamicAnalysis
 		protected List<Node> nodes = new List<Node>();
 		protected Node root = null;
 		protected int height = 0;
-		public BitVector32 evaluation;
+		public BitVector evaluation;
+		public Expr expr;
 		
 		public ExprTree (Expr expr)
 		{
+			this.expr = expr;
 			root = Node.CreateFromExpr(expr);
 			levels[0] = new HashSet<Node>();
 			levels[0].Add(root);
@@ -41,7 +43,7 @@ namespace DynamicAnalysis
 		{
 			foreach (Node node in nodes)
 			{
-				if (!(node is LiteralNode<bool> || node is LiteralNode<BitVector32>))
+				if (!(node is LiteralNode<bool> || node is LiteralNode<BitVector>))
 					node.ClearEvaluations();
 			}
 		}
@@ -115,7 +117,7 @@ namespace DynamicAnalysis
 					if (two is ExprNode<bool> || three is ExprNode<bool>)
 						parent = new TernaryNode<bool>(nary.Fun.FunctionName, one, two, three);
 					else
-						parent = new TernaryNode<BitVector32>(nary.Fun.FunctionName, one, two, three);
+						parent = new TernaryNode<BitVector>(nary.Fun.FunctionName, one, two, three);
 					one.parent     = parent;
 					two.parent     = parent;
 					three.parent   = parent;
@@ -138,7 +140,7 @@ namespace DynamicAnalysis
 					    binOp.Op == BinaryOperator.Opcode.Imp)
 						parent = new BinaryNode<bool>(nary.Fun.FunctionName, one, two);
 					else
-						parent = new BinaryNode<BitVector32>(nary.Fun.FunctionName, one, two);
+						parent = new BinaryNode<BitVector>(nary.Fun.FunctionName, one, two);
 					one.parent = parent;
 					two.parent = parent;
 					return parent;
@@ -166,7 +168,7 @@ namespace DynamicAnalysis
 					    call.FunctionName == "BV32_SLE")
 						parent = new BinaryNode<bool>(call.FunctionName, one, two);
 					else
-						parent = new BinaryNode<BitVector32>(call.FunctionName, one, two);
+						parent = new BinaryNode<BitVector>(call.FunctionName, one, two);
 					one.parent = parent;
 					two.parent = parent;
 					return parent;
@@ -176,7 +178,7 @@ namespace DynamicAnalysis
 					Node parent;
 					IdentifierExpr identifier = (IdentifierExpr) nary.Args[0];
 					if (nary.Type.IsBv || nary.Type.IsInt)
-					 	parent = new MapSymbolNode<BitVector32>(identifier.Name);
+					 	parent = new MapSymbolNode<BitVector>(identifier.Name);
 					else
 						parent = new MapSymbolNode<bool>(identifier.Name);
 					foreach (Expr index in nary.Args.GetRange(1, nary.Args.Count - 1))
@@ -194,7 +196,7 @@ namespace DynamicAnalysis
 			{
 				IdentifierExpr identifier = expr as IdentifierExpr;
 				if (identifier.Type.IsBv || identifier.Type.IsInt)
-					return new ScalarSymbolNode<BitVector32>(identifier.Name);
+					return new ScalarSymbolNode<BitVector>(identifier.Name);
 				else if (identifier.Type.IsBool)
 					return new ScalarSymbolNode<bool>(identifier.Name);
 			}
@@ -204,12 +206,12 @@ namespace DynamicAnalysis
 				if (literal.Val is BvConst)
 				{
 					BvConst bv = (BvConst) literal.Val;
-					return new LiteralNode<BitVector32>(new BitVector32(bv.Value.ToInt));
+					return new LiteralNode<BitVector>(new BitVector(bv));
 				}
 				else if (literal.Val is BigNum)
 				{
 					BigNum num = (BigNum) literal.Val;
-					return new LiteralNode<BitVector32>(new BitVector32(num.ToInt));
+					return new LiteralNode<BitVector>(new BitVector(num.ToInt));
 				}
 				else if (literal.Val is bool)
 				{
@@ -246,14 +248,6 @@ namespace DynamicAnalysis
 		public override string ToString ()
 		{
 			return op + " (" + typeof(T).ToString() + ")";
-		}
-	}
-	
-	public class NaryNode<T> : OpNode<T>
-	{
-		public NaryNode (string op):
-			base(op)
-		{
 		}
 	}
 	

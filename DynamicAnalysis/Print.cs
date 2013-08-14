@@ -11,8 +11,7 @@ namespace DynamicAnalysis
 		{
 			if (level <= debug)
 				Console.WriteLine(arg);
-		}
-		
+		}		
 		
 		public static void DebugMessage (Action function, int level)
 		{
@@ -24,6 +23,11 @@ namespace DynamicAnalysis
 		{
 			if (verbose)
 				Console.WriteLine(arg);
+		}
+		
+		public static void WarningMessage (string arg)
+		{
+			Console.WriteLine("****************** WARNING: {0}", arg);
 		}
 		
 		public static void ExitMessage (string arg)
