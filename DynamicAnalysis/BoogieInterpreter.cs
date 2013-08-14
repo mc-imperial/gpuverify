@@ -425,6 +425,12 @@ namespace DynamicAnalysis
 								binary.evaluations.Add(lhsUnsigned/rhsUnsigned);
 								break;
 							}
+							case "BV32_LSHR":
+								binary.evaluations.Add(lhs >> rhs.Data);
+								break;
+							case "BV32_SHL":
+								binary.evaluations.Add(lhs << rhs.Data);
+								break;
 							case "BV32_ADD":
 								binary.evaluations.Add(lhs + rhs);
 								break;

@@ -147,6 +147,16 @@ namespace DynamicAnalysis
 			return new BitVector(a.Data | b.Data);
 		}
 		
+		public static BitVector operator>> (BitVector a, int val)
+		{
+			return new BitVector(a.Data >> val);
+		}
+		
+		public static BitVector operator<< (BitVector a, int val)
+		{
+			return new BitVector(a.Data << val);
+		}
+		
 		public static bool operator== (BitVector a, BitVector b)
 		{
 			return a.Data == b.Data;
