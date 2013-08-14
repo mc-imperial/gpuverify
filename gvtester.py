@@ -621,7 +621,7 @@ def main(arg):
         return GPUVerifyTesterErrorCodes.GENERAL_ERROR
 
     #Check the number of threads isn't stupid
-    if args.threads > 50:
+    if args.threads > 64:
         logging.error("The number of threads requested is too high.")
         return GPUVerifyTesterErrorCodes.GENERAL_ERROR
 
