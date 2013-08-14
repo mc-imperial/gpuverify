@@ -51,7 +51,7 @@ z3BinDir = rootDir + "/z3/build"
 cvc4SrcDir = rootDir + "/CVC4/src"
 
 #The path to the directory containing cvc4.exe
-cvc4BinDir = rootDir + "/CVC4/install/bin""
+cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 def init(prefixPath):
   """This method does nothing"""
