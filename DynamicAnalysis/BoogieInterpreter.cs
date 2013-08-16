@@ -19,7 +19,7 @@ namespace DynamicAnalysis
 	}
 	
 	class BoogieInterpreter
-	{
+	{		
 		private static Block current = null;
 		private static Random Random = new Random();
 		private static Memory Memory = new Memory();
@@ -301,6 +301,7 @@ namespace DynamicAnalysis
 				if (cmd is AssignCmd)
 				{
 					AssignCmd assign = cmd as AssignCmd;
+					Print.VerboseMessage(assign.ToString());
 					Print.DebugMessage(assign.ToString().Replace("\n", String.Empty), 5);
 					List<ExprTree> evaluations = new List<ExprTree>();
 					// First evaluate all RHS expressions
