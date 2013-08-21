@@ -328,6 +328,7 @@ def showHelpAndExit():
   print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
   print "  --math-int              Represent integer types using mathematical integers"
   print "                          instead of bit-vectors"
+  print "  --no-annotations        Ignore all source-level annotations"
   print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
@@ -459,6 +460,11 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.keepTemps = True
     if o == "--math-int":
       CommandLineOptions.mathInt = True
+    if o == "--no-annotations":
+      # Must be added after include of opencl or cuda header
+      noAnnotationsHeader = [ "-include", "annotations/no_annotations.h" ]
+      clangOpenCLOptions.extend(noAnnotationsHeader)
+      clangCUDAOptions.extend(noAnnotationsHeader)
     if o == "--no-barrier-access-checks":
       CommandLineOptions.noBarrierAccessChecks = True
     if o == "--no-loop-predicate-invariants":
@@ -649,7 +655,7 @@ def main(argv=None):
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
-              'no-barrier-access-checks', 'no-loop-predicate-invariants',
+              'no-annotations', 'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
