@@ -253,7 +253,7 @@ class ErrorCodes(object):
 
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool.
-      If the timeout is set to 0 then there will no timeout.
+      If the timeout is set to 0 then there will be no timeout.
       If the timeout is > 0 then timeoutErrorCode MUST be set!
   """
   Verbose("Running " + ToolName)
