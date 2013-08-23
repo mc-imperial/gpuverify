@@ -1,0 +1,17 @@
+To use, include cl_hooks.h to any files that call OpenCL host functions, **after** the OpenCL header includes (e.g., CL/cl.h, OpenCL/opencl.h).
+For example,
+
+	#include <math.h>
+	#include <CL/cl.h>
+	#include "parboil.h"
+	#include "OpenCL_common.h"
+	#include "config.h"
+	#include "cl_hooks.h"
+
+I've generally put it as the last #include, but that's probably not strictly necessary.
+
+It will then dump, every time a kernel is run, that kernel's source, command-line options, group sizes and group counts, as well as the name of the kernel and a long string of kernel parameters.
+Most of the parameters will be ignorable, being pointers to handles to buffers, but the ones that correspond to scalars are the values being passed in.
+
+I daren't consider its thread safety or lack thereof.
+Something for later?

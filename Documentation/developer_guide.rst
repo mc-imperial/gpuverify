@@ -128,7 +128,8 @@ Replace as appropriate or setup an environment variable.::
 
     $ ln -s z3 z3.exe
 
-#. (Optional) Get the CVC4 SMT Solver and build::
+#. (Optional) Get the CVC4 SMT Solver and build.
+   Note that building CVC4 further requires automake and boost.::
 
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
@@ -333,7 +334,8 @@ Replace as appropriate or setup an environment variable.::
 
     $ ln -s z3 z3.exe
 
-#. (Optional) Get the CVC4 SMT Solver and build::
+#. (Optional) Get the CVC4 SMT Solver and build.
+   Note that building CVC4 further requires automake and boost.::
 
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
