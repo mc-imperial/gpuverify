@@ -1,6 +1,8 @@
 //pass
 //--local_size=2048 --num_groups=1111 --equality-abstraction
 
+#pragma OPENCL EXTENSION cl_khr_fp64: enable
+
 static __attribute((always_inline)) bool __equal_doubles(double* p, double* q) {
   char* cp = (char*)p;
   char* cq = (char*)q;
@@ -13,7 +15,7 @@ static __attribute((always_inline)) bool __equal_doubles(double* p, double* q) {
          cp[5] == cq[5] &&
          cp[6] == cq[6] &&
          cp[7] == cq[7];
-        
+
 }
 
 __kernel void foo(__global double4* p) {

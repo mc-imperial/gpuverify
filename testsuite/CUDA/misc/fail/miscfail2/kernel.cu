@@ -1,10 +1,8 @@
 //xfail:BOOGIE_ERROR
 //--blockDim=512 --gridDim=1
-//kernel.cu:60:21: error: loop invariant might not be maintained
+//kernel.cu:56:21: error: loop invariant might not be maintained
 
 #include <cuda.h>
-
-__device__ float max(float, float);
 
 __global__ void helloCUDA(
     int num32PathPerBlock,
@@ -14,7 +12,6 @@ __global__ void helloCUDA(
     float dt,
     int actualTimeSteps,
     int numTimeOffsets,
-    curandState *d_RNGstates,
     float *volMat,
     float *driftMat,
     float *f0)
@@ -29,7 +26,6 @@ __global__ void helloCUDA(
     unsigned int tid = blockIdx.x * blockDim.x + threadIdx.x;
     unsigned int numWarpsPerBlock = blockDim.x / 32;
 
-    curandState localState = d_RNGstates[tid];
     __shared__ float N1[32];
 
     __shared__ float discount[32];
