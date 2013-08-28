@@ -594,6 +594,7 @@ def main(arg):
 
     #General options
     parser.add_argument("--kernel-regex", type=str, default=r"^kernel\.(cu|cl)$", help="Regex for kernel file names (default: \"%(default)s\")")
+    parser.add_argument("--from-file", type=str, default=None, help="File containing relative paths of kernels to test")
     parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])
     parser.add_argument("-w","--write-pickle",type=str, default="", help="Write detailed log information in pickle format to a file")
     parser.add_argument("-p","--canonical-path-prefix", type=str, default="testsuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
@@ -635,22 +636,35 @@ def main(arg):
         logging.error("\"{}\" does not refer an existing directory".format(recursionRootPath))
         return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
 
-    matcher=re.compile(args.kernel_regex)
     cudaCount=0
     openCLCount=0
     kernelFiles=[]
-    logging.debug("Recursing {}".format(recursionRootPath))
-    for(root,dirs,files) in os.walk(recursionRootPath):
-        for f in files:
-            if(matcher.match(f) != None):
-                if f.endswith('cu'):
-                    cudaCount+=1
-                    logging.debug("Found CUDA kernel:\"{}\"".format(f))
-                if f.endswith('cl'):
-                    openCLCount+=1
-                    logging.debug("Found OpenCL kernel:\"{}\"".format(f))
+    if (args.from_file):
+      kernels = [line.strip() for line in open(args.from_file) if not line.startswith('#')]
+      for kernel in kernels:
+        if kernel.endswith('cu'):
+          cudaCount+=1
+        elif kernel.endswith('cl'):
+          openCLCount+=1
+        else:
+          logging.debug("Not a valid kernel:\"{}\"".format(kernel))
+          return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
+        kernelFiles.append(os.path.join(recursionRootPath,kernel))
 
-                kernelFiles.append(os.path.join(root,f))
+    else:
+      matcher=re.compile(args.kernel_regex)
+      logging.debug("Recursing {}".format(recursionRootPath))
+      for(root,dirs,files) in os.walk(recursionRootPath):
+          for f in files:
+              if(matcher.match(f) != None):
+                  if f.endswith('cu'):
+                      cudaCount+=1
+                      logging.debug("Found CUDA kernel:\"{}\"".format(f))
+                  if f.endswith('cl'):
+                      openCLCount+=1
+                      logging.debug("Found OpenCL kernel:\"{}\"".format(f))
+
+                  kernelFiles.append(os.path.join(root,f))
 
 
     logging.info("Found {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
