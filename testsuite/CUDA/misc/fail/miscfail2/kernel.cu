@@ -1,12 +1,8 @@
 //xfail:BOOGIE_ERROR
 //--blockDim=512 --gridDim=1
-//kernel.cu:64:21: error: loop invariant might not be maintained
+//kernel.cu:60:21: error: loop invariant might not be maintained
 
 #include <cuda.h>
-
-typedef struct{} curandState;
-
-__device__ float curand_normal(curandState *);
 
 __device__ float max(float, float);
 
