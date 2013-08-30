@@ -2,9 +2,6 @@
 //--gridDim=1 --blockDim=2
 
 //This kernel is racy.
-//
-//However since the memcpy has a non-integer constant len we treat it as a
-//no-op. This means we erroneously pass this test.
 
 #define memcpy(dst, src, len) __builtin_memcpy(dst, src, len)
 
