@@ -175,7 +175,7 @@ namespace GPUVerify {
     }
 
     private void AddReadOrWrittenOffsetIsThreadIdCandidateInvariants(Implementation impl, IRegion region, Variable v, AccessType Access) {
-      KeyValuePair<IdentifierExpr, Expr> iLessThanC = GetILessThanC(region.Guard());
+      KeyValuePair<IdentifierExpr, Expr> iLessThanC = GetILessThanC(region.Guard(), impl);
       if (iLessThanC.Key != null) {
         foreach (Expr e in GetOffsetsAccessed(region, v, Access)) {
           if (HasFormIPlusLocalIdTimesC(e, iLessThanC, impl)) {
@@ -287,7 +287,35 @@ namespace GPUVerify {
       return (expr as IdentifierExpr).Decl.Name.Equals(identifierExpr.Name);
     }
 
-    private KeyValuePair<IdentifierExpr, Expr> GetILessThanC(Expr expr) {
+    private KeyValuePair<IdentifierExpr, Expr> GetILessThanC(Expr expr, Implementation impl) {
+
+      bool guardHasOuterNot = false;
+      if (expr is NAryExpr &&
+          (expr as NAryExpr).Fun is BinaryOperator && 
+          ((expr as NAryExpr).Fun as BinaryOperator).Op == BinaryOperator.Opcode.And) {
+        Expr lhs = (expr as NAryExpr).Args[0];
+        Expr rhs = (expr as NAryExpr).Args[1];
+
+        // !v && !v
+        if (lhs is NAryExpr && 
+              (lhs as NAryExpr).Fun is UnaryOperator &&
+              ((lhs as NAryExpr).Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&
+            rhs is NAryExpr && 
+              (rhs as NAryExpr).Fun is UnaryOperator &&
+              ((rhs as NAryExpr).Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not) {
+          lhs = (lhs as NAryExpr).Args[0];
+          rhs = (rhs as NAryExpr).Args[0];
+          guardHasOuterNot = true;
+        }
+
+        if (lhs is IdentifierExpr && rhs is IdentifierExpr) {
+          Variable lhsVar = (lhs as IdentifierExpr).Decl;
+          Variable rhsVar = (rhs as IdentifierExpr).Decl;
+          if (lhsVar.Name == rhsVar.Name) {
+            expr = verifier.varDefAnalyses[impl].DefOfVariableName(lhsVar.Name);
+          }
+        }
+      }
 
       if (expr is NAryExpr && (expr as NAryExpr).Fun.FunctionName.Equals("bv32_to_bool")) {
         expr = (expr as NAryExpr).Args[0];
@@ -299,19 +327,44 @@ namespace GPUVerify {
 
       NAryExpr nary = expr as NAryExpr;
 
-      if (!(nary.Fun.FunctionName.Equals("BV32_C_LT") || nary.Fun.FunctionName.Equals("BV32_LT"))) {
-        return new KeyValuePair<IdentifierExpr, Expr>(null, null);
-      }
+      if (!guardHasOuterNot) {
+        if (!(nary.Fun.FunctionName.Equals("BV32_C_LT") || 
+              nary.Fun.FunctionName.Equals("BV32_LT") || 
+              nary.Fun.FunctionName.Equals("BV32_ULT") ||
+              nary.Fun.FunctionName.Equals("BV32_SLT")
+             )) {
+          return new KeyValuePair<IdentifierExpr, Expr>(null, null);
+        }
 
-      if (!(nary.Args[0] is IdentifierExpr)) {
-        return new KeyValuePair<IdentifierExpr, Expr>(null, null);
-      }
+        if (!(nary.Args[0] is IdentifierExpr)) {
+          return new KeyValuePair<IdentifierExpr, Expr>(null, null);
+        }
 
-      if (!IsConstant(nary.Args[1])) {
-        return new KeyValuePair<IdentifierExpr, Expr>(null, null);
-      }
+        if (!IsConstant(nary.Args[1])) {
+          return new KeyValuePair<IdentifierExpr, Expr>(null, null);
+        }
 
-      return new KeyValuePair<IdentifierExpr, Expr>(nary.Args[0] as IdentifierExpr, nary.Args[1]);
+        return new KeyValuePair<IdentifierExpr, Expr>(nary.Args[0] as IdentifierExpr, nary.Args[1]);
+      } else {
+        if (!(nary.Fun.FunctionName.Equals("BV32_C_GT") ||
+              nary.Fun.FunctionName.Equals("BV32_GT") ||
+              nary.Fun.FunctionName.Equals("BV32_UGT") ||
+              nary.Fun.FunctionName.Equals("BV32_SGT")
+             )) {
+          return new KeyValuePair<IdentifierExpr, Expr>(null, null);
+        }
+
+        if (!(nary.Args[1] is IdentifierExpr)) {
+          return new KeyValuePair<IdentifierExpr, Expr>(null, null);
+        }
+
+        if (!IsConstant(nary.Args[0])) {
+          return new KeyValuePair<IdentifierExpr, Expr>(null, null);
+        }
+
+        return new KeyValuePair<IdentifierExpr, Expr>(nary.Args[1] as IdentifierExpr, nary.Args[0]);
+
+      }
 
     }
 

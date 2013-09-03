@@ -177,6 +177,14 @@ class VariableDefinitionAnalysis {
     vars = null;
   }
 
+  public Expr DefOfVariableName(String name) {
+    if (namedDefMap.ContainsKey(name)) {
+      return namedDefMap[name].Item1;
+    } else {
+      return null;
+    }
+  }
+
   private class SubstDefVisitor : Duplicator {
     private VariableDefinitionAnalysis analysis;
     private string procName;
