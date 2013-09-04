@@ -68,6 +68,7 @@ clangCoreIncludes = [ gvfindtools.bugleSrcDir + "/include-blang" ]
 clangCoreDefines = []
 
 clangCoreOptions = [ "-target", "nvptx--bugle",
+                     "-Wall",
                      "-g",
                      "-gcolumn-info",
                      "-emit-llvm",
