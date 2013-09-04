@@ -216,7 +216,7 @@ def run(command,timeout=0):
   else:
     popenargs['bufsize']=0
     popenargs['stdout']=subprocess.PIPE
-    popenargs['stderr']=subprocess.PIPE
+    popenargs['stderr']=subprocess.STDOUT
 
   killer=None
   def cleanupKiller():
