@@ -3,7 +3,7 @@
 
 #pragma OPENCL EXTENSION cl_khr_fp64: enable
 
-static __attribute((always_inline)) bool __equal_doubles(double* p, double* q) {
+__attribute((always_inline)) inline bool __equal_doubles(double* p, double* q) {
   char* cp = (char*)p;
   char* cq = (char*)q;
 

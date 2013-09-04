@@ -2,7 +2,7 @@
 //--local_size=1024 --num_groups=64
 
 
-static __attribute__((always_inline)) void bar(__local float* pAlias)
+__attribute__((always_inline)) inline void bar(__local float* pAlias)
 {
   for(int i = 0;
     __invariant(__implies(__read(pAlias), __read_offset(pAlias) == sizeof(float)*get_local_id(0))),
@@ -12,7 +12,7 @@ static __attribute__((always_inline)) void bar(__local float* pAlias)
   }
 }
 
-static __attribute__ ((always_inline)) void baz(__local float* qAlias)
+__attribute__ ((always_inline)) inline void baz(__local float* qAlias)
 {
   for(int i = 0;
     __invariant(__implies(__read(qAlias), __read_offset(qAlias) == sizeof(float)*get_local_id(0))),

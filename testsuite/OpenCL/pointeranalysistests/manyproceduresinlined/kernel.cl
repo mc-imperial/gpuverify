@@ -2,14 +2,14 @@
 //--local_size=1024 --num_groups=1024
 
 
-static __attribute__((always_inline)) void bar(__global float* a, __global float* b, __global float* c)
+__attribute__((always_inline)) inline void bar(__global float* a, __global float* b, __global float* c)
 {
   a[get_global_id(0) + 1] = get_global_id(0);
   b[get_global_id(0) + 1] = get_global_id(0);
   c[get_global_id(0) + 1] = get_global_id(0);
 }
 
-static __attribute__((always_inline)) void baz(__global float* a, __global float* b, __global float* c)
+__attribute__((always_inline)) inline void baz(__global float* a, __global float* b, __global float* c)
 {
   a[get_global_id(0) + 1] = get_global_id(0);
   b[get_global_id(0) + 1] = get_global_id(0);

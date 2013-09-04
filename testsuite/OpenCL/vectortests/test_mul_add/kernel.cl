@@ -6,7 +6,7 @@
 //We keep the test (and mark it as xfail) because it is good to know that
 //GPUVerify can pass through the intrinsic to Boogie
 
-static __attribute__((always_inline)) bool __equal_floats(float* p, float* q) {
+__attribute__((always_inline)) inline bool __equal_floats(float* p, float* q) {
   char* cp = (char*)p;
   char* cq = (char*)q;
   return cp[0] == cq[0] &&
