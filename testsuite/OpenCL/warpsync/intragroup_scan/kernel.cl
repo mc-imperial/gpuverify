@@ -1,7 +1,7 @@
 //pass
 //--local_size=1024 --num_groups=1 --warp-sync=32
 
-inline void scan_warp (local int* A)
+static __attribute__((always_inline)) void scan_warp (local int* A)
 {
 	unsigned int tid = get_local_id(0);
 	unsigned int lane = tid % 32;
