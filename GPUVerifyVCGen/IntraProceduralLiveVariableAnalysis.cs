@@ -100,7 +100,6 @@ namespace GPUVerify
       if(!GenKillCache.ContainsKey(b)) {
         HashSet<VariableDescriptor> GeneratedByBlock = new HashSet<VariableDescriptor>();
         HashSet<VariableDescriptor> KilledByBlock = new HashSet<VariableDescriptor>();
-        var result = new Tuple<HashSet<VariableDescriptor>, HashSet<VariableDescriptor>>(new HashSet<VariableDescriptor>(), new HashSet<VariableDescriptor>());
         foreach(Cmd c in b.Cmds) {
           foreach(var v in Gen(c)) {
             if(!KilledByBlock.Contains(v)) {

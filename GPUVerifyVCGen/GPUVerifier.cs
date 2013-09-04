@@ -1367,9 +1367,6 @@ namespace GPUVerify
 
             if (KernelArrayInfo.getGlobalArrays().Count > 0)
             {
-                Expr IfGuard1 = Expr.And(P1, GlobalFence1);
-                Expr IfGuard2 = Expr.And(P2, GlobalFence2);
-
                 bigblocks.AddRange(
                       MakeResetBlocks(Expr.And(P1, GlobalFence1), KernelArrayInfo.getGlobalArrays()));
 

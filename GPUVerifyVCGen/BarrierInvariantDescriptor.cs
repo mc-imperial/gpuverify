@@ -44,7 +44,7 @@ namespace GPUVerify {
           var cond = pair.Item1;
           var v = pair.Item2;
           var index = pair.Item3;
-          this.AccessExprs.Add(Expr.Imp(Predicate, 
+          this.AccessExprs.Add(Expr.Imp(Predicate,
             Expr.Imp(cond, BuildAccessedExpr(v.Name, index))));
         }
       }
@@ -69,7 +69,7 @@ namespace GPUVerify {
 
     protected Expr NotTooLarge(Expr e) {
       return Dualiser.verifier.IntRep.MakeSlt(e,
-        new IdentifierExpr(Token.NoToken, 
+        new IdentifierExpr(Token.NoToken,
           Dualiser.verifier.GetGroupSize("X")));
     }
 
@@ -117,11 +117,11 @@ namespace GPUVerify {
             Expr index = node.Args[1];
             SubExprs.Add(new Tuple<Expr,IdentifierExpr,Expr>(cond,v,index));
           }
-        } else if (node.Fun is BinaryOperator && 
+        } else if (node.Fun is BinaryOperator &&
                    (node.Fun as BinaryOperator).Op == BinaryOperator.Opcode.Imp) {
           var p = node.Args[0];
           var q = node.Args[1];
-          PushPath(p); var e = VisitExpr(q); PopPath();
+          PushPath(p); VisitExpr(q); PopPath();
           return node; // stop recursing
         } else if (node.Fun is IfThenElse) {
           var p = node.Args[0];
@@ -129,7 +129,7 @@ namespace GPUVerify {
           var e2 = node.Args[2];
           VisitExpr(p);
           PushPath(p); VisitExpr(e1); PopPath();
-          PushPath(Expr.Not(p)); var e = VisitExpr(e2); PopPath();
+          PushPath(Expr.Not(p)); VisitExpr(e2); PopPath();
           return node; // stop recursing
         }
         return base.VisitNAryExpr(node);
