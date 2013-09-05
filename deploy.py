@@ -47,14 +47,14 @@ class IfUsing(DeployTask):
       self.task.run()
     else:
       logging.info("Not using " + self.operatingSystem + ", skipping task")
-    
+
 
 class FileCopy(DeployTask):
   """
       This class is intended for copying individual files
   """
   def __init__(self,srcdir,filename,destination):
-    """ 
+    """
         srcdir : The directory to copy the file from
         filename : The name of the file in "srcdir"
         destination : The directory to copy to file to
@@ -138,7 +138,7 @@ class DirCopy(DeployTask):
           logging.debug('ignoring ' + path + os.sep + fileOrDirectory)
       else:
         logging.info('Copying "' + fullPath + '"')
-     
+
     return set(filesToIgnore)
 
 
@@ -166,17 +166,17 @@ class RegexFileCopy(DeployTask):
     if not os.path.isdir(self.srcdir):
       logging.error("Directory \"" + self.srcdir + "\" does not exist")
       sys.exit(1)
-    
+
     (root, dirs, filenames) = next(os.walk(self.srcdir))
 
     #compile regex
     logging.info("Searching for files matching regex \"" + self.fileRegex + "\" in \"" + self.srcdir + "\"")
     regex = re.compile(self.fileRegex)
-    
+
     #loop over files in self.srcdir
     for file in filenames:
       if regex.match(file) != None:
-        logging.info("\"" + file + "\" matches") 
+        logging.info("\"" + file + "\" matches")
         action = FileCopy(self.srcdir, file, self.destination)
         action.run()
         #Run the post hook
@@ -191,7 +191,7 @@ class MoveFile(DeployTask):
     """
         srcpath  : The full path to the file to copy
         destpath : The full path to the new location of the file or
-                   the directory to move the file to. 
+                   the directory to move the file to.
     """
     self.srcpath=srcpath
     self.destpath=destpath
@@ -224,17 +224,17 @@ def main(argv):
       'be distributed.')
   parser = argparse.ArgumentParser(description=des)
   parser.add_argument("path",
-                      help="The path to the directory that GPUVerify will be deployed to"
+                      help = "The path to the directory that GPUVerify will be deployed to"
                      )
   parser.add_argument("--quiet",
-                      help="only output errors",
-                      action="store_true",
-                      default=False
+                      help = "only output errors",
+                      action = "store_true",
+                      default = False
                      )
   parser.add_argument("--solver",
-                      help="solvers to include in deployment",
-                      type=str,
-                      default='all'
+                      help = "solvers to include in deployment (all, z3, cvc4)",
+                      type = str,
+                      default = 'all'
                      )
 
   args = parser.parse_args()
@@ -270,7 +270,7 @@ def main(argv):
   deployActions = [
   # libclc
   DirCopy(gvfindtools.libclcInstallDir, gvfindtoolsdeploy.libclcInstallDir),
-  FileCopy(gvfindtools.libclcInstallDir, 'LICENSE.TXT', licenseDest),
+  FileCopy(gvfindtools.libclcSrcDir, 'LICENSE.TXT', licenseDest),
   MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'libclc.txt'),
   # bugle
   DirCopy(gvfindtools.bugleSrcDir + os.sep + 'include-blang', gvfindtoolsdeploy.bugleSrcDir + os.sep + 'include-blang'),

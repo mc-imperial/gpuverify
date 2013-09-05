@@ -91,7 +91,6 @@ Replace as appropriate or setup an environment variable.::
                       nvptx--bugle
      $ make
      $ make install
-     $ cp LICENSE.TXT ${BUILD_ROOT}/libclc/install
 
 #. Get Bugle and configure for building (we do an out of source build)::
 
@@ -129,7 +128,7 @@ Replace as appropriate or setup an environment variable.::
     $ ln -s z3 z3.exe
 
 #. (Optional) Get the CVC4 SMT Solver and build.
-   Note that building CVC4 further requires automake and boost.::
+   Note that building CVC4 further requires automake and boost::
 
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
@@ -180,6 +179,9 @@ Replace as appropriate or setup an environment variable.::
 
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
+
+      #The path to the libclc Source directory.
+      libclcSrcDir = rootDir + "/libclc/src"
 
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + "/libclc/install"
@@ -296,7 +298,6 @@ Replace as appropriate or setup an environment variable.::
      $ sed "s#clang++ -o utils/prepare-builtins#clang++ -stdlib=libc++ -std=c++11 -o utils/prepare-builtins#" Makefile.old > Makefile
      $ make
      $ make install
-     $ cp LICENSE.TXT ${BUILD_ROOT}/libclc/install
 
 #. Get Bugle and configure for building (we do an out of source build)::
 
@@ -335,7 +336,7 @@ Replace as appropriate or setup an environment variable.::
     $ ln -s z3 z3.exe
 
 #. (Optional) Get the CVC4 SMT Solver and build.
-   Note that building CVC4 further requires automake and boost.::
+   Note that building CVC4 further requires automake and boost::
 
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
@@ -391,6 +392,9 @@ Replace as appropriate or setup an environment variable.::
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
 
+      #The path to the libclc Source directory.
+      libclcSrcDir = rootDir + "/libclc/src"
+
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + "/libclc/install"
 
@@ -443,7 +447,7 @@ Replace as appropriate or setup an environment variable.::
    ::
 
      $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
-	 
+
    You can also check that your CVC4 test run matches the current CVC4 baseline.
    ::
 
@@ -508,9 +512,11 @@ drives.
 
       > msbuild /p:Configuration=Release LLVM.sln
 
-#. Get libclc. You can download this from the GPUVerify website and unzip
-   this in ``${BUILD_ROOT}``. You can also do this at the command line::
+#. Get libclc source and binaries. You can download the binaries from the
+   GPUVerify website and unzip this in ``${BUILD_ROOT}``. From the command
+   line do::
 
+      > git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}\libclc\src
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
       > (new-object System.Net.WebClient).DownloadFile($libclc_url, "${BUILD_ROOT}\libclc-nightly.zip")
       > $zip   = $shell.namespace("${BUILD_ROOT}\libclc-nightly.zip")
@@ -582,6 +588,9 @@ drives.
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + r"\bugle\build\Release"
 
+      #The path to the libclc Source directory.
+      libclcSrcDir = rootDir + r"\libclc\src"
+
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + r"\libclc\install"
 
@@ -631,13 +640,13 @@ drives.
    ::
 
      $ .\gvtester.py --compare-pickle testsuite\baseline.pickle run.pickle
-	 
+
    You can also check that your CVC4 test run matches the current CVC4 baseline.
    ::
 
      $ .\gvtester.py --compare-pickle testsuite\baseline_cvc4.pickle run.pickle
 
-   You should expect the last line of output to be.::
+   You should expect the last line of output to be::
 
      INFO:testsuite/baseline.pickle = new.pickle
 
@@ -651,6 +660,9 @@ To deploy a stand alone version of GPUVerify run::
   $ mkdir -p /path/to/deploy/gpuverify
   $ cd ${BUILD_ROOT}/gpuverify
   $ ./deploy.py /path/to/deploy/gpuverify
+
+In the case you only built the Z3 solver, additionally supply the
+``--solver=z3`` option to ``deploy.py``.
 
 This will copy the necessary files to run a standalone copy of GPUVerify in an
 intelligent manner by

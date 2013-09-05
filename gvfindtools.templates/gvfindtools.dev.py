@@ -23,6 +23,9 @@ bugleSrcDir = rootDir + "/bugle/src"
 #The Path to the directory where the "bugle" executable can be found.
 bugleBinDir = rootDir + "/bugle/build"
 
+#The path to the libclc Source directory.
+libclcSrcDir = rootDir + "/libclc/src"
+
 #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
 libclcInstallDir = rootDir + "/libclc/install"
 
