@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>10.0.0</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{791E259B-B800-400F-8AA4-A92A565B3AA3}</ProjectGuid>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>GPUVerifyCruncher</RootNamespace>
+    <AssemblyName>GPUVerifyCruncher</AssemblyName>
+    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\Binaries\</OutputPath>
+    <DefineConstants>DEBUG;</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <Optimize>true</Optimize>
+    <OutputPath>..\Binaries\</OutputPath>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <ConsolePause>false</ConsolePause>
+    <DefineConstants>TRACE</DefineConstants>
+  </PropertyGroup>
+  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <ItemGroup>
+    <Compile Include="GPUVerifyCruncher.cs" />
+    <Compile Include="GPUVerifyCruncherCommandLineOptions.cs" />
+    <Compile Include="GPUVerifyErrorReporter.cs" />
+    <Compile Include="SourceLocationInfo.cs" />
+    <Compile Include="Util.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GPUVerifyVCGen\GPUVerifyVCGen.csproj">
+      <Project>{E5D16606-06D0-434F-A9D7-7D079BC80229}</Project>
+      <Name>GPUVerifyVCGen</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Core">
+      <HintPath>..\Binaries\Core.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="CodeContractsExtender">
+      <HintPath>..\BoogieBinaries\CodeContractsExtender.dll</HintPath>
+    </Reference>
+    <Reference Include="Houdini">
+      <HintPath>..\BoogieBinaries\Houdini.dll</HintPath>
+    </Reference>
+    <Reference Include="VCGeneration">
+      <HintPath>..\BoogieBinaries\VCGeneration.dll</HintPath>
+    </Reference>
+    <Reference Include="Model">
+      <HintPath>..\BoogieBinaries\Model.dll</HintPath>
+    </Reference>
+    <Reference Include="Basetypes">
+      <HintPath>..\BoogieBinaries\Basetypes.dll</HintPath>
+    </Reference>
+    <Reference Include="ParserHelper">
+      <HintPath>..\BoogieBinaries\ParserHelper.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+</Project>
