@@ -231,12 +231,22 @@ def main(argv):
                       action="store_true",
                       default=False
                      )
+  parser.add_argument("--solver",
+                      help="solvers to include in deployment",
+                      type=str,
+                      default='all'
+                     )
 
   args = parser.parse_args()
   level=logging.INFO
   if args.quiet:
     level=logging.ERROR
   logging.basicConfig(level=level, format='%(levelname)s: %(message)s')
+
+  #Check solvers
+  if args.solver not in ['all','z3','cvc4']:
+    logging.error("Solver must be one of all, z3 or cvc4")
+    sys.exit(1)
 
   #Check deploy directory exists
   deployDir = args.path
@@ -292,15 +302,24 @@ def main(argv):
   RegexFileCopy(gvfindtools.llvmBinDir, r'^opt(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^llvm-nm(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
   DirCopy(gvfindtools.llvmLibDir, gvfindtoolsdeploy.llvmLibDir, copyOnlyRegex=r'^.+\.h$'), # Only Copy clang header files
-  # z3
-  FileCopy(gvfindtools.z3SrcDir, 'LICENSE.txt', licenseDest),
-  MoveFile(licenseDest + os.sep + 'LICENSE.txt', licenseDest + os.sep + 'z3.txt'),
-  FileCopy(gvfindtools.z3BinDir, 'z3.exe', gvfindtoolsdeploy.z3BinDir),
   # file for version information
   CreateFileFromString(versionString, os.path.join(deployDir, os.path.basename(getversion.GPUVerifyDeployVersionFile))),
   # license file
   CreateFileFromString(licenseString, os.path.join(deployDir, "LICENSE.TXT"))
   ]
+
+  if args.solver in ['all','z3']:
+    deployActions.extend([
+      FileCopy(gvfindtools.z3SrcDir, 'LICENSE.txt', licenseDest),
+      MoveFile(licenseDest + os.sep + 'LICENSE.txt', licenseDest + os.sep + 'z3.txt'),
+      FileCopy(gvfindtools.z3BinDir, 'z3.exe', gvfindtoolsdeploy.z3BinDir),
+    ])
+  if args.solver in ['all','cvc4']:
+    deployActions.extend([
+      FileCopy(gvfindtools.cvc4SrcDir, 'COPYING', licenseDest),
+      MoveFile(licenseDest + os.sep + 'COPYING', licenseDest + os.sep + 'cvc4.txt'),
+      FileCopy(gvfindtools.cvc4BinDir, 'cvc4.exe', gvfindtoolsdeploy.cvc4BinDir),
+    ])
 
   for action in deployActions:
     action.run()
