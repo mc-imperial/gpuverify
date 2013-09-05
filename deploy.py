@@ -277,6 +277,7 @@ def main(argv):
   FileCopy(gvfindtools.bugleSrcDir, 'LICENSE.TXT', licenseDest),
   MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'bugle.txt'),
   RegexFileCopy(gvfindtools.bugleBinDir, r'bugle(\.exe)?$', gvfindtoolsdeploy.bugleBinDir),
+  RegexFileCopy(gvfindtools.bugleBinDir, r'libBugleInlineCheckPlugin\.(so|dylib)?$', gvfindtoolsdeploy.bugleBinDir),
   # GPUVerify
   FileCopy(GPUVerifyRoot, 'GPUVerify.py', deployDir),
   FileCopy(GPUVerifyRoot, 'getversion.py', deployDir),

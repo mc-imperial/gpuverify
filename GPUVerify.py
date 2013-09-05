@@ -72,7 +72,27 @@ clangCoreOptions = [ "-target", "nvptx--bugle",
                      "-g",
                      "-gcolumn-info",
                      "-emit-llvm",
-                     "-c" ]
+                     "-c"
+                   ]
+
+if os.name == "posix":
+
+  if os.path.isfile(gvfindtools.bugleBinDir \
+                    + "/libBugleInlineCheckPlugin.so"):
+    bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
+                             + "/libBugleInlineCheckPlugin.so"
+  elif os.path.isfile(gvfindtools.bugleBinDir \
+                      + "/libBugleInlineCheckPlugin.dylib"):
+    bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
+                             + "/libBugleInlineCheckPlugin.dylib"
+
+  clangInlineOptions = [ "-Xclang", "-load",
+                         "-Xclang", bugleInlineCheckPlugin,
+                         "-Xclang", "-add-plugin",
+                         "-Xclang", "inline-check"
+                       ]
+else:
+  clangInlineOptions = []
 
 clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                        "-O0",
@@ -683,6 +703,7 @@ def main(argv=None):
 
   if ext == ".cl":
     CommandLineOptions.clangOptions += clangOpenCLOptions
+    CommandLineOptions.clangOptions += clangInlineOptions
     if CommandLineOptions.testsuite:
       rmFlags = [ "-include", "opencl.h" ]
       CommandLineOptions.clangOptions = [ i for i in CommandLineOptions.clangOptions if i not in rmFlags ]
