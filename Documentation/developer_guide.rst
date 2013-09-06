@@ -469,7 +469,7 @@ To build GPUVerify follow this guide in a powershell window.
 Note ``${BUILD_ROOT}`` refers to where ever you wish to build GPUVerify.
 Replace as appropriate or setup an environment variable.::
 
-      > ${BUILD_ROOT}=C:\path\to\build
+      > ${BUILD_ROOT}='C:\path\to\build'
 
 We recommend that you build GPUVerify to a local hard drive like ``C:``
 since this avoids problems with invoking scripts on network mounted
@@ -492,7 +492,7 @@ drives.
 #. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.3)::
 
       > $LLVM_RELEASE=33
-      > mkdir llvm_and_clang
+      > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
       > cd ${BUILD_ROOT}\llvm_and_clang\src\tools
