@@ -1,7 +1,8 @@
-//xfail:BOOGIE_ERROR
+//xfail:BUGLE_ERROR
 //--gridDim=1 --blockDim=2
 
-//This kernel is racy.
+//This kernel is racy. However, variable-length memcpys are not supported.
+//Expect error at Bugle stage.
 
 #define memcpy(dst, src, len) __builtin_memcpy(dst, src, len)
 
