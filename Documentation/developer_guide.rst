@@ -11,7 +11,7 @@ This guide will walk you through the build process.
 There are specific instructions for Linux, Mac OS X and Windows however they
 have a common set of prerequisites which are:
 
-* CMake >=2.8
+* CMake >=2.8.8
 * Python 2.7
 * Mercurial
 * Git
@@ -462,7 +462,7 @@ Replace as appropriate or setup an environment variable.::
 Windows
 -------
 In addition to the common prerequisites a Windows build of GPUVerify requires
-Microsoft Visual Studio 2010.
+Microsoft Visual Studio 2010 and GnuWin32.
 
 To build GPUVerify follow this guide in a powershell window.
 
@@ -516,16 +516,21 @@ drives.
    GPUVerify website and unzip this in ``${BUILD_ROOT}``. From the command
    line do::
 
+      > cd ${BUILD_ROOT}
+      > mkdir ${BUILD_ROOT}\libclc
       > git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}\libclc\src
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
       > (new-object System.Net.WebClient).DownloadFile($libclc_url, "${BUILD_ROOT}\libclc-nightly.zip")
+      > $shell = new-object -com shell.application
       > $zip   = $shell.namespace("${BUILD_ROOT}\libclc-nightly.zip")
       > $dest  = $shell.namespace("${BUILD_ROOT}")
       > $dest.Copyhere($zip.items(), 0x14)
+      > del ${BUILD_ROOT}\libclc-nightly.zip
 
 #. Get Bugle and configure for building (we do an out of source build)::
 
       > cd ${BUILD_ROOT}
+      > mkdir ${BUILD_ROOT}\bugle
       > git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}\bugle\src
       > mkdir ${BUILD_ROOT}\bugle\build
       > cd ${BUILD_ROOT}\bugle\build
@@ -567,7 +572,7 @@ drives.
 
       > cd ${BUILD_ROOT}
       > hg clone https://hg.codeplex.com/gpuverify
-      > cd gpuverify
+      > cd ${BUILD_ROOT}\gpuverify
       > msbuild /p:Configuration=Release GPUVerify.sln
 
 #. Configure GPUVerify front end.::
