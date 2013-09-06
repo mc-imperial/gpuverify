@@ -34,10 +34,6 @@
     <Compile Include="GPUVerifyCruncher.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GPUVerifyVCGen\GPUVerifyVCGen.csproj">
-      <Project>{E5D16606-06D0-434F-A9D7-7D079BC80229}</Project>
-      <Name>GPUVerifyVCGen</Name>
-    </ProjectReference>
     <ProjectReference Include="..\GPUVerifyLib\GPUVerifyLib.csproj">
       <Project>{5E7E9AF7-4166-4082-B88B-F7766023D877}</Project>
       <Name>GPUVerifyLib</Name>

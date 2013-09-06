@@ -113,6 +113,24 @@ namespace GPUVerify
         CommandLineOptions.Clo.PrintDesugarings = oldPrintDesugaring;
       }
 
+      public static void ReportBplError(Absy node, string message, bool error, bool showBplLocation)
+      {
+        Contract.Requires(message != null);
+        Contract.Requires(node != null);
+        IToken tok = node.tok;
+        string s;
+        if (tok != null && showBplLocation) {
+          s = string.Format("{0}({1},{2}): {3}", tok.filename, tok.line, tok.col, message);
+        } else {
+          s = message;
+        }
+        if (error) {
+          ErrorWriteLine(s);
+        } else {
+          Console.WriteLine(s);
+        }
+      }
+
       public static void WriteTrailer(int verified, int errors, int inconclusives, int timeOuts, int outOfMemories)
       {
         Contract.Requires(0 <= errors && 0 <= inconclusives && 0 <= timeOuts && 0 <= outOfMemories);
@@ -136,6 +154,13 @@ namespace GPUVerify
         Console.Out.Flush();
       }
 
+      public static void Inform(string s) {
+        if (CommandLineOptions.Clo.Trace || CommandLineOptions.Clo.TraceProofObligations)
+        {
+          Console.WriteLine(s);
+        }
+      }
+
       public static void ErrorWriteLine(string s)
       {
         Contract.Requires(s != null);
@@ -152,11 +177,13 @@ namespace GPUVerify
         ErrorWriteLine(s);
       }
 
-      public static void Inform(string s) {
-        if (CommandLineOptions.Clo.Trace || CommandLineOptions.Clo.TraceProofObligations)
-        {
-          Console.WriteLine(s);
-        }
+      public static void AdvisoryWriteLine(string format, params object[] args)
+      {
+        Contract.Requires(format != null);
+        ConsoleColor col = Console.ForegroundColor;
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine(format, args);
+        Console.ForegroundColor = col;
       }
     }
   }

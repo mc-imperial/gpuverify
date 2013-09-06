@@ -14,25 +14,16 @@ namespace Microsoft.Boogie
 {
   using System;
   using System.IO;
-  using System.Collections;
   using System.Collections.Generic;
   using System.Diagnostics.Contracts;
   using System.Diagnostics;
   using System.Linq;
   using VC;
-  using Microsoft.Boogie;
-  using Microsoft.Boogie.AbstractInterpretation;
 
-  /* 
-    The following assemblies are referenced because they are needed at runtime, not at compile time:
-      BaseTypes
-      Provers.Z3
-      System.Compiler.Framework
-  */
-
-  public class GPUVerifyBoogieDriver {
-
-    public static void Main(string[] args) {
+  public class GPUVerifyBoogieDriver
+  {
+    public static void Main(string[] args)
+    {
       Contract.Requires(cce.NonNullElements(args));
       CommandLineOptions.Install(new GPUVerifyKernelAnalyserCommandLineOptions());
 
@@ -118,20 +109,32 @@ namespace Microsoft.Boogie
       }
     }
 
-    static int VerifyFiles(List<string> fileNames) {
+    static int VerifyFiles(List<string> fileNames)
+    {
       Contract.Requires(cce.NonNullElements(fileNames));
 
       Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
       if (program == null) return 1;
 
-      CheckForQuantifiersAndSpecifyLogic(program);
+      KernelAnalyser.PipelineOutcome oc = KernelAnalyser.ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
+      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
+
+      KernelAnalyser.EliminateDeadVariablesAndInline(program);
+      KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
       CommandLineOptions.Clo.PrintUnstructured = 2;
+
+      if (CommandLineOptions.Clo.LoopUnrollCount != -1) {
+        Debug.Assert(!CommandLineOptions.Clo.ContractInfer);
+        program.UnrollLoops(CommandLineOptions.Clo.LoopUnrollCount, CommandLineOptions.Clo.SoundLoopUnrolling);
+        GPUVerifyErrorReporter.FixStateIds(program);
+      }
 
       return VerifyProgram(program);
     }
 
-    private static int VerifyProgram(Program program) {
+    private static int VerifyProgram(Program program)
+    {
       int errorCount = 0;
       int verified = 0;
       int inconclusives = 0;
@@ -151,6 +154,7 @@ namespace Microsoft.Boogie
       var decls = program.TopLevelDeclarations.ToArray();
       foreach (Declaration decl in decls) {
         Contract.Assert(decl != null);
+
         int prevAssertionCount = vcgen.CumulativeAssertionCount;
 
         Implementation impl = decl as Implementation;
@@ -171,12 +175,12 @@ namespace Microsoft.Boogie
             outcome = vcgen.VerifyImplementation(impl, out errors);
           }
           catch (VCGenException e) {
-            ReportBplError(impl, String.Format("Error BP5010: {0}  Encountered in implementation {1}.", e.Message, impl.Name), true, true);
+            GVUtil.IO.ReportBplError(impl, String.Format("Error BP5010: {0}  Encountered in implementation {1}.", e.Message, impl.Name), true, true);
             errors = null;
             outcome = VCGen.Outcome.Inconclusive;
           }
           catch (UnexpectedProverOutputException upo) {
-            AdvisoryWriteLine("Advisory: {0} SKIPPED because of internal error: unexpected prover output: {1}", impl.Name, upo.Message);
+            GVUtil.IO.AdvisoryWriteLine("Advisory: {0} SKIPPED because of internal error: unexpected prover output: {1}", impl.Name, upo.Message);
             errors = null;
             outcome = VCGen.Outcome.Inconclusive;
           }
@@ -189,7 +193,7 @@ namespace Microsoft.Boogie
             timeIndication = string.Format("  [{0:F3} s, {1} proof obligation{2}]  ", elapsed.TotalSeconds, poCount, poCount == 1 ? "" : "s");
           }
 
-          ProcessOutcome(outcome, errors, timeIndication, ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+          KernelAnalyser.ProcessOutcome(outcome, errors, timeIndication, ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
 
           if (outcome == VCGen.Outcome.Errors || CommandLineOptions.Clo.Trace) {
             Console.Out.Flush();
@@ -233,12 +237,8 @@ namespace Microsoft.Boogie
       RaceCheckingProgram.TopLevelDeclarations.AddRange(ToggleVars.Values);
     }
 
-    private static GPUVerifyKernelAnalyserCommandLineOptions GetCommandLineOptions() {
-      return (GPUVerifyKernelAnalyserCommandLineOptions)CommandLineOptions.Clo;
-    }
-
-    private static void RestrictToArray(Program prog, string arrayName) {
-
+    private static void RestrictToArray(Program prog, string arrayName)
+    {
       if(!ValidArray(prog, arrayName)) {
         GVUtil.IO.ErrorWriteLine("GPUVerify: error: array " + GetCommandLineOptions().ToExternalArrayName(arrayName) + " does not exist");
         Environment.Exit(1);
@@ -292,14 +292,15 @@ namespace Microsoft.Boogie
 
     }
 
-    private static bool ValidArray(Program prog, string arrayName) {
+    private static bool ValidArray(Program prog, string arrayName)
+    {
       return prog.TopLevelDeclarations.OfType<Variable>().Where(Item =>
         QKeyValue.FindBoolAttribute(Item.Attributes, "race_checking") &&
         Item.Name.StartsWith("_WRITE_HAS_OCCURRED_")).Select(Item => Item.Name).Contains("_WRITE_HAS_OCCURRED_" + arrayName + "$1");
     }
 
-    class FindAccessHasOccurredForOtherArrayVisitor : StandardVisitor {
-
+    class FindAccessHasOccurredForOtherArrayVisitor : StandardVisitor
+    {
       private string arrayName;
       private bool Found;
 
@@ -324,16 +325,17 @@ namespace Microsoft.Boogie
       internal bool IsFound() {
         return Found;
       }
-
     }
 
-    private static bool ContainsAccessHasOccurredForOtherArray(Expr expr, string arrayName) {
+    private static bool ContainsAccessHasOccurredForOtherArray(Expr expr, string arrayName)
+    {
       var v = new FindAccessHasOccurredForOtherArrayVisitor(arrayName);
       v.VisitExpr(expr);
       return v.IsFound();
     }
 
-    private static bool IsRaceInstrumentationProcedureForOtherArray(CallCmd callCmd, string arrayName) {
+    private static bool IsRaceInstrumentationProcedureForOtherArray(CallCmd callCmd, string arrayName)
+    {
       foreach (var Access in AccessType.Types) {
         foreach (var ProcedureType in new string[] { "LOG", "CHECK" }) {
           var prefix = "_" + ProcedureType + "_" + Access + "_";
@@ -345,137 +347,9 @@ namespace Microsoft.Boogie
       return false;
     }
 
-    private static void DisableRaceLogging(Program program) {
-      foreach (var block in program.Blocks()) {
-        List<Cmd> newCmds = new List<Cmd>();
-        foreach (Cmd c in block.Cmds) {
-          CallCmd callCmd = c as CallCmd;
-          // TODO: refine into proper check
-          if (callCmd == null || !(callCmd.callee.Contains("_LOG_READ") ||
-                                  callCmd.callee.Contains("_LOG_WRITE"))) {
-            newCmds.Add(c);
-          }
-        }
-        block.Cmds = newCmds;
-      }
-    }
-
-    public static void AdvisoryWriteLine(string format, params object[] args) {
-      Contract.Requires(format != null);
-      ConsoleColor col = Console.ForegroundColor;
-      Console.ForegroundColor = ConsoleColor.Yellow;
-      Console.WriteLine(format, args);
-      Console.ForegroundColor = col;
-    }
-
-    static void ReportBplError(Absy node, string message, bool error, bool showBplLocation) {
-      Contract.Requires(message != null);
-      Contract.Requires(node != null);
-      IToken tok = node.tok;
-      string s;
-      if (tok != null && showBplLocation) {
-        s = string.Format("{0}({1},{2}): {3}", tok.filename, tok.line, tok.col, message);
-      } else {
-        s = message;
-      }
-      if (error) {
-        GVUtil.IO.ErrorWriteLine(s);
-      } else {
-        Console.WriteLine(s);
-      }
-    }
-
-    static void ProcessOutcome(VC.VCGen.Outcome outcome, List<Counterexample> errors, string timeIndication,
-                       ref int errorCount, ref int verified, ref int inconclusives, ref int timeOuts, ref int outOfMemories) {
-
-      switch (outcome) {
-        default:
-          Contract.Assert(false);  // unexpected outcome
-          throw new cce.UnreachableException();
-        case VCGen.Outcome.ReachedBound:
-          GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
-          Console.WriteLine(string.Format("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound));
-          verified++;
-          break;
-        case VCGen.Outcome.Correct:
-          if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-            GVUtil.IO.Inform(String.Format("{0}credible", timeIndication));
-            verified++;
-          }
-          else {
-            GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
-            verified++;
-          }
-          break;
-        case VCGen.Outcome.TimedOut:
-          timeOuts++;
-          GVUtil.IO.Inform(String.Format("{0}timed out", timeIndication));
-          break;
-        case VCGen.Outcome.OutOfMemory:
-          outOfMemories++;
-          GVUtil.IO.Inform(String.Format("{0}out of memory", timeIndication));
-          break;
-        case VCGen.Outcome.Inconclusive:
-          inconclusives++;
-          GVUtil.IO.Inform(String.Format("{0}inconclusive", timeIndication));
-          break;
-        case VCGen.Outcome.Errors:
-          if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-            GVUtil.IO.Inform(String.Format("{0}doomed", timeIndication));
-            errorCount++;
-          } //else {
-          Contract.Assert(errors != null);  // guaranteed by postcondition of VerifyImplementation
-          {
-            // BP1xxx: Parsing errors
-            // BP2xxx: Name resolution errors
-            // BP3xxx: Typechecking errors
-            // BP4xxx: Abstract interpretation errors (Is there such a thing?)
-            // BP5xxx: Verification errors
-
-            errors.Sort(new CounterexampleComparer());
-            foreach (Counterexample error in errors)
-            {
-              GPUVerifyErrorReporter.ReportCounterexample(error);
-              errorCount++;
-            }
-            //}
-            GVUtil.IO.Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
-          }
-          break;
-      }
-    }
-
-    private static bool AllImplementationsValid(Houdini.HoudiniOutcome outcome) {
-      foreach (var vcgenOutcome in outcome.implementationOutcomes.Values.Select(i => i.outcome)) {
-        if (vcgenOutcome != VCGen.Outcome.Correct) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    enum PipelineOutcome {
-      Done,
-      ResolutionError,
-      TypeCheckingError,
-      ResolvedAndTypeChecked,
-      FatalError,
-      VerificationCompleted
-    }
-
-    /// <summary>
-    /// Checks if Quantifiers exists in the Boogie program. If they exist and the underlying
-    /// parser is CVC4 then it enables the corresponding Logic.
-    /// </summary>
-    static void CheckForQuantifiersAndSpecifyLogic(Program program)
+    private static GPUVerifyKernelAnalyserCommandLineOptions GetCommandLineOptions()
     {
-      if ((CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4") ||
-           CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=CVC4")) &&
-          CommandLineOptions.Clo.ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
-          CheckForQuantifiers.Found(program)) {
-        CommandLineOptions.Clo.ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
-        CommandLineOptions.Clo.ProverOptions.Add("LOGIC=ALL_SUPPORTED");
-      }
+      return (GPUVerifyKernelAnalyserCommandLineOptions)CommandLineOptions.Clo;
     }
   }
 }

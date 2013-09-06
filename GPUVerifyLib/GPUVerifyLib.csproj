@@ -64,5 +64,6 @@
     <Compile Include="GPUVerifyKernelAnalyserCommandLineOptions.cs" />
     <Compile Include="AccessType.cs" />
     <Compile Include="Visitors.cs" />
+    <Compile Include="KernelAnalyser.cs" />
   </ItemGroup>
 </Project>

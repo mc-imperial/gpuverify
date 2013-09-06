@@ -21,7 +21,6 @@ using System.Collections.Generic;
 
 namespace GPUVerify
 {
-
   public sealed class AccessType {
 
     private readonly String name;
