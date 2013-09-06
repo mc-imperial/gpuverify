@@ -27,14 +27,6 @@ namespace GPUVerify
       internal static int ACCESS_PATTERN_CANDIDATE_STAGE = 0;
     }
 
-    public static class Emitter {
-      public static void emitProgram(Program prog, string filename) {
-        using (TokenTextWriter writer = new TokenTextWriter(filename + ".bpl")) {
-          prog.Emit(writer);
-        }
-      }
-    }
-
     internal class GPUVerifier : CheckingContext
     {
         public string outputFilename;
@@ -619,7 +611,7 @@ namespace GPUVerify
 
         private void emitProgram(string filename)
         {
-          Emitter.emitProgram(Program, filename);
+          GVUtil.IO.emitProgram(Program, filename);
         }
 
         private void ComputeInvariant()

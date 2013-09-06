@@ -44,7 +44,7 @@ namespace Microsoft.Boogie
         }
 
         if (CommandLineOptions.Clo.Files.Count == 0) {
-          GVUtil.ErrorWriteLine("GPUVerify: error: no input files were specified");
+          GVUtil.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
           Environment.Exit(1);
         }
         if (!CommandLineOptions.Clo.DontShowLogo) {
@@ -66,7 +66,7 @@ namespace Microsoft.Boogie
             extension = extension.ToLower();
           }
           if (extension != ".bpl") {
-            GVUtil.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
+            GVUtil.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
             Environment.Exit(1);
           }
         }
@@ -121,7 +121,7 @@ namespace Microsoft.Boogie
     static int VerifyFiles(List<string> fileNames) {
       Contract.Requires(cce.NonNullElements(fileNames));
 
-      Program program = GVUtil.ParseBoogieProgram(fileNames, false);
+      Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
       if (program == null) return 1;
 
       CheckForQuantifiersAndSpecifyLogic(program);
@@ -143,13 +143,12 @@ namespace Microsoft.Boogie
         vcgen = new VCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend, new List<Checker>());
       }
       catch (ProverException e) {
-        GVUtil.ErrorWriteLine("Fatal Error: ProverException: {0}", e);
+        GVUtil.IO.ErrorWriteLine("Fatal Error: ProverException: {0}", e);
         return 1;
       }
 
       // operate on a stable copy, in case it gets updated while we're running
       var decls = program.TopLevelDeclarations.ToArray();
-      Console.WriteLine("TEST");
       foreach (Declaration decl in decls) {
         Contract.Assert(decl != null);
         int prevAssertionCount = vcgen.CumulativeAssertionCount;
@@ -201,7 +200,7 @@ namespace Microsoft.Boogie
       vcgen.Close();
       cce.NonNull(CommandLineOptions.Clo.TheProverFactory).Close();
 
-      GVUtil.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
+      GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
 
       return errorCount + inconclusives + timeOuts + outOfMemories;
     }
@@ -241,7 +240,7 @@ namespace Microsoft.Boogie
     private static void RestrictToArray(Program prog, string arrayName) {
 
       if(!ValidArray(prog, arrayName)) {
-        GVUtil.ErrorWriteLine("GPUVerify: error: array " + GetCommandLineOptions().ToExternalArrayName(arrayName) + " does not exist");
+        GVUtil.IO.ErrorWriteLine("GPUVerify: error: array " + GetCommandLineOptions().ToExternalArrayName(arrayName) + " does not exist");
         Environment.Exit(1);
       }
 
@@ -380,7 +379,7 @@ namespace Microsoft.Boogie
         s = message;
       }
       if (error) {
-        GVUtil.ErrorWriteLine(s);
+        GVUtil.IO.ErrorWriteLine(s);
       } else {
         Console.WriteLine(s);
       }
@@ -394,35 +393,35 @@ namespace Microsoft.Boogie
           Contract.Assert(false);  // unexpected outcome
           throw new cce.UnreachableException();
         case VCGen.Outcome.ReachedBound:
-          GVUtil.Inform(String.Format("{0}verified", timeIndication));
+          GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
           Console.WriteLine(string.Format("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound));
           verified++;
           break;
         case VCGen.Outcome.Correct:
           if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-            GVUtil.Inform(String.Format("{0}credible", timeIndication));
+            GVUtil.IO.Inform(String.Format("{0}credible", timeIndication));
             verified++;
           }
           else {
-            GVUtil.Inform(String.Format("{0}verified", timeIndication));
+            GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
             verified++;
           }
           break;
         case VCGen.Outcome.TimedOut:
           timeOuts++;
-          GVUtil.Inform(String.Format("{0}timed out", timeIndication));
+          GVUtil.IO.Inform(String.Format("{0}timed out", timeIndication));
           break;
         case VCGen.Outcome.OutOfMemory:
           outOfMemories++;
-          GVUtil.Inform(String.Format("{0}out of memory", timeIndication));
+          GVUtil.IO.Inform(String.Format("{0}out of memory", timeIndication));
           break;
         case VCGen.Outcome.Inconclusive:
           inconclusives++;
-          GVUtil.Inform(String.Format("{0}inconclusive", timeIndication));
+          GVUtil.IO.Inform(String.Format("{0}inconclusive", timeIndication));
           break;
         case VCGen.Outcome.Errors:
           if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-            GVUtil.Inform(String.Format("{0}doomed", timeIndication));
+            GVUtil.IO.Inform(String.Format("{0}doomed", timeIndication));
             errorCount++;
           } //else {
           Contract.Assert(errors != null);  // guaranteed by postcondition of VerifyImplementation
@@ -440,7 +439,7 @@ namespace Microsoft.Boogie
               errorCount++;
             }
             //}
-            GVUtil.Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
+            GVUtil.IO.Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
           }
           break;
       }

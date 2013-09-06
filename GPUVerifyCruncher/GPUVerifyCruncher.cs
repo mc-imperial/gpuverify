@@ -37,7 +37,7 @@ namespace Microsoft.Boogie
           Environment.Exit(1);
         }
         if (CommandLineOptions.Clo.Files.Count == 0) {
-          GVUtil.ErrorWriteLine("GPUVerify: error: no input files were specified");
+          GVUtil.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
           Environment.Exit(1);
         }
         if (!CommandLineOptions.Clo.DontShowLogo) {
@@ -60,7 +60,7 @@ namespace Microsoft.Boogie
             extension = extension.ToLower();
           }
           if (extension != ".bpl") {
-            GVUtil.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
+            GVUtil.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
             Environment.Exit(1);
           }
         }
@@ -127,7 +127,7 @@ namespace Microsoft.Boogie
           Console.WriteLine("Compute invariant without race checking");
         }
 
-        Program InvariantComputationProgram = GVUtil.ParseBoogieProgram(fileNames, false);
+        Program InvariantComputationProgram = GVUtil.IO.ParseBoogieProgram(fileNames, false);
         if (InvariantComputationProgram == null) return 1;
 
         PipelineOutcome oc = ResolveAndTypecheck(InvariantComputationProgram, fileNames[fileNames.Count - 1]);
@@ -175,7 +175,7 @@ namespace Microsoft.Boogie
             ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
           }
 
-          GVUtil.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
+          GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
           return errorCount + inconclusives + timeOuts + outOfMemories;
         }
       }
@@ -184,7 +184,7 @@ namespace Microsoft.Boogie
       #region Use computed invariant (if any) to perform race checking
       {
 
-        Program RaceCheckingProgram = GVUtil.ParseBoogieProgram(fileNames, false);
+        Program RaceCheckingProgram = GVUtil.IO.ParseBoogieProgram(fileNames, false);
         if (RaceCheckingProgram == null) return 1;
 
         PipelineOutcome oc = ResolveAndTypecheck(RaceCheckingProgram, fileNames[fileNames.Count - 1]);
@@ -205,21 +205,13 @@ namespace Microsoft.Boogie
         }
 
         //PrintBplFile(Path.GetFullPath(fileNames[fileNames.Count - 1]), RaceCheckingProgram, true);
-        //File.Delete(dir + file + ".bpl");
-        File.Move(dir + file + ".bpl", dir + "old.bpl");
-        Emitter.emitProgram(RaceCheckingProgram, dir + file);
+        File.Delete(dir + file + ".bpl");
+        //File.Move(dir + file + ".bpl", dir + "old.bpl");
+        GPUVerify.GVUtil.IO.emitProgram(RaceCheckingProgram, dir + file);
       }
       #endregion
 
       return 0;
-    }
-
-    public static class Emitter {
-      public static void emitProgram(Program prog, string filename) {
-        using (TokenTextWriter writer = new TokenTextWriter(filename + ".bpl")) {
-          prog.Emit(writer);
-        }
-      }
     }
 
     enum PipelineOutcome
@@ -278,7 +270,7 @@ namespace Microsoft.Boogie
 
       if (CommandLineOptions.Clo.PrintFile != null && CommandLineOptions.Clo.PrintDesugarings) {
         // if PrintDesugaring option is engaged, print the file here, after resolution and type checking
-        GVUtil.PrintBplFile(CommandLineOptions.Clo.PrintFile, program, true);
+        GVUtil.IO.PrintBplFile(CommandLineOptions.Clo.PrintFile, program, true);
       }
 
       return PipelineOutcome.ResolvedAndTypeChecked;
@@ -377,35 +369,35 @@ namespace Microsoft.Boogie
           Contract.Assert(false);  // unexpected outcome
           throw new cce.UnreachableException();
         case VCGen.Outcome.ReachedBound:
-          GVUtil.Inform(String.Format("{0}verified", timeIndication));
+          GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
           Console.WriteLine(string.Format("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound));
           verified++;
           break;
         case VCGen.Outcome.Correct:
           if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-            GVUtil.Inform(String.Format("{0}credible", timeIndication));
+            GVUtil.IO.Inform(String.Format("{0}credible", timeIndication));
             verified++;
           }
           else {
-            GVUtil.Inform(String.Format("{0}verified", timeIndication));
+            GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
             verified++;
           }
           break;
         case VCGen.Outcome.TimedOut:
           timeOuts++;
-          GVUtil.Inform(String.Format("{0}timed out", timeIndication));
+          GVUtil.IO.Inform(String.Format("{0}timed out", timeIndication));
           break;
         case VCGen.Outcome.OutOfMemory:
           outOfMemories++;
-          GVUtil.Inform(String.Format("{0}out of memory", timeIndication));
+          GVUtil.IO.Inform(String.Format("{0}out of memory", timeIndication));
           break;
         case VCGen.Outcome.Inconclusive:
           inconclusives++;
-          GVUtil.Inform(String.Format("{0}inconclusive", timeIndication));
+          GVUtil.IO.Inform(String.Format("{0}inconclusive", timeIndication));
           break;
         case VCGen.Outcome.Errors:
           if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-            GVUtil.Inform(String.Format("{0}doomed", timeIndication));
+            GVUtil.IO.Inform(String.Format("{0}doomed", timeIndication));
             errorCount++;
           } //else {
           Contract.Assert(errors != null);  // guaranteed by postcondition of VerifyImplementation
@@ -423,7 +415,7 @@ namespace Microsoft.Boogie
               errorCount++;
             }
             //}
-            GVUtil.Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
+            GVUtil.IO.Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
           }
           break;
       }

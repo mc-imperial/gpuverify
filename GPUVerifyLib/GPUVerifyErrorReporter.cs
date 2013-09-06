@@ -185,11 +185,11 @@ namespace GPUVerify
       AddPadding(ref locinfo1, ref locinfo2);
 
       ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " group " + group2, ErrorMsgType.NoError);
-      GVUtil.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
+      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
 
 
       ErrorWriteLine(locinfo2, access1 + " by thread " + thread1 + " group " + group1, ErrorMsgType.NoError);
-      GVUtil.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
+      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
     }
 
     private static uint GetOffsetInBytes(Variable OffsetVar, Model m, CallCmd FailingCall) {
@@ -294,7 +294,7 @@ namespace GPUVerify
 
       ErrorWriteLine(sli.ToString(), messagePrefix + " for thread " +
                      (relevantThread == 1 ? thread1 : thread2) + " group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
-      GVUtil.ErrorWriteLine(sli.FetchCodeLine());
+      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportFailingAssert(AssertCounterexample err) {
@@ -321,14 +321,14 @@ namespace GPUVerify
       Console.WriteLine("");
       var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
       ErrorWriteLine(sli.ToString(), "postcondition might not hold on all return paths", ErrorMsgType.Error);
-      GVUtil.ErrorWriteLine(sli.FetchCodeLine());
+      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportBarrierDivergence(Absy node) {
       Console.WriteLine("");
       var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
       ErrorWriteLine(sli.ToString(), "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
-      GVUtil.ErrorWriteLine(sli.FetchCodeLine());
+      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportRequiresFailure(Absy callNode, Absy reqNode) {
@@ -337,10 +337,10 @@ namespace GPUVerify
       var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), reqNode.tok);
 
       ErrorWriteLine(CallSLI.ToString(), "a precondition for this call might not hold", ErrorMsgType.Error);
-      GVUtil.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine(), 2));
+      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine(), 2));
 
       ErrorWriteLine(RequiresSLI.ToString(), "this is the precondition that might not hold", ErrorMsgType.Note);
-      GVUtil.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine(), 2));
+      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine(), 2));
     }
 
     private static void GetThreadsAndGroupsFromModel(Model model, out string thread1, out string thread2, out string group1, out string group2, bool withSpaces) {
