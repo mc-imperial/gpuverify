@@ -117,6 +117,9 @@ namespace Microsoft.Boogie
     {
       Contract.Requires(cce.NonNullElements(fileNames));
 
+      var dir = Path.GetDirectoryName(fileNames[fileNames.Count - 1]) + Path.VolumeSeparatorChar;
+      var file = Path.GetFileNameWithoutExtension(fileNames[fileNames.Count - 1]);
+
       Houdini.Houdini houdini = null;
 
       #region Compute invariant without race checking
@@ -198,17 +201,26 @@ namespace Microsoft.Boogie
           GPUVerifyErrorReporter.FixStateIds(RaceCheckingProgram);
         }
 
-        PrintBplFile("before.bpl", RaceCheckingProgram, true);
-
         if(houdini != null) {
           houdini.ApplyAssignment(RaceCheckingProgram);
         }
 
-        PrintBplFile("after.bpl", RaceCheckingProgram, true);
+        //PrintBplFile(Path.GetFullPath(fileNames[fileNames.Count - 1]), RaceCheckingProgram, true);
+        //File.Delete(dir + file + ".bpl");
+        File.Move(dir + file + ".bpl", dir + "old.bpl");
+        Emitter.emitProgram(RaceCheckingProgram, dir + file);
       }
       #endregion
 
       return 0;
+    }
+
+    public static class Emitter {
+      public static void emitProgram(Program prog, string filename) {
+        using (TokenTextWriter writer = new TokenTextWriter(filename + ".bpl")) {
+          prog.Emit(writer);
+        }
+      }
     }
 
     enum PipelineOutcome

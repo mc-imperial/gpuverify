@@ -101,6 +101,16 @@ class CommandLineOptions(object):
   clangOptions = clangCoreOptions
   optOptions = [ "-mem2reg", "-globaldce" ]
   gpuVerifyVCGenOptions = []
+  gpuVerifyCruncherOptions = [ "/nologo",
+                               "/typeEncoding:m",
+                               "/doModSetAnalysis",
+                               "/useArrayTheory",
+                               "/doNotUseLabels",
+                               "/noinfer",
+                               "/enhancedErrorMessages:1",
+                               "/mv:-",
+                               "/errorLimit:20"
+                             ]
   gpuVerifyBoogieDriverOptions = [ "/nologo",
                                    "/typeEncoding:m",
                                    "/doModSetAnalysis",
@@ -856,6 +866,19 @@ def main(argv=None):
             **timeoutArguments)
 
   if CommandLineOptions.stopAtBpl: return 0
+
+  """ RUN GPUVERIFYCRUNCHER """
+  timeoutArguments={}
+  if CommandLineOptions.boogieTimeout > 0:
+    timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
+    timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
+
+  RunTool("gpuverifycruncher",
+          (["mono"] if os.name == "posix" else []) +
+          [gvfindtools.gpuVerifyBoogieDriverBinDir + "/GPUVerifyCruncher.exe"] +
+          CommandLineOptions.gpuVerifyBoogieDriverOptions,
+          ErrorCodes.BOOGIE_ERROR,
+          **timeoutArguments)
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
   timeoutArguments={}

@@ -122,105 +122,87 @@ namespace Microsoft.Boogie
     static int VerifyFiles(List<string> fileNames) {
       Contract.Requires(cce.NonNullElements(fileNames));
 
-      Houdini.Houdini houdini = null;
+      Program program = ParseBoogieProgram(fileNames, false);
+      if (program == null) return 1;
 
-      if (CommandLineOptions.Clo.ContractInfer) {
+      CheckForQuantifiersAndSpecifyLogic(program);
 
-        #region Compute invariant without race checking
-        {
-          if (CommandLineOptions.Clo.Trace) {
-            Console.WriteLine("Compute invariant without race checking");
-          }
+      CommandLineOptions.Clo.PrintUnstructured = 2;
 
-          Program InvariantComputationProgram = ParseBoogieProgram(fileNames, false);
-          if (InvariantComputationProgram == null) {
-            return 1;
-          }
-          PipelineOutcome oc = ResolveAndTypecheck(InvariantComputationProgram, fileNames[fileNames.Count - 1]);
-          if (oc != PipelineOutcome.ResolvedAndTypeChecked)
-            return 1;
-          DisableRaceChecking(InvariantComputationProgram);
-          if (GetCommandLineOptions().ArrayToCheck != null) {
-            RestrictToArray(InvariantComputationProgram, GetCommandLineOptions().ArrayToCheck);
-          }
-          EliminateDeadVariablesAndInline(InvariantComputationProgram);
-          CheckForQuantifiersAndSpecifyLogic(InvariantComputationProgram);
+      return VerifyProgram(program);
+    }
 
-          var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
-          houdini = new Houdini.Houdini(InvariantComputationProgram, houdiniStats);
-          Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
-          if (CommandLineOptions.Clo.PrintAssignment) {
-            Console.WriteLine("Assignment computed by Houdini:");
-            foreach (var x in outcome.assignment) {
-              Console.WriteLine(x.Key + " = " + x.Value);
-            }
-          }
-          if (CommandLineOptions.Clo.Trace) {
-            int numTrueAssigns = 0;
-            foreach (var x in outcome.assignment) {
-              if (x.Value)
-                numTrueAssigns++;
-            }
-            Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-            Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
-            Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
-            Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
-            Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
-            Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
-            Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
-          }
+    private static int VerifyProgram(Program program) {
+      int errorCount = 0;
+      int verified = 0;
+      int inconclusives = 0;
+      int timeOuts = 0;
+      int outOfMemories = 0;
 
-          if (!AllImplementationsValid(outcome)) {
-            int verified = 0;
-            int errorCount = 0;
-            int inconclusives = 0;
-            int timeOuts = 0;
-            int outOfMemories = 0;
-            foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
-              ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
-            }
-            WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
-            return errorCount + inconclusives + timeOuts + outOfMemories;
-          }
-
-        }
-        #endregion
+      ConditionGeneration vcgen = null;
+      try {
+        vcgen = new VCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend, new List<Checker>());
+      }
+      catch (ProverException e) {
+        ErrorWriteLine("Fatal Error: ProverException: {0}", e);
+        return 1;
       }
 
-      #region Use computed invariant (if any) to perform race checking
-      {
+      // operate on a stable copy, in case it gets updated while we're running
+      var decls = program.TopLevelDeclarations.ToArray();
+      foreach (Declaration decl in decls) {
+        Contract.Assert(decl != null);
+        int prevAssertionCount = vcgen.CumulativeAssertionCount;
+        Implementation impl = decl as Implementation;
+        if (impl != null && CommandLineOptions.Clo.UserWantsToCheckRoutine(cce.NonNull(impl.Name)) && !impl.SkipVerification) {
+          List<Counterexample/*!*/>/*?*/ errors;
 
-        Program RaceCheckingProgram = ParseBoogieProgram(fileNames, false);
-        if (RaceCheckingProgram == null) {
-          return 1;
+          DateTime start = new DateTime();  // to please compiler's definite assignment rules
+          if (CommandLineOptions.Clo.Trace) {
+            start = DateTime.UtcNow;
+            if (CommandLineOptions.Clo.Trace) {
+              Console.WriteLine();
+              Console.WriteLine("Verifying {0} ...", impl.Name);
+            }
+          }
+
+          VCGen.Outcome outcome;
+          try {
+            outcome = vcgen.VerifyImplementation(impl, out errors);
+          }
+          catch (VCGenException e) {
+            ReportBplError(impl, String.Format("Error BP5010: {0}  Encountered in implementation {1}.", e.Message, impl.Name), true, true);
+            errors = null;
+            outcome = VCGen.Outcome.Inconclusive;
+          }
+          catch (UnexpectedProverOutputException upo) {
+            AdvisoryWriteLine("Advisory: {0} SKIPPED because of internal error: unexpected prover output: {1}", impl.Name, upo.Message);
+            errors = null;
+            outcome = VCGen.Outcome.Inconclusive;
+          }
+
+          string timeIndication = "";
+          DateTime end = DateTime.UtcNow;
+          TimeSpan elapsed = end - start;
+          if (CommandLineOptions.Clo.Trace) {
+            int poCount = vcgen.CumulativeAssertionCount - prevAssertionCount;
+            timeIndication = string.Format("  [{0:F3} s, {1} proof obligation{2}]  ", elapsed.TotalSeconds, poCount, poCount == 1 ? "" : "s");
+          }
+
+          ProcessOutcome(outcome, errors, timeIndication, ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+
+          if (outcome == VCGen.Outcome.Errors || CommandLineOptions.Clo.Trace) {
+            Console.Out.Flush();
+          }
         }
-        AddArrayToggles(RaceCheckingProgram);
-        PipelineOutcome oc = ResolveAndTypecheck(RaceCheckingProgram, fileNames[fileNames.Count - 1]);
-        if (oc != PipelineOutcome.ResolvedAndTypeChecked)
-          return 1;
-
-        if (GetCommandLineOptions().ArrayToCheck != null) {
-          RestrictToArray(RaceCheckingProgram, GetCommandLineOptions().ArrayToCheck);
-        }
-        
-        EliminateDeadVariablesAndInline(RaceCheckingProgram);
-
-        CommandLineOptions.Clo.PrintUnstructured = 2;
-
-        if (CommandLineOptions.Clo.LoopUnrollCount != -1) {
-          Debug.Assert(!CommandLineOptions.Clo.ContractInfer);
-          RaceCheckingProgram.UnrollLoops(CommandLineOptions.Clo.LoopUnrollCount, CommandLineOptions.Clo.SoundLoopUnrolling);
-          GPUVerifyErrorReporter.FixStateIds(RaceCheckingProgram);
-        }
-
-        if(houdini != null) {
-          houdini.ApplyAssignment(RaceCheckingProgram);
-        }
-
-        return VerifyProgram(RaceCheckingProgram);
       }
-      #endregion
 
+      vcgen.Close();
+      cce.NonNull(CommandLineOptions.Clo.TheProverFactory).Close();
+
+      WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
+
+      return errorCount + inconclusives + timeOuts + outOfMemories;
     }
 
     private static void AddArrayToggles(Program RaceCheckingProgram)
@@ -363,96 +345,6 @@ namespace Microsoft.Boogie
       return false;
     }
 
-
-    private static int VerifyProgram(Program program) {
-      int errorCount = 0;
-      int verified = 0;
-      int inconclusives = 0;
-      int timeOuts = 0;
-      int outOfMemories = 0;
-
-      ConditionGeneration vcgen = null;
-      try {
-        vcgen = new VCGen(program, CommandLineOptions.Clo.SimplifyLogFilePath, CommandLineOptions.Clo.SimplifyLogFileAppend, new List<Checker>());
-      }
-      catch (ProverException e) {
-        ErrorWriteLine("Fatal Error: ProverException: {0}", e);
-        return 1;
-      }
-
-      // operate on a stable copy, in case it gets updated while we're running
-      var decls = program.TopLevelDeclarations.ToArray();
-      foreach (Declaration decl in decls) {
-        Contract.Assert(decl != null);
-        int prevAssertionCount = vcgen.CumulativeAssertionCount;
-        Implementation impl = decl as Implementation;
-        if (impl != null && CommandLineOptions.Clo.UserWantsToCheckRoutine(cce.NonNull(impl.Name)) && !impl.SkipVerification) {
-          List<Counterexample/*!*/>/*?*/ errors;
-
-          DateTime start = new DateTime();  // to please compiler's definite assignment rules
-          if (CommandLineOptions.Clo.Trace) {
-            start = DateTime.UtcNow;
-            if (CommandLineOptions.Clo.Trace) {
-              Console.WriteLine();
-              Console.WriteLine("Verifying {0} ...", impl.Name);
-            }
-          }
-
-          VCGen.Outcome outcome;
-          try {
-            outcome = vcgen.VerifyImplementation(impl, out errors);
-          }
-          catch (VCGenException e) {
-            ReportBplError(impl, String.Format("Error BP5010: {0}  Encountered in implementation {1}.", e.Message, impl.Name), true, true);
-            errors = null;
-            outcome = VCGen.Outcome.Inconclusive;
-          }
-          catch (UnexpectedProverOutputException upo) {
-            AdvisoryWriteLine("Advisory: {0} SKIPPED because of internal error: unexpected prover output: {1}", impl.Name, upo.Message);
-            errors = null;
-            outcome = VCGen.Outcome.Inconclusive;
-          }
-
-          string timeIndication = "";
-          DateTime end = DateTime.UtcNow;
-          TimeSpan elapsed = end - start;
-          if (CommandLineOptions.Clo.Trace) {
-            int poCount = vcgen.CumulativeAssertionCount - prevAssertionCount;
-            timeIndication = string.Format("  [{0:F3} s, {1} proof obligation{2}]  ", elapsed.TotalSeconds, poCount, poCount == 1 ? "" : "s");
-          }
-
-          ProcessOutcome(outcome, errors, timeIndication, ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
-
-          if (outcome == VCGen.Outcome.Errors || CommandLineOptions.Clo.Trace) {
-            Console.Out.Flush();
-          }
-        }
-      }
-
-      vcgen.Close();
-      cce.NonNull(CommandLineOptions.Clo.TheProverFactory).Close();
-
-      WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
-
-      return errorCount + inconclusives + timeOuts + outOfMemories;
-    }
-
-
-    private static void DisableRaceChecking(Program program) {
-      foreach (var block in program.Blocks()) {
-        List<Cmd> newCmds = new List<Cmd>();
-        foreach (Cmd c in block.Cmds) {
-          CallCmd callCmd = c as CallCmd;
-          // TODO: refine into proper check
-          if(callCmd == null || !(callCmd.callee.Contains("_CHECK_READ") || 
-                                  callCmd.callee.Contains("_CHECK_WRITE"))) {
-            newCmds.Add(c);
-          }
-        }
-        block.Cmds = newCmds;
-      }
-    }
-
     private static void DisableRaceLogging(Program program) {
       foreach (var block in program.Blocks()) {
         List<Cmd> newCmds = new List<Cmd>();
@@ -467,7 +359,6 @@ namespace Microsoft.Boogie
         block.Cmds = newCmds;
       }
     }
-
 
     public static void ErrorWriteLine(string s) {
       Contract.Requires(s != null);
@@ -490,10 +381,6 @@ namespace Microsoft.Boogie
       Console.WriteLine(format, args);
       Console.ForegroundColor = col;
     }
-
-
-
-
 
     /// <summary>
     /// Inform the user about something and proceed with translation normally.
@@ -617,13 +504,6 @@ namespace Microsoft.Boogie
     }
 
 
-
-
-
-
-
-
-
     // To go to library
 
 
@@ -689,108 +569,6 @@ namespace Microsoft.Boogie
       ResolvedAndTypeChecked,
       FatalError,
       VerificationCompleted
-    }
-
-    /// <summary>
-    /// Resolves and type checks the given Boogie program.  Any errors are reported to the
-    /// console.  Returns:
-    ///  - Done if no errors occurred, and command line specified no resolution or no type checking.
-    ///  - ResolutionError if a resolution error occurred
-    ///  - TypeCheckingError if a type checking error occurred
-    ///  - ResolvedAndTypeChecked if both resolution and type checking succeeded
-    /// </summary>
-    static PipelineOutcome ResolveAndTypecheck(Program program, string bplFileName) {
-      Contract.Requires(program != null);
-      Contract.Requires(bplFileName != null);
-      // ---------- Resolve ------------------------------------------------------------
-
-      if (CommandLineOptions.Clo.NoResolve) {
-        return PipelineOutcome.Done;
-      }
-
-      int errorCount = program.Resolve();
-      if (errorCount != 0) {
-        Console.WriteLine("{0} name resolution errors detected in {1}", errorCount, bplFileName);
-        return PipelineOutcome.ResolutionError;
-      }
-
-      // ---------- Type check ------------------------------------------------------------
-
-      if (CommandLineOptions.Clo.NoTypecheck) {
-        return PipelineOutcome.Done;
-      }
-
-      errorCount = program.Typecheck();
-      if (errorCount != 0) {
-        Console.WriteLine("{0} type checking errors detected in {1}", errorCount, bplFileName);
-        return PipelineOutcome.TypeCheckingError;
-      }
-
-      LinearTypechecker linearTypechecker = new LinearTypechecker(program);
-      linearTypechecker.VisitProgram(program);
-      if (linearTypechecker.errorCount > 0) {
-        Console.WriteLine("{0} type checking errors detected in {1}", errorCount, bplFileName);
-        return PipelineOutcome.TypeCheckingError;
-      }
-
-      if (CommandLineOptions.Clo.PrintFile != null && CommandLineOptions.Clo.PrintDesugarings) {
-        // if PrintDesugaring option is engaged, print the file here, after resolution and type checking
-        PrintBplFile(CommandLineOptions.Clo.PrintFile, program, true);
-      }
-
-      return PipelineOutcome.ResolvedAndTypeChecked;
-    }
-
-    static void EliminateDeadVariablesAndInline(Program program) {
-      Contract.Requires(program != null);
-      // Eliminate dead variables
-      Microsoft.Boogie.UnusedVarEliminator.Eliminate(program);
-
-      // Collect mod sets
-      if (CommandLineOptions.Clo.DoModSetAnalysis) {
-        Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(program);
-      }
-
-      // Coalesce blocks
-      if (CommandLineOptions.Clo.CoalesceBlocks) {
-        if (CommandLineOptions.Clo.Trace)
-          Console.WriteLine("Coalescing blocks...");
-        Microsoft.Boogie.BlockCoalescer.CoalesceBlocks(program);
-      }
-
-      // Inline
-      var TopLevelDeclarations = cce.NonNull(program.TopLevelDeclarations);
-
-      if (CommandLineOptions.Clo.ProcedureInlining != CommandLineOptions.Inlining.None) {
-        bool inline = false;
-        foreach (var d in TopLevelDeclarations) {
-          if (d.FindExprAttribute("inline") != null) {
-            inline = true;
-          }
-        }
-        if (inline) {
-          foreach (var d in TopLevelDeclarations) {
-            var impl = d as Implementation;
-            if (impl != null) {
-              impl.OriginalBlocks = impl.Blocks;
-              impl.OriginalLocVars = impl.LocVars;
-            }
-          }
-          foreach (var d in TopLevelDeclarations) {
-            var impl = d as Implementation;
-            if (impl != null && !impl.SkipVerification) {
-              Inliner.ProcessImplementation(program, impl);
-            }
-          }
-          foreach (var d in TopLevelDeclarations) {
-            var impl = d as Implementation;
-            if (impl != null) {
-              impl.OriginalBlocks = null;
-              impl.OriginalLocVars = null;
-            }
-          }
-        }
-      }
     }
 
     /// <summary>
