@@ -154,6 +154,7 @@ namespace Microsoft.Boogie
         Contract.Assert(decl != null);
         int prevAssertionCount = vcgen.CumulativeAssertionCount;
         Implementation impl = decl as Implementation;
+        Console.WriteLine("TEST");
         if (impl != null && CommandLineOptions.Clo.UserWantsToCheckRoutine(cce.NonNull(impl.Name)) && !impl.SkipVerification) {
           List<Counterexample/*!*/>/*?*/ errors;
 
