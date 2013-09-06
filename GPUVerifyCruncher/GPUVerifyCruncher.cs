@@ -113,8 +113,11 @@ namespace Microsoft.Boogie
     {
       Contract.Requires(cce.NonNullElements(fileNames));
 
-      var dir = Path.GetDirectoryName(fileNames[fileNames.Count - 1]) + Path.VolumeSeparatorChar;
-      var file = Path.GetFileNameWithoutExtension(fileNames[fileNames.Count - 1]);
+      List<string> filesToProcess = new List<string>();
+      filesToProcess.Add(fileNames[fileNames.Count - 1]);
+
+      var dir = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar;
+      var file = Path.GetFileNameWithoutExtension(filesToProcess[0]);
 
       Houdini.Houdini houdini = null;
 
@@ -127,7 +130,7 @@ namespace Microsoft.Boogie
         Program InvariantComputationProgram = GVUtil.IO.ParseBoogieProgram(fileNames, false);
         if (InvariantComputationProgram == null) return 1;
 
-        KernelAnalyser.PipelineOutcome oc = KernelAnalyser.ResolveAndTypecheck(InvariantComputationProgram, fileNames[fileNames.Count - 1]);
+        KernelAnalyser.PipelineOutcome oc = KernelAnalyser.ResolveAndTypecheck(InvariantComputationProgram, filesToProcess[0]);
         if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
 
         KernelAnalyser.DisableRaceChecking(InvariantComputationProgram);
@@ -178,13 +181,12 @@ namespace Microsoft.Boogie
       }
       #endregion
 
-
       #region Apply computed invariants (if any) to the original program
       {
-        Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
+        Program program = GVUtil.IO.ParseBoogieProgram(filesToProcess, false);
         if (program == null) return 1;
 
-        KernelAnalyser.PipelineOutcome oc = KernelAnalyser.ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
+        KernelAnalyser.PipelineOutcome oc = KernelAnalyser.ResolveAndTypecheck(program, filesToProcess[0]);
         if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
 
         KernelAnalyser.EliminateDeadVariablesAndInline(program);
@@ -197,11 +199,9 @@ namespace Microsoft.Boogie
           GPUVerifyErrorReporter.FixStateIds(program);
         }
 
-        if(houdini != null) {
-          houdini.ApplyAssignment(program);
-        }
+        if(houdini != null) houdini.ApplyAssignment(program);
 
-        File.Delete(dir + file + ".bpl");
+        if (File.Exists(dir + file + ".bpl")) File.Delete(dir + file + ".bpl");
         GPUVerify.GVUtil.IO.emitProgram(program, dir + file);
       }
       #endregion
