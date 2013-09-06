@@ -16,20 +16,19 @@ namespace Microsoft.Boogie
   using System.IO;
   //using System.Collections;
   using System.Collections.Generic;
-  //using Microsoft.Boogie;
-  //using Microsoft.Boogie.AbstractInterpretation;
   using System.Diagnostics;
   using System.Diagnostics.Contracts;
   using System.Linq;
   using VC;
-  using BoogiePL = Microsoft.Boogie;
+  //using Microsoft.Boogie;
+  //using Microsoft.Boogie.AbstractInterpretation;
 
   public class GPUVerifyCruncher
   {
     public static void Main(string[] args)
     {
       Contract.Requires(cce.NonNullElements(args));
-      CommandLineOptions.Install(new GPUVerifyCruncherCommandLineOptions());
+      CommandLineOptions.Install(new GPUVerifyKernelAnalyserCommandLineOptions());
 
       try {
         CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
@@ -38,7 +37,7 @@ namespace Microsoft.Boogie
           Environment.Exit(1);
         }
         if (CommandLineOptions.Clo.Files.Count == 0) {
-          ErrorWriteLine("GPUVerify: error: no input files were specified");
+          GVUtil.ErrorWriteLine("GPUVerify: error: no input files were specified");
           Environment.Exit(1);
         }
         if (!CommandLineOptions.Clo.DontShowLogo) {
@@ -61,7 +60,7 @@ namespace Microsoft.Boogie
             extension = extension.ToLower();
           }
           if (extension != ".bpl") {
-            ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
+            GVUtil.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
             Environment.Exit(1);
           }
         }
@@ -128,7 +127,7 @@ namespace Microsoft.Boogie
           Console.WriteLine("Compute invariant without race checking");
         }
 
-        Program InvariantComputationProgram = ParseBoogieProgram(fileNames, false);
+        Program InvariantComputationProgram = GVUtil.ParseBoogieProgram(fileNames, false);
         if (InvariantComputationProgram == null) return 1;
 
         PipelineOutcome oc = ResolveAndTypecheck(InvariantComputationProgram, fileNames[fileNames.Count - 1]);
@@ -176,7 +175,7 @@ namespace Microsoft.Boogie
             ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
           }
 
-          WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
+          GVUtil.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
           return errorCount + inconclusives + timeOuts + outOfMemories;
         }
       }
@@ -185,7 +184,7 @@ namespace Microsoft.Boogie
       #region Use computed invariant (if any) to perform race checking
       {
 
-        Program RaceCheckingProgram = ParseBoogieProgram(fileNames, false);
+        Program RaceCheckingProgram = GVUtil.ParseBoogieProgram(fileNames, false);
         if (RaceCheckingProgram == null) return 1;
 
         PipelineOutcome oc = ResolveAndTypecheck(RaceCheckingProgram, fileNames[fileNames.Count - 1]);
@@ -279,7 +278,7 @@ namespace Microsoft.Boogie
 
       if (CommandLineOptions.Clo.PrintFile != null && CommandLineOptions.Clo.PrintDesugarings) {
         // if PrintDesugaring option is engaged, print the file here, after resolution and type checking
-        PrintBplFile(CommandLineOptions.Clo.PrintFile, program, true);
+        GVUtil.PrintBplFile(CommandLineOptions.Clo.PrintFile, program, true);
       }
 
       return PipelineOutcome.ResolvedAndTypeChecked;
@@ -378,35 +377,35 @@ namespace Microsoft.Boogie
           Contract.Assert(false);  // unexpected outcome
           throw new cce.UnreachableException();
         case VCGen.Outcome.ReachedBound:
-          Inform(String.Format("{0}verified", timeIndication));
+          GVUtil.Inform(String.Format("{0}verified", timeIndication));
           Console.WriteLine(string.Format("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound));
           verified++;
           break;
         case VCGen.Outcome.Correct:
           if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-            Inform(String.Format("{0}credible", timeIndication));
+            GVUtil.Inform(String.Format("{0}credible", timeIndication));
             verified++;
           }
           else {
-            Inform(String.Format("{0}verified", timeIndication));
+            GVUtil.Inform(String.Format("{0}verified", timeIndication));
             verified++;
           }
           break;
         case VCGen.Outcome.TimedOut:
           timeOuts++;
-          Inform(String.Format("{0}timed out", timeIndication));
+          GVUtil.Inform(String.Format("{0}timed out", timeIndication));
           break;
         case VCGen.Outcome.OutOfMemory:
           outOfMemories++;
-          Inform(String.Format("{0}out of memory", timeIndication));
+          GVUtil.Inform(String.Format("{0}out of memory", timeIndication));
           break;
         case VCGen.Outcome.Inconclusive:
           inconclusives++;
-          Inform(String.Format("{0}inconclusive", timeIndication));
+          GVUtil.Inform(String.Format("{0}inconclusive", timeIndication));
           break;
         case VCGen.Outcome.Errors:
           if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-            Inform(String.Format("{0}doomed", timeIndication));
+            GVUtil.Inform(String.Format("{0}doomed", timeIndication));
             errorCount++;
           } //else {
           Contract.Assert(errors != null);  // guaranteed by postcondition of VerifyImplementation
@@ -424,7 +423,7 @@ namespace Microsoft.Boogie
               errorCount++;
             }
             //}
-            Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
+            GVUtil.Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
           }
           break;
       }
@@ -440,143 +439,9 @@ namespace Microsoft.Boogie
       return true;
     }
 
-    private static GPUVerifyCruncherCommandLineOptions GetCommandLineOptions()
+    private static GPUVerifyKernelAnalyserCommandLineOptions GetCommandLineOptions()
     {
-      return (GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo;
-    }
-
-    static Program ParseBoogieProgram(List<string> fileNames, bool suppressTraceOutput)
-    {
-      Contract.Requires(cce.NonNullElements(fileNames));
-
-      Program program = null;
-      bool okay = true;
-
-      for (int fileId = 0; fileId < fileNames.Count; fileId++) {
-        string bplFileName = fileNames[fileId];
-        if (!suppressTraceOutput) {
-          if (CommandLineOptions.Clo.XmlSink != null) {
-            CommandLineOptions.Clo.XmlSink.WriteFileFragment(bplFileName);
-          }
-          if (CommandLineOptions.Clo.Trace) {
-            Console.WriteLine("Parsing " + bplFileName);
-          }
-        }
-
-        Program programSnippet;
-        int errorCount;
-        try {
-          var defines = new List<string>() { "FILE_" + fileId };
-          errorCount = BoogiePL.Parser.Parse(bplFileName, defines, out programSnippet);
-          if (programSnippet == null || errorCount != 0) {
-            Console.WriteLine("{0} parse errors detected in {1}", errorCount, bplFileName);
-            okay = false;
-            continue;
-          }
-        }
-        catch (IOException e) {
-          ErrorWriteLine("Error opening file \"{0}\": {1}", bplFileName, e.Message);
-          okay = false;
-          continue;
-        }
-        if (program == null) {
-          program = programSnippet;
-        }
-        else if (programSnippet != null) {
-          program.TopLevelDeclarations.AddRange(programSnippet.TopLevelDeclarations);
-        }
-      }
-
-      if (!okay) {
-        return null;
-      }
-      else if (program == null) {
-        return new Program();
-      }
-      else {
-        return program;
-      }
-    }
-
-    static void PrintBplFile(string filename, Program program, bool allowPrintDesugaring)
-    {
-      Contract.Requires(program != null);
-      Contract.Requires(filename != null);
-
-      bool oldPrintDesugaring = CommandLineOptions.Clo.PrintDesugarings;
-      if (!allowPrintDesugaring) {
-        CommandLineOptions.Clo.PrintDesugarings = false;
-      }
-      using (TokenTextWriter writer = filename == "-" ?
-             new TokenTextWriter("<console>", Console.Out) :
-             new TokenTextWriter(filename)) {
-        if (CommandLineOptions.Clo.ShowEnv != CommandLineOptions.ShowEnvironment.Never) {
-          writer.WriteLine("// " + CommandLineOptions.Clo.Version);
-          writer.WriteLine("// " + CommandLineOptions.Clo.Environment);
-        }
-        writer.WriteLine();
-        program.Emit(writer);
-      }
-      CommandLineOptions.Clo.PrintDesugarings = oldPrintDesugaring;
-    }
-
-    /// <summary>
-    /// Inform the user about something and proceed with translation normally.
-    /// Print newline after the message.
-    /// </summary>
-    public static void Inform(string s) {
-      if (CommandLineOptions.Clo.Trace || CommandLineOptions.Clo.TraceProofObligations)
-      {
-        Console.WriteLine(s);
-      }
-    }
-
-    static void WriteTrailer(int verified, int errors, int inconclusives, int timeOuts, int outOfMemories)
-    {
-      Contract.Requires(0 <= errors && 0 <= inconclusives && 0 <= timeOuts && 0 <= outOfMemories);
-
-      Console.WriteLine();
-      if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-        Console.Write("{0} finished with {1} credible, {2} doomed{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
-      } else {
-        Console.Write("{0} finished with {1} verified, {2} error{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
-      }
-      if (inconclusives != 0) {
-        Console.Write(", {0} inconclusive{1}", inconclusives, inconclusives == 1 ? "" : "s");
-      }
-      if (timeOuts != 0) {
-        Console.Write(", {0} time out{1}", timeOuts, timeOuts == 1 ? "" : "s");
-      }
-      if (outOfMemories != 0) {
-        Console.Write(", {0} out of memory", outOfMemories);
-      }
-      Console.WriteLine();
-      Console.Out.Flush();
-    }
-
-    public static void ErrorWriteLine(string s)
-    {
-      Contract.Requires(s != null);
-      ConsoleColor col = Console.ForegroundColor;
-      Console.ForegroundColor = ConsoleColor.DarkGray;
-      Console.Error.WriteLine(s);
-      Console.ForegroundColor = col;
-    }
-
-    public static void ErrorWriteLine(string format, params object[] args)
-    {
-      Contract.Requires(format != null);
-      string s = string.Format(format, args);
-      ErrorWriteLine(s);
-    }
-
-    public static void AdvisoryWriteLine(string format, params object[] args)
-    {
-      Contract.Requires(format != null);
-      ConsoleColor col = Console.ForegroundColor;
-      Console.ForegroundColor = ConsoleColor.Yellow;
-      Console.WriteLine(format, args);
-      Console.ForegroundColor = col;
+      return (GPUVerifyKernelAnalyserCommandLineOptions)CommandLineOptions.Clo;
     }
   }
 }

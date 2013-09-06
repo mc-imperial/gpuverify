@@ -64,9 +64,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GPUVerifyErrorReporter.cs" />
     <Compile Include="GPUVerifyBoogieDriver.cs" />
-    <Compile Include="GPUVerifyBoogieDriverCommandLineOptions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

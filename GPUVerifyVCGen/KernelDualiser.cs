@@ -175,7 +175,7 @@ namespace GPUVerify {
             QKeyValue SourceLocationInfo = BIDescriptor.GetSourceLocationInfo();
             cs.Add(BIDescriptor.GetAssertCmd());
             var vd = new VariableDualiser(1, verifier.uniformityAnalyser, procName);
-            if (CommandLineOptions.BarrierAccessChecks) {
+            if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks) {
               foreach (Expr AccessExpr in BIDescriptor.GetAccessedExprs()) {
                 var Assert = new AssertCmd(Token.NoToken, AccessExpr, MakeThreadSpecificAttributes(SourceLocationInfo,1));
                 Assert.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant_access_check", 
@@ -303,7 +303,7 @@ namespace GPUVerify {
         }
         else {
           cs.Add(MakeThreadSpecificAssert(a, 1));
-          if (!CommandLineOptions.AsymmetricAsserts && !ContainsAsymmetricExpression(a.Expr)) {
+          if (!GPUVerifyVCGenCommandLineOptions.AsymmetricAsserts && !ContainsAsymmetricExpression(a.Expr)) {
             cs.Add(MakeThreadSpecificAssert(a, 2));
           }
         }
@@ -537,7 +537,7 @@ namespace GPUVerify {
         Debug.Assert((node.Fun as MapSelect).Arity == 1);
         Debug.Assert(node.Args[0] is IdentifierExpr);
         var v = (node.Args[0] as IdentifierExpr).Decl;
-        if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !CommandLineOptions.OnlyIntraGroupRaceChecking) {
+        if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
           return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
             new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
               new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(Thread) })), VisitExpr(node.Args[1]) }));
@@ -584,7 +584,7 @@ namespace GPUVerify {
         Debug.Assert(node.Args[0] is IdentifierExpr);
         var v = (node.Args[0] as IdentifierExpr).Decl;
 
-        if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !CommandLineOptions.OnlyIntraGroupRaceChecking) {
+        if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
           return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
             new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
               new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(Thread) })), VisitExpr(node.Args[1]) }));

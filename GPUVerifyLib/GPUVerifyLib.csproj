@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>GPUVerifyLib</RootNamespace>
     <AssemblyName>GPUVerifyLib</AssemblyName>
-    <TargetFrameworkProfile>Client</TargetFrameworkProfile>
+    <TargetFrameworkProfile Condition=" '$(OS)' == 'Windows_NT' ">Client</TargetFrameworkProfile>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -53,9 +53,15 @@
       <HintPath>..\BoogieBinaries\VCGeneration.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="Predication">
+      <HintPath>..\BoogieBinaries\Predication.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Util.cs" />
     <Compile Include="SourceLocationInfo.cs" />
+    <Compile Include="GPUVerifyErrorReporter.cs" />
+    <Compile Include="GPUVerifyKernelAnalyserCommandLineOptions.cs" />
+    <Compile Include="AccessType.cs" />
   </ItemGroup>
 </Project>

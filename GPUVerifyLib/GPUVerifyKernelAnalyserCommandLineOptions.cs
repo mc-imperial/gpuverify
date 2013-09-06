@@ -9,19 +9,22 @@
 
 
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-  public class GPUVerifyCruncherCommandLineOptions : CommandLineOptions
+  public class GPUVerifyKernelAnalyserCommandLineOptions : Microsoft.Boogie.CommandLineOptions
   {
     public string ArrayToCheck = null;
     public bool NoSourceLocInfer = false;
     public bool OnlyIntraGroupRaceChecking = false;
     public bool DebugGPUVerify = false;
 
-    public GPUVerifyCruncherCommandLineOptions() :
+    public GPUVerifyKernelAnalyserCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser")
     { }
 
@@ -52,12 +55,12 @@ namespace GPUVerify
       return base.ParseOption(name, ps);  // defer to superclass
     }
 
-    private string ToInternalArrayName(string arrayName)
+    public string ToInternalArrayName(string arrayName)
     {
       return "$$" + arrayName;
     }
 
-    internal string ToExternalArrayName(string arrayName)
+    public string ToExternalArrayName(string arrayName)
     {
       Debug.Assert(arrayName.StartsWith("$$"));
       return arrayName.Substring("$$".Length);

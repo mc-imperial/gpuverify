@@ -105,7 +105,7 @@ namespace GPUVerify {
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.READ, offsetPredicatesRead);
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.WRITE, offsetPredicatesWrite);
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.ATOMIC, offsetPredicatesAtomic);
-        if (CommandLineOptions.InferSourceLocation) {
+        if (GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
           AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.READ, new List<Expr>(
             offsetPredicatesRead.Zip(CollectSourceLocPredicates(region, v, AccessType.READ), Expr.And)), true);
           AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.WRITE, new List<Expr>(
@@ -123,10 +123,10 @@ namespace GPUVerify {
     }
 
     private int ParameterOffsetForSource(AccessType Access) {
-      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         return 4;
       }
-      else if (!CommandLineOptions.NoBenign && Access == AccessType.READ) {
+      else if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.READ) {
         return 3;
       }
       else {
@@ -406,7 +406,7 @@ namespace GPUVerify {
         AddLogAccessProcedure(v, kind);
         AddCheckAccessProcedure(v, kind);
       }
-      if (!CommandLineOptions.NoBenign) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
         AddUpdateBenignFlagProcedure(v);
       }
     }
@@ -522,10 +522,10 @@ namespace GPUVerify {
 
     private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
       result.Add(MakeLogCall(ar, Access, Value));
-      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         result.Add(MakeUpdateBenignFlagCall(ar));
       }
-      if (!CommandLineOptions.OnlyLog) {
+      if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
         result.Add(MakeCheckCall(result, ar, Access, Value));
       }
       AddToAccessSourceLocations(Access, ar.v.Name);
@@ -569,7 +569,7 @@ namespace GPUVerify {
     }
 
     private void MaybeAddValueParameter(List<Expr> parameters, AccessRecord ar, Expr Value, AccessType Access) {
-      if (!CommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         if (Value != null) {
           parameters.Add(Value);
         }
@@ -582,7 +582,7 @@ namespace GPUVerify {
     }
 
     private void MaybeAddValueOldParameter(List<Expr> parameters, AccessRecord ar, AccessType Access) {
-      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
           Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
           e.Type = (ar.v.TypedIdent.Type as MapType).Result;
           parameters.Add(e);
@@ -683,10 +683,10 @@ namespace GPUVerify {
 
       inParams.Add(VariableForThread(1, PredicateParameter));
       inParams.Add(VariableForThread(1, OffsetParameter));
-      if(!CommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+      if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         inParams.Add(VariableForThread(1, ValueParameter));
       }
-      if(!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+      if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         inParams.Add(VariableForThread(1, ValueOldParameter));
       }
       inParams.Add(VariableForThread(1, SourceParameter));
@@ -742,7 +742,7 @@ namespace GPUVerify {
 
       inParams.Add(VariableForThread(2, PredicateParameter));
       inParams.Add(VariableForThread(2, OffsetParameter));
-      if (!CommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         inParams.Add(VariableForThread(2, ValueParameter));
       }
 
@@ -853,12 +853,12 @@ namespace GPUVerify {
       simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessOffsetVariable),
           Condition,
           new IdentifierExpr(v.tok, VariableForThread(1, OffsetParameter))));
-      if (!CommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessValueVariable),
           Condition,
           new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter))));
       }
-      if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessBenignFlagVariable),
           Condition,
           Expr.Neq(new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter)),
@@ -935,13 +935,13 @@ namespace GPUVerify {
 
         Expr NoBenignTest = null;
 
-        if (!CommandLineOptions.NoBenign) {
+        if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           NoBenignTest = new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteReadBenignFlagVariable));
         }
 
         AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, NoBenignTest, AccessType.WRITE, "write_read");
 
-        if (CommandLineOptions.AtomicVsRead) {
+        if (GPUVerifyVCGenCommandLineOptions.AtomicVsRead) {
           AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, null, AccessType.ATOMIC, "atomic_read");
         }
       }
@@ -950,7 +950,7 @@ namespace GPUVerify {
 
         Expr WriteNoBenignTest = null;
 
-        if (!CommandLineOptions.NoBenign) {
+        if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           WriteNoBenignTest = Expr.Neq(
               new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result))),
               new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter)));
@@ -960,7 +960,7 @@ namespace GPUVerify {
 
         Expr ReadNoBenignTest = null;
 
-        if (!CommandLineOptions.NoBenign) {
+        if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           ReadNoBenignTest = Expr.Neq(
               new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result))),
               new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter)));
@@ -968,16 +968,16 @@ namespace GPUVerify {
 
         AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, ReadNoBenignTest, AccessType.READ, "read_write");
 
-        if (CommandLineOptions.AtomicVsWrite) {
+        if (GPUVerifyVCGenCommandLineOptions.AtomicVsWrite) {
           AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, null, AccessType.ATOMIC, "atomic_write");
         }
       }
       else if (Access == AccessType.ATOMIC) {
-        if (CommandLineOptions.AtomicVsWrite) {
+        if (GPUVerifyVCGenCommandLineOptions.AtomicVsWrite) {
           AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, null, AccessType.WRITE, "write_atomic");
         }
 
-        if (CommandLineOptions.AtomicVsRead) {
+        if (GPUVerifyVCGenCommandLineOptions.AtomicVsRead) {
           AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, null, AccessType.READ, "read_atomic");
         }
       }
@@ -1026,14 +1026,14 @@ namespace GPUVerify {
       verifier.FindOrCreateOffsetVariable(v.Name, Access);
       verifier.FindOrCreateSourceVariable(v.Name, Access);
 
-      if (!CommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         Debug.Assert(v.TypedIdent.Type is MapType);
         MapType mt = v.TypedIdent.Type as MapType;
         Debug.Assert(mt.Arguments.Count == 1);
         verifier.FindOrCreateValueVariable(v.Name, Access, mt.Result);
       }
 
-     if (!CommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+     if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         Debug.Assert(v.TypedIdent.Type is MapType);
         MapType mt = v.TypedIdent.Type as MapType;
         Debug.Assert(mt.Arguments.Count == 1);
@@ -1074,7 +1074,7 @@ namespace GPUVerify {
 
     private void AddRequiresSourceAccessZero(Variable v)
     {
-      if (CommandLineOptions.InferSourceLocation) {
+      if (GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
         foreach (var Proc in verifier.KernelProcedures.Keys) {
           foreach (var kind in AccessType.Types)
             Proc.Requires.Add(new Requires(false, Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(v.Name, kind)),
@@ -1085,7 +1085,7 @@ namespace GPUVerify {
 
     public void AddSourceLocationLoopInvariants(Implementation impl, IRegion region)
     {
-      if (!CommandLineOptions.InferSourceLocation) {
+      if (!GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
         return;
       }
 
@@ -1126,7 +1126,7 @@ namespace GPUVerify {
 
     public void AddStandardSourceVariablePreconditions()
     {
-      if (!CommandLineOptions.InferSourceLocation) {
+      if (!GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
         return;
       }
 
@@ -1179,7 +1179,7 @@ namespace GPUVerify {
 
     public void AddStandardSourceVariablePostconditions()
     {
-      if (!CommandLineOptions.InferSourceLocation) {
+      if (!GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
         return;
       }
 

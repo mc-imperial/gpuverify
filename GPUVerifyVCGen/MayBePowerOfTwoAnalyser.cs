@@ -64,7 +64,7 @@ namespace GPUVerify
                 }
             }
 
-            if (CommandLineOptions.ShowMayBePowerOfTwoAnalysis)
+            if (GPUVerifyVCGenCommandLineOptions.ShowMayBePowerOfTwoAnalysis)
             {
                 dump();
             }

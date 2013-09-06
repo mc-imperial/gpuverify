@@ -37,7 +37,7 @@ namespace GPUVerify {
       this.AccessExprs = new List<Expr>();
       this.Verifier = Verifier;
 
-      if (CommandLineOptions.BarrierAccessChecks) {
+      if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks) {
         var visitor = new SubExprVisitor();
         visitor.VisitExpr(this.BarrierInvariant);
         foreach (Tuple<Expr,IdentifierExpr,Expr> pair in visitor.SubExprs) {

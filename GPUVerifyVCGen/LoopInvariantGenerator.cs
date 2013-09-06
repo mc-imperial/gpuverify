@@ -184,7 +184,7 @@ namespace GPUVerify {
                 AddPredicatedEqualityCandidateInvariant(region, LoopPredicate, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lv, Microsoft.Boogie.Type.Int)));
               }
 
-              if (CommandLineOptions.ArrayEqualities)
+              if (GPUVerifyVCGenCommandLineOptions.ArrayEqualities)
               {
                   foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays())
                   {

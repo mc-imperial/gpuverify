@@ -15,9 +15,6 @@ using System.Text;
 using System.IO;
 using System.Diagnostics;
 using System.Windows.Forms;
-
-
-
 using Microsoft.Boogie;
 using System.Diagnostics.Contracts;
 
@@ -25,25 +22,22 @@ namespace GPUVerify
 {
     class GPUVerify
     {
-
         public static void Main(string[] args)
         {
-
           try {
-
-            int showHelp = CommandLineOptions.Parse(args);
+            int showHelp = GPUVerifyVCGenCommandLineOptions.Parse(args);
 
             if (showHelp == -1) {
-              CommandLineOptions.Usage();
+              GPUVerifyVCGenCommandLineOptions.Usage();
               System.Environment.Exit(0);
             }
 
-            if (CommandLineOptions.inputFiles.Count < 1) {
+            if (GPUVerifyVCGenCommandLineOptions.inputFiles.Count < 1) {
               Console.WriteLine("*** Error: No input files were specified.");
               Environment.Exit(1);
             }
 
-            foreach (string file in CommandLineOptions.inputFiles) {
+            foreach (string file in GPUVerifyVCGenCommandLineOptions.inputFiles) {
               string extension = Path.GetExtension(file);
               if (extension != null) {
                 extension = extension.ToLower();
@@ -55,12 +49,11 @@ namespace GPUVerify
             }
 
             parseProcessOutput();
-
           } catch (Exception e) {
             Console.Error.WriteLine("Exception thrown in GPUVerifyVCGen");
             Console.Error.WriteLine(e);
 
-            if(CommandLineOptions.DebugGPUVerify) {
+            if(GPUVerifyVCGenCommandLineOptions.DebugGPUVerify) {
               throw e;
             }
             
@@ -70,7 +63,7 @@ namespace GPUVerify
 
         public static Program parse(out ResolutionContext rc)
         {
-            Program program = ParseBoogieProgram(CommandLineOptions.inputFiles, false);
+            Program program = ParseBoogieProgram(GPUVerifyVCGenCommandLineOptions.inputFiles, false);
             if (program == null)
             {
                 Environment.Exit(1);
@@ -82,14 +75,14 @@ namespace GPUVerify
             program.Resolve(rc);
             if (rc.ErrorCount != 0)
             {
-                Console.WriteLine("{0} name resolution errors detected in {1}", rc.ErrorCount, CommandLineOptions.inputFiles[CommandLineOptions.inputFiles.Count - 1]);
+                Console.WriteLine("{0} name resolution errors detected in {1}", rc.ErrorCount, GPUVerifyVCGenCommandLineOptions.inputFiles[GPUVerifyVCGenCommandLineOptions.inputFiles.Count - 1]);
                 Environment.Exit(1);
             }
             
             int errorCount = program.Typecheck();
             if (errorCount != 0)
             {
-                Console.WriteLine("{0} type checking errors detected in {1}", errorCount, CommandLineOptions.inputFiles[CommandLineOptions.inputFiles.Count - 1]);
+                Console.WriteLine("{0} type checking errors detected in {1}", errorCount, GPUVerifyVCGenCommandLineOptions.inputFiles[GPUVerifyVCGenCommandLineOptions.inputFiles.Count - 1]);
                 Environment.Exit(1);
             }
 
@@ -111,25 +104,20 @@ namespace GPUVerify
         public static void parseProcessOutput()
         {
             string fn = "temp";
-            if (CommandLineOptions.outputFile != null)
+            if (GPUVerifyVCGenCommandLineOptions.outputFile != null)
             {
-                fn = CommandLineOptions.outputFile;
+                fn = GPUVerifyVCGenCommandLineOptions.outputFile;
             }
-            else if (CommandLineOptions.inputFiles.Count == 1)
+            else if (GPUVerifyVCGenCommandLineOptions.inputFiles.Count == 1)
             {
-                var inputFile = CommandLineOptions.inputFiles[0];
+                var inputFile = GPUVerifyVCGenCommandLineOptions.inputFiles[0];
                 if (Path.GetExtension(inputFile).ToLower() != ".bpl")
                     fn = Path.GetFileNameWithoutExtension(inputFile);
             }
             ResolutionContext rc;
             Program program = parse(out rc);
             new GPUVerifier(fn, program, rc).doit();
-            
         }
-
-
-
-
 
         public static Program ParseBoogieProgram(List<string> fileNames, bool suppressTraceOutput)
         {
@@ -182,11 +170,5 @@ namespace GPUVerify
                 return program;
             }
         }
-
-
     }
-
-
-
-
 }

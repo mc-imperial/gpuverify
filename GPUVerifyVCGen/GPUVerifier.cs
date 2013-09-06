@@ -21,30 +21,6 @@ using Microsoft.Basetypes;
 
 namespace GPUVerify
 {
-
-    public sealed class AccessType {
-
-      private readonly String name;
-
-      public static readonly AccessType READ = new AccessType ("READ");
-      public static readonly AccessType WRITE = new AccessType ("WRITE");
-      public static readonly AccessType ATOMIC = new AccessType ("ATOMIC");
-
-      public static readonly IEnumerable<AccessType> Types = new List<AccessType> { READ, WRITE, ATOMIC };
-
-      private AccessType(String name) {
-        this.name = name;
-      }
-
-      public override String ToString() {
-        return name;
-      }
-
-      public bool isReadOrWrite() {
-        return this == READ || this == WRITE;
-      }
-    }
-
     public class InferenceStages {
       public const int BASIC_CANDIDATE_STAGE = 0;
       internal static int NO_READ_WRITE_CANDIDATE_STAGE = 0;
@@ -126,16 +102,16 @@ namespace GPUVerify
             this.outputFilename = filename;
             this.Program = program;
             this.ResContext = rc;
-            this.IntRep = CommandLineOptions.MathInt ?
+            this.IntRep = GPUVerifyVCGenCommandLineOptions.MathInt ?
                 (IntegerRepresentation)new MathIntegerRepresentation(this) :
                 (IntegerRepresentation)new BVIntegerRepresentation(this);
             CheckWellFormedness();
 
-            if (CommandLineOptions.BarrierAccessChecks)
+            if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
             {
                 this.NoAccessInstrumenter = new NoAccessInstrumenter(this);
             }
-            if (!CommandLineOptions.OnlyDivergence)
+            if (!GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
                 this.RaceInstrumenter = new RaceInstrumenter(this);
             } else {
@@ -149,11 +125,11 @@ namespace GPUVerify
             int errorCount = Check();
             if (errorCount != 0)
             {
-                Console.WriteLine("{0} GPUVerify format errors detected in {1}", errorCount, CommandLineOptions.inputFiles[CommandLineOptions.inputFiles.Count - 1]);
+                Console.WriteLine("{0} GPUVerify format errors detected in {1}", errorCount, GPUVerifyVCGenCommandLineOptions.inputFiles[GPUVerifyVCGenCommandLineOptions.inputFiles.Count - 1]);
                 Environment.Exit(1);
             }
 
-            if (CommandLineOptions.EqualityAbstraction)
+            if (GPUVerifyVCGenCommandLineOptions.EqualityAbstraction)
             {
               var impls = Program.TopLevelDeclarations.Where(d => d is Implementation).Select(d => d as Implementation);
               var blocks = impls.SelectMany(impl => impl.Blocks);
@@ -407,11 +383,11 @@ namespace GPUVerify
         }
 
         private static string GetFileName() {
-          return Path.GetFileNameWithoutExtension(CommandLineOptions.inputFiles[0]);
+          return Path.GetFileNameWithoutExtension(GPUVerifyVCGenCommandLineOptions.inputFiles[0]);
         }
 
         private static string GetFilenamePathPrefix() {
-          string directoryName = Path.GetDirectoryName(CommandLineOptions.inputFiles[0]);
+          string directoryName = Path.GetDirectoryName(GPUVerifyVCGenCommandLineOptions.inputFiles[0]);
           return ((!String.IsNullOrEmpty(directoryName) && directoryName != ".") ? (directoryName + Path.DirectorySeparatorChar) : "");
         }
 
@@ -421,21 +397,21 @@ namespace GPUVerify
             File.Delete(GetSourceLocFileName()); 
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
-            if (CommandLineOptions.ShowStages)
+            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_original");
             }
 
             if (!ProgramUsesBarrierInvariants()) {
-                CommandLineOptions.BarrierAccessChecks = false;
+                GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks = false;
             }
 
-            if (CommandLineOptions.RefinedAtomics)
+            if (GPUVerifyVCGenCommandLineOptions.RefinedAtomics)
               RefineAtomicAbstraction();
 
             DoUniformityAnalysis();
 
-            if (CommandLineOptions.ShowUniformityAnalysis) {
+            if (GPUVerifyVCGenCommandLineOptions.ShowUniformityAnalysis) {
                 uniformityAnalyser.dump();
             }
 
@@ -447,7 +423,7 @@ namespace GPUVerify
 
             DoArrayControlFlowAnalysis();
 
-            if (CommandLineOptions.Inference)
+            if (GPUVerifyVCGenCommandLineOptions.Inference)
             {
 
               foreach (var impl in Program.Implementations().ToList())
@@ -455,54 +431,54 @@ namespace GPUVerify
                     LoopInvariantGenerator.PreInstrument(this, impl);
                 }
 
-                if (CommandLineOptions.ShowStages) {
+                if (GPUVerifyVCGenCommandLineOptions.ShowStages) {
                   emitProgram(outputFilename + "_pre_inference");
                 }
 
             }
 
             RaceInstrumenter.AddRaceCheckingInstrumentation();
-            if (CommandLineOptions.BarrierAccessChecks)
+            if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
             {
                 NoAccessInstrumenter.AddNoAccessInstrumentation();
             }
 
-            if (CommandLineOptions.ShowStages)
+            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_instrumented");
             }
 
             AbstractSharedState();
 
-            if (CommandLineOptions.ShowStages)
+            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_abstracted");
             }
 
             MergeBlocksIntoPredecessors();
 
-            if (CommandLineOptions.ShowStages)
+            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_merged_pre_predication");
             }
 
             MakeKernelPredicated();
 
-            if (CommandLineOptions.ShowStages)
+            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_predicated");
             }
 
             MergeBlocksIntoPredecessors(false);
 
-            if (CommandLineOptions.ShowStages)
+            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_merged_post_predication");
             }
 
             MakeKernelDualised();
 
-            if (CommandLineOptions.ShowStages)
+            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_dualised");
             }
@@ -519,23 +495,23 @@ namespace GPUVerify
 
             GenerateStandardKernelContract();
 
-            if (CommandLineOptions.ShowStages)
+            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_ready_to_verify");
             }
 
-            if (CommandLineOptions.Inference)
+            if (GPUVerifyVCGenCommandLineOptions.Inference)
             {
               ComputeInvariant();
 
-              if (CommandLineOptions.AbstractHoudini)
+              if (GPUVerifyVCGenCommandLineOptions.AbstractHoudini)
               {
                 new AbstractHoudiniTransformation(this).DoAbstractHoudiniTransform();
               }
 
             }
 
-            if (CommandLineOptions.WarpSync)
+            if (GPUVerifyVCGenCommandLineOptions.WarpSync)
             {
               AddWarpSyncs();
             }
@@ -546,7 +522,7 @@ namespace GPUVerify
 
         private void OptimiseReads()
         {
-          if (!CommandLineOptions.OptimiseReads) {
+          if (!GPUVerifyVCGenCommandLineOptions.OptimiseReads) {
             return;
           }
 
@@ -610,7 +586,7 @@ namespace GPUVerify
         private void DoUniformityAnalysis()
         {
             var entryPoints = new HashSet<Implementation>();
-            if (CommandLineOptions.DoUniformityAnalysis) {
+            if (GPUVerifyVCGenCommandLineOptions.DoUniformityAnalysis) {
               foreach (Implementation i in KernelProcedures.Values) {
                 if (i != null) {
                   entryPoints.Add(i);
@@ -620,11 +596,11 @@ namespace GPUVerify
 
             var nonUniformVars = new List<Variable> { _X, _Y, _Z };
 
-            if(!CommandLineOptions.OnlyIntraGroupRaceChecking) {
+            if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                 nonUniformVars.AddRange(new Variable[] { _GROUP_X, _GROUP_Y, _GROUP_Z } );
             }
 
-            uniformityAnalyser = new UniformityAnalyser(Program, CommandLineOptions.DoUniformityAnalysis,
+            uniformityAnalyser = new UniformityAnalyser(Program, GPUVerifyVCGenCommandLineOptions.DoUniformityAnalysis,
                                                         entryPoints, nonUniformVars);
             uniformityAnalyser.Analyse();
         }
@@ -1015,7 +991,7 @@ namespace GPUVerify
 
                 Proc.Requires.Add(new Requires(false, Expr.Imp(ThreadsInSameGroup(), DistinctLocalIds)));
 
-                if (CommandLineOptions.OnlyIntraGroupRaceChecking)
+                if (GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
                 {
                     Proc.Requires.Add(new Requires(false, ThreadsInSameGroup()));
                 }
@@ -1074,7 +1050,7 @@ namespace GPUVerify
 
         internal static Expr ThreadsInSameGroup()
         {
-            if(CommandLineOptions.OnlyIntraGroupRaceChecking) {
+            if(GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
               return Expr.True;
             }
 
@@ -1127,7 +1103,7 @@ namespace GPUVerify
                 Proc.Requires.Add(new Requires(false, GroupSizePositive));
                 Proc.Requires.Add(new Requires(false, NumGroupsPositive));
 
-                if(CommandLineOptions.OnlyIntraGroupRaceChecking) {
+                if(GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                   Proc.Requires.Add(new Requires(false, GroupIdNonNegative));
                   Proc.Requires.Add(new Requires(false, GroupIdLessThanNumGroups));
                 } else {
@@ -1331,7 +1307,7 @@ namespace GPUVerify
               new List<object>(new object[] { }), null);
             BarrierProcedure.Requires.Add(nonDivergenceRequires);
 
-            if (!CommandLineOptions.OnlyDivergence)
+            if (!GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
                 List<BigBlock> returnbigblocks = new List<BigBlock>();
                 returnbigblocks.Add(new BigBlock(tok, "__Disabled", new List<Cmd>(), null, new ReturnCmd(tok)));
@@ -1354,7 +1330,7 @@ namespace GPUVerify
 
                 if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGroupSharedArrays())) {
                   var SharedArrays = KernelArrayInfo.getGroupSharedArrays();
-                  var NoAccessVars = CommandLineOptions.BarrierAccessChecks ? 
+                  var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ? 
                     SharedArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
                     Enumerable.Empty<Variable>();
                   var HavocVars = SharedArrays.Concat(NoAccessVars).ToList();
@@ -1375,7 +1351,7 @@ namespace GPUVerify
 
                 if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGlobalArrays())) {
                   var GlobalArrays = KernelArrayInfo.getGlobalArrays();
-                  var NoAccessVars = CommandLineOptions.BarrierAccessChecks ? 
+                  var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ? 
                     GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
                     Enumerable.Empty<Variable>();
                   var HavocVars = GlobalArrays.Concat(NoAccessVars).ToList();
@@ -1711,7 +1687,7 @@ namespace GPUVerify
 
                 if (d is Variable && ((d as Variable).IsMutable || 
                     IsThreadLocalIdConstant(d as Variable) || 
-                    (IsGroupIdConstant(d as Variable) && !CommandLineOptions.OnlyIntraGroupRaceChecking))) {
+                    (IsGroupIdConstant(d as Variable) && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking))) {
                   var v = d as Variable;
 
                   if (v.Name.Contains("_NOT_ACCESSED_")) {
@@ -1725,7 +1701,7 @@ namespace GPUVerify
                   }
 
                   if (KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
-                    if(!CommandLineOptions.OnlyIntraGroupRaceChecking) {
+                    if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                       Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
                           v.Name, new MapType(Token.NoToken, new List<TypeVariable>(), 
                           new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.Bool },
@@ -1756,13 +1732,13 @@ namespace GPUVerify
 
         private void MakeKernelPredicated()
         {
-            if (CommandLineOptions.SmartPredication)
+            if (GPUVerifyVCGenCommandLineOptions.SmartPredication)
             {
                 SmartBlockPredicator.Predicate(Program, proc => true, uniformityAnalyser);
             }
             else
             {
-                BlockPredicator.Predicate(Program, /*createCandidateInvariants=*/CommandLineOptions.Inference);
+                BlockPredicator.Predicate(Program, /*createCandidateInvariants=*/GPUVerifyVCGenCommandLineOptions.Inference);
             }
             return;
         }
@@ -1861,11 +1837,11 @@ namespace GPUVerify
 
         internal bool ArrayModelledAdversarially(Variable v)
         {
-            if (CommandLineOptions.AdversarialAbstraction)
+            if (GPUVerifyVCGenCommandLineOptions.AdversarialAbstraction)
             {
                 return true;
             }
-            if (CommandLineOptions.EqualityAbstraction)
+            if (GPUVerifyVCGenCommandLineOptions.EqualityAbstraction)
             {
                 return false;
             }
@@ -2162,7 +2138,7 @@ namespace GPUVerify
           List<BigBlock> thenblocks = new List<BigBlock>();
           thenblocks.Add(new BigBlock(Token.NoToken, "reset_warps", then, null, null));
 
-          Expr warpsize = Expr.Ident(CommandLineOptions.WarpSize + "bv32", new BvType(32));
+          Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
 
           Expr[] tids = (new int[] {1,2}).Select(x =>
               IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",x)),IntRep.MakeAdd(
@@ -2217,19 +2193,4 @@ namespace GPUVerify
         }
 
     }
-
-
-    public static class GPUVerifyUtilities {
-
-        public static IEnumerable<Implementation> Implementations(this Program p) {
-          return p.TopLevelDeclarations.OfType<Implementation>();
-        }
-
-        public static IEnumerable<Block> Blocks(this Program p) {
-          return p.Implementations().Select(Item => Item.Blocks).
-            SelectMany(Item => Item);
-        }
-
-    }
-
 }

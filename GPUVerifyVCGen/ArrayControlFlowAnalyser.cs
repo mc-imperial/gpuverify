@@ -109,7 +109,7 @@ namespace GPUVerify
                 }
             }
 
-            if (CommandLineOptions.ShowArrayControlFlowAnalysis)
+            if (GPUVerifyVCGenCommandLineOptions.ShowArrayControlFlowAnalysis)
             {
                 dump();
             }
