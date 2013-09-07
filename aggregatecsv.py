@@ -4,10 +4,11 @@ import getopt
 import numpy
 import sys
 
-csvInHeader  = "kernel, status, clang, opt, bugle, vcgen, boogiedriver, total"
+csvInHeader  = "kernel, status, clang, opt, bugle, vcgen, cruncher, boogiedriver, total"
 cvsOutHeader = "kernel, status, population, clang mean, clang error, " \
                + "opt mean, opt error, bugle mean, bugle error, vcgen mean, " \
-               + "vcgen error, boogiedriver mean, boogiedriver error, " \
+               + "vcgen error, cruncher mean, cruncher error, " \
+               + "boogiedriver mean, boogiedriver error, " \
                + "total mean, total error"
 
 # http://en.wikipedia.org/wiki/Student%27s_t-distribution#Table_of_selected_values
@@ -40,12 +41,13 @@ class CsvData:
         self.kernelName = kernelName
         self.exitStatus = exitStatus
 
-        self.clangTime  = []
-        self.optTime    = []
-        self.bugleTime  = []
-        self.vcgenTime  = []
-        self.boogieTime = []
-        self.totalTime  = []
+        self.clangTime    = []
+        self.optTime      = []
+        self.bugleTime    = []
+        self.vcgenTime    = []
+        self.cruncherTime = []
+        self.boogieTime   = []
+        self.totalTime    = []
 
         self.numTimes = 0
         self.addCount = 0
@@ -93,6 +95,10 @@ class CsvData:
                 self.vcgenTime.append(float(data.pop(0)))
                 numTimes += 1
 
+            if len(data) > 1:
+                self.cruncherTime.append(float(data.pop(0)))
+                numTimes += 1
+            
             if len(data) > 1:
                 self.boogieTime.append(float(data.pop(0)))
                 numTimes += 1
@@ -153,6 +159,9 @@ class CsvData:
             self.vcgenMean, self.vcgenError = compute(self.vcgenTime)
 
         if len(self.boogieTime):
+            self.cruncherMean, self.cruncherError = compute(self.cruncherTime)
+        
+        if len(self.boogieTime):
             self.boogieMean, self.boogieError = compute(self.boogieTime)
 
         self.totalMean, self.totalError = compute(self.totalTime)
@@ -186,6 +195,12 @@ class CsvData:
         elif alignColumns:
             entry += ", -, -"
 
+        if len(self.cruncherTime):
+            entry += ', %.3f' % self.cruncherMean \
+                     + ', %.3f' % self.cruncherError
+        elif alignColumns:
+            entry += ", -, -"
+        
         if len(self.boogieTime):
             entry += ', %.3f' % self.boogieMean \
                      + ', %.3f' % self.boogieError

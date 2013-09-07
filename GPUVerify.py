@@ -93,15 +93,6 @@ clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
-gpuVerifyGenericOptions = [ "/nologo",
-                            "/typeEncoding:m",
-                            "/doModSetAnalysis",
-                            "/useArrayTheory",
-                            "/doNotUseLabels",
-                            "/enhancedErrorMessages:1",
-                            "/mv:-"
-                          ]
-
 """ Options for the tool """
 class CommandLineOptions(object):
   SL = SourceLanguage.Unknown
@@ -110,6 +101,10 @@ class CommandLineOptions(object):
   defines = clangCoreDefines
   clangOptions = clangCoreOptions
   optOptions = [ "-mem2reg", "-globaldce" ]
+  defaultOptions = [ "/nologo", "/typeEncoding:m", "/mv:-",
+                     "/doModSetAnalysis", "/useArrayTheory",
+                     "/doNotUseLabels", "/enhancedErrorMessages:1"
+                   ]
   gpuVerifyVCGenOptions = []
   gpuVerifyCruncherOptions = [ "/noinfer", "/contractInfer" ]
   gpuVerifyBoogieDriverOptions = []
@@ -855,7 +850,7 @@ def main(argv=None):
     if CommandLineOptions.debuggingParallelInference > 0:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugParallelHoudini" ]
   else:
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/errorLimit:4" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/errorLimit:20" ]
     if CommandLineOptions.solver == "cvc4":
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
@@ -883,8 +878,8 @@ def main(argv=None):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
   
-  CommandLineOptions.gpuVerifyCruncherOptions += gpuVerifyGenericOptions
-  CommandLineOptions.gpuVerifyBoogieDriverOptions += gpuVerifyGenericOptions
+  CommandLineOptions.gpuVerifyCruncherOptions += defaultOptions
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += defaultOptions
   CommandLineOptions.gpuVerifyCruncherOptions += [ bplFilename ]
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ ibplFilename ]
 
