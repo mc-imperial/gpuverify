@@ -691,7 +691,7 @@ def main(arg):
     logging.info("Running tests...")
 
     if args.time_as_csv:
-        print("kernel, status, clang, opt, bugle, vcgen, boogiedriver, total")
+        print("kernel, status, clang, opt, bugle, vcgen, cruncher, boogiedriver, total")
 
     start = time.time()
     for test in tests:

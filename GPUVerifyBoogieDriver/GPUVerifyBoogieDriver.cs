@@ -28,7 +28,6 @@ namespace Microsoft.Boogie
       CommandLineOptions.Install(new GPUVerifyKernelAnalyserCommandLineOptions());
 
       try {
-
         CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
         if (!CommandLineOptions.Clo.Parse(args)) {
           Environment.Exit(1);

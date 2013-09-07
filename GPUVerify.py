@@ -141,6 +141,9 @@ class CommandLineOptions(object):
   noSourceLocInfer = False
   noUniformityAnalysis = False
   stagedInference = False
+  useParallelInference = False
+  numEngines = multiprocessing.cpu_count()
+  debuggingParallelInference = 0
   stopAtGbpl = False
   stopAtBpl = False
   stopAtOpt = False
@@ -351,6 +354,12 @@ def showHelpAndExit():
   print "  --silent                Silent on success; only show errors/timing"
   print "  --staged-inference      Perform invariant inference in stages; this can boost"
   print "                          performance for complex kernels (but this is not guaranteed)"
+  print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
+  print "                          inference (but this is not guaranteed)"
+  print "  --engines=X             Specify how many refutation engines to run in parallel. The"
+  print "                          default is the number of available CPU cores"
+  print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
+  print "                          for varying levels of debugging information"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
   print "  --stop-at-opt           Stop after LLVM optimization pass"
@@ -496,6 +505,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.bugleOptions += str(a).split(" ")
     if o == "--staged-inference":
       CommandLineOptions.stagedInference = True
+    if o == "--parallel-inference":
+      CommandLineOptions.useParallelInference = True
     if o == "--stop-at-opt":
       CommandLineOptions.stopAtOpt = True
     if o == "--stop-at-gbpl":
@@ -565,6 +576,24 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.logic = a.upper()
       else:
         GPUVerifyError("argument to --logic must be 'ALL_SUPPORTED' or 'QF_ALL_SUPPORTED'", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--engines":
+      try:
+        if int(a) < 0:
+          GPUVerifyError("negative value " + a + " provided as argument to --engines", ErrorCodes.COMMAND_LINE_ERROR)
+        elif int(a) == 0:
+          GPUVerifyError("the '0' value cannot be provided as an argument to --engines", ErrorCodes.COMMAND_LINE_ERROR)
+        CommandLineOptions.numEngines = int(a)
+      except ValueError:
+        GPUVerifyError("non integer value '" + a + "' provided as argument to --engines", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--debug-parallel-inference":
+      try:
+        if int(a) < 0:
+          GPUVerifyError("negative value " + a + " provided as argument to --debug-parallel-inference", ErrorCodes.COMMAND_LINE_ERROR)
+        elif int(a) > 3:
+          GPUVerifyError("value greater than '3' provided as argument to --debug-parallel-inference", ErrorCodes.COMMAND_LINE_ERROR)
+        CommandLineOptions.debuggingParallelInference = int(a)
+      except ValueError:
+        GPUVerifyError("non integer value '" + a + "' provided as argument to --debug-parallel-inference", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--bugle-lang":
       if a.lower() in ("cl", "cu"):
         CommandLineOptions.bugleLanguage = a.lower()
@@ -674,6 +703,7 @@ def main(argv=None):
               'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference',
+              'parallel-inference', 'engines=', 'debug-parallel-inference=',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic='
              ])

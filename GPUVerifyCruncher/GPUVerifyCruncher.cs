@@ -201,7 +201,7 @@ namespace Microsoft.Boogie
 
         if(houdini != null) houdini.ApplyAssignment(program);
 
-        if (File.Exists(dir + file + ".bpl")) File.Delete(dir + file + ".bpl");
+        if (File.Exists(filesToProcess[0])) File.Delete(filesToProcess[0]);
         GPUVerify.GVUtil.IO.emitProgram(program, dir + file);
       }
       #endregion
