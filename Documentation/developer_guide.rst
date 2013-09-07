@@ -712,8 +712,11 @@ instruct ``gvtester.py`` what to do. The syntax is as follows::
                    "BUGLE_ERROR" |
                    "GPUVERIFYVCGEN_ERROR" |
                    "GPUVERIFYVCGEN_TIMEOUT" |
+				   "CRUNCHER_ERROR" |
+				   "CRUNCHER_TIMEOUT" |
                    "BOOGIE_ERROR" |
-                   "BOOGIE_TIMEOUT"
+                   "BOOGIE_TIMEOUT" |
+				   "CTRL_C"
 
   <line_2> ::= "//" <cmd-args>?
   <cmd-args> ::= <gv-arg> | <gv-arg> " "+ <cmd-args>
