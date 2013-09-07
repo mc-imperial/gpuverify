@@ -17,6 +17,7 @@ llvmSrcDir = None
 llvmBinDir = None
 llvmLibDir = None
 gpuVerifyVCGenBinDir = None
+gpuVerifyCruncherBinDir = None
 gpuVerifyBoogieDriverBinDir = None
 z3SrcDir = None
 z3BinDir = None
@@ -28,7 +29,7 @@ def init(pathPrefix):
 
   global bugleSrcDir, bugleBinDir, libclcInstallDir
   global llvmSrcDir, llvmBinDir, llvmLibDir
-  global gpuVerifyVCGenBinDir, gpuVerifyBoogieDriverBinDir
+  global gpuVerifyVCGenBinDir, gpuVerifyCruncherBinDir, gpuVerifyBoogieDriverBinDir
   global z3SrcDir, z3BinDir, cvc4SrcDir, cvc4BinDir
   #The path to the Bugle Source directory. The include-blang/ folder should be in there
   bugleSrcDir = pathPrefix + os.sep + "bugle"
@@ -50,6 +51,9 @@ def init(pathPrefix):
 
   #The path to the directory containing GPUVerifyVCGen.exe
   gpuVerifyVCGenBinDir = pathPrefix + os.sep + "bin"
+  
+  #The path to the directory containing gpuVerifyCruncher.exe
+  gpuVerifyCruncherBinDir = pathPrefix + os.sep + "bin"
 
   #The path to the directory containing GPUVerifyBoogieDriver.exe
   gpuVerifyBoogieDriverBinDir = pathPrefix + os.sep + "bin"

@@ -38,6 +38,9 @@ llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
 #The path to the directory containing GPUVerifyVCGen.exe
 gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
+#The path to the directory containing GPUVerifyCruncher.exe
+gpuVerifyCruncherBinDir = rootDir + "/gpuverify/Binaries"
+
 #The path to the directory containing GPUVerifyBoogieDriver.exe
 gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
