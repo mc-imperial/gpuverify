@@ -58,9 +58,9 @@ class CsvData:
         if length < 3:
             raise CsvError("Row with " + str(length) + " entries found\n" \
                            + "\n  Expected at least 3 entries")
-        elif length > 8:
+        elif length > 9:
             raise CsvError("Row with " + str(length) + " entries found\n" \
-                           + "\n  Expected at at most 8 entries")
+                           + "\n  Expected at at most 9 entries")
 
         kernelName = data.pop(0)
 
