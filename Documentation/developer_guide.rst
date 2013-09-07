@@ -196,7 +196,10 @@ Replace as appropriate or setup an environment variable.::
       #The path to the directory containing GPUVerifyVCGen.exe
       gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
-      #The path to the directory containing GPUVerifyBoogieDriver.exe
+      #The path to the directory containing GPUVerifyCruncher.exe
+      gpuVerifyCruncherBinDir = rootDir + "/gpuverify/Binaries"
+	  
+	  #The path to the directory containing GPUVerifyBoogieDriver.exe
       gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the z3 Source directory.
@@ -406,7 +409,10 @@ Replace as appropriate or setup an environment variable.::
       #The path to the directory containing GPUVerifyVCGen.exe
       gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
 
-      #The path to the directory containing GPUVerifyBoogieDriver.exe
+      #The path to the directory containing GPUVerifyCruncher.exe
+      gpuVerifyCruncherBinDir = rootDir + "/gpuverify/Binaries"
+	  
+	  #The path to the directory containing GPUVerifyBoogieDriver.exe
       gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
 
       #The path to the z3 Source directory.
@@ -597,7 +603,10 @@ drives.
       #The path to the directory containing GPUVerifyVCGen.exe
       gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\Binaries"
 
-      #The path to the directory containing GPUVerifyBoogieDriver.exe
+      #The path to the directory containing GPUVerifyCruncher.exe
+      gpuVerifyCruncherBinDir = rootDir + r"\gpuverify\Binaries"
+	  
+	  #The path to the directory containing GPUVerifyBoogieDriver.exe
       gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\Binaries"
 
       #The path to the z3 Source directory.

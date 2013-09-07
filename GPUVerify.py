@@ -138,6 +138,8 @@ class CommandLineOptions(object):
   time = False
   timeCSVLabel = None
   boogieMemout=0
+  vcgenTimeout=0
+  cruncherTimeout=300
   boogieTimeout=300
   keepTemps = False
   mathInt = False
@@ -157,7 +159,6 @@ class CommandLineOptions(object):
            "vcgen": False, 
            "cruncher": False }
   bugleLanguage = None
-  vcgenTimeout=0
 
 def SplitFilenameExt(f):
   filename, ext = os.path.splitext(f)
@@ -249,10 +250,12 @@ class ErrorCodes(object):
   OPT_ERROR = 3
   BUGLE_ERROR = 4
   GPUVERIFYVCGEN_ERROR = 5
-  BOOGIE_ERROR = 6
-  BOOGIE_TIMEOUT = 7
-  CTRL_C = 8
-  GPUVERIFYVCGEN_TIMEOUT = 9
+  GPUVERIFYVCGEN_TIMEOUT = 6
+  CRUNCHER_ERROR = 7
+  CRUNCHER_TIMEOUT = 8
+  BOOGIE_ERROR = 9
+  BOOGIE_TIMEOUT = 10
+  CTRL_C = 11
 
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool.
@@ -360,6 +363,7 @@ def showHelpAndExit():
   print ""
   print "INVARIANT INFERENCE OPTIONS:"
   print "  --no-infer              Turn off invariant inference"
+  print "  --infer-timeout=X       Allow GPUVerifyCruncher to run for X seconds."
   print "  --staged-inference      Perform invariant inference in stages; this can boost"
   print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
@@ -598,13 +602,6 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.bugleLanguage = a.lower()
       else:
         GPUVerifyError("argument to --bugle-lang must be 'cl' or 'cu'", ErrorCodes.COMMAND_LINE_ERROR)
-    if o == "--timeout":
-      try:
-        CommandLineOptions.boogieTimeout = int(a)
-        if CommandLineOptions.boogieTimeout < 0:
-          raise ValueError
-      except ValueError as e:
-          GPUVerifyError("Invalid timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--vcgen-timeout":
       try:
         CommandLineOptions.vcgenTimeout = int(a)
@@ -612,6 +609,20 @@ def processGeneralOptions(opts, args):
           raise ValueError
       except ValueError as e:
           GPUVerifyError("Invalid VCGen timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--infer-timeout":
+      try:
+        CommandLineOptions.cruncherTimeout = int(a)
+        if CommandLineOptions.cruncherTimeout < 0:
+          raise ValueError
+      except ValueError as e:
+          GPUVerifyError("Invalid Cruncher timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--timeout":
+      try:
+        CommandLineOptions.boogieTimeout = int(a)
+        if CommandLineOptions.boogieTimeout < 0:
+          raise ValueError
+      except ValueError as e:
+          GPUVerifyError("Invalid timeout \"" + a + "\"", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--boogie-file":
       filename, ext = SplitFilenameExt(a)
       if ext != ".bpl":
@@ -703,7 +714,7 @@ def main(argv=None):
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-bpl', 'stop-at-inv',
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
-              'boogie-file=', 'staged-inference',
+              'boogie-file=', 'staged-inference', 'infer-timeout=',
               'parallel-inference', 'engines=', 'debug-parallel-inference=',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic='
@@ -878,8 +889,8 @@ def main(argv=None):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
   
-  CommandLineOptions.gpuVerifyCruncherOptions += defaultOptions
-  CommandLineOptions.gpuVerifyBoogieDriverOptions += defaultOptions
+  CommandLineOptions.gpuVerifyCruncherOptions += CommandLineOptions.defaultOptions
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyCruncherOptions += [ bplFilename ]
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ ibplFilename ]
 
@@ -928,15 +939,15 @@ def main(argv=None):
   if CommandLineOptions.inference and (not CommandLineOptions.mode == AnalysisMode.FINDBUGS):
     """ RUN GPUVERIFYCRUNCHER """
     timeoutArguments={}
-    if CommandLineOptions.boogieTimeout > 0:
-      timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
-      timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
+    if CommandLineOptions.cruncherTimeout > 0:
+      timeoutArguments['timeout']= CommandLineOptions.cruncherTimeout
+      timeoutArguments['timeoutErrorCode']=ErrorCodes.CRUNCHER_TIMEOUT
     if not CommandLineOptions.skip["cruncher"]:
       RunTool("gpuverifycruncher",
               (["mono"] if os.name == "posix" else []) +
               [gvfindtools.gpuVerifyCruncherBinDir + "/GPUVerifyCruncher.exe"] +
               CommandLineOptions.gpuVerifyCruncherOptions,
-              ErrorCodes.BOOGIE_ERROR,
+              ErrorCodes.CRUNCHER_ERROR,
               **timeoutArguments)
               
     if CommandLineOptions.stopAtInv: return 0
