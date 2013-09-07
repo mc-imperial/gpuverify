@@ -116,8 +116,8 @@ namespace Microsoft.Boogie
       List<string> filesToProcess = new List<string>();
       filesToProcess.Add(fileNames[fileNames.Count - 1]);
 
-      var dir = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar;
-      var file = Path.GetFileNameWithoutExtension(filesToProcess[0]);
+      var annotatedFile = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar +
+        Path.GetFileNameWithoutExtension(filesToProcess[0]) + ".inv";
 
       Houdini.Houdini houdini = null;
 
@@ -202,7 +202,7 @@ namespace Microsoft.Boogie
         if(houdini != null) houdini.ApplyAssignment(program);
 
         if (File.Exists(filesToProcess[0])) File.Delete(filesToProcess[0]);
-        GPUVerify.GVUtil.IO.emitProgram(program, dir + file);
+        GPUVerify.GVUtil.IO.emitProgram(program, annotatedFile);
       }
       #endregion
 

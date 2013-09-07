@@ -8,6 +8,7 @@ import subprocess
 import sys
 import timeit
 import threading
+import multiprocessing # Only for determining number of CPU cores available
 import getversion
 import pprint
 
@@ -92,6 +93,15 @@ clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
+gpuVerifyGenericOptions = [ "/nologo",
+                            "/typeEncoding:m",
+                            "/doModSetAnalysis",
+                            "/useArrayTheory",
+                            "/doNotUseLabels",
+                            "/enhancedErrorMessages:1",
+                            "/mv:-"
+                          ]
+
 """ Options for the tool """
 class CommandLineOptions(object):
   SL = SourceLanguage.Unknown
@@ -101,29 +111,10 @@ class CommandLineOptions(object):
   clangOptions = clangCoreOptions
   optOptions = [ "-mem2reg", "-globaldce" ]
   gpuVerifyVCGenOptions = []
-  gpuVerifyCruncherOptions = [ "/nologo",
-                               "/typeEncoding:m",
-                               "/doModSetAnalysis",
-                               "/useArrayTheory",
-                               "/doNotUseLabels",
-                               "/noinfer",
-                               "/enhancedErrorMessages:1",
-                               "/mv:-",
-                               "/errorLimit:20"
-                             ]
-  gpuVerifyBoogieDriverOptions = [ "/nologo",
-                                   "/typeEncoding:m",
-                                   "/doModSetAnalysis",
-                                   "/useArrayTheory",
-                                   "/doNotUseLabels",
-                                   "/noinfer",
-                                   "/enhancedErrorMessages:1",
-                                   "/mv:-",
-                                   "/errorLimit:20"
-                                 ]
+  gpuVerifyCruncherOptions = [ "/noinfer", "/contractInfer" ]
+  gpuVerifyBoogieDriverOptions = []
   bugleOptions = []
   mode = AnalysisMode.ALL
-  inference = True
   debugging = False
   verbose = False
   silent = False
@@ -140,13 +131,15 @@ class CommandLineOptions(object):
   noSmartPredication = False
   noSourceLocInfer = False
   noUniformityAnalysis = False
+  inference = True
   stagedInference = False
   useParallelInference = False
   numEngines = multiprocessing.cpu_count()
   debuggingParallelInference = 0
+  stopAtOpt = False
   stopAtGbpl = False
   stopAtBpl = False
-  stopAtOpt = False
+  stopAtInv = False
   time = False
   timeCSVLabel = None
   boogieMemout=0
@@ -166,7 +159,8 @@ class CommandLineOptions(object):
   skip = { "clang": False,
            "opt": False,
            "bugle": False,
-           "vcgen": False, }
+           "vcgen": False, 
+           "cruncher": False }
   bugleLanguage = None
   vcgenTimeout=0
 
@@ -313,7 +307,6 @@ def showHelpAndExit():
   print "  --memout=X              Give Boogie a hard memory limit of X megabytes."
   print "                          A memout of 0 disables the memout. The default is " + str(CommandLineOptions.boogieMemout) + " megabytes."
   print "  --no-benign             Do not tolerate benign data races"
-  print "  --no-infer              Turn off invariant inference"
   print "  --only-divergence       Only check for barrier divergence, not for races"
   print "  --only-intra-group      Do not check for inter-group races"
   print "  --time                  Show timing information"
@@ -352,17 +345,10 @@ def showHelpAndExit():
   print "  --only-log              Log accesses to arrays, but do not check for races.  This"
   print "                          can be useful for determining access pattern invariants"
   print "  --silent                Silent on success; only show errors/timing"
-  print "  --staged-inference      Perform invariant inference in stages; this can boost"
-  print "                          performance for complex kernels (but this is not guaranteed)"
-  print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
-  print "                          inference (but this is not guaranteed)"
-  print "  --engines=X             Specify how many refutation engines to run in parallel. The"
-  print "                          default is the number of available CPU cores"
-  print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
-  print "                          for varying levels of debugging information"
+  print "  --stop-at-opt           Stop after LLVM optimization pass"
   print "  --stop-at-gbpl          Stop after generating gbpl"
   print "  --stop-at-bpl           Stop after generating bpl"
-  print "  --stop-at-opt           Stop after LLVM optimization pass"
+  print "  --stop-at-inv           Stop after generating an annotated with invariants bpl"
   print "  --time-as-csv=label     Print timing as CSV row with label"
   print "  --testsuite             Testing testsuite program"
   print "  --vcgen-timeout=X       Allow VCGen to run for X seconds."
@@ -376,6 +362,17 @@ def showHelpAndExit():
   print "                          Available options: 'Z3' or 'cvc4' (default is Z3)"
   print "  --logic=X               Define the logic to be used by the CVC4 SMT solver backend"
   print "                          (default is QF_ALL_SUPPORTED)"
+  print ""
+  print "INVARIANT INFERENCE OPTIONS:"
+  print "  --no-infer              Turn off invariant inference"
+  print "  --staged-inference      Perform invariant inference in stages; this can boost"
+  print "                          performance for complex kernels (but this is not guaranteed)"
+  print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
+  print "                          inference (but this is not guaranteed)"
+  print "  --engines=X             Specify how many refutation engines to run in parallel. The"
+  print "                          default is the number of available CPU cores"
+  print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
+  print "                          for varying levels of debugging information"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"
@@ -425,14 +422,16 @@ def getSourceFiles(args):
       if CommandLineOptions.SL == SourceLanguage.OpenCL:
         GPUVerifyError("illegal to pass both .cl and .cu files simultaneously", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.SL = SourceLanguage.CUDA
-    elif ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl" ]:
+    elif ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl", ".inv.bpl" ]:
       CommandLineOptions.skip["clang"] = True
-      if ext in [        ".opt.bc", ".gbpl", ".bpl" ]:
+      if ext in [        ".opt.bc", ".gbpl", ".bpl", ".inv.bpl" ]:
         CommandLineOptions.skip["opt"] = True
-      if ext in [                   ".gbpl", ".bpl" ]:
+      if ext in [                   ".gbpl", ".bpl", ".inv.bpl" ]:
         CommandLineOptions.skip["bugle"] = True
-      if ext in [                            ".bpl" ]:
+      if ext in [                            ".bpl", ".inv.bpl" ]:
         CommandLineOptions.skip["vcgen"] = True
+      if ext in [                                    ".inv.bpl" ]:
+        CommandLineOptions.skip["cruncher"] = True
     else:
       GPUVerifyError("'" + a + "' has unknown file extension, supported file extensions are .cl (OpenCL) and .cu (CUDA)", ErrorCodes.COMMAND_LINE_ERROR)
     CommandLineOptions.sourceFiles.append(a)
@@ -500,6 +499,7 @@ def processGeneralOptions(opts, args):
     if o == "--vcgen-opt":
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
     if o == "--boogie-opt":
+      CommandLineOptions.gpuVerifyCruncherOptions += str(a).split(" ")
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
     if o == "--bugle-opt":
       CommandLineOptions.bugleOptions += str(a).split(" ")
@@ -513,6 +513,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.stopAtGbpl = True
     if o == "--stop-at-bpl":
       CommandLineOptions.stopAtBpl = True
+    if o == "--stop-at-inv":
+      CommandLineOptions.stopAtInv = True
     if o == "--time":
       CommandLineOptions.time = True
     if o == "--time-as-csv":
@@ -578,10 +580,12 @@ def processGeneralOptions(opts, args):
         GPUVerifyError("argument to --logic must be 'ALL_SUPPORTED' or 'QF_ALL_SUPPORTED'", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--engines":
       try:
-        if int(a) < 0:
+        if int(a) > multiprocessing.cpu_count():
+          GPUVerifyError("the value provided as argument to --engines cannot exceed maximum number of processing units", ErrorCodes.COMMAND_LINE_ERROR)
+        elif int(a) < 0:
           GPUVerifyError("negative value " + a + " provided as argument to --engines", ErrorCodes.COMMAND_LINE_ERROR)
         elif int(a) == 0:
-          GPUVerifyError("the '0' value cannot be provided as an argument to --engines", ErrorCodes.COMMAND_LINE_ERROR)
+          GPUVerifyError("the 0 value cannot be provided as an argument to --engines", ErrorCodes.COMMAND_LINE_ERROR)
         CommandLineOptions.numEngines = int(a)
       except ValueError:
         GPUVerifyError("non integer value '" + a + "' provided as argument to --engines", ErrorCodes.COMMAND_LINE_ERROR)
@@ -617,6 +621,7 @@ def processGeneralOptions(opts, args):
       filename, ext = SplitFilenameExt(a)
       if ext != ".bpl":
         GPUVerifyError("'" + a + "' specified via --boogie-file should have extension .bpl", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyCruncherOptions += [ a ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ a ]
 
 def processOpenCLOptions(opts, args):
@@ -699,8 +704,9 @@ def main(argv=None):
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
-              'blockDim=', 'gridDim=', 'math-int', 'stop-at-opt',
-              'stop-at-gbpl', 'stop-at-bpl', 'time', 'time-as-csv=', 'keep-temps',
+              'blockDim=', 'gridDim=', 'math-int',
+              'stop-at-opt', 'stop-at-gbpl', 'stop-at-bpl', 'stop-at-inv',
+              'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'staged-inference',
               'parallel-inference', 'engines=', 'debug-parallel-inference=',
@@ -749,6 +755,7 @@ def main(argv=None):
   optFilename = filename + '.opt.bc'
   gbplFilename = filename + '.gbpl'
   bplFilename = filename + '.bpl'
+  ibplFilename = filename + '.inv.bpl'
   locFilename = filename + '.loc'
   smt2Filename = filename + '.smt2'
   if not CommandLineOptions.keepTemps:
@@ -763,6 +770,7 @@ def main(argv=None):
     if not CommandLineOptions.stopAtGbpl: atexit.register(DeleteFile, gbplFilename)
     if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, bplFilename)
     if not CommandLineOptions.stopAtBpl: atexit.register(DeleteFile, locFilename)
+    if not CommandLineOptions.stopAtInv: atexit.register(DeleteFile, ibplFilename)
 
   CommandLineOptions.clangOptions.append("-o")
   CommandLineOptions.clangOptions.append(bcFilename)
@@ -803,6 +811,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyDivergence" ]
   if CommandLineOptions.onlyIntraGroup:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyIntraGroupRaceChecking" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/onlyIntraGroupRaceChecking" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/onlyIntraGroupRaceChecking" ]
   if CommandLineOptions.onlyLog:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyLog" ]
@@ -816,6 +825,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSmartPredication" ]
   if CommandLineOptions.noSourceLocInfer:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSourceLocInfer" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/noSourceLocInfer" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/noSourceLocInfer" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
@@ -823,7 +833,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/asymmetricAsserts" ]
   if CommandLineOptions.stagedInference:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/stagedInference" ]
-    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/stagedInference" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/stagedInference" ]
   if CommandLineOptions.mathInt:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/mathInt" ]
 
@@ -831,11 +841,28 @@ def main(argv=None):
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
-  elif CommandLineOptions.inference:
-    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/contractInfer" ]
+  
   if CommandLineOptions.boogieMemout > 0:
+    CommandLineOptions.gpuVerifyCruncherOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
 
+  if CommandLineOptions.useParallelInference:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/outputRefuted" ]
+    if CommandLineOptions.debuggingParallelInference > 2:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/printAssignment" ]
+    if CommandLineOptions.debuggingParallelInference > 1:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
+    if CommandLineOptions.debuggingParallelInference > 0:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugParallelHoudini" ]
+  else:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/errorLimit:4" ]
+    if CommandLineOptions.solver == "cvc4":
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:LOGIC=" + CommandLineOptions.logic ]
+    else:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
+  
   if CommandLineOptions.solver == "cvc4":
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:SOLVER=cvc4" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
@@ -847,13 +874,19 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
   if CommandLineOptions.debugging:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/debugGPUVerify" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugGPUVerify" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/debugGPUVerify" ]
   if not CommandLineOptions.mathInt:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:OPTIMIZE_FOR_BV=true" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:OPTIMIZE_FOR_BV=true" ]
     if CommandLineOptions.solver == "z3":
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
-
-  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
+  
+  CommandLineOptions.gpuVerifyCruncherOptions += gpuVerifyGenericOptions
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += gpuVerifyGenericOptions
+  CommandLineOptions.gpuVerifyCruncherOptions += [ bplFilename ]
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ ibplFilename ]
 
   """ RUN CLANG """
   if not CommandLineOptions.skip["clang"]:
@@ -897,18 +930,21 @@ def main(argv=None):
 
   if CommandLineOptions.stopAtBpl: return 0
 
-  """ RUN GPUVERIFYCRUNCHER """
-  timeoutArguments={}
-  if CommandLineOptions.boogieTimeout > 0:
-    timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
-    timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
-
-  RunTool("gpuverifycruncher",
-          (["mono"] if os.name == "posix" else []) +
-          [gvfindtools.gpuVerifyBoogieDriverBinDir + "/GPUVerifyCruncher.exe"] +
-          CommandLineOptions.gpuVerifyBoogieDriverOptions,
-          ErrorCodes.BOOGIE_ERROR,
-          **timeoutArguments)
+  if CommandLineOptions.inference and (not CommandLineOptions.mode == AnalysisMode.FINDBUGS):
+    """ RUN GPUVERIFYCRUNCHER """
+    timeoutArguments={}
+    if CommandLineOptions.boogieTimeout > 0:
+      timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
+      timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
+    if not CommandLineOptions.skip["cruncher"]:
+      RunTool("gpuverifycruncher",
+              (["mono"] if os.name == "posix" else []) +
+              [gvfindtools.gpuVerifyBoogieDriverBinDir + "/GPUVerifyCruncher.exe"] +
+              CommandLineOptions.gpuVerifyCruncherOptions,
+              ErrorCodes.BOOGIE_ERROR,
+              **timeoutArguments)
+              
+    if CommandLineOptions.stopAtInv: return 0
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
   timeoutArguments={}
