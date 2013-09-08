@@ -25,7 +25,7 @@ namespace Microsoft.Boogie
     public static void Main(string[] args)
     {
       Contract.Requires(cce.NonNullElements(args));
-      CommandLineOptions.Install(new GPUVerifyKernelAnalyserCommandLineOptions());
+      CommandLineOptions.Install(new GVCommandLineOptions());
 
       try {
         CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
@@ -208,147 +208,9 @@ namespace Microsoft.Boogie
       return errorCount + inconclusives + timeOuts + outOfMemories;
     }
 
-    private static void AddArrayToggles(Program RaceCheckingProgram)
+    private static GVCommandLineOptions GetCommandLineOptions()
     {
-      Dictionary<string, Constant> ToggleVars = new Dictionary<string, Constant>();
-      foreach(var p in RaceCheckingProgram.TopLevelDeclarations.OfType<Procedure>()) {
-        foreach(Requires r in p.Requires) {
-          if(QKeyValue.FindBoolAttribute(r.Attributes, "race")) {
-            string arrayName;
-            if(p.Name.StartsWith("_CHECK_READ_")) {
-              arrayName = p.Name.Substring("_CHECK_READ_".Length);
-            } else if(p.Name.StartsWith("_CHECK_WRITE_")) {
-              arrayName = p.Name.Substring("_CHECK_WRITE_".Length);
-            } else if(p.Name.StartsWith("_CHECK_ATOMIC_")) {
-              arrayName = p.Name.Substring("_CHECK_ATOMIC_".Length);
-            } else {
-              continue;
-            }
-            if(!ToggleVars.ContainsKey(arrayName)) {
-              ToggleVars[arrayName] = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, "__toggle_" + arrayName, Type.Bool), false);
-              ToggleVars[arrayName].AddAttribute("toggle", new object[] { Expr.True });
-            }
-            Constant toggleVar = ToggleVars[arrayName];
-            r.Condition = Expr.Imp(new IdentifierExpr(Token.NoToken, toggleVar), r.Condition);
-          }
-        }
-      }
-      RaceCheckingProgram.TopLevelDeclarations.AddRange(ToggleVars.Values);
-    }
-
-    private static void RestrictToArray(Program prog, string arrayName)
-    {
-      if(!ValidArray(prog, arrayName)) {
-        GVUtil.IO.ErrorWriteLine("GPUVerify: error: array " + GetCommandLineOptions().ToExternalArrayName(arrayName) + " does not exist");
-        Environment.Exit(1);
-      }
-
-      var Candidates = prog.TopLevelDeclarations.OfType<Constant>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "existential")).Select(Item => Item.Name);
-
-      HashSet<string> CandidatesToRemove = new HashSet<string>();
-      foreach (var b in prog.Blocks()) {
-        List<Cmd> newCmds = new List<Cmd>();
-        foreach(Cmd c in b.Cmds) {
-          var callCmd = c as CallCmd;
-          if(callCmd != null && IsRaceInstrumentationProcedureForOtherArray(callCmd, arrayName)) {
-            continue;
-          }
-          var assertCmd = c as AssertCmd;
-          if (assertCmd != null && ContainsAccessHasOccurredForOtherArray(assertCmd.Expr, arrayName)) {
-            string CandidateName;
-            if(Houdini.Houdini.MatchCandidate(assertCmd.Expr, Candidates, out CandidateName)) {
-              CandidatesToRemove.Add(CandidateName);
-            }
-            continue;
-          }
-          newCmds.Add(c);
-        }
-        b.Cmds = newCmds;
-      }
-
-      foreach (var p in prog.TopLevelDeclarations.OfType<Procedure>()) {
-        List<Requires> newRequires = new List<Requires>();
-        foreach (Requires r in p.Requires) {
-          if (ContainsAccessHasOccurredForOtherArray(r.Condition, arrayName)) {
-            continue;
-          }
-          newRequires.Add(r);
-        }
-        p.Requires = newRequires;
-
-        List<Ensures> newEnsures = new List<Ensures>();
-        foreach (Ensures r in p.Ensures) {
-          if (ContainsAccessHasOccurredForOtherArray(r.Condition, arrayName)) {
-            continue;
-          }
-          newEnsures.Add(r);
-        }
-        p.Ensures = newEnsures;
-      }
-
-      prog.TopLevelDeclarations.RemoveAll(Item => (Item is Variable) &&
-        CandidatesToRemove.Contains((Item as Variable).Name));
-
-    }
-
-    private static bool ValidArray(Program prog, string arrayName)
-    {
-      return prog.TopLevelDeclarations.OfType<Variable>().Where(Item =>
-        QKeyValue.FindBoolAttribute(Item.Attributes, "race_checking") &&
-        Item.Name.StartsWith("_WRITE_HAS_OCCURRED_")).Select(Item => Item.Name).Contains("_WRITE_HAS_OCCURRED_" + arrayName + "$1");
-    }
-
-    class FindAccessHasOccurredForOtherArrayVisitor : StandardVisitor
-    {
-      private string arrayName;
-      private bool Found;
-
-      internal FindAccessHasOccurredForOtherArrayVisitor(string arrayName) {
-        this.arrayName = arrayName;
-        this.Found = false;
-      }
-
-      public override Variable VisitVariable(Variable node) {
-        foreach (var Access in AccessType.Types) {
-          string prefix = "_" + Access + "_HAS_OCCURRED_";
-          if (node.Name.StartsWith(prefix)) {
-            if (!node.Name.Substring(prefix.Length).Equals(arrayName + "$1")) {
-              Found = true;
-              return node;
-            }
-          }
-        }
-        return node;
-      }
-
-      internal bool IsFound() {
-        return Found;
-      }
-    }
-
-    private static bool ContainsAccessHasOccurredForOtherArray(Expr expr, string arrayName)
-    {
-      var v = new FindAccessHasOccurredForOtherArrayVisitor(arrayName);
-      v.VisitExpr(expr);
-      return v.IsFound();
-    }
-
-    private static bool IsRaceInstrumentationProcedureForOtherArray(CallCmd callCmd, string arrayName)
-    {
-      foreach (var Access in AccessType.Types) {
-        foreach (var ProcedureType in new string[] { "LOG", "CHECK" }) {
-          var prefix = "_" + ProcedureType + "_" + Access + "_";
-          if(callCmd.callee.StartsWith(prefix)) {
-            return !callCmd.callee.Substring(prefix.Length).Equals(arrayName);
-          }
-        }
-      }
-      return false;
-    }
-
-    private static GPUVerifyKernelAnalyserCommandLineOptions GetCommandLineOptions()
-    {
-      return (GPUVerifyKernelAnalyserCommandLineOptions)CommandLineOptions.Clo;
+      return (GVCommandLineOptions)CommandLineOptions.Clo;
     }
   }
 }

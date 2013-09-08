@@ -127,6 +127,7 @@ class CommandLineOptions(object):
   noSourceLocInfer = False
   noUniformityAnalysis = False
   inference = True
+  invInferConfigFile = "inference.cfg"
   stagedInference = False
   useParallelInference = False
   numEngines = multiprocessing.cpu_count()
@@ -250,12 +251,26 @@ class ErrorCodes(object):
   OPT_ERROR = 3
   BUGLE_ERROR = 4
   GPUVERIFYVCGEN_ERROR = 5
-  GPUVERIFYVCGEN_TIMEOUT = 6
-  CRUNCHER_ERROR = 7
-  CRUNCHER_TIMEOUT = 8
-  BOOGIE_ERROR = 9
-  BOOGIE_TIMEOUT = 10
-  CTRL_C = 11
+  BOOGIE_ERROR = 6
+  BOOGIE_TIMEOUT = 7
+  CTRL_C = 8
+  GPUVERIFYVCGEN_TIMEOUT = 9
+  CRUNCHER_ERROR = 10
+  CRUNCHER_TIMEOUT = 11
+
+# class ErrorCodes(object):
+#   SUCCESS = 0
+#   COMMAND_LINE_ERROR = 1
+#   CLANG_ERROR = 2
+#   OPT_ERROR = 3
+#   BUGLE_ERROR = 4
+#   GPUVERIFYVCGEN_ERROR = 5
+#   GPUVERIFYVCGEN_TIMEOUT = 6
+#   CRUNCHER_ERROR = 7
+#   CRUNCHER_TIMEOUT = 8
+#   BOOGIE_ERROR = 9
+#   BOOGIE_TIMEOUT = 10
+#   CTRL_C = 11
 
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool.
@@ -372,6 +387,8 @@ def showHelpAndExit():
   print "                          default is the number of available CPU cores"
   print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
   print "                          for varying levels of debugging information"
+  print "  --infer-config-file=X.cfg       Specify a custom configuration file to be used"
+  print "                          during invariant inference"
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"
@@ -629,6 +646,11 @@ def processGeneralOptions(opts, args):
         GPUVerifyError("'" + a + "' specified via --boogie-file should have extension .bpl", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.gpuVerifyCruncherOptions += [ a ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ a ]
+    if o == "--infer-config-file":
+      filename, ext = SplitFilenameExt(a)
+      if ext != ".cfg":
+        GPUVerifyError("'" + a + "' specified via --infer-config-file should have extension .cfg", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.invInferConfigFile = a
 
 def processOpenCLOptions(opts, args):
   for o, a in opts:
@@ -703,18 +725,18 @@ def main(argv=None):
 
   try:
     opts, args = getopt.gnu_getopt(argv[1:],'D:I:h', 
-             ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
+             ['help', 'version', 'debug', 'findbugs', 'verify', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-annotations', 'no-barrier-access-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
-              'local_size=', 'num_groups=',
-              'blockDim=', 'gridDim=', 'math-int',
+              'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-bpl', 'stop-at-inv',
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
-              'boogie-file=', 'staged-inference', 'infer-timeout=',
+              'boogie-file=', 'infer-config-file=',
+              'no-infer', 'infer-timeout=', 'staged-inference',
               'parallel-inference', 'engines=', 'debug-parallel-inference=',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic='
@@ -853,6 +875,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
 
   if CommandLineOptions.useParallelInference:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/outputRefuted" ]
     if CommandLineOptions.debuggingParallelInference > 2:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/printAssignment" ]
@@ -891,8 +914,9 @@ def main(argv=None):
   
   CommandLineOptions.gpuVerifyCruncherOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyBoogieDriverOptions += CommandLineOptions.defaultOptions
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/invInferConfigFile:" + CommandLineOptions.invInferConfigFile ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ bplFilename ]
-  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ ibplFilename ]
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
   """ RUN CLANG """
   if not CommandLineOptions.skip["clang"]:

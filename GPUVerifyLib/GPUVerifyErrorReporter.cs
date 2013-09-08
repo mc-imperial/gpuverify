@@ -362,7 +362,7 @@ namespace GPUVerify
 
     private static int GetGid(Model model, string dimension, int thread) {
       string name = "group_id_" + dimension;
-      if(!((GPUVerifyKernelAnalyserCommandLineOptions)CommandLineOptions.Clo).OnlyIntraGroupRaceChecking) {
+      if(!((GVCommandLineOptions)CommandLineOptions.Clo).OnlyIntraGroupRaceChecking) {
         name += "$" + thread;
       }
 
@@ -466,7 +466,7 @@ namespace GPUVerify
       string StateId = QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id");
       Debug.Assert(StateId != null);
 
-      if ((CommandLineOptions.Clo as GPUVerifyKernelAnalyserCommandLineOptions).NoSourceLocInfer) {
+      if ((CommandLineOptions.Clo as GVCommandLineOptions).NoSourceLocInfer) {
         return CreateSourceLocQKV(0,0,GetFileName(),GetFilenamePathPrefix());
       }
 

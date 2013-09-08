@@ -25,7 +25,7 @@ namespace Microsoft.Boogie
     public static void Main(string[] args)
     {
       Contract.Requires(cce.NonNullElements(args));
-      CommandLineOptions.Install(new GPUVerifyKernelAnalyserCommandLineOptions());
+      CommandLineOptions.Install(new GPUVerifyCruncherCommandLineOptions());
 
       try {
         CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
@@ -117,9 +117,10 @@ namespace Microsoft.Boogie
       filesToProcess.Add(fileNames[fileNames.Count - 1]);
 
       var annotatedFile = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar +
-        Path.GetFileNameWithoutExtension(filesToProcess[0]) + ".inv";
+        Path.GetFileNameWithoutExtension(filesToProcess[0]);// + ".inv";
 
       Houdini.Houdini houdini = null;
+      InvariantInference invariantInference = new InvariantInference();
 
       #region Compute invariant without race checking
       {
@@ -136,6 +137,9 @@ namespace Microsoft.Boogie
         KernelAnalyser.DisableRaceChecking(InvariantComputationProgram);
         KernelAnalyser.EliminateDeadVariablesAndInline(InvariantComputationProgram);
         KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(InvariantComputationProgram);
+
+        // enable parallelism
+        //ConfigureInvariantInference();
 
         var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
         houdini = new Houdini.Houdini(InvariantComputationProgram, houdiniStats);
@@ -209,6 +213,17 @@ namespace Microsoft.Boogie
       return 0;
     }
 
+    private static void ConfigureInvariantInference()
+    {
+      ConfigurationFileParser cfp = new ConfigurationFileParser();
+
+      if(GetCommandLineOptions().ParallelInference) {
+        cfp.enableParsingOfParallelConfigurations();
+      }
+
+      cfp.parseFile(GetCommandLineOptions().InvInferConfigFile);
+    }
+
     private static bool AllImplementationsValid(Houdini.HoudiniOutcome outcome)
     {
       foreach (var vcgenOutcome in outcome.implementationOutcomes.Values.Select(i => i.outcome)) {
@@ -219,9 +234,9 @@ namespace Microsoft.Boogie
       return true;
     }
 
-    private static GPUVerifyKernelAnalyserCommandLineOptions GetCommandLineOptions()
+    private static GPUVerifyCruncherCommandLineOptions GetCommandLineOptions()
     {
-      return (GPUVerifyKernelAnalyserCommandLineOptions)CommandLineOptions.Clo;
+      return (GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo;
     }
   }
 }

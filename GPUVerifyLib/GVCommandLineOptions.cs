@@ -17,14 +17,14 @@ using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-  public class GPUVerifyKernelAnalyserCommandLineOptions : Microsoft.Boogie.CommandLineOptions
+  public class GVCommandLineOptions : Microsoft.Boogie.CommandLineOptions
   {
     public string ArrayToCheck = null;
     public bool NoSourceLocInfer = false;
     public bool OnlyIntraGroupRaceChecking = false;
     public bool DebugGPUVerify = false;
 
-    public GPUVerifyKernelAnalyserCommandLineOptions() :
+    public GVCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser")
     { }
 
@@ -32,13 +32,6 @@ namespace GPUVerify
     {
       if (name == "debugGPUVerify") {
         DebugGPUVerify = true;
-        return true;
-      }
-
-      if (name == "array") {
-        if (ps.ConfirmArgumentCount(1)) {
-          ArrayToCheck = ToInternalArrayName(ps.args[ps.i]);
-        }
         return true;
       }
 
@@ -53,17 +46,6 @@ namespace GPUVerify
       }
 
       return base.ParseOption(name, ps);  // defer to superclass
-    }
-
-    public string ToInternalArrayName(string arrayName)
-    {
-      return "$$" + arrayName;
-    }
-
-    public string ToExternalArrayName(string arrayName)
-    {
-      Debug.Assert(arrayName.StartsWith("$$"));
-      return arrayName.Substring("$$".Length);
     }
   }
 }

@@ -61,9 +61,9 @@
     <Compile Include="Util.cs" />
     <Compile Include="SourceLocationInfo.cs" />
     <Compile Include="GPUVerifyErrorReporter.cs" />
-    <Compile Include="GPUVerifyKernelAnalyserCommandLineOptions.cs" />
     <Compile Include="AccessType.cs" />
     <Compile Include="Visitors.cs" />
     <Compile Include="KernelAnalyser.cs" />
+    <Compile Include="GVCommandLineOptions.cs" />
   </ItemGroup>
 </Project>
