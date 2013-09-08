@@ -33,5 +33,26 @@ namespace GPUVerify
       return cfq.quantifiersExist;
     }
   }
+
+  internal class VariableFinderVisitor : StandardVisitor
+  {
+    private string VarName;
+    private Variable Variable = null;
+
+    internal VariableFinderVisitor(string VarName) {
+      this.VarName = VarName;
+    }
+
+    public override Variable VisitVariable(Variable node) {
+      if (node.Name.Equals(VarName)) {
+        Variable = node;
+      }
+      return base.VisitVariable(node);
+    }
+
+    internal Variable GetVariable() {
+      return Variable;
+    }
+  }
 }
 

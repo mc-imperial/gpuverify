@@ -185,6 +185,43 @@ namespace GPUVerify
         Console.WriteLine(format, args);
         Console.ForegroundColor = col;
       }
+
+      public static void printExceptionInformation(Exception e)
+      {
+        const string DUMP_FILE = "__gvdump.txt";
+
+        #region Give generic internal error messsage
+        Console.Error.WriteLine("\nGPUVerify: an internal error has occurred, details written to " + DUMP_FILE + ".");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("Please consult the troubleshooting guide in the GPUVerify documentation");
+        Console.Error.WriteLine("for common problems, and if this does not help, raise an issue via the");
+        Console.Error.WriteLine("GPUVerify issue tracker:");
+        Console.Error.WriteLine();
+        Console.Error.WriteLine("  https://gpuverify.codeplex.com");
+        Console.Error.WriteLine();
+        #endregion"
+
+        #region Now try to give the user a specific hint if this looks like a common problem
+        try {
+          throw e;
+        } catch(ProverException) {
+          Console.Error.WriteLine("Hint: It looks like GPUVerify is having trouble invoking its");
+          Console.Error.WriteLine("supporting theorem prover, which by default is Z3.  Have you");
+          Console.Error.WriteLine("installed Z3?");
+        } catch(Exception) {
+          // Nothing to say about this
+        }
+        #endregion
+
+        #region Write details of the exception to the dump file
+        using (TokenTextWriter writer = new TokenTextWriter(DUMP_FILE)) {
+          writer.Write("Exception ToString:");
+          writer.Write("===================");
+          writer.Write(e.ToString());
+          writer.Close();
+        }
+        #endregion
+      }
     }
   }
 }
