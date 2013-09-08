@@ -70,7 +70,7 @@ namespace Microsoft.Boogie
           throw e;
         }
 
-        GVUtil.IO.printExceptionInformation(e);
+        GVUtil.IO.DumpExceptionInformation(e);
 
         Environment.Exit(1);
       }

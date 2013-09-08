@@ -31,7 +31,7 @@ namespace GPUVerify
 
     public static class IO
     {
-      public static void emitProgram(Program prog, string filename)
+      public static void EmitProgram(Program prog, string filename)
       {
         using (TokenTextWriter writer = new TokenTextWriter(filename + ".bpl")) {
           prog.Emit(writer);
@@ -186,7 +186,7 @@ namespace GPUVerify
         Console.ForegroundColor = col;
       }
 
-      public static void printExceptionInformation(Exception e)
+      public static void DumpExceptionInformation(Exception e)
       {
         const string DUMP_FILE = "__gvdump.txt";
 

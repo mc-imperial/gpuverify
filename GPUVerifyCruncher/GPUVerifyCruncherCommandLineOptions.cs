@@ -19,7 +19,7 @@ namespace GPUVerify
 {
   public class GPUVerifyCruncherCommandLineOptions : GVCommandLineOptions
   {
-    public string InvInferConfigFile = null;
+    public string ConfigFile = null;
     public bool ParallelInference = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
@@ -29,7 +29,7 @@ namespace GPUVerify
     {
       if (name == "invInferConfigFile") {
         if (ps.ConfirmArgumentCount(1)) {
-          InvInferConfigFile = ps.args[ps.i];
+          ConfigFile = ps.args[ps.i];
         }
         return true;
       }

@@ -68,7 +68,7 @@ namespace GPUVerify
           throw e;
         }
 
-        GVUtil.IO.printExceptionInformation(e);
+        GVUtil.IO.DumpExceptionInformation(e);
 
         Environment.Exit(1);
       }
@@ -86,7 +86,7 @@ namespace GPUVerify
       var annotatedFile = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);// + ".inv";
 
-      InvariantCruncher cruncher = new InvariantCruncher();
+      InvariantInferrer inferrer = new InvariantInferrer();
 
       if (CommandLineOptions.Clo.Trace) {
         Console.WriteLine("Compute invariants without race checking");
@@ -102,7 +102,7 @@ namespace GPUVerify
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
       // TODO: enable parallelism
-      int exitCode = cruncher.inferInvariants(program);
+      int exitCode = inferrer.inferInvariants(program);
       if (exitCode != 0) return exitCode;
 
       if (CommandLineOptions.Clo.Trace) {
@@ -118,10 +118,10 @@ namespace GPUVerify
 
       CommandLineOptions.Clo.PrintUnstructured = 2;
 
-      cruncher.applyInvariants(program);
+      inferrer.applyInvariants(program);
 
       if (File.Exists(filesToProcess[0])) File.Delete(filesToProcess[0]);
-      GPUVerify.GVUtil.IO.emitProgram(program, annotatedFile);
+      GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile);
 
       return 0;
     }

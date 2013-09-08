@@ -611,7 +611,7 @@ namespace GPUVerify
 
         private void emitProgram(string filename)
         {
-          GVUtil.IO.emitProgram(Program, filename);
+          GVUtil.IO.EmitProgram(Program, filename);
         }
 
         private void ComputeInvariant()
