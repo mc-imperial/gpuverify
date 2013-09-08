@@ -255,22 +255,6 @@ class ErrorCodes(object):
   BOOGIE_TIMEOUT = 7
   CTRL_C = 8
   GPUVERIFYVCGEN_TIMEOUT = 9
-  CRUNCHER_ERROR = 10
-  CRUNCHER_TIMEOUT = 11
-
-# class ErrorCodes(object):
-#   SUCCESS = 0
-#   COMMAND_LINE_ERROR = 1
-#   CLANG_ERROR = 2
-#   OPT_ERROR = 3
-#   BUGLE_ERROR = 4
-#   GPUVERIFYVCGEN_ERROR = 5
-#   GPUVERIFYVCGEN_TIMEOUT = 6
-#   CRUNCHER_ERROR = 7
-#   CRUNCHER_TIMEOUT = 8
-#   BOOGIE_ERROR = 9
-#   BOOGIE_TIMEOUT = 10
-#   CTRL_C = 11
 
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool.
@@ -965,13 +949,13 @@ def main(argv=None):
     timeoutArguments={}
     if CommandLineOptions.cruncherTimeout > 0:
       timeoutArguments['timeout']= CommandLineOptions.cruncherTimeout
-      timeoutArguments['timeoutErrorCode']=ErrorCodes.CRUNCHER_TIMEOUT
+      timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
     if not CommandLineOptions.skip["cruncher"]:
       RunTool("gpuverifycruncher",
               (["mono"] if os.name == "posix" else []) +
               [gvfindtools.gpuVerifyCruncherBinDir + "/GPUVerifyCruncher.exe"] +
               CommandLineOptions.gpuVerifyCruncherOptions,
-              ErrorCodes.CRUNCHER_ERROR,
+              ErrorCodes.BOOGIE_ERROR,
               **timeoutArguments)
               
     if CommandLineOptions.stopAtInv: return 0

@@ -34,7 +34,7 @@
     <Compile Include="GPUVerifyCruncher.cs" />
     <Compile Include="GPUVerifyCruncherCommandLineOptions.cs" />
     <Compile Include="ConfigurationFileParser.cs" />
-    <Compile Include="InvariantInference.cs" />
+    <Compile Include="InvariantCruncher.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\GPUVerifyLib\GPUVerifyLib.csproj">

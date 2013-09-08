@@ -119,8 +119,8 @@ namespace Microsoft.Boogie
       var annotatedFile = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);// + ".inv";
 
-      Houdini.Houdini houdini = null;
-      InvariantInference invariantInference = new InvariantInference();
+      //Houdini.Houdini houdini = null;
+      InvariantCruncher cruncher = new InvariantCruncher();
 
       #region Compute invariant without race checking
       {
@@ -138,50 +138,51 @@ namespace Microsoft.Boogie
         KernelAnalyser.EliminateDeadVariablesAndInline(InvariantComputationProgram);
         KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(InvariantComputationProgram);
 
-        // enable parallelism
-        //ConfigureInvariantInference();
+        // TODO: enable parallelism
+        int exitCode = cruncher.inferInvariants(InvariantComputationProgram);
+        if (exitCode != 0) return exitCode;
 
-        var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
-        houdini = new Houdini.Houdini(InvariantComputationProgram, houdiniStats);
-        Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
-
-        if (CommandLineOptions.Clo.PrintAssignment) {
-          Console.WriteLine("Assignment computed by Houdini:");
-          foreach (var x in outcome.assignment) {
-            Console.WriteLine(x.Key + " = " + x.Value);
-          }
-        }
-
-        if (CommandLineOptions.Clo.Trace) {
-          int numTrueAssigns = 0;
-          foreach (var x in outcome.assignment) {
-            if (x.Value)
-              numTrueAssigns++;
-          }
-
-          Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-          Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
-          Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
-          Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
-          Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
-          Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
-          Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
-        }
-
-        if (!AllImplementationsValid(outcome)) {
-          int verified = 0;
-          int errorCount = 0;
-          int inconclusives = 0;
-          int timeOuts = 0;
-          int outOfMemories = 0;
-
-          foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
-            KernelAnalyser.ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
-          }
-
-          GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
-          return errorCount + inconclusives + timeOuts + outOfMemories;
-        }
+//        var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
+//        houdini = new Houdini.Houdini(InvariantComputationProgram, houdiniStats);
+//        Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
+//
+//        if (CommandLineOptions.Clo.PrintAssignment) {
+//          Console.WriteLine("Assignment computed by Houdini:");
+//          foreach (var x in outcome.assignment) {
+//            Console.WriteLine(x.Key + " = " + x.Value);
+//          }
+//        }
+//
+//        if (CommandLineOptions.Clo.Trace) {
+//          int numTrueAssigns = 0;
+//          foreach (var x in outcome.assignment) {
+//            if (x.Value)
+//              numTrueAssigns++;
+//          }
+//
+//          Console.WriteLine("Number of true assignments = " + numTrueAssigns);
+//          Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+//          Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
+//          Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
+//          Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
+//          Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
+//          Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
+//        }
+//
+//        if (!AllImplementationsValid(outcome)) {
+//          int verified = 0;
+//          int errorCount = 0;
+//          int inconclusives = 0;
+//          int timeOuts = 0;
+//          int outOfMemories = 0;
+//
+//          foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
+//            KernelAnalyser.ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+//          }
+//
+//          GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
+//          return errorCount + inconclusives + timeOuts + outOfMemories;
+//        }
       }
       #endregion
 
@@ -203,7 +204,8 @@ namespace Microsoft.Boogie
           GPUVerifyErrorReporter.FixStateIds(program);
         }
 
-        if(houdini != null) houdini.ApplyAssignment(program);
+        cruncher.annotateWithInvariants(program);
+        //if(houdini != null) houdini.ApplyAssignment(program);
 
         if (File.Exists(filesToProcess[0])) File.Delete(filesToProcess[0]);
         GPUVerify.GVUtil.IO.emitProgram(program, annotatedFile);
@@ -211,17 +213,6 @@ namespace Microsoft.Boogie
       #endregion
 
       return 0;
-    }
-
-    private static void ConfigureInvariantInference()
-    {
-      ConfigurationFileParser cfp = new ConfigurationFileParser();
-
-      if(GetCommandLineOptions().ParallelInference) {
-        cfp.enableParsingOfParallelConfigurations();
-      }
-
-      cfp.parseFile(GetCommandLineOptions().InvInferConfigFile);
     }
 
     private static bool AllImplementationsValid(Houdini.HoudiniOutcome outcome)
