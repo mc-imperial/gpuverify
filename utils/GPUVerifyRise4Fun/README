@@ -7,12 +7,14 @@ DEPENDENCIES
 - Python 2.7.*
 - Flask >=0.10
 - Tornado >= 3.1
+- psutil >= 1.0.1
 - GPUVerify (development or deployed version)
 
 You can get hold of Flask and tornado by running
 
 $ pip install flask 
 $ pip install tornado
+$ pip install psutil
 
 You may want to use the virtualenv python package to isolate these dependencies
 from the rest of your system.
