@@ -38,8 +38,8 @@ class BasicMetaData(object):
         "DisplayName": "GPUVerify",
         "DisableErrorTable": True, # Request to not show Visual Studio style error/warning table on web page
         "Version": version,
-        "Email": "fixme@imperial.ac.uk",
-        "SupportEmail": "fixme@imperial.ac.uk",
+        "Email": "gpuverify-support@googlegroups.com",
+        "SupportEmail": "gpuverify-support@googlegroups.com",
         "TermsOfUseUrl": "http://multicore.doc.ic.ac.uk/tools/GPUVerify/", # FIXME: NOT PROPER POLICY
         "PrivacyUrl": "http://multicore.doc.ic.ac.uk/tools/GPUVerify/", # FIXME: NOT PROPER POLICY
         "Institution": "Multicore programming Group, Imperial College London",
