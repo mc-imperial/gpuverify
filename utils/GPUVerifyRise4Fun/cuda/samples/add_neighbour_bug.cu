@@ -1,4 +1,4 @@
-//--local_size=1024 --num_groups=1
+//--blockDim=1024 --gridDim=1
 
 /* 
  * The intention of this kernel is to increment each
@@ -8,7 +8,7 @@
  * Can you spot the deliberate data race bug?
  */
 
-__kernel void add_neighbour(__local int *A, int offset) { 
-  int tid = get_local_id(0); 
+__global__ void add_neighbour(int *A, int offset) { 
+  int tid = threadIdx.x; 
   A[tid] += A[tid + offset]; 
 }

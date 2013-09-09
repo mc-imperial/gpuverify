@@ -1,4 +1,4 @@
-//--local_size=1024 --num_groups=1
+//--blockDim=1024 --gridDim=1
 
 /* 
  * The intention of this kernel is to increment each
@@ -10,12 +10,12 @@
  */
 
 
-__kernel void add_neighbour(__local int *A, int offset) { 
-  uint tid = get_local_id(0); 
+__global__ void add_neighbour(int *A, int offset) { 
+  unsigned tid = threadIdx.x; 
 
   // use a barrier to order the accesses to A
   int temp = A[tid + offset];
-  barrier(CLK_LOCAL_MEM_FENCE);
+  __syncthreads();
   A[tid] += temp;
 }
 
