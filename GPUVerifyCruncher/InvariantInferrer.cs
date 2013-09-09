@@ -123,7 +123,7 @@ namespace Microsoft.Boogie
           using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read))
           using (var input = new StreamReader(fileStream)) {
             string entry;
-            string key = null;
+            string key = "";
 
             while ((entry = input.ReadLine()) != null) {
               entry = Regex.Replace(entry, ";.*", "");
@@ -141,10 +141,10 @@ namespace Microsoft.Boogie
             }
           }
         } catch (FileNotFoundException e) {
-          Console.Error.WriteLine("Exception: {0} not found", file);
+          Console.Error.WriteLine("{0}: The configuration file {1} was not found", e.GetType(), file);
           Environment.Exit(1);
         } catch (Exception e) {
-          Console.Error.WriteLine("Exception: {0} has incorrect configuration format", file);
+          Console.Error.WriteLine("{0}: The file {1} is not properly formatted", e.GetType(), file);
           Environment.Exit(1);
         }
 
