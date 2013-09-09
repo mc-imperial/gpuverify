@@ -52,7 +52,7 @@ if __name__ == '__main__':
       logging.warning('No pickle file for process {0}. Assuming count of zero'.format(index))
       counts[index] = 0
     else:
-      with open(pmap[index], 'r') as pickleFile:
+      with open(os.path.join(pickleDir,pmap[index]), 'r') as pickleFile:
         counts[index] = pickle.load(pickleFile)
         runningTotal += counts[index]
         
