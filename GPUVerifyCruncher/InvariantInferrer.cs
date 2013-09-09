@@ -27,7 +27,7 @@ namespace Microsoft.Boogie
 
     public InvariantInferrer()
     {
-      config = new Configuration();
+//      config = new Configuration();
       houdini = new Houdini.Houdini[numRefEng];
     }
 
