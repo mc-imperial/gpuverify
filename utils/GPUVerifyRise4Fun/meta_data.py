@@ -40,8 +40,8 @@ class BasicMetaData(object):
         "Version": version,
         "Email": "fixme@imperial.ac.uk",
         "SupportEmail": "fixme@imperial.ac.uk",
-        "TermsOfUseUrl": "", # To be populated
-        "PrivacyUrl": "", # To be populated
+        "TermsOfUseUrl": "http://multicore.doc.ic.ac.uk/tools/GPUVerify/", # FIXME: NOT PROPER POLICY
+        "PrivacyUrl": "http://multicore.doc.ic.ac.uk/tools/GPUVerify/", # FIXME: NOT PROPER POLICY
         "Institution": "Multicore programming Group, Imperial College London",
         "InstitutionUrl": "http://multicore.doc.ic.ac.uk",
         "InstitutionImageUrl": "" , #To be populated 

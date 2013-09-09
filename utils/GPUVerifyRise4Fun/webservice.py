@@ -51,11 +51,12 @@ def getToolInfo(lang):
   # Patch meta data with image URL
   metaData['InstitutionImageUrl'] = url_for('static', filename='imperial-college-logo.png', _external=True)
 
+  # Do not have proper privacy policy/Terms of use URL for now
   # Patch meta data with privacy policy URL
-  metaData['PrivacyUrl'] = url_for('static', filename='privacy-policy.html', _external=True)
+  # metaData['PrivacyUrl'] = url_for('static', filename='privacy-policy.html', _external=True)
 
   # Patch meta data with terms of use URL
-  metaData['TermsOfUseUrl'] = url_for('static', filename='terms-of-use.html', _external=True)
+  # metaData['TermsOfUseUrl'] = url_for('static', filename='terms-of-use.html', _external=True)
   return jsonify(metaData)
 
 @app.route('/<lang>/language', methods=['GET'])
