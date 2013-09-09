@@ -22,32 +22,40 @@ namespace Microsoft.Boogie
   public class InvariantInferrer
   {
     Configuration config = null;
-    Houdini.Houdini houdini = null;
+    Houdini.Houdini[] houdini = null;
+    int numRefEng = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).NumOfRefutationEngines;
 
     public InvariantInferrer()
     {
       config = new Configuration();
+      houdini = new Houdini.Houdini[numRefEng];
     }
 
     public int inferInvariants(Program program)
     {
-      //if (!((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-        return runSequentialHoudini(program);
-      //}
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
+        // do nothing currently
+      }
+
+      return runSequentialHoudini(program);
     }
 
     public void applyInvariants(Program program)
     {
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
+        // do nothing currently
+      }
+
       if (houdini != null) {
-        houdini.ApplyAssignment(program);
+        houdini[0].ApplyAssignment(program);
       }
     }
 
     private int runSequentialHoudini(Program program)
     {
       var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
-      houdini = new Houdini.Houdini(program, houdiniStats);
-      Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
+      houdini[0] = new Houdini.Houdini(program, houdiniStats);
+      Houdini.HoudiniOutcome outcome = houdini[0].PerformHoudiniInference();
 
       if (CommandLineOptions.Clo.PrintAssignment) {
         Console.WriteLine("Assignment computed by Houdini:");
@@ -146,10 +154,6 @@ namespace Microsoft.Boogie
         } catch (Exception e) {
           Console.Error.WriteLine("{0}: The file {1} is not properly formatted", e.GetType(), file);
           Environment.Exit(1);
-        }
-
-        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-
         }
       }
     }

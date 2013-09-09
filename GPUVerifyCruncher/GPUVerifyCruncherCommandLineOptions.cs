@@ -21,6 +21,7 @@ namespace GPUVerify
   {
     public string ConfigFile = null;
     public bool ParallelInference = false;
+    public int NumOfRefutationEngines = 1;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -36,6 +37,13 @@ namespace GPUVerify
 
       if (name == "paralarallelInference") {
         ParallelInference = true;
+        return true;
+      }
+
+      if (name == "numOfRefutationEngines") {
+        if (ps.ConfirmArgumentCount(1)) {
+          NumOfRefutationEngines = int.Parse(ps.args[ps.i]);
+        }
         return true;
       }
 

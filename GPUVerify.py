@@ -857,9 +857,10 @@ def main(argv=None):
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyCruncherOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
-
+  
   if CommandLineOptions.useParallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/numOfRefutationEngines:" + str(CommandLineOptions.numEngines) ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/outputRefuted" ]
     if CommandLineOptions.debuggingParallelInference > 2:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/printAssignment" ]
