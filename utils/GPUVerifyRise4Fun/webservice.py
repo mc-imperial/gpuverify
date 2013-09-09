@@ -19,6 +19,14 @@ cudaMetaData = {}
 openclMetaData = {} 
 _tool = None
 
+# This is not ideal, we delay initialisation
+# until the first request which could slow
+# down the first request. However this is
+# the only way I could find to perform initilisation
+# after forking in Tornado (required so each
+# KernelCounterObserver can initialise itself 
+# correctly)
+@app.before_first_request
 def init():
   # Pre-compute metadata information
   global cudaMetaData , openclMetaData, _gpuverifyObservers, _tool
@@ -172,7 +180,4 @@ if __name__ == '__main__':
   if args.public:
     options['host'] = '0.0.0.0'
 
-  init() #Delay so debug output may be seen
   app.run(debug=args.debug, port=args.port, **options)
-else:
-  init()

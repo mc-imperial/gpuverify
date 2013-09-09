@@ -34,7 +34,7 @@ def main():
     # and its dependencies have a handler set
     logging.basicConfig(level=getattr(logging,args.log_level.upper(),None), 
                         stream=logStream,
-                        format='%(asctime)s:%(name)s:%(levelname)s: %(module)s.%(funcName)s() : %(message)s')
+                        format='%(asctime)s:%(name)s:%(levelname)s:%(module)s.%(funcName)s() : (PID %(process)d) %(message)s')
     logging.info("Starting GPUVerifyRise4Fun")
     from webservice import app
 
