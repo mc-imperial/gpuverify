@@ -5,7 +5,7 @@ import logging
 import pprint
 import traceback
 
-#import observers.example
+import observers.kernelcounter
 
 app = Flask(__name__)
 
@@ -29,7 +29,7 @@ def init():
   _tool = gvapi.GPUVerifyTool(app.config['GPUVERIFY_ROOT_DIR'], app.config['GPUVERIFY_TEMP_DIR'])
 
   #Register observers
-  #_tool.registerObserver( observers.example.ExampleObserver() )
+  _tool.registerObserver( observers.kernelcounter.KernelCounterObserver() )
 
 #Setup routing
 @app.errorhandler(404)
