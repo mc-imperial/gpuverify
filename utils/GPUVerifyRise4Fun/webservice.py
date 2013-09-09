@@ -37,7 +37,7 @@ def init():
   _tool = gvapi.GPUVerifyTool(app.config['GPUVERIFY_ROOT_DIR'], app.config['GPUVERIFY_TEMP_DIR'])
 
   #Register observers
-  _tool.registerObserver( observers.kernelcounter.KernelCounterObserver() )
+  _tool.registerObserver( observers.kernelcounter.KernelCounterObserver(app.config['KERNEL_COUNTER_PATH']) )
 
 #Setup routing
 @app.errorhandler(404)

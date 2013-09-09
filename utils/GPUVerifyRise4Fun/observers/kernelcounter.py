@@ -24,9 +24,15 @@ _logging = logging.getLogger(__name__)
 class KernelCounterObserver(gvapi.GPUVerifyObserver):
   counterFile = '-counter.pickle' # Will later be ammended
 
-  def __init__(self):
+  def __init__(self, dirForPickles):
     self.counter = 0
+    self.pickleDir = os.path.abspath(dirForPickles)
     self.loadCounter()
+
+    if not os.path.exists(self.pickleDir):
+      errorMsg = 'Pickle directory "{0}" does not exist!'.format(self.pickleDir)
+      _logging.error(errorMsg)
+      raise Exception(errorMsg)
 
   def loadCounter(self):
     _logging.debug('Performing loadCounter()')
@@ -56,6 +62,7 @@ class KernelCounterObserver(gvapi.GPUVerifyObserver):
 
     assert prefix != ''
     self.counterFile = prefix + self.counterFile
+    self.counterFile = os.path.join(self.pickleDir, self.counterFile)
     _logging.info('Trying to load counter from {0}'.format(self.counterFile))
       
     # Try to load counter form pickle file
