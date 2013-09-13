@@ -60,9 +60,6 @@ namespace GPUVerify
             }
         }
 
-
-
-
         internal bool FoundWrite()
         {
             return access != null;
