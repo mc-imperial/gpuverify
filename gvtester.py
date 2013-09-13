@@ -80,7 +80,7 @@ GPUVerifyTesterErrorCodes=enum('SUCCESS', 'FILE_SEARCH_ERROR','KERNEL_PARSE_ERRO
 
 class GPUVerifyTestKernel:
 
-    def __init__(self,path,timeAsCSV,additionalOptions=None):
+    def __init__(self,path,timeAsCSV,csvFile,additionalOptions=None):
         """
 
             Initialise CUDA/OpenCL GPUVerify test.
@@ -96,6 +96,7 @@ class GPUVerifyTestKernel:
         logging.debug("Parsing kernel \"{0}\" for test parameters".format(path))
         self.path=path
         self.timeAsCSV=timeAsCSV
+        self.csvFile = csvFile
 
         #Use with so that if exception thrown file is still closed
         #Note need to use universal line endings to handle DOS format (groan) kernels
@@ -263,8 +264,8 @@ class GPUVerifyTestKernel:
 
         if self.timeAsCSV:
             #Print csv output for user to see
-            print(stdout[0].split('\n')[-2])
-            sys.stdout.flush()
+            self.csvFile.write(stdout[0].split('\n')[-2] + "\n")
+            self.csvFile.flush()
 
         logging.debug(self) #Show after test information
 
@@ -604,6 +605,7 @@ def main(arg):
                         help="Pass a command line options to GPUVerify for all tests. This option can be specified multiple times.  E.g. --gvopt=--keep-temps --gvopt=--no-benign",
                         metavar='GPUVerifyCmdLineOption')
     parser.add_argument("--time-as-csv", action="store_true", default=False, help="Print timing of each test as CSV")
+    parser.add_argument("--csv-file", type=str, default=None, help="Write timing data to a file (Note: requires --time-as-csv to be enabled)")
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
@@ -676,9 +678,10 @@ def main(arg):
     #Do in place sort of paths so we have a guaranteed order
     kernelFiles.sort()
     tests=[]
+    csvFile = open(args.csv_file,"w") if args.csv_file else sys.stdout
     for kernelPath in kernelFiles:
         try:
-            tests.append(GPUVerifyTestKernel(kernelPath, args.time_as_csv, getattr(args,'gvopt=') ))
+            tests.append(GPUVerifyTestKernel(kernelPath, args.time_as_csv, csvFile, getattr(args,'gvopt=') ))
         except KernelParseError as e:
             logging.error(e)
             if args.stop_on_fail:
