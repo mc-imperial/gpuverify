@@ -28,7 +28,8 @@ class GPUVerifyErrorCodes(ErrorCodes):
         REGEX_MISMATCH_ERROR as that is a possible point of failure
         during testing
     """
-    REGEX_MISMATCH_ERROR=-1 #Overwritten by static_init()
+    # It is unlikely we'll have more than 99 error codes in the parent
+    REGEX_MISMATCH_ERROR=100
 
     errorCodeToString = {} #Overwritten by static_init()
     @classmethod
@@ -43,8 +44,9 @@ class GPUVerifyErrorCodes(ErrorCodes):
         for num in [ getattr(base,x) for x in codes ]:
             if num > largest : largest=num
 
-        #We'll take the next error codes
-        cls.REGEX_MISMATCH_ERROR=largest +1
+        # Check that REGEX_MISMATCH_ERROR doesn't conflict
+        # with an existing error code
+        assert largest < cls.REGEX_MISMATCH_ERROR
 
         #Build reverse mapping dictionary { num:string }
         codes=[e for e in dir(cls) if not e.startswith('_')]
