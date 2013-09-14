@@ -11,8 +11,23 @@ import threading
 import getversion
 import pprint
 
+"""
+    Print an error message to stderr and exit with status code.
+
+    msg : A String describing the error
+    code : An error code (integer) from ErrorCodes class
+"""
 def GPUVerifyError(msg, code):
-  sys.stderr.write("GPUVerify: error: " + msg + '\n')
+  # Determine string for error code
+  codeString = None
+  for cs in [ x for x in dir(ErrorCodes) if not x.startswith('_') ]:
+    if getattr(ErrorCodes, cs) == code:
+      codeString = cs
+
+  if codeString == None:
+    codeString = 'UNKNOWN'
+
+  sys.stderr.write('GPUVerify: {} error: {}\n'.format(codeString, msg))
   sys.exit(code)
 
 class ErrorCodes(object):
@@ -34,7 +49,7 @@ try:
   # Initialise the paths (only needed for deployment version of gvfindtools.py)
   gvfindtools.init(sys.path[0])
 except ImportError:
-  GPUVerifyError('Error: Cannot find \'gvfindtools.py\'.'
+  GPUVerifyError('Cannot find \'gvfindtools.py\'.'
                  ' Did you forget to create it from a template?',
                  ErrorCodes.CONFIGURATION_ERROR)
 
