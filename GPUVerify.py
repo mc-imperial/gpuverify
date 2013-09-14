@@ -26,6 +26,7 @@ class ErrorCodes(object):
   BOOGIE_TIMEOUT = 7
   CTRL_C = 8
   GPUVERIFYVCGEN_TIMEOUT = 9
+  CONFIGURATION_ERROR = 10
 
 # Try to import the paths need for GPUVerify's tools
 try:
@@ -33,10 +34,9 @@ try:
   # Initialise the paths (only needed for deployment version of gvfindtools.py)
   gvfindtools.init(sys.path[0])
 except ImportError:
-  # FIXME: Need config error code
   GPUVerifyError('Error: Cannot find \'gvfindtools.py\'.'
                  ' Did you forget to create it from a template?',
-                 ErrorCodes.COMMAND_LINE_ERROR)
+                 ErrorCodes.CONFIGURATION_ERROR)
 
 """ Timing for the toolchain pipeline """
 Timing = []
@@ -102,9 +102,8 @@ if os.name == "posix":
                       + "/libBugleInlineCheckPlugin.dylib"):
     bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
                              + "/libBugleInlineCheckPlugin.dylib"
-  # FIXME: Need config error code
   else: 
-    GPUVerifyError('Could not find Bugle Inline Check plugin',ErrorCodes.COMMAND_LINE_ERROR)
+    GPUVerifyError('Could not find Bugle Inline Check plugin',ErrorCodes.CONFIGURATION_ERROR)
 
   clangInlineOptions = [ "-Xclang", "-load",
                          "-Xclang", bugleInlineCheckPlugin,
