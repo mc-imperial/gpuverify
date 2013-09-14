@@ -133,12 +133,7 @@ def runGpuverify(lang):
     if gvapi.helpMessage[returnCode] != "":
       extraHelpMessage = gvapi.helpMessage[returnCode] + '\n' 
 
-    # Strip out any leading new lines from tool output.
-    for (index,char) in enumerate(toolMessage):
-      if char != '\n':
-        toolMessage=toolMessage[index:]
-        break
-    
+    toolMessage = filterToolOutput(toolMessage)
     returnMessage['Outputs'][0]['Value'] = (extraHelpMessage + toolMessage).decode('utf8')
 
   except Exception as e:
@@ -154,6 +149,25 @@ def checkLang(lang):
     return True
   else:
     return False
+
+def filterToolOutput(toolMessage):
+    # Strip out any leading new lines from tool output.
+    for (index,char) in enumerate(toolMessage):
+      if char != '\n':
+        toolMessage=toolMessage[index:]
+        break
+
+    # Remove any absolute paths for source files and
+    # replace with just the source file name.
+    dirOrFileRegex = r'[a-z0-9_.-]+'
+    ext = r'\.(cl|cu|h|hpp)'
+    regex = r'/(' +dirOrFileRegex+ r'/)*(' + dirOrFileRegex + ext + r')\b'
+    _logging.debug('Using regex:{0}'.format(regex))
+    (output, n) = re.subn(regex, r'\2', toolMessage, flags=re.IGNORECASE)
+    _logging.info('Filtering output. {0} replacements were made.'.format(n))
+    _logging.debug('Replacing:\n{0}\nWith:\n{1}'.format(toolMessage, output))
+    return output
+
 
 
 if __name__ == '__main__':
