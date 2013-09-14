@@ -4,6 +4,7 @@ from socket import gethostname
 import logging
 import pprint
 import traceback
+import pprint
 
 import observers.kernelcounter
 
@@ -108,8 +109,9 @@ def runGpuverify(lang):
   toolMessage=None
   dimMessage=""
   safeArgs=[]
+  ignoredArgs=[]
   try:
-    _tool.extractOtherCmdArgs(source,safeArgs)
+    _tool.extractOtherCmdArgs(source, safeArgs, ignoredArgs)
 
     if lang == CUDAMetaData.folderName:
       blockDim=[]
@@ -134,6 +136,12 @@ def runGpuverify(lang):
       extraHelpMessage = gvapi.helpMessage[returnCode] + '\n' 
 
     toolMessage = filterToolOutput(toolMessage)
+
+    # If we have ignored command line arguments warn the user about this
+    if len(ignoredArgs) != 0:
+      warning = 'Warning ignored command line option(s):\n{0}\n\n'.format(pprint.pformat(ignoredArgs))
+      toolMessage = warning + toolMessage
+
     returnMessage['Outputs'][0]['Value'] = (extraHelpMessage + toolMessage).decode('utf8')
 
   except Exception as e:

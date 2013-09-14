@@ -76,10 +76,15 @@ class GPUVerifyTool(object):
     else:
       self.observers.append(observer)
 
-  def extractOtherCmdArgs(self, source, args):
+  def extractOtherCmdArgs(self, source, args, ignoredArgs=None):
     """
       Extract command line arguments from the first line of the source code
       that are allowed to be passed to runOpencl() or runCUDA() as extraCmdLineArgs
+
+      source : The source code as a string
+      args   : A list that this function will populate
+      ignoredArgs : If not None this list will be populated with arguments that
+                    were ignored (except the NDRange arguments like --blockDim).
     """
     if len(args) != 0:
       raise Exception("Argument list must be empty")
@@ -100,9 +105,9 @@ class GPUVerifyTool(object):
     for arg in foundArgs:
       matcher=None
       for option in safeOptions:
-        matcher=re.match(option,arg)
+        matcher=re.match(option + r'\b',arg)
         if matcher:
-          args.append(matcher.group(0).decode('asci'))
+          args.append(matcher.group(0))
           _logging.debug('Accepting command line option "' + args[-1] + '"')
           break
       # Warn about ignored args except the gridDim types as they are handled else where.
@@ -114,6 +119,8 @@ class GPUVerifyTool(object):
                                    ] if arg.startswith(x) 
                                  ]: 
         _logging.warning('Ignoring passed command line option "' + arg + '"')
+        if ignoredArgs != None:
+          ignoredArgs.append(arg)
       
 
 
