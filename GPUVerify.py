@@ -11,6 +11,10 @@ import threading
 import getversion
 import pprint
 
+def GPUVerifyError(msg, code):
+  print >> sys.stderr, "GPUVerify: error: " + msg
+  sys.exit(code)
+
 #Try to import the paths need for GPUVerify's tools
 if os.path.isfile(sys.path[0] + os.sep + 'gvfindtools.py'):
   import gvfindtools
@@ -85,6 +89,7 @@ if os.name == "posix":
                       + "/libBugleInlineCheckPlugin.dylib"):
     bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
                              + "/libBugleInlineCheckPlugin.dylib"
+  else: GPUVerifyError('Could not find Bugle Inline Check plugin',1)
 
   clangInlineOptions = [ "-Xclang", "-load",
                          "-Xclang", bugleInlineCheckPlugin,
@@ -404,10 +409,6 @@ def processVector(vector):
 
 def GPUVerifyWarn(msg):
   print "GPUVerify: warning: " + msg
-
-def GPUVerifyError(msg, code):
-  print >> sys.stderr, "GPUVerify: error: " + msg
-  sys.exit(code)
 
 def Verbose(msg):
   if(CommandLineOptions.verbose):
