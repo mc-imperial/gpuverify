@@ -247,7 +247,7 @@ class GPUVerifyTool(object):
                                     dir=self.tempDir)
     response=None
     try:
-      f.write(source)
+      f.write(source.encode('utf8'))
       f.close()
       
       # Add sourcefile name to cmdArgs
