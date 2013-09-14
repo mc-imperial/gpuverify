@@ -129,6 +129,8 @@ class OpenCLMetaData(BasicMetaData):
     self.metadata['MimeType'] += 'x-c' #HACK : Use 'C' language definition implicitly
 
     self.metadata['Question'] = 'Is this OpenCL kernel correct?'
+    self.metadata['DisplayName'] += '-OpenCL'
+    self.metadata['Name'] += 'OpenCL'
 
     self.findSamplesAndTutorials(os.path.join(sourceRoot, self.folderName))
     self.loadLanguageSyntax(opencl.syntax)
@@ -149,6 +151,8 @@ class CUDAMetaData(BasicMetaData):
     self.metadata['MimeType'] += 'x-c' #HACK: Use 'C' language definition implicitly
 
     self.metadata['Question'] = 'Is this CUDA kernel correct?'
+    self.metadata['DisplayName'] += '-CUDA'
+    self.metadata['Name'] += 'CUDA'
 
     self.findSamplesAndTutorials(os.path.join(sourceRoot, self.folderName))
     self.loadLanguageSyntax(cuda.syntax)
