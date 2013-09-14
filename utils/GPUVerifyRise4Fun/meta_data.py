@@ -31,7 +31,25 @@ class BasicMetaData(object):
       # that Rise4Fun expects
       version, _NOT_USED = gvapi.GPUVerifyTool(config.GPUVERIFY_ROOT_DIR, 
                                                config.GPUVERIFY_TEMP_DIR).getVersionString()
-      version +=".0"
+
+      localVersion = '0'
+      if config.INCLUDE_VERSION_FROM_LOCAL:
+        # Grab GPUVerify version from the repository that the webservice is in
+        # which is not necessarily the same repository that GPUVerify is in.
+        # This requires that the GPUVerify version at this location be 
+        # correctly configured.
+        pathToLocalGV = os.path.dirname(os.path.abspath(__file__))
+        pathToLocalGV = os.path.join(pathToLocalGV,'..','..') # Go out two directorys
+        pathToLocalGV = os.path.abspath(pathToLocalGV)
+        _logging.debug('Using path to local GPUVerify as "{}"'.format(pathToLocalGV))
+        localVersion, _NOT_USED = gvapi.GPUVerifyTool(pathToLocalGV, 
+                                                      config.GPUVERIFY_TEMP_DIR).getVersionString()
+
+      # Construct version
+      # <x>.<y>.0
+      # <x> : Version of GPUVerify that will be invoked by GPUVerifyRise4Fun
+      # <y> : Version of GPUVerify Rise4Fun
+      version += "." + localVersion + ".0"
 
       self.metadata = {
         "Name": "GPUVerify",
