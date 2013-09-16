@@ -32,7 +32,8 @@ namespace GPUVerify {
     internal void Abstract() {
       List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
       foreach (Declaration d in verifier.Program.TopLevelDeclarations) {
-        if (d is Variable && verifier.KernelArrayInfo.Contains(d as Variable) &&
+        if (d is Variable &&
+          verifier.KernelArrayInfo.ContainsNonLocalArray(d as Variable) &&
           verifier.ArrayModelledAdversarially(d as Variable)) {
           continue;
         }
@@ -52,7 +53,6 @@ namespace GPUVerify {
       verifier.Program.TopLevelDeclarations = NewTopLevelDeclarations;
 
     }
-
 
     private void AbstractRequiresClauses(Procedure proc) {
       List<Requires> newRequires = new List<Requires>();
@@ -120,13 +120,12 @@ namespace GPUVerify {
                 "_abstracted_call_arg_" + AbstractedCallArgCounter, call.Ins[i].Type));
               AbstractedCallArgCounter++;
               NewLocalVars.Add(lv);
-              NewCmds.Add(new HavocCmd(Token.NoToken, 
+              NewCmds.Add(new HavocCmd(Token.NoToken,
                 new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, lv) })));
               call.Ins[i] = new IdentifierExpr(Token.NoToken, lv);
             }
           }
         }
-        
 
         if (c is AssignCmd) {
           AssignCmd assign = c as AssignCmd;
@@ -186,7 +185,7 @@ namespace GPUVerify {
       }
 
       public override Variable VisitVariable(Variable v) {
-        if (verifier.KernelArrayInfo.Contains(v)) {
+        if (verifier.KernelArrayInfo.ContainsNonLocalArray(v)) {
           if (verifier.ArrayModelledAdversarially(v)) {
             found = true;
           }
@@ -195,7 +194,7 @@ namespace GPUVerify {
       }
 
     }
-  
+
   }
 
 

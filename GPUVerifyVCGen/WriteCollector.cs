@@ -18,13 +18,14 @@ using Microsoft.Basetypes;
 
 namespace GPUVerify
 {
+
     class WriteCollector : AccessCollector
     {
 
         private AccessRecord access = null;
 
-        public WriteCollector(IKernelArrayInfo NonLocalState)
-            : base(NonLocalState)
+        public WriteCollector(IKernelArrayInfo State)
+            : base(State)
         {
         }
 
@@ -37,7 +38,7 @@ namespace GPUVerify
         {
             Debug.Assert(NoWrittenVariable());
 
-            if (!NonLocalState.Contains(node.DeepAssignedVariable))
+            if (!State.ContainsNonLocalArray(node.DeepAssignedVariable))
             {
                 return node;
             }

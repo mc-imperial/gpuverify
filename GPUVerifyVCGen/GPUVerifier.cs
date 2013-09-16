@@ -339,6 +339,10 @@ namespace GPUVerify
                     {
                         KernelArrayInfo.getGlobalArrays().Add(D as Variable);
                     }
+                    else if (QKeyValue.FindBoolAttribute(D.Attributes, "constant"))
+                    {
+                        KernelArrayInfo.getConstantArrays().Add(D as Variable);
+                    }
                     else
                     {
                         KernelArrayInfo.getPrivateArrays().Add(D as Variable);

@@ -18,11 +18,11 @@ namespace GPUVerify
 {
     abstract class AccessCollector : StandardVisitor
     {
-        protected IKernelArrayInfo NonLocalState;
+        protected IKernelArrayInfo State;
 
-        public AccessCollector(IKernelArrayInfo NonLocalState)
+        public AccessCollector(IKernelArrayInfo State)
         {
-            this.NonLocalState = NonLocalState;
+            this.State = State;
         }
 
         protected void MultiDimensionalMapError()

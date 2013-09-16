@@ -23,13 +23,15 @@ namespace GPUVerify
 
         ICollection<Variable> getGroupSharedArrays();
 
+        ICollection<Variable> getConstantArrays();
+
         ICollection<Variable> getPrivateArrays();
 
         ICollection<Variable> getAllNonLocalArrays();
 
         ICollection<Variable> getAllArrays();
 
-        bool Contains(Variable v);
+        bool ContainsNonLocalArray(Variable v);
 
     }
 }
