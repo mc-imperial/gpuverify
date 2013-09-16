@@ -14,6 +14,7 @@ __kernel void diverge(/* no inputs or outputs
   int tid = get_local_id(0);
   if (tid == 0) {
     barrier(CLK_LOCAL_MEM_FENCE);
+  }
   else {
     barrier(CLK_LOCAL_MEM_FENCE);
   }
