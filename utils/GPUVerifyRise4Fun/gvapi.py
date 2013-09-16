@@ -254,6 +254,8 @@ class GPUVerifyTool(object):
       cmdArgs.append(f.name)
 
       response = self.__runTool(cmdArgs)
+      if response[0] in ( ErrorCodes.BOOGIE_TIMEOUT , ErrorCodes.GPUVERIFYVCGEN_TIMEOUT ):
+        _logging.error('GPUVerify timed out (ErrorCode:{})'.format(response[0])) 
 
     finally:
       f.close()
