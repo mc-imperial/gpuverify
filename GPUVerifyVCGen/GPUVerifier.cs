@@ -136,13 +136,15 @@ namespace GPUVerify
             {
                 this.NoAccessInstrumenter = new NoAccessInstrumenter(this);
             }
+            if (CommandLineOptions.ConstantWriteChecks) {
+                this.ConstantWriteInstrumenter = new ConstantWriteInstrumenter(this);
+            }
             if (!CommandLineOptions.OnlyDivergence)
             {
                 this.RaceInstrumenter = new RaceInstrumenter(this);
             } else {
                 this.RaceInstrumenter = new NullRaceInstrumenter();
             }
-            this.ConstantWriteInstrumenter = new ConstantWriteInstrumenter(this);
         }
 
         private void CheckWellFormedness()
@@ -466,8 +468,12 @@ namespace GPUVerify
 
             }
 
-            ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
+            if (CommandLineOptions.ConstantWriteChecks) {
+                ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
+            }
+
             RaceInstrumenter.AddRaceCheckingInstrumentation();
+
             if (CommandLineOptions.BarrierAccessChecks)
             {
                 NoAccessInstrumenter.AddNoAccessInstrumentation();

@@ -197,6 +197,7 @@ class CommandLineOptions(object):
   asymmetricAsserts = False
   generateSmt2 = False
   noBarrierAccessChecks = False
+  noConstantWriteChecks = False
   testsuite = False
   warpSync = False
   warpSize = 32
@@ -373,6 +374,7 @@ def showHelpAndExit():
   print "                          instead of bit-vectors"
   print "  --no-annotations        Ignore all source-level annotations"
   print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
+  print "  --no-constant-write-checks      Turn off access checks for writes to constant space"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
@@ -506,6 +508,8 @@ def processGeneralOptions(opts, args):
       clangCUDAOptions.extend(noAnnotationsHeader)
     if o == "--no-barrier-access-checks":
       CommandLineOptions.noBarrierAccessChecks = True
+    if o == "--no-constant-write-checks":
+      CommandLineOptions.noConstantWriteChecks = True
     if o == "--no-loop-predicate-invariants":
       CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
@@ -694,7 +698,7 @@ def main(argv=None):
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
-              'no-annotations', 'no-barrier-access-checks', 'no-loop-predicate-invariants',
+              'no-annotations', 'no-barrier-access-checks', 'no-constant-write-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
@@ -809,6 +813,8 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noInfer" ]
   if CommandLineOptions.noBarrierAccessChecks:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noBarrierAccessChecks" ]
+  if CommandLineOptions.noConstantWriteChecks:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/noConstantWriteChecks" ]
   if CommandLineOptions.noLoopPredicateInvariants:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noLoopPredicateInvariants" ]
   if CommandLineOptions.noSmartPredication:

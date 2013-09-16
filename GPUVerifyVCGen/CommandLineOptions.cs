@@ -30,6 +30,7 @@ namespace GPUVerify
         public static bool Inference = true;
         public static bool ArrayEqualities = false;
         public static bool BarrierAccessChecks = true;
+        public static bool ConstantWriteChecks = true;
         public static bool ShowStages = false;
         public static bool ShowUniformityAnalysis = false;
         public static bool DoUniformityAnalysis = true;
@@ -165,6 +166,11 @@ namespace GPUVerify
                     BarrierAccessChecks = false;
                     break;
 
+                    case "-noConstantWriteChecks":
+                    case "/noConstantWriteChecks":
+                    ConstantWriteChecks = false;
+                    break;
+
                     case "-asymmetricAsserts":
                     case "/asymmetricAsserts":
                     AsymmetricAsserts = true;
@@ -298,6 +304,7 @@ namespace GPUVerify
   /onlyIntraGroupRaceChecking   : do not consider inter-group data races
   /noBenign                     : do not tolerate benign data races
   /noBarrierAccessChecks        : do not check barrier invariant accesses
+  /noConstantWriteChecks        : do not check writes to constant space
 
 ");
         }
