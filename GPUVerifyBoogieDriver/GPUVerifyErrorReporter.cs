@@ -71,6 +71,9 @@ namespace GPUVerify {
         else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "barrier_invariant_access_check")) {
           ReportFailingBarrierInvariantAccessCheck(AssertCex);
         }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "constant_write")) {
+          ReportFailingConstantWriteCheck(AssertCex);
+        }
         else {
           ReportFailingAssert(AssertCex);
         }
@@ -318,6 +321,10 @@ namespace GPUVerify {
       ReportThreadSpecificFailure(err, "insufficient permission may be held for evaluation of this barrier invariant");
     }
 
+    private static void ReportFailingConstantWriteCheck(AssertCounterexample err) {
+      ReportThreadSpecificFailure(err, "possible attempt to modify constant memory");
+    }
+
     private static void ReportEnsuresFailure(Absy node) {
       Console.WriteLine("");
       var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
@@ -501,7 +508,7 @@ namespace GPUVerify {
     internal static void FixStateIds(Program Program) {
       new StateIdFixer().FixStateIds(Program);
     }
-  
+
   }
 
   class StateIdFixer {
@@ -518,7 +525,7 @@ namespace GPUVerify {
       Debug.Assert(CommandLineOptions.Clo.LoopUnrollCount != -1);
 
       foreach(var impl in Program.Implementations()) {
-        impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds)); 
+        impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds));
       }
 
     }

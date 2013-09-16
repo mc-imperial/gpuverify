@@ -432,7 +432,7 @@ namespace GPUVerify {
         if (c is AssertCmd) {
           AssertCmd assertion = c as AssertCmd;
           if (QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc") &&
-              !QKeyValue.FindBoolAttribute(assertion.Attributes, "constwrite")) {
+              !QKeyValue.FindBoolAttribute(assertion.Attributes, "constant_write")) {
             SourceLocationAttributes = assertion.Attributes;
             // Remove source location assertions
             // Constant write source locations have been added by the

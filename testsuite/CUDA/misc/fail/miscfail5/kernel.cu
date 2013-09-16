@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--gridDim=1 --blockDim=4
-//error: this assertion might not hold for thread
+//attempt to modify constant memory
 
 __constant__ int global_constant[4];
 

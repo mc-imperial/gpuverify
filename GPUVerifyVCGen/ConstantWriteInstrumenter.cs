@@ -74,7 +74,7 @@ namespace GPUVerify {
               AssertCmd constantAssert = new AssertCmd(Token.NoToken, Expr.False);
               constantAssert.Attributes = SourceLocationAttributes;
               constantAssert.Attributes
-                  = new QKeyValue(Token.NoToken, "constwrite", new List<object>(), constantAssert.Attributes);
+                  = new QKeyValue(Token.NoToken, "constant_write", new List<object>(), constantAssert.Attributes);
               result.Add(constantAssert);
             }
           }

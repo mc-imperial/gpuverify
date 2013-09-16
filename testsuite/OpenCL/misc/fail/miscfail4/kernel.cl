@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--local_size=16 --num_groups=1
-//error: this assertion might not hold for thread
+//attempt to modify constant memory
 
 __kernel void foo(__constant int* A) {
 
