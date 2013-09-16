@@ -113,6 +113,7 @@ namespace GPUVerify
 
         internal IRaceInstrumenter RaceInstrumenter;
         internal INoAccessInstrumenter NoAccessInstrumenter;
+        internal IConstantWriteInstrumenter ConstantWriteInstrumenter;
 
         internal UniformityAnalyser uniformityAnalyser;
         internal MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
@@ -141,7 +142,7 @@ namespace GPUVerify
             } else {
                 this.RaceInstrumenter = new NullRaceInstrumenter();
             }
-
+            this.ConstantWriteInstrumenter = new ConstantWriteInstrumenter(this);
         }
 
         private void CheckWellFormedness()
@@ -465,6 +466,7 @@ namespace GPUVerify
 
             }
 
+            ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
             RaceInstrumenter.AddRaceCheckingInstrumentation();
             if (CommandLineOptions.BarrierAccessChecks)
             {

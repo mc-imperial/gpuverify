@@ -33,5 +33,7 @@ namespace GPUVerify
 
         bool ContainsNonLocalArray(Variable v);
 
+        bool ContainsConstantArray(Variable v);
+
     }
 }

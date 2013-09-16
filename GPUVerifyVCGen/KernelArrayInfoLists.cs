@@ -74,5 +74,10 @@ namespace GPUVerify
             return getAllNonLocalArrays().Contains(v);
         }
 
+        public bool ContainsConstantArray(Variable v)
+        {
+            return ConstantVariables.Contains(v);
+        }
+
     }
 }
