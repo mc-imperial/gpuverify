@@ -73,7 +73,7 @@ namespace GPUVerify
                     case "-?":
                     case "/?":
                     return -1;
-                    
+
                     case "-print":
                     case "/print":
                         if (!hasColonArgument)
@@ -243,7 +243,7 @@ namespace GPUVerify
 
         public static void Usage()
         {
-            // Ensure that we only print the help message once
+            // Ensure that we only print the help message once
             if (printedHelp)
             {
                 return;
@@ -259,7 +259,7 @@ namespace GPUVerify
   Debugging GPUVerifyVCGen
   ------------------------
   /showArrayControlFlowAnalysis : show results of array control flow analysis
-  /showMayBePowerOfTwoAnalysis  : show results of analysis that flags up 
+  /showMayBePowerOfTwoAnalysis  : show results of analysis that flags up
                                     variables that might be powers of two
   /showUniformityAnalysis       : show results of uniformity analysis
   /showStages                   : dump intermediate stages of processing to a
@@ -267,16 +267,16 @@ namespace GPUVerify
 
   Optimisations
   -------------
-  /noSmartPredication           : use simple, general predication instead of 
+  /noSmartPredication           : use simple, general predication instead of
                                     default smarter method
   /noUniformityAnalysis         : do not apply uniformity analysis to restrict
                                     predication
 
   Shared state abstraction
   ------------------------
-  /adversarialAbstraction       : completely abstract shared arrays so that 
+  /adversarialAbstraction       : completely abstract shared arrays so that
                                     reads are nondeterministic
-  /equalityAbstraction          : make shared arrays nondeterministic, but 
+  /equalityAbstraction          : make shared arrays nondeterministic, but
                                     consistent between threads, at barriers
 
   Invariant inference
@@ -293,7 +293,7 @@ namespace GPUVerify
 
   Property checking
   -----------------
-  /onlyDivergence               : verify freedom from barrier divergence, but 
+  /onlyDivergence               : verify freedom from barrier divergence, but
                                     not data races
   /onlyIntraGroupRaceChecking   : do not consider inter-group data races
   /noBenign                     : do not tolerate benign data races
