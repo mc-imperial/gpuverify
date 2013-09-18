@@ -50,6 +50,7 @@ namespace GPUVerify
         public static bool AtomicVsWrite = true;
         public static bool RefinedAtomics = true;
         public static bool OptimiseReads = false;
+        public static bool CheckSingleNonInlinedImpl = false;
 
         public static int Parse(string[] args)
         {
@@ -234,6 +235,11 @@ namespace GPUVerify
                     case "-optimiseReads":
                     case "/optimiseReads":
                     OptimiseReads = true;
+                    break;
+
+                    case "-checkSingleNonInlinedImpl":
+                    case "/checkSingleNonInlinedImpl":
+                    CheckSingleNonInlinedImpl = true;
                     break;
 
                     default:

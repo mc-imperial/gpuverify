@@ -176,6 +176,21 @@ namespace GPUVerify
                 }
               }
             }
+
+            if (CommandLineOptions.CheckSingleNonInlinedImpl)
+            {
+              var NonInlinedImpls = Program.TopLevelDeclarations.Where(
+                  d => d is Implementation &&
+                  QKeyValue.FindIntAttribute((d as Implementation).Attributes, "inline", -1) == -1);
+              if (NonInlinedImpls.Count() != 1)
+              {
+                  Console.WriteLine("GPUVerify: warning: Found {0} non-inlined implementations.", NonInlinedImpls.Count());
+                  foreach (Implementation impl in NonInlinedImpls)
+                  {
+                      Console.WriteLine("  {0}", impl.Name);
+                  }
+              }
+            }
         }
 
         private Dictionary<Procedure, Implementation> GetKernelProcedures()
