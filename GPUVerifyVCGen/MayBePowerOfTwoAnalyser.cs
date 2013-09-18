@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -108,7 +108,7 @@ namespace GPUVerify
 
         private bool isPowerOfTwoOperation(Variable v, Expr expr)
         {
-          
+
             if (!(
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||
@@ -117,7 +117,7 @@ namespace GPUVerify
             {
                 return false;
             }
-        
+
             Expr lhs, rhs;
 
             if (IntegerRepresentationHelper.IsFun(expr, "MUL", out lhs, out rhs)) {
@@ -127,28 +127,28 @@ namespace GPUVerify
                     (IsConstant(lhs, 2) || IsConstant(rhs, 2))
                     );
             }
-        
+
             if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs)) {
                 return
                    (
                     IsVariable(lhs, v) && IsConstant(rhs, 2)
                     );
             }
-        
+
             if (IntegerRepresentationHelper.IsFun(expr, "SHL", out lhs, out rhs)) {
                 return
                    (
                     IsVariable(lhs, v) && IsConstant(rhs, 1)
                     );
             }
-        
+
             if (IntegerRepresentationHelper.IsFun(expr, "ASHR", out lhs, out rhs)) {
                 return
                    (
                     IsVariable(lhs, v) && IsConstant(rhs, 1)
                     );
             }
-            
+
             if (IntegerRepresentationHelper.IsFun(expr, "LSHR", out lhs, out rhs)) {
               return
                  (

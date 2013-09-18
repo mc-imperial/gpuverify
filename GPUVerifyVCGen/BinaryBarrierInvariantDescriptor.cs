@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,7 +21,7 @@ namespace GPUVerify {
 
     public BinaryBarrierInvariantDescriptor(Expr Predicate, Expr BarrierInvariant,
         QKeyValue SourceLocationInfo,
-        KernelDualiser Dualiser, string ProcName, GPUVerifier Verifier) : 
+        KernelDualiser Dualiser, string ProcName, GPUVerifier Verifier) :
       base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName, Verifier) {
       InstantiationExprPairs = new List<Tuple<Expr, Expr>>();
     }
@@ -54,9 +54,9 @@ namespace GPUVerify {
               Expr.Imp(
                 Expr.And(
                   Expr.And(
-                    Expr.And(NonNegative(ThreadInstantiationExpr), 
+                    Expr.And(NonNegative(ThreadInstantiationExpr),
                              NotTooLarge(ThreadInstantiationExpr)),
-                    Expr.And(NonNegative(OtherThreadInstantiationExpr), 
+                    Expr.And(NonNegative(OtherThreadInstantiationExpr),
                              NotTooLarge(OtherThreadInstantiationExpr))
                   ),
                   Expr.Neq(ThreadInstantiationExpr, OtherThreadInstantiationExpr)),

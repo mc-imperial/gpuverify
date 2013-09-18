@@ -8,14 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
 using System.Diagnostics;
 using System.Windows.Forms;
-
 
 
 using Microsoft.Boogie;
@@ -63,7 +62,7 @@ namespace GPUVerify
             if(CommandLineOptions.DebugGPUVerify) {
               throw e;
             }
-            
+
             Environment.Exit(1);
           }
         }
@@ -85,7 +84,7 @@ namespace GPUVerify
                 Console.WriteLine("{0} name resolution errors detected in {1}", rc.ErrorCount, CommandLineOptions.inputFiles[CommandLineOptions.inputFiles.Count - 1]);
                 Environment.Exit(1);
             }
-            
+
             int errorCount = program.Typecheck();
             if (errorCount != 0)
             {
@@ -124,12 +123,8 @@ namespace GPUVerify
             ResolutionContext rc;
             Program program = parse(out rc);
             new GPUVerifier(fn, program, rc).doit();
-            
+
         }
-
-
-
-
 
         public static Program ParseBoogieProgram(List<string> fileNames, bool suppressTraceOutput)
         {
@@ -185,8 +180,5 @@ namespace GPUVerify
 
 
     }
-
-
-
 
 }

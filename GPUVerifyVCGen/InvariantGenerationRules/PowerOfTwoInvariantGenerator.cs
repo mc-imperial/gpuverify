@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -41,7 +41,7 @@ namespace GPUVerify.InvariantGenerationRules
                             verifier.AddCandidateInvariant(region, MakePowerOfTwoExpr(v), "pow2 disjunction", InferenceStages.BASIC_CANDIDATE_STAGE);
                             for (int i = (1 << 15); i > 0; i >>= 1)
                             {
-                                verifier.AddCandidateInvariant(region, 
+                                verifier.AddCandidateInvariant(region,
                                     verifier.IntRep.MakeSlt(
                                     new IdentifierExpr(v.tok, v),
                                     verifier.IntRep.GetLiteral(i, 32)),
@@ -62,7 +62,7 @@ namespace GPUVerify.InvariantGenerationRules
             Expr result = null;
             for (int i = 1 << 15; i > 0; i >>= 1)
             {
-                Expr eq = Expr.Eq(new IdentifierExpr(v.tok, v), 
+                Expr eq = Expr.Eq(new IdentifierExpr(v.tok, v),
                   verifier.IntRep.GetLiteral(i, 32));
                 result = (result == null ? eq : Expr.Or(eq, result));
             }
