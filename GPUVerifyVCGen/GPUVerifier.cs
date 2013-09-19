@@ -117,6 +117,7 @@ namespace GPUVerify
 
         internal UniformityAnalyser uniformityAnalyser;
         internal MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
+        internal RelationalPowerOfTwoAnalyser relationalPowerOfTwoAnalyser;
         internal ArrayControlFlowAnalyser arrayControlFlowAnalyser;
         internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
         internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
@@ -626,6 +627,8 @@ namespace GPUVerify
         {
             mayBePowerOfTwoAnalyser = new MayBePowerOfTwoAnalyser(this);
             mayBePowerOfTwoAnalyser.Analyse();
+            relationalPowerOfTwoAnalyser = new RelationalPowerOfTwoAnalyser(this);
+            relationalPowerOfTwoAnalyser.Analyse();
         }
 
         private void DoArrayControlFlowAnalysis()

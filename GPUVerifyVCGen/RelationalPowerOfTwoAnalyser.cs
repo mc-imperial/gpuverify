@@ -8,26 +8,55 @@
 //===----------------------------------------------------------------------===//
 
 
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Diagnostics;
 using Microsoft.Boogie;
 using Microsoft.Basetypes;
 
 namespace GPUVerify
 {
-    class MayBePowerOfTwoAnalyser
+    class RelationalPowerOfTwoAnalyser
     {
         private GPUVerifier verifier;
+        private enum Kind { No, Inc, Dec };
+        private Dictionary<string, Dictionary<string, Kind>> mayBePowerOfTwoInfo;
 
-        private Dictionary<string, Dictionary<string, bool>> mayBePowerOfTwoInfo;
+        internal bool IsInc(string p, string v) {
+            if (!mayBePowerOfTwoInfo.ContainsKey(p))
+            {
+                return false;
+            }
 
-        public MayBePowerOfTwoAnalyser(GPUVerifier verifier)
+            if (!mayBePowerOfTwoInfo[p].ContainsKey(v))
+            {
+                return false;
+            }
+
+            return mayBePowerOfTwoInfo[p][v] == Kind.Inc;
+        }
+
+        internal bool IsDec(string p, string v) {
+            if (!mayBePowerOfTwoInfo.ContainsKey(p))
+            {
+                return false;
+            }
+
+            if (!mayBePowerOfTwoInfo[p].ContainsKey(v))
+            {
+                return false;
+            }
+
+            return mayBePowerOfTwoInfo[p][v] == Kind.Dec;
+        }
+
+        public RelationalPowerOfTwoAnalyser(GPUVerifier verifier)
         {
             this.verifier = verifier;
-            mayBePowerOfTwoInfo = new Dictionary<string, Dictionary<string, bool>>();
+            mayBePowerOfTwoInfo = new Dictionary<string, Dictionary<string, Kind>>();
         }
 
         internal void Analyse()
@@ -37,7 +66,7 @@ namespace GPUVerify
                 if (D is Implementation)
                 {
                     Implementation Impl = D as Implementation;
-                    mayBePowerOfTwoInfo.Add(Impl.Name, new Dictionary<string, bool>());
+                    mayBePowerOfTwoInfo.Add(Impl.Name, new Dictionary<string, Kind>());
 
                     SetNotPowerOfTwo(Impl.Name, GPUVerifier._X.Name);
                     SetNotPowerOfTwo(Impl.Name, GPUVerifier._Y.Name);
@@ -72,12 +101,24 @@ namespace GPUVerify
 
         private void SetNotPowerOfTwo(string p, string v)
         {
-            mayBePowerOfTwoInfo[p][v] = false;
+            mayBePowerOfTwoInfo[p][v] = Kind.No;
         }
 
         private void Analyse(Implementation Impl)
         {
             Analyse(Impl, verifier.RootRegion(Impl));
+        }
+
+        private bool IsTempVariable(Expr expr)
+        {
+            if (expr is IdentifierExpr)
+            {
+                IdentifierExpr iexpr = expr as IdentifierExpr;
+                String name = iexpr.Name;
+                Match match = Regex.Match(name, @"v[0-9]+");
+                return match.Success;
+            }
+            return false;
         }
 
         private void Analyse(Implementation impl, IRegion region)
@@ -95,9 +136,23 @@ namespace GPUVerify
                             Variable v = (assign.Lhss[i] as SimpleAssignLhs).AssignedVariable.Decl;
                             if (mayBePowerOfTwoInfo[impl.Name].ContainsKey(v.Name))
                             {
-                                if (isPowerOfTwoOperation(v, assign.Rhss[i]))
+                                Expr expr = assign.Rhss[i];
+                                if (IsTempVariable(expr))
                                 {
-                                    mayBePowerOfTwoInfo[impl.Name][v.Name] = true;
+                                    expr = verifier.varDefAnalyses[impl].DefOfVariableName((expr as IdentifierExpr).Name);
+                                }
+                                switch (isPowerOfTwoOperation(v, expr)) {
+                                  case Kind.No:
+                                    break;
+                                  case Kind.Inc:
+                                    mayBePowerOfTwoInfo[impl.Name][v.Name] = Kind.Inc;
+                                    break;
+                                  case Kind.Dec:
+                                    mayBePowerOfTwoInfo[impl.Name][v.Name] = Kind.Dec;
+                                    break;
+                                  default:
+                                    Debug.Assert(false);
+                                    break;
                                 }
                             }
                         }
@@ -106,58 +161,43 @@ namespace GPUVerify
             }
         }
 
-        private bool isPowerOfTwoOperation(Variable v, Expr expr)
+        private Kind isPowerOfTwoOperation(Variable v, Expr expr)
         {
-
+            //Console.WriteLine("relational:isPowerOfTwoOperation {0} {1}", v, expr);
+          
             if (!(
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32))
                 ))
             {
-                return false;
+                return Kind.No;
             }
 
             Expr lhs, rhs;
 
             if (IntegerRepresentationHelper.IsFun(expr, "MUL", out lhs, out rhs)) {
-                return
-                   (
-                    (IsVariable(lhs, v) || IsVariable(rhs, v)) &&
-                    (IsConstant(lhs, 2) || IsConstant(rhs, 2))
-                    );
+                if ((IsVariable(lhs, v) || IsVariable(rhs, v)) && (IsConstant(lhs, 2) || IsConstant(rhs, 2))) return Kind.Inc;
             }
-
+        
             if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs) ||
                 IntegerRepresentationHelper.IsFun(expr, "SDIV", out lhs, out rhs)) {
-                return
-                   (
-                    IsVariable(lhs, v) && IsConstant(rhs, 2)
-                    );
+                if (IsVariable(lhs, v) && IsConstant(rhs, 2)) return Kind.Dec;
             }
-
+        
             if (IntegerRepresentationHelper.IsFun(expr, "SHL", out lhs, out rhs)) {
-                return
-                   (
-                    IsVariable(lhs, v) && IsConstant(rhs, 1)
-                    );
+                if (IsVariable(lhs, v) && IsConstant(rhs, 1)) return Kind.Inc;
             }
-
+        
             if (IntegerRepresentationHelper.IsFun(expr, "ASHR", out lhs, out rhs)) {
-                return
-                   (
-                    IsVariable(lhs, v) && IsConstant(rhs, 1)
-                    );
+                if (IsVariable(lhs, v) && IsConstant(rhs, 1)) return Kind.Dec;
             }
-
+            
             if (IntegerRepresentationHelper.IsFun(expr, "LSHR", out lhs, out rhs)) {
-              return
-                 (
-                  IsVariable(lhs, v) && IsConstant(rhs, 1)
-                  );
+              if (IsVariable(lhs, v) && IsConstant(rhs, 1)) return Kind.Dec;
             }
 
-            return false;
+            return Kind.No;
         }
 
         private bool IsConstant(Expr expr, int x)
@@ -196,26 +236,14 @@ namespace GPUVerify
                 foreach (string v in mayBePowerOfTwoInfo[p].Keys)
                 {
                     Console.WriteLine("  " + v + ": " +
-                        (mayBePowerOfTwoInfo[p][v] ? "may be power of two" : "likely not power of two"));
+                        (mayBePowerOfTwoInfo[p][v] == Kind.No ? "likely not power of two" :
+                         mayBePowerOfTwoInfo[p][v] == Kind.Inc ? "maybe incrementing power of two" :
+                         mayBePowerOfTwoInfo[p][v] == Kind.Dec ? "maybe decrementing power of two" :
+                         ""));
                 }
             }
 
         }
 
-
-        internal bool MayBePowerOfTwo(string p, string v)
-        {
-            if (!mayBePowerOfTwoInfo.ContainsKey(p))
-            {
-                return false;
-            }
-
-            if (!mayBePowerOfTwoInfo[p].ContainsKey(v))
-            {
-                return false;
-            }
-
-            return mayBePowerOfTwoInfo[p][v];
-        }
     }
 }

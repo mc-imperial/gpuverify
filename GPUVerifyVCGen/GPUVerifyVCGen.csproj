@@ -167,6 +167,7 @@
     <Compile Include="KernelDualiser.cs" />
     <Compile Include="LoopInvariantGenerator.cs" />
     <Compile Include="MayBePowerOfTwoAnalyser.cs" />
+    <Compile Include="RelationalPowerOfTwoAnalyser.cs" />
     <Compile Include="CommandLineOptions.cs" />
     <Compile Include="GPUVerifier.cs" />
     <Compile Include="IKernelArrayInfo.cs" />
