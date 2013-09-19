@@ -69,13 +69,11 @@ namespace GPUVerify.InvariantGenerationRules
                 {
                     var mulInv = Expr.Eq(verifier.IntRep.MakeMul(new IdentifierExpr(inc.tok, inc), new IdentifierExpr(dec.tok, dec)), verifier.IntRep.GetLiteral(i, 32));
                     verifier.AddCandidateInvariant(region, mulInv, "relational pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
-                    for (int j = (1 << 15); j > 0; j >>= 1) {
-                        var disjInv = Expr.Or(
-                            Expr.And(Expr.Eq(new IdentifierExpr(dec.tok, dec), verifier.IntRep.GetLiteral(0, 32)),
-                                     Expr.Eq(new IdentifierExpr(inc.tok, inc), verifier.IntRep.GetLiteral(j, 32))),
-                            mulInv);
-                        verifier.AddCandidateInvariant(region, disjInv, "relational pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
-                    }   
+                    var disjInv = Expr.Or(
+                      Expr.And(Expr.Eq(new IdentifierExpr(dec.tok, dec), verifier.IntRep.GetLiteral(0, 32)),
+                               Expr.Eq(new IdentifierExpr(inc.tok, inc), verifier.IntRep.GetLiteral(2*i, 32))),
+                      mulInv);
+                    verifier.AddCandidateInvariant(region, disjInv, "relational pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
                 }
             }
         }
