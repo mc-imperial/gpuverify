@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -270,7 +270,7 @@ namespace GPUVerify
                 IfCmd ifCmd = bb.ec as IfCmd;
 
                 ExprMayAffectControlFlow(impl.Name, ifCmd.Guard);
-                
+
                 Analyse(impl, ifCmd.thn);
                 if (ifCmd.elseBlock != null)
                 {
