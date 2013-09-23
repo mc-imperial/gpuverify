@@ -198,6 +198,7 @@ class CommandLineOptions(object):
   generateSmt2 = False
   noBarrierAccessChecks = False
   noConstantWriteChecks = False
+  callSiteAnalysis = False
   testsuite = False
   warpSync = False
   warpSize = 32
@@ -363,6 +364,7 @@ def showHelpAndExit():
   print "  --boogie-opt=...        Specify option to be passed to Boogie"
   print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
   print "  --bugle-opt=...         Specify option to be passed to Bugle"
+  print "  --call-site-analysis    Turn on call site analysis"
   print "  --clang-opt=...         Specify option to be passed to CLANG"
   print "  --debug                 Enable debugging of GPUVerify components: exceptions will"
   print "                          not be suppressed"
@@ -547,6 +549,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.testsuite = True
     if o == "--no-refined-atomics":
       CommandLineOptions.noRefinedAtomics = True
+    if o == "--call-site-analysis":
+      CommandLineOptions.callSiteAnalysis = True
 
   # All options whose processing can result in an error go in this loop.
   # See also the comment above the previous loop.
@@ -694,12 +698,14 @@ def main(argv=None):
   progname = argv[0]
 
   try:
-    opts, args = getopt.gnu_getopt(argv[1:],'D:I:h', 
+    opts, args = getopt.gnu_getopt(argv[1:],'D:I:h',
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
-              'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
-              'only-log', 'adversarial-abstraction', 'equality-abstraction', 
+              'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group',
+              'only-log', 'adversarial-abstraction', 'equality-abstraction',
               'no-annotations', 'no-barrier-access-checks', 'no-constant-write-checks', 'no-loop-predicate-invariants',
-              'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
+              'no-smart-predication', 'no-source-loc-infer',
+              'no-uniformity-analysis', 'call-site-analysis',
+              'clang-opt=',
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=',
               'blockDim=', 'gridDim=', 'math-int', 'stop-at-opt',
@@ -831,6 +837,8 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/stagedInference" ]
   if CommandLineOptions.mathInt:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/mathInt" ]
+  if CommandLineOptions.callSiteAnalysis:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/callSiteAnalysis" ]
 
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 

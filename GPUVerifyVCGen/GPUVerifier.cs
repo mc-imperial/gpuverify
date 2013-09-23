@@ -119,6 +119,7 @@ namespace GPUVerify
         internal MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
         internal RelationalPowerOfTwoAnalyser relationalPowerOfTwoAnalyser;
         internal ArrayControlFlowAnalyser arrayControlFlowAnalyser;
+        internal CallSiteAnalyser callSiteAnalyser;
         internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
         internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
 
@@ -470,6 +471,11 @@ namespace GPUVerify
 
             DoArrayControlFlowAnalysis();
 
+            if (CommandLineOptions.DoCallSiteAnalysis)
+            {
+                DoCallSiteAnalysis();
+            }
+
             if (CommandLineOptions.Inference)
             {
 
@@ -629,6 +635,12 @@ namespace GPUVerify
             mayBePowerOfTwoAnalyser.Analyse();
             relationalPowerOfTwoAnalyser = new RelationalPowerOfTwoAnalyser(this);
             relationalPowerOfTwoAnalyser.Analyse();
+        }
+
+        private void DoCallSiteAnalysis()
+        {
+            callSiteAnalyser = new CallSiteAnalyser(this);
+            callSiteAnalyser.Analyse();
         }
 
         private void DoArrayControlFlowAnalysis()

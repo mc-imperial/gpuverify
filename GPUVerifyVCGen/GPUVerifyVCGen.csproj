@@ -154,6 +154,7 @@
     <Compile Include="BarrierIntervals.cs" />
     <Compile Include="BarrierInvariantDescriptor.cs" />
     <Compile Include="BinaryBarrierInvariantDescriptor.cs" />
+    <Compile Include="CallSiteAnalyser.cs" />
     <Compile Include="IntegerRepresentation.cs" />
     <Compile Include="IntraProceduralLiveVariableAnalysis.cs" />
     <Compile Include="StrideConstraint.cs" />
