@@ -110,15 +110,15 @@ clangCoreOptions = [ "-target", "nvptx--bugle",
 if os.name == "posix":
 
   if os.path.isfile(gvfindtools.bugleBinDir \
-                    + "/libBugleInlineCheckPlugin.so"):
+                    + "/libbugleInlineCheckPlugin.so"):
     bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
-                             + "/libBugleInlineCheckPlugin.so"
+                             + "/libbugleInlineCheckPlugin.so"
   elif os.path.isfile(gvfindtools.bugleBinDir \
-                      + "/libBugleInlineCheckPlugin.dylib"):
+                      + "/libbugleInlineCheckPlugin.dylib"):
     bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
-                             + "/libBugleInlineCheckPlugin.dylib"
-  else: 
-    GPUVerifyError('Could not find Bugle Inline Check plugin',ErrorCodes.CONFIGURATION_ERROR)
+                             + "/libbugleInlineCheckPlugin.dylib"
+  else:
+    GPUVerifyError('Could not find Bugle Inline Check plugin', ErrorCodes.CONFIGURATION_ERROR)
 
   clangInlineOptions = [ "-Xclang", "-load",
                          "-Xclang", bugleInlineCheckPlugin,
