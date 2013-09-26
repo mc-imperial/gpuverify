@@ -92,7 +92,11 @@ namespace Microsoft.Boogie
         Console.Error.WriteLine();
         Console.Error.WriteLine("  https://gpuverify.codeplex.com");
         Console.Error.WriteLine();
-        #endregion"
+        // John says:
+        // I deleted a double-quote character from the next line because it 
+        // didn't look like it was doing anything and it was messing up my 
+        // syntax-highlighting. I hope that doesn't break anything.
+        #endregion 
 
         #region Now try to give the user a specific hint if this looks like a common problem
         try {
