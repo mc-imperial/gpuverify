@@ -861,7 +861,7 @@ def main(argv=None):
   if CommandLineOptions.useParallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/numOfRefutationEngines:" + str(CommandLineOptions.numEngines) ]
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/outputRefuted" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/sharedRefutation" ]
     if CommandLineOptions.debuggingParallelInference > 2:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/printAssignment" ]
     if CommandLineOptions.debuggingParallelInference > 1:
