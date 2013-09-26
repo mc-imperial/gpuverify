@@ -35,7 +35,7 @@ namespace GPUVerify
         return true;
       }
 
-      if (name == "paralarallelInference") {
+      if (name == "parallelInference") {
         ParallelInference = true;
         return true;
       }
@@ -51,4 +51,3 @@ namespace GPUVerify
     }
   }
 }
-

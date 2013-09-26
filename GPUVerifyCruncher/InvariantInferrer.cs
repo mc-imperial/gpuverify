@@ -8,36 +8,51 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using GPUVerify;
+﻿using System;
+using System.IO;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Linq;
+using Microsoft.Boogie;
 
-namespace Microsoft.Boogie
+namespace GPUVerify
 {
-  ﻿using System;
-  using System.IO;
-  using System.Collections.Generic;
-  using System.Text.RegularExpressions;
-  using System.Linq;
-  using VC;
-
   public class InvariantInferrer
   {
     Configuration config = null;
-    Houdini.Houdini[] houdini = null;
+    RefutationEngine[] refutationEngines = null;
     int numRefEng = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).NumOfRefutationEngines;
 
     public InvariantInferrer()
     {
-//      config = new Configuration();
-      houdini = new Houdini.Houdini[numRefEng];
+      refutationEngines = new RefutationEngine[numRefEng];
+      config = new Configuration();
     }
 
     public int inferInvariants(Program program)
     {
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-        // do nothing currently
+      int exitCode = 0;
+      string conf;
+      string engine;
+
+      for (int i = 0; i < numRefEng; i++) {
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
+          engine = "Engine_" + (i + 1);
+          conf = config.getValue("ParallelInference", engine);
+        } else {
+          conf = config.getValue("Inference", "Engine");
+        }
+
+        refutationEngines[i] = new RefutationEngine(0, conf,
+                                                    config.getValue(conf, "Solver"),
+                                                    config.getValue(conf, "ErrorLimit"),
+                                                    config.getValue(conf, "CheckForLMI"),
+                                                    config.getValue(conf, "ModifyTSO"),
+                                                    config.getValue(conf, "LoopUnwind"));
+        exitCode += refutationEngines[i].start(program);
       }
 
-      return runSequentialHoudini(program);
+      return exitCode;
     }
 
     public void applyInvariants(Program program)
@@ -46,66 +61,9 @@ namespace Microsoft.Boogie
         // do nothing currently
       }
 
-      if (houdini != null) {
-        houdini[0].ApplyAssignment(program);
+      if (refutationEngines != null && refutationEngines[0] != null) {
+        refutationEngines[0].houdini.ApplyAssignment(program);
       }
-    }
-
-    private int runSequentialHoudini(Program program)
-    {
-      var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
-      houdini[0] = new Houdini.Houdini(program, houdiniStats);
-      Houdini.HoudiniOutcome outcome = houdini[0].PerformHoudiniInference();
-
-      if (CommandLineOptions.Clo.PrintAssignment) {
-        Console.WriteLine("Assignment computed by Houdini:");
-        foreach (var x in outcome.assignment) {
-          Console.WriteLine(x.Key + " = " + x.Value);
-        }
-      }
-
-      if (CommandLineOptions.Clo.Trace) {
-        int numTrueAssigns = 0;
-        foreach (var x in outcome.assignment) {
-          if (x.Value)
-            numTrueAssigns++;
-        }
-
-        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
-        Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
-        Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
-        Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
-        Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
-        Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
-      }
-
-      if (!AllImplementationsValid(outcome)) {
-        int verified = 0;
-        int errorCount = 0;
-        int inconclusives = 0;
-        int timeOuts = 0;
-        int outOfMemories = 0;
-
-        foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
-          KernelAnalyser.ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
-        }
-
-        GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
-        return errorCount + inconclusives + timeOuts + outOfMemories;
-      }
-
-      return 0;
-    }
-
-    private static bool AllImplementationsValid(Houdini.HoudiniOutcome outcome)
-    {
-      foreach (var vcgenOutcome in outcome.implementationOutcomes.Values.Select(i => i.outcome)) {
-        if (vcgenOutcome != VCGen.Outcome.Correct) {
-          return false;
-        }
-      }
-      return true;
     }
 
     private class Configuration
@@ -120,6 +78,7 @@ namespace Microsoft.Boogie
 
       public string getValue(string key1, string key2)
       {
+        Console.WriteLine(key1 + " :: " + key2 + " :: " + info[key1][key2]);
         return info[key1][key2];
       }
 
@@ -156,6 +115,21 @@ namespace Microsoft.Boogie
           Environment.Exit(1);
         }
       }
+
+//      public void print()
+//      {
+//        Console.WriteLine(### Configuration Options for Invariant Inference ###");
+//
+//        foreach (KeyValuePair<string, Dictionary<string, string>> kvpExt in info) {
+//          Console.Write("Option: " + kvpExt.Key);
+//
+//          foreach (KeyValuePair<string, string> kvpInt in kvpExt) {
+//            Console.Write(" :: " + kvpInt.Key + " :: " + kvpInt.Value);
+//          }
+//
+//          Console.WriteLine();
+//        }
+//      }
     }
   }
 }

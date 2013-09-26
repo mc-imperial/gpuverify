@@ -47,9 +47,11 @@ namespace GPUVerify
           }
           fileList.Add(file);
         }
+
         foreach (string file in fileList) {
           Contract.Assert(file != null);
           string extension = Path.GetExtension(file);
+
           if (extension != null) {
             extension = extension.ToLower();
           }
@@ -101,7 +103,6 @@ namespace GPUVerify
       KernelAnalyser.EliminateDeadVariablesAndInline(program);
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
-      // TODO: enable parallelism
       int exitCode = inferrer.inferInvariants(program);
       if (exitCode != 0) return exitCode;
 
