@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Reflection;
 using System.IO;
 using Microsoft.Boogie;
 
@@ -222,6 +223,50 @@ namespace GPUVerify
         }
         #endregion
       }
+    }
+
+    // Performs deep copy of an object using reflection
+    public static object DeepCopy(object obj)
+    {
+      if (obj == null) return null;
+
+      System.Type type = obj.GetType();
+      Console.WriteLine("***TYPE 0: {0}***", type.FullName);
+
+      if (type.IsPrimitive || type.IsEnum || type == typeof(string)) {
+        Console.WriteLine("***TYPE 1: {0}***", type.FullName);
+
+        return obj;
+      } else if (type.IsArray) {
+        Console.WriteLine("***TYPE 2: {0}***", type.FullName);
+        Console.WriteLine("***TYPE 2: {0}***", type.FullName.Replace("[]", string.Empty));
+
+        System.Type elementType = System.Type.GetType(type.FullName.Replace("[]", string.Empty) + ", Core");
+        Console.WriteLine("ELEMENTTYPE: " + elementType.FullName);
+        var array = obj as Array;
+        Array copied = Array.CreateInstance(elementType, array.Length);
+
+        for (int i = 0; i < array.Length; i++) {
+          copied.SetValue(DeepCopy(array.GetValue(i)), i);
+        }
+
+        return Convert.ChangeType(copied, obj.GetType());
+      } else if (type.IsClass || type.IsValueType) {
+        Console.WriteLine("***TYPE 3: {0}***", type.FullName);
+        object copiedObject = Activator.CreateInstance(obj.GetType());
+        FieldInfo[] fields = type.GetFields(BindingFlags.Public |
+                                            BindingFlags.NonPublic |
+                                            BindingFlags.Instance);
+
+        foreach (FieldInfo field in fields) {
+          object fieldValue = field.GetValue(obj);
+
+          if (fieldValue != null)
+            field.SetValue(copiedObject, DeepCopy(fieldValue));
+        }
+
+        return copiedObject;
+      } else throw new ArgumentException("Unknown type");
     }
   }
 }

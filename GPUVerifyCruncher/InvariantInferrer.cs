@@ -11,6 +11,8 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 using System.Linq;
 using Microsoft.Boogie;
@@ -22,11 +24,13 @@ namespace GPUVerify
     Configuration config = null;
     RefutationEngine[] refutationEngines = null;
     int numRefEng = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).NumOfRefutationEngines;
+    List<string> fileNames;
 
-    public InvariantInferrer()
+    public InvariantInferrer(List<string> fileNames)
     {
-      refutationEngines = new RefutationEngine[numRefEng];
-      config = new Configuration();
+      this.refutationEngines = new RefutationEngine[numRefEng];
+      this.config = new Configuration();
+      this.fileNames = fileNames;
     }
 
     public int inferInvariants(Program program)
@@ -35,6 +39,7 @@ namespace GPUVerify
       string conf;
       string engine;
 
+      // Initialise refutation engines
       for (int i = 0; i < numRefEng; i++) {
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
           engine = "Engine_" + (i + 1);
@@ -43,13 +48,28 @@ namespace GPUVerify
           conf = config.getValue("Inference", "Engine");
         }
 
-        refutationEngines[i] = new RefutationEngine(0, conf,
+        refutationEngines[i] = new RefutationEngine(i, conf,
                                                     config.getValue(conf, "Solver"),
                                                     config.getValue(conf, "ErrorLimit"),
                                                     config.getValue(conf, "CheckForLMI"),
                                                     config.getValue(conf, "ModifyTSO"),
                                                     config.getValue(conf, "LoopUnwind"));
-        exitCode += refutationEngines[i].start(program);
+      }
+
+      // Schedules refutation engines for execution
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
+        Task[] tasks = new Task[numRefEng];
+
+        for (int i = 0; i < tasks.Length; i++) {
+          int idx = i;
+          tasks[i] = Task.Factory.StartNew( () => {
+            exitCode += refutationEngines[idx].run(getFreshProgram());
+          } );
+        }
+
+        Task.WaitAll(tasks);
+      } else {
+        exitCode += refutationEngines[0].run(program);
       }
 
       return exitCode;
@@ -64,6 +84,24 @@ namespace GPUVerify
       if (refutationEngines != null && refutationEngines[0] != null) {
         refutationEngines[0].houdini.ApplyAssignment(program);
       }
+    }
+
+    private Program getFreshProgram()
+    {
+      KernelAnalyser.PipelineOutcome oc;
+      List<string> filesToProcess = new List<string>();
+      filesToProcess.Add(fileNames[fileNames.Count - 1]);
+
+      Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
+      if (program == null) Environment.Exit(1);
+      oc = KernelAnalyser.ResolveAndTypecheck(program, filesToProcess[0]);
+      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) Environment.Exit(1);
+
+      KernelAnalyser.DisableRaceChecking(program);
+      KernelAnalyser.EliminateDeadVariablesAndInline(program);
+      KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
+
+      return program;
     }
 
     private class Configuration

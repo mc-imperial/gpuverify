@@ -31,13 +31,7 @@ namespace Microsoft.Boogie
     bool modifyTSO;
     int loopUnwind;
 
-    public Houdini.Houdini houdini = null;
-
-    public RefutationEngine(int id, string name)
-    {
-      this.id = id;
-      this.name = name;
-    }
+    public Houdini.ConcurrentHoudini houdini = null;
 
     public RefutationEngine(int id, string name, string solver, string errorLimit, string checkForLMI, string modifyTSO, string loopUnwind)
     {
@@ -50,15 +44,15 @@ namespace Microsoft.Boogie
       this.loopUnwind = int.Parse(loopUnwind);
     }
 
-    public int start(Program program)
+    public int run(Program program)
     {
       if (CommandLineOptions.Clo.Trace) {
-        Console.WriteLine("INFO:[Thread-" + id + "] running " + name + " refutation engine.");
+        Console.WriteLine("INFO:[Thread-" + (id+1) + "] running " + name + " refutation engine.");
         printConfig();
       }
 
       var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
-      houdini = new Houdini.Houdini(program, houdiniStats);
+      houdini = new Houdini.ConcurrentHoudini(id, program, houdiniStats, "houdiniCexTrace_" + id +".bpl");
       Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
 
       if (CommandLineOptions.Clo.PrintAssignment) {
@@ -74,6 +68,8 @@ namespace Microsoft.Boogie
           if (x.Value)
             numTrueAssigns++;
         }
+
+        Console.WriteLine("INFO:[Thread-" + (id+1) + "] finished computing the assignments");
 
         Console.WriteLine("Number of true assignments = " + numTrueAssigns);
         Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));

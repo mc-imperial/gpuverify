@@ -88,7 +88,7 @@ namespace GPUVerify
       var annotatedFile = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);// + ".inv";
 
-      InvariantInferrer inferrer = new InvariantInferrer();
+      InvariantInferrer inferrer = new InvariantInferrer(fileNames);
 
       if (CommandLineOptions.Clo.Trace) {
         Console.WriteLine("Compute invariants without race checking");
