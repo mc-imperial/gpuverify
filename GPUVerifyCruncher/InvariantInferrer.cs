@@ -24,14 +24,14 @@ namespace Microsoft.Boogie
   {
     private RefutationEngine[] refutationEngines = null;
     private Configuration config = null;
-    private int numRefEng = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).NumOfRefutationEngines;
+    private int engineIdx;
     private List<string> fileNames;
-    private int engineIdx = 0;
 
     public InvariantInferrer(List<string> fileNames)
     {
-      this.refutationEngines = new RefutationEngine[numRefEng];
       this.config = new Configuration();
+      this.refutationEngines = new RefutationEngine[config.getNumberOfEngines()];
+      this.engineIdx = 0;
       this.fileNames = fileNames;
     }
 
@@ -41,7 +41,7 @@ namespace Microsoft.Boogie
       string conf;
 
       // Initialise refutation engines
-      for (int i = 0; i < numRefEng; i++) {
+      for (int i = 0; i < refutationEngines.Length; i++) {
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
           conf = config.getValue("ParallelInference", "Engine_" + (i + 1));
         } else {
@@ -53,7 +53,7 @@ namespace Microsoft.Boogie
                                                     config.getValue(conf, "ErrorLimit"),
                                                     config.getValue(conf, "DisableLMI"),
                                                     config.getValue(conf, "ModifyTSO"),
-                                                    config.getValue(conf, "LoopUnwind"));
+                                                    config.getValue(conf, "LoopUnroll"));
       }
 
       // Schedules refutation engines for execution
@@ -176,7 +176,7 @@ namespace Microsoft.Boogie
 
     private class Configuration
     {
-      Dictionary<string, Dictionary<string, string>> info = null;
+      private Dictionary<string, Dictionary<string, string>> info = null;
 
       public Configuration()
       {
@@ -187,6 +187,17 @@ namespace Microsoft.Boogie
       public string getValue(string key1, string key2)
       {
         return info[key1][key2];
+      }
+
+      public int getNumberOfEngines()
+      {
+        int num = 1;
+
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
+          num = ((Dictionary<string, string>)info ["ParallelInference"]).Count;
+        }
+
+        return num;
       }
 
       private void updateFromConfigurationFile()

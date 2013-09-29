@@ -28,11 +28,11 @@ namespace Microsoft.Boogie
     private int errorLimit;
     private bool disableLMI;
     private bool modifyTSO;
-    private int loopUnwind;
+    private int loopUnroll;
 
     public Houdini.ConcurrentHoudini houdini = null;
 
-    public RefutationEngine(int id, string name, string solver, string errorLimit, string disableLMI, string modifyTSO, string loopUnwind)
+    public RefutationEngine(int id, string name, string solver, string errorLimit, string disableLMI, string modifyTSO, string loopUnroll)
     {
       this.id = id;
       this.name = name;
@@ -40,15 +40,14 @@ namespace Microsoft.Boogie
       this.errorLimit = int.Parse(errorLimit);
       this.disableLMI = bool.Parse(disableLMI);
       this.modifyTSO = bool.Parse(modifyTSO);
-      this.loopUnwind = int.Parse(loopUnwind);
+      this.loopUnroll = int.Parse(loopUnroll);
 
       CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
-      CommandLineOptions.Clo.Cho[id].LoopUnrollCount = this.errorLimit;
+      CommandLineOptions.Clo.Cho[id].ProverCCLimit = this.errorLimit;
       CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
-      CommandLineOptions.Clo.Cho[id].LoopUnrollCount = this.loopUnwind;
 
-      if (this.disableLMI)
+      if (this.disableLMI || this.loopUnroll != -1)
         this.isTrusted = false;
       else
         this.isTrusted = true;
@@ -60,6 +59,9 @@ namespace Microsoft.Boogie
         Console.WriteLine("INFO:[Engine-" + name + "] started crunching ...");
         printConfig();
       }
+
+      if (loopUnroll != -1)
+        program.UnrollLoops(loopUnroll, CommandLineOptions.Clo.SoundLoopUnrolling);
 
       var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
       houdini = new Houdini.ConcurrentHoudini(id, program, houdiniStats, "houdiniCexTrace_" + id +".bpl");
@@ -89,7 +91,7 @@ namespace Microsoft.Boogie
       Console.WriteLine("# errorLimit = " + errorLimit);
       Console.WriteLine("# disableLMI = " + disableLMI);
       Console.WriteLine("# modifyTSO = " + modifyTSO);
-      Console.WriteLine("# loopUnwind = " + loopUnwind);
+      Console.WriteLine("# loopUnroll = " + loopUnroll);
       Console.WriteLine("######################################");
     }
   }
