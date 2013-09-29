@@ -861,7 +861,7 @@ def main(argv=None):
   if CommandLineOptions.useParallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/numOfRefutationEngines:" + str(CommandLineOptions.numEngines) ]
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/sharedRefutation" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
     if CommandLineOptions.debuggingParallelInference > 2:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/printAssignment" ]
     if CommandLineOptions.debuggingParallelInference > 1:
@@ -869,7 +869,7 @@ def main(argv=None):
     if CommandLineOptions.debuggingParallelInference > 0:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugParallelHoudini" ]
   # else:
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/errorLimit:4" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/errorLimit:20" ]
     if CommandLineOptions.solver == "cvc4":
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]

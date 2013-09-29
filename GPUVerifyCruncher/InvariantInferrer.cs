@@ -51,7 +51,7 @@ namespace GPUVerify
         refutationEngines[i] = new RefutationEngine(i, conf,
                                                     config.getValue(conf, "Solver"),
                                                     config.getValue(conf, "ErrorLimit"),
-                                                    config.getValue(conf, "CheckForLMI"),
+                                                    config.getValue(conf, "DisableLMI"),
                                                     config.getValue(conf, "ModifyTSO"),
                                                     config.getValue(conf, "LoopUnwind"));
       }

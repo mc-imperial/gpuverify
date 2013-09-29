@@ -25,23 +25,32 @@ namespace Microsoft.Boogie
     public string name;
     public bool isTrusted;
 
-    string solver;
-    int errorLimit;
-    bool checkForLMI;
-    bool modifyTSO;
-    int loopUnwind;
+    private string solver;
+    private int errorLimit;
+    private bool disableLMI;
+    private bool modifyTSO;
+    private int loopUnwind;
 
     public Houdini.ConcurrentHoudini houdini = null;
 
-    public RefutationEngine(int id, string name, string solver, string errorLimit, string checkForLMI, string modifyTSO, string loopUnwind)
+    public RefutationEngine(int id, string name, string solver, string errorLimit, string disableLMI, string modifyTSO, string loopUnwind)
     {
       this.id = id;
       this.name = name;
       this.solver = solver;
       this.errorLimit = int.Parse(errorLimit);
-      this.checkForLMI = bool.Parse(checkForLMI);
+      this.disableLMI = bool.Parse(disableLMI);
       this.modifyTSO = bool.Parse(modifyTSO);
       this.loopUnwind = int.Parse(loopUnwind);
+
+      CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
+      CommandLineOptions.Clo.Cho[id].LoopUnrollCount = this.errorLimit;
+      CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
+      CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
+      CommandLineOptions.Clo.Cho[id].LoopUnrollCount = this.loopUnwind;
+
+      Console.WriteLine("HMMM");
+      if (CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert) Console.WriteLine("MUAHAHAHAHAHA {0}", id);
     }
 
     public int run(Program program)
@@ -114,7 +123,7 @@ namespace Microsoft.Boogie
       Console.WriteLine("id = " + id);
       Console.WriteLine("solver = " + solver);
       Console.WriteLine("errorLimit = " + errorLimit);
-      Console.WriteLine("checkForLMI = " + checkForLMI);
+      Console.WriteLine("disableLMI = " + disableLMI);
       Console.WriteLine("modifyTSO = " + modifyTSO);
       Console.WriteLine("loopUnwind = " + loopUnwind);
     }
