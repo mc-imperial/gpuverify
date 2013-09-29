@@ -48,9 +48,6 @@ namespace Microsoft.Boogie
       CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
       CommandLineOptions.Clo.Cho[id].LoopUnrollCount = this.loopUnwind;
-
-      Console.WriteLine("HMMM");
-      if (CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert) Console.WriteLine("MUAHAHAHAHAHA {0}", id);
     }
 
     public int run(Program program)

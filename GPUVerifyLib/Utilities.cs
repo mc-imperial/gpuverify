@@ -225,6 +225,7 @@ namespace GPUVerify
       }
     }
 
+    // TODO: Not working really yet ...
     // Performs deep copy of an object using reflection
     public static object DeepCopy(object obj)
     {
