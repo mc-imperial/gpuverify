@@ -868,8 +868,8 @@ def main(argv=None):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
     if CommandLineOptions.debuggingParallelInference > 0:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugParallelHoudini" ]
-  # else:
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/errorLimit:20" ]
+  #else:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/errorLimit:4" ]
     if CommandLineOptions.solver == "cvc4":
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]

@@ -17,7 +17,6 @@ namespace Microsoft.Boogie
   using System.Collections.Generic;
   using System.Text.RegularExpressions;
   using System.Linq;
-  using VC;
 
   public class RefutationEngine
   {
@@ -48,81 +47,50 @@ namespace Microsoft.Boogie
       CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
       CommandLineOptions.Clo.Cho[id].LoopUnrollCount = this.loopUnwind;
+
+      if (this.disableLMI)
+        this.isTrusted = false;
+      else
+        this.isTrusted = true;
     }
 
-    public int run(Program program)
+    public int run(Program program, ref Houdini.HoudiniOutcome outcome)
     {
       if (CommandLineOptions.Clo.Trace) {
-        Console.WriteLine("INFO:[Thread-" + (id+1) + "] running " + name + " refutation engine.");
+        Console.WriteLine("INFO:[Engine-" + name + "] started crunching ...");
         printConfig();
       }
 
       var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
       houdini = new Houdini.ConcurrentHoudini(id, program, houdiniStats, "houdiniCexTrace_" + id +".bpl");
-      Houdini.HoudiniOutcome outcome = houdini.PerformHoudiniInference();
 
-      if (CommandLineOptions.Clo.PrintAssignment) {
-        Console.WriteLine("Assignment computed by Houdini:");
-        foreach (var x in outcome.assignment) {
-          Console.WriteLine(x.Key + " = " + x.Value);
-        }
-      }
+      if (outcome != null)
+        outcome = houdini.PerformHoudiniInference(initialAssignment: outcome.assignment);
+      else
+        outcome = houdini.PerformHoudiniInference();
 
       if (CommandLineOptions.Clo.Trace) {
-        int numTrueAssigns = 0;
-        foreach (var x in outcome.assignment) {
-          if (x.Value)
-            numTrueAssigns++;
-        }
-
-        Console.WriteLine("INFO:[Thread-" + (id+1) + "] finished computing the assignments");
-
-        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
-        Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
-        Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
-        Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
-        Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
-        Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
+        Console.WriteLine("INFO:[Engine-" + name + "] finished.");
       }
 
-      if (!AllImplementationsValid(outcome)) {
-        int verified = 0;
-        int errorCount = 0;
-        int inconclusives = 0;
-        int timeOuts = 0;
-        int outOfMemories = 0;
-
-        foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
-          KernelAnalyser.ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
-        }
-
-        GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
-        return errorCount + inconclusives + timeOuts + outOfMemories;
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugParallelHoudini) {
+        InvariantInferrer.PrintOutcome(outcome, houdiniStats);
       }
 
-      return 0;
-    }
-
-    private static bool AllImplementationsValid(Houdini.HoudiniOutcome outcome)
-    {
-      foreach (var vcgenOutcome in outcome.implementationOutcomes.Values.Select(i => i.outcome)) {
-        if (vcgenOutcome != VCGen.Outcome.Correct) {
-          return false;
-        }
-      }
-      return true;
+      return id;
     }
 
     public void printConfig()
     {
-      Console.WriteLine("### Configuration for " + name + " ###");
-      Console.WriteLine("id = " + id);
-      Console.WriteLine("solver = " + solver);
-      Console.WriteLine("errorLimit = " + errorLimit);
-      Console.WriteLine("disableLMI = " + disableLMI);
-      Console.WriteLine("modifyTSO = " + modifyTSO);
-      Console.WriteLine("loopUnwind = " + loopUnwind);
+      Console.WriteLine("######################################");
+      Console.WriteLine("# Configuration for " + name + ":");
+      Console.WriteLine("# id = " + id);
+      Console.WriteLine("# solver = " + solver);
+      Console.WriteLine("# errorLimit = " + errorLimit);
+      Console.WriteLine("# disableLMI = " + disableLMI);
+      Console.WriteLine("# modifyTSO = " + modifyTSO);
+      Console.WriteLine("# loopUnwind = " + loopUnwind);
+      Console.WriteLine("######################################");
     }
   }
 }

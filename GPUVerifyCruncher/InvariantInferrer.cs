@@ -7,24 +7,26 @@
 //
 //===----------------------------------------------------------------------===//
 
+﻿using GPUVerify;
 
-﻿using System;
-using System.IO;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using System.Text.RegularExpressions;
-using System.Linq;
-using Microsoft.Boogie;
-
-namespace GPUVerify
+namespace Microsoft.Boogie
 {
+  ﻿using System;
+  using System.IO;
+  using System.Collections.Generic;
+  using System.Threading;
+  using System.Threading.Tasks;
+  using System.Text.RegularExpressions;
+  using System.Linq;
+  using VC;
+
   public class InvariantInferrer
   {
-    Configuration config = null;
-    RefutationEngine[] refutationEngines = null;
-    int numRefEng = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).NumOfRefutationEngines;
-    List<string> fileNames;
+    private RefutationEngine[] refutationEngines = null;
+    private Configuration config = null;
+    private int numRefEng = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).NumOfRefutationEngines;
+    private List<string> fileNames;
+    private int engineIdx = 0;
 
     public InvariantInferrer(List<string> fileNames)
     {
@@ -35,15 +37,13 @@ namespace GPUVerify
 
     public int inferInvariants(Program program)
     {
-      int exitCode = 0;
+      Houdini.HoudiniOutcome outcome = null;
       string conf;
-      string engine;
 
       // Initialise refutation engines
       for (int i = 0; i < numRefEng; i++) {
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-          engine = "Engine_" + (i + 1);
-          conf = config.getValue("ParallelInference", engine);
+          conf = config.getValue("ParallelInference", "Engine_" + (i + 1));
         } else {
           conf = config.getValue("Inference", "Engine");
         }
@@ -58,32 +58,73 @@ namespace GPUVerify
 
       // Schedules refutation engines for execution
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-        Task[] tasks = new Task[numRefEng];
+        List<Task> unsoundTasks = new List<Task>();
+        List<Task> soundTasks = new List<Task>();
+        CancellationTokenSource tokenSource = new CancellationTokenSource();
 
-        for (int i = 0; i < tasks.Length; i++) {
-          int idx = i;
-          tasks[i] = Task.Factory.StartNew( () => {
-            exitCode += refutationEngines[idx].run(getFreshProgram());
-          } );
+        // Schedule the unsound refutatiom engines for execution
+        foreach (RefutationEngine engine in refutationEngines) {
+          if (!engine.isTrusted) {
+            unsoundTasks.Add(Task.Factory.StartNew(
+              () => {
+              engine.run(getFreshProgram(), ref outcome);
+            }
+            ));
+          }
         }
+        Task.WaitAll(unsoundTasks.ToArray());
 
-        Task.WaitAll(tasks);
+        // Schedule the sound refutation engines for execution
+        foreach (RefutationEngine engine in refutationEngines) {
+          if (engine.isTrusted) {
+            soundTasks.Add(Task.Factory.StartNew(
+              () => {
+              engineIdx = engine.run(getFreshProgram(), ref outcome);
+            }, tokenSource.Token
+            ));
+          }
+        }
+        Task.WaitAny(soundTasks.ToArray());
+        tokenSource.Cancel();
       } else {
-        exitCode += refutationEngines[0].run(program);
+        refutationEngines[0].run(program, ref outcome);
       }
 
-      return exitCode;
+      PrintOutcome(outcome);
+
+      if (!AllImplementationsValid(outcome)) {
+        int verified = 0;
+        int errorCount = 0;
+        int inconclusives = 0;
+        int timeOuts = 0;
+        int outOfMemories = 0;
+
+        foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
+          KernelAnalyser.ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+        }
+
+        GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
+        return errorCount + inconclusives + timeOuts + outOfMemories;
+      }
+
+      return 0;
     }
 
     public void applyInvariants(Program program)
     {
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-        // do nothing currently
+      if (refutationEngines != null && refutationEngines[engineIdx] != null) {
+        refutationEngines[engineIdx].houdini.ApplyAssignment(program);
       }
+    }
 
-      if (refutationEngines != null && refutationEngines[0] != null) {
-        refutationEngines[0].houdini.ApplyAssignment(program);
+    private static bool AllImplementationsValid(Houdini.HoudiniOutcome outcome)
+    {
+      foreach (var vcgenOutcome in outcome.implementationOutcomes.Values.Select(i => i.outcome)) {
+        if (vcgenOutcome != VCGen.Outcome.Correct) {
+          return false;
+        }
       }
+      return true;
     }
 
     private Program getFreshProgram()
@@ -104,6 +145,35 @@ namespace GPUVerify
       return program;
     }
 
+    public static void PrintOutcome(Houdini.HoudiniOutcome outcome, Houdini.HoudiniSession.HoudiniStatistics houdiniStats = null)
+    {
+      if (CommandLineOptions.Clo.PrintAssignment) {
+        Console.WriteLine("Assignment computed by Houdini:");
+        foreach (var x in outcome.assignment) {
+          Console.WriteLine(x.Key + " = " + x.Value);
+        }
+      }
+
+      if (CommandLineOptions.Clo.Trace) {
+        int numTrueAssigns = 0;
+        foreach (var x in outcome.assignment) {
+          if (x.Value)
+            numTrueAssigns++;
+        }
+
+        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
+        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+
+        if (houdiniStats != null) {
+          Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
+          Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
+          Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
+          Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
+          Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
+        }
+      }
+    }
+
     private class Configuration
     {
       Dictionary<string, Dictionary<string, string>> info = null;
@@ -116,7 +186,6 @@ namespace GPUVerify
 
       public string getValue(string key1, string key2)
       {
-        Console.WriteLine(key1 + " :: " + key2 + " :: " + info[key1][key2]);
         return info[key1][key2];
       }
 
@@ -126,7 +195,7 @@ namespace GPUVerify
 
         try {
           using (var fileStream = new FileStream(file, FileMode.Open, FileAccess.Read))
-          using (var input = new StreamReader(fileStream)) {
+            using (var input = new StreamReader(fileStream)) {
             string entry;
             string key = "";
 
@@ -154,20 +223,14 @@ namespace GPUVerify
         }
       }
 
-//      public void print()
-//      {
-//        Console.WriteLine(### Configuration Options for Invariant Inference ###");
-//
-//        foreach (KeyValuePair<string, Dictionary<string, string>> kvpExt in info) {
-//          Console.Write("Option: " + kvpExt.Key);
-//
-//          foreach (KeyValuePair<string, string> kvpInt in kvpExt) {
-//            Console.Write(" :: " + kvpInt.Key + " :: " + kvpInt.Value);
-//          }
-//
-//          Console.WriteLine();
-//        }
-//      }
+      public void print()
+      {
+        Console.WriteLine("################################################");
+        Console.WriteLine("# Configuration Options for Invariant Inference:");
+        info.SelectMany(option => option.Value.Select(opt => "# " + option.Key + " :: " + opt.Key + " :: " + opt.Value))
+          .ToList().ForEach(Console.WriteLine);
+        Console.WriteLine("################################################");
+      }
     }
   }
 }
