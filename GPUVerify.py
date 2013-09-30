@@ -889,7 +889,7 @@ def main(argv=None):
   
   CommandLineOptions.gpuVerifyCruncherOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyBoogieDriverOptions += CommandLineOptions.defaultOptions
-  CommandLineOptions.gpuVerifyCruncherOptions += [ "/invInferConfigFile:" + CommandLineOptions.invInferConfigFile ]
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/invInferConfigFile:" + os.path.dirname(os.path.abspath(__file__)) + os.sep + CommandLineOptions.invInferConfigFile ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ bplFilename ]
   CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 

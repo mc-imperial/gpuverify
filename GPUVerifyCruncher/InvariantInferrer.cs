@@ -56,7 +56,6 @@ namespace Microsoft.Boogie
     {
       Houdini.HoudiniOutcome outcome = null;
 
-      // Schedules refutation engines for execution
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
         List<Task> unsoundTasks = new List<Task>();
         List<Task> soundTasks = new List<Task>();
