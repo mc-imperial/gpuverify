@@ -22,8 +22,10 @@ namespace GPUVerify {
     public bool NoSourceLocInfer = false;
     public bool OnlyIntraGroupRaceChecking = false;
     public bool DebugGPUVerify = false;
-    public int BlockHighestDim = 3;
-    public int GridHighestDim = 3;
+    // Dimensionality of block = BlockHighestDim + 1
+    public int BlockHighestDim = 2;
+    // Dimensionality of grid = GridHighestDim + 1
+    public int GridHighestDim = 2;
 
     public GPUVerifyBoogieDriverCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser") {
@@ -32,19 +34,11 @@ namespace GPUVerify {
     protected override bool ParseOption(string name, CommandLineOptionEngine.CommandLineParseState ps) {
 
       if (name == "blockHighestDim") {
-        // John says:
-        // blockHighestDim=0 ==> 1-D blocks
-        // blockHighestDim=1 ==> 2-D blocks
-        // blockHighestDim=2 ==> 3-D blocks
         ps.GetNumericArgument(ref BlockHighestDim, 3);
         return true;
       }
 
       if (name == "gridHighestDim") {
-        // John says:
-        // gridHighestDim=0 ==> 1-D grid
-        // gridHighestDim=1 ==> 2-D grid
-        // gridHighestDim=2 ==> 3-D grid
         ps.GetNumericArgument(ref GridHighestDim, 3);
         return true;
       }

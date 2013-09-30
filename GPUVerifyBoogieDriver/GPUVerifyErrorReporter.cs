@@ -188,9 +188,9 @@ namespace GPUVerify {
 
       AddPadding(ref locinfo1, ref locinfo2);
 
-      /* John asks:
-         How come it's thread2 on this line, and thread1 on the next line? Shouldn't
-         thread1 come first?
+      /* TODO:
+         Why is thread2 being printed with locinfo1, and thread1 being
+         printed with locinfo2? Check whether this is correct.
        */
       ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " in group " + group2, ErrorMsgType.NoError);
       Microsoft.Boogie.GPUVerifyBoogieDriver.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
