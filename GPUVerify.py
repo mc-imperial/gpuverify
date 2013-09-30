@@ -853,8 +853,6 @@ def main(argv=None):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
     if CommandLineOptions.debuggingParallelInference > 0:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugParallelHoudini" ]
-  #else:
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/errorLimit:4" ]
   
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
