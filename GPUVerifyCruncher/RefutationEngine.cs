@@ -47,6 +47,9 @@ namespace Microsoft.Boogie
       CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
 
+      if (name.Equals ("cvc4"))
+        CommandLineOptions.Clo.Cho[id].ProverOptions.Add("SOLVER=cvc4");
+
       if (this.disableLMI || this.loopUnroll != -1)
         this.isTrusted = false;
       else
