@@ -33,11 +33,6 @@ namespace Microsoft.Boogie
       this.refutationEngines = new RefutationEngine[config.getNumberOfEngines()];
       this.engineIdx = 0;
       this.fileNames = fileNames;
-    }
-
-    public int inferInvariants(Program program)
-    {
-      Houdini.HoudiniOutcome outcome = null;
       string conf;
 
       // Initialise refutation engines
@@ -55,6 +50,11 @@ namespace Microsoft.Boogie
                                                     config.getValue(conf, "ModifyTSO"),
                                                     config.getValue(conf, "LoopUnroll"));
       }
+    }
+
+    public int inferInvariants(Program program)
+    {
+      Houdini.HoudiniOutcome outcome = null;
 
       // Schedules refutation engines for execution
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
@@ -68,11 +68,13 @@ namespace Microsoft.Boogie
             unsoundTasks.Add(Task.Factory.StartNew(
               () => {
               engine.run(getFreshProgram(), ref outcome);
-            }
+            }, tokenSource.Token
             ));
           }
         }
-        Task.WaitAll(unsoundTasks.ToArray());
+
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("unsound-first"))
+          Task.WaitAll(unsoundTasks.ToArray());
 
         // Schedule the sound refutation engines for execution
         foreach (RefutationEngine engine in refutationEngines) {

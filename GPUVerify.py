@@ -129,7 +129,8 @@ class CommandLineOptions(object):
   inference = True
   invInferConfigFile = "inference.cfg"
   stagedInference = False
-  useParallelInference = False
+  parallelInference = False
+  scheduling = "default"
   debuggingParallelInference = 0
   stopAtOpt = False
   stopAtGbpl = False
@@ -366,6 +367,8 @@ def showHelpAndExit():
   print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
   print "                          inference (but this is not guaranteed)"
+  print "  --scheduling=X          Choose a scheduling strategy from the following: 'default' or"
+  print "                          'unsound-first'. The default strategy is 'default'."
   print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
   print "                          for varying levels of debugging information"
   print "  --infer-config-file=X.cfg       Specify a custom configuration file to be used"
@@ -503,7 +506,7 @@ def processGeneralOptions(opts, args):
     if o == "--staged-inference":
       CommandLineOptions.stagedInference = True
     if o == "--parallel-inference":
-      CommandLineOptions.useParallelInference = True
+      CommandLineOptions.parallelInference = True
     if o == "--stop-at-opt":
       CommandLineOptions.stopAtOpt = True
     if o == "--stop-at-gbpl":
@@ -570,6 +573,11 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.solver = a.lower()
       else:
         GPUVerifyError("argument to --solver must be 'Z3' or 'CVC4'", ErrorCodes.COMMAND_LINE_ERROR)
+    if o == "--scheduling":
+      if a.lower() in ("default","unsound-first"):
+        CommandLineOptions.scheduling = a.lower()
+      else:
+        GPUVerifyError("argument to --scheduling must be 'default' or 'unsound-first'", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--logic":
       if a.upper() in ("ALL_SUPPORTED","QF_ALL_SUPPORTED"):
         CommandLineOptions.logic = a.upper()
@@ -707,7 +715,7 @@ def main(argv=None):
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
               'no-infer', 'infer-timeout=', 'staged-inference',
-              'parallel-inference', 'debug-parallel-inference=',
+              'parallel-inference', 'scheduling=', 'debug-parallel-inference=',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic='
              ])
@@ -844,7 +852,7 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyCruncherOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
   
-  if CommandLineOptions.useParallelInference:
+  if CommandLineOptions.parallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
     if CommandLineOptions.debuggingParallelInference > 2:
@@ -854,6 +862,7 @@ def main(argv=None):
     if CommandLineOptions.debuggingParallelInference > 0:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugParallelHoudini" ]
   
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:LOGIC=" + CommandLineOptions.logic ]

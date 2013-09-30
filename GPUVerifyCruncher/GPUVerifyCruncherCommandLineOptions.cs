@@ -19,7 +19,8 @@ namespace GPUVerify
 {
   public class GPUVerifyCruncherCommandLineOptions : GVCommandLineOptions
   {
-    public string ConfigFile = null;
+    public string ConfigFile = "inference.cfg";
+    public string ParallelInferenceScheduling = "default";
     public bool ParallelInference = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
@@ -36,6 +37,13 @@ namespace GPUVerify
 
       if (name == "parallelInference") {
         ParallelInference = true;
+        return true;
+      }
+
+      if (name == "parallelInferenceScheduling") {
+        if (ps.ConfirmArgumentCount(1)) {
+          ParallelInferenceScheduling = ps.args[ps.i];
+        }
         return true;
       }
 
