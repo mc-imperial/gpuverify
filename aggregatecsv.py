@@ -48,6 +48,9 @@ class CsvData:
         self.cruncherTime = []
         self.boogieTime   = []
         self.totalTime    = []
+        
+        self.cruncherMean = 0
+        self.cruncherError = 0
 
         self.numTimes = 0
         self.addCount = 0
