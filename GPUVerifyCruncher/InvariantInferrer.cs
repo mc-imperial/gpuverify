@@ -147,8 +147,7 @@ namespace Microsoft.Boogie
 
       KernelAnalyser.DisableRaceChecking(program);
       KernelAnalyser.EliminateDeadVariables(program);
-      if (inline)
-        KernelAnalyser.Inline(program);
+      if (inline) KernelAnalyser.Inline(program);
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
       return program;

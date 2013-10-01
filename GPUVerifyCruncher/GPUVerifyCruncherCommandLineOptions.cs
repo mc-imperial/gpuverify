@@ -40,7 +40,7 @@ namespace GPUVerify
         ParallelInference = true;
         return true;
       }
-			
+
       if (name == "dynamicAnalysis") {
         DynamicAnalysis = true;
         return true;
