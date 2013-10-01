@@ -47,6 +47,7 @@ namespace Microsoft.Boogie
         refutationEngines[i] = new RefutationEngine(i, conf,
                                                     config.getValue(conf, "Solver"),
                                                     config.getValue(conf, "ErrorLimit"),
+                                                    config.getValue(conf, "DisableLEI"),
                                                     config.getValue(conf, "DisableLMI"),
                                                     config.getValue(conf, "ModifyTSO"),
                                                     config.getValue(conf, "LoopUnroll"));

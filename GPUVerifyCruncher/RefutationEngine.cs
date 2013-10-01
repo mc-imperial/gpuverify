@@ -26,31 +26,35 @@ namespace Microsoft.Boogie
 
     private string solver;
     private int errorLimit;
+    private bool disableLEI;
     private bool disableLMI;
     private bool modifyTSO;
     private int loopUnroll;
 
     public Houdini.ConcurrentHoudini houdini = null;
 
-    public RefutationEngine(int id, string name, string solver, string errorLimit, string disableLMI, string modifyTSO, string loopUnroll)
+    public RefutationEngine(int id, string name, string solver, string errorLimit, string disableLEI,
+                            string disableLMI, string modifyTSO, string loopUnroll)
     {
       this.id = id;
       this.name = name;
       this.solver = solver;
       this.errorLimit = int.Parse(errorLimit);
+      this.disableLEI = bool.Parse(disableLEI);
       this.disableLMI = bool.Parse(disableLMI);
       this.modifyTSO = bool.Parse(modifyTSO);
       this.loopUnroll = int.Parse(loopUnroll);
 
       CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
       CommandLineOptions.Clo.Cho[id].ProverCCLimit = this.errorLimit;
+      CommandLineOptions.Clo.Cho[id].DisableLoopInvEntryAssert = this.disableLEI;
       CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
 
       if (name.Equals ("cvc4"))
         CommandLineOptions.Clo.Cho[id].ProverOptions.Add("SOLVER=cvc4");
 
-      if (this.disableLMI || this.loopUnroll != -1)
+      if (this.disableLEI || this.disableLMI || this.loopUnroll != -1)
         this.isTrusted = false;
       else
         this.isTrusted = true;
@@ -92,6 +96,7 @@ namespace Microsoft.Boogie
       Console.WriteLine("# id = " + id);
       Console.WriteLine("# solver = " + solver);
       Console.WriteLine("# errorLimit = " + errorLimit);
+      Console.WriteLine("# disableLEI = " + disableLEI);
       Console.WriteLine("# disableLMI = " + disableLMI);
       Console.WriteLine("# modifyTSO = " + modifyTSO);
       Console.WriteLine("# loopUnroll = " + loopUnroll);
