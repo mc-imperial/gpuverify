@@ -30,19 +30,14 @@ namespace DynamicAnalysis
 		private static HashSet<AssertCmd> failedAsserts = new HashSet<AssertCmd>();
 		private static HashSet<AssertCmd> passedAsserts = new HashSet<AssertCmd>();
 		
-		public static void Interpret (Program program1)
+		public static void Interpret (Program program)
 		{
-		    program = program1;
+		    BoogieInterpreter.program = program;
 			EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
 			EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
 			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
 			InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().
 			                 Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
-			                 
-			                 Console.WriteLine("HERE");
-			            foreach (var key in Microsoft.Boogie.Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Keys) {
-			            	Console.WriteLine(key);
-			            }
 		}
 		
 		private static BitVector GetRandomBV (int width)
