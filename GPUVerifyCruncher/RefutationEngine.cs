@@ -18,6 +18,10 @@ namespace Microsoft.Boogie
   using System.Text.RegularExpressions;
   using System.Linq;
 
+  /// <summary>
+  /// Wrapper class for a concurrent Houdini instance. It is able to run either on
+  /// the main thread or on a worker thread.
+  /// </summary>
   public class RefutationEngine
   {
     public int id;
@@ -60,6 +64,10 @@ namespace Microsoft.Boogie
         this.isTrusted = true;
     }
 
+    /// <summary>
+    /// Starts a new concurrent Houdini execution. Returns the outcome of the
+    /// Houdini process by reference.
+    /// </summary>
     public int run(Program program, ref Houdini.HoudiniOutcome outcome)
     {
       if (CommandLineOptions.Clo.Trace) {
@@ -89,6 +97,9 @@ namespace Microsoft.Boogie
       return id;
     }
 
+    /// <summary>
+    /// Prints the configuration options of the Refutation Engine.
+    /// </summary>
     public void printConfig()
     {
       Console.WriteLine("######################################");

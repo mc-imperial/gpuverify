@@ -21,6 +21,11 @@ namespace Microsoft.Boogie
   using System.Linq;
   using VC;
 
+  /// <summary>
+  /// Scheduler for infering invariants using Houdini. It allows for both sequential
+  /// and concurrent execution of Houdini using the Task Parallel Library. Has support
+  /// for multiple scheduling strategies.
+  /// </summary>
   public class InvariantInferrer
   {
     private RefutationEngine[] refutationEngines = null;
@@ -28,12 +33,11 @@ namespace Microsoft.Boogie
     private int engineIdx;
     private List<string> fileNames;
 
-    public InvariantInferrer(List<string> fileNames)
+    public InvariantInferrer()
     {
       this.config = new Configuration();
       this.refutationEngines = new RefutationEngine[config.getNumberOfEngines()];
       this.engineIdx = 0;
-      this.fileNames = fileNames;
       string conf;
 
       // Initialise refutation engines
@@ -54,14 +58,22 @@ namespace Microsoft.Boogie
       }
     }
 
-    public int inferInvariants(Program program)
-    {		
+    /// <summary>
+    /// Schedules instances of Houdini for sequential or concurrent execution.
+    /// </summary>
+    public int inferInvariants(List<string> fileNames)
+    {   
       Houdini.HoudiniOutcome outcome = null;
-	
-	  if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
-	    DynamicAnalysis.MainClass.Start(getFreshProgram(false), false, 10);
-	  }
-			
+      this.fileNames = fileNames;
+
+      if (CommandLineOptions.Clo.Trace) {
+        Console.WriteLine("Compute invariants without race checking");
+      }
+
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
+        DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), false, 10);
+      }
+
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
         List<Task> unsoundTasks = new List<Task>();
         List<Task> soundTasks = new List<Task>();
@@ -72,7 +84,7 @@ namespace Microsoft.Boogie
           if (!engine.isTrusted) {
             unsoundTasks.Add(Task.Factory.StartNew(
               () => {
-              engine.run(getFreshProgram(), ref outcome);
+              engine.run(getFreshProgram(false, true), ref outcome);
             }, tokenSource.Token
             ));
           }
@@ -86,7 +98,7 @@ namespace Microsoft.Boogie
           if (engine.isTrusted) {
             soundTasks.Add(Task.Factory.StartNew(
               () => {
-              engineIdx = engine.run(getFreshProgram(), ref outcome);
+              engineIdx = engine.run(getFreshProgram(false, true), ref outcome);
             }, tokenSource.Token
             ));
           }
@@ -94,7 +106,7 @@ namespace Microsoft.Boogie
         Task.WaitAny(soundTasks.ToArray());
         tokenSource.Cancel();
       } else {
-        refutationEngines[0].run(program, ref outcome);
+        refutationEngines[0].run(getFreshProgram(false, true), ref outcome);
       }
 
       PrintOutcome(outcome);
@@ -113,15 +125,34 @@ namespace Microsoft.Boogie
         GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
         return errorCount + inconclusives + timeOuts + outOfMemories;
       }
-			
+
       return 0;
     }
 
-    public void applyInvariants(Program program)
+    /// <summary>
+    /// Applies computed invariants (if any) to the original program and then emits
+    /// the program as a bpl file.
+    /// </summary>
+    public void applyInvariantsAndEmitProgram()
     {
+      List<string> filesToProcess = new List<string>();
+      filesToProcess.Add(fileNames[fileNames.Count - 1]);
+      var annotatedFile = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar +
+        Path.GetFileNameWithoutExtension(filesToProcess[0]);
+
+      Program program = getFreshProgram(true, true);
+      CommandLineOptions.Clo.PrintUnstructured = 2;
+
+      if (CommandLineOptions.Clo.Trace) {
+        Console.WriteLine("Apply inferred invariants (if any) to the original program");
+      }
+
       if (refutationEngines != null && refutationEngines[engineIdx] != null) {
         refutationEngines[engineIdx].houdini.ApplyAssignment(program);
       }
+
+      if (File.Exists(filesToProcess[0])) File.Delete(filesToProcess[0]);
+      GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile);
     }
 
     private static bool AllImplementationsValid(Houdini.HoudiniOutcome outcome)
@@ -134,18 +165,18 @@ namespace Microsoft.Boogie
       return true;
     }
 
-    private Program getFreshProgram(bool inline = true)
+    private Program getFreshProgram(bool raceCheck, bool inline)
     {
       KernelAnalyser.PipelineOutcome oc;
       List<string> filesToProcess = new List<string>();
       filesToProcess.Add(fileNames[fileNames.Count - 1]);
-			
+
       Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
       if (program == null) Environment.Exit(1);
       oc = KernelAnalyser.ResolveAndTypecheck(program, filesToProcess[0]);
       if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) Environment.Exit(1);
 
-      KernelAnalyser.DisableRaceChecking(program);
+      if (!raceCheck) KernelAnalyser.DisableRaceChecking(program);
       KernelAnalyser.EliminateDeadVariables(program);
       if (inline) KernelAnalyser.Inline(program);
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
@@ -153,6 +184,9 @@ namespace Microsoft.Boogie
       return program;
     }
 
+    /// <summary>
+    /// Prints the outcome of the invariant inference process.
+    /// </summary>
     public static void PrintOutcome(Houdini.HoudiniOutcome outcome, Houdini.HoudiniSession.HoudiniStatistics houdiniStats = null)
     {
       if (CommandLineOptions.Clo.PrintAssignment) {
@@ -182,6 +216,9 @@ namespace Microsoft.Boogie
       }
     }
 
+    /// <summary>
+    /// Configuration for sequential and parallel inference.
+    /// </summary>
     private class Configuration
     {
       private Dictionary<string, Dictionary<string, string>> info = null;
