@@ -47,6 +47,9 @@
     <Reference Include="Core">
       <HintPath>..\BoogieBinaries\Core.dll</HintPath>
     </Reference>
+    <Reference Include="Houdini">
+      <HintPath>..\BoogieBinaries\Houdini.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Main.cs" />
@@ -71,4 +74,10 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup>
+    <ProjectReference Include="..\GPUVerifyLib\GPUVerifyLib.csproj">
+      <Project>{5E7E9AF7-4166-4082-B88B-F7766023D877}</Project>
+      <Name>GPUVerifyLib</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

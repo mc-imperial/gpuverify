@@ -20,6 +20,8 @@ namespace DynamicAnalysis
 	
 	public class BoogieInterpreter
 	{		
+	    private static Program program;
+	    private static Implementation currentImpl;
 		private static Block current = null;
 		private static Random Random = new Random();
 		private static Memory Memory = new Memory();
@@ -28,13 +30,19 @@ namespace DynamicAnalysis
 		private static HashSet<AssertCmd> failedAsserts = new HashSet<AssertCmd>();
 		private static HashSet<AssertCmd> passedAsserts = new HashSet<AssertCmd>();
 		
-		public static void Interpret (Program program)
+		public static void Interpret (Program program1)
 		{
+		    program = program1;
 			EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
 			EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
 			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
 			InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().
 			                 Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
+			                 
+			                 Console.WriteLine("HERE");
+			            foreach (var key in Microsoft.Boogie.Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Keys) {
+			            	Console.WriteLine(key);
+			            }
 		}
 		
 		private static BitVector GetRandomBV (int width)
@@ -199,6 +207,7 @@ namespace DynamicAnalysis
 			{
 				foreach (Implementation impl in implementations)
 				{
+				    currentImpl = impl;
 					Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
 					Print.VerboseMessage(String.Format("#Requires '{0}'", impl.Proc.Requires.Count));
 					foreach (Requires requires in impl.Proc.Requires)
@@ -220,7 +229,7 @@ namespace DynamicAnalysis
 			}
 			finally
 			{
-				Memory.Dump();
+				//Memory.Dump();
 			}
 		}
 		
@@ -358,7 +367,13 @@ namespace DynamicAnalysis
 							failedAsserts.Add(assert);
 							passedAsserts.Remove(assert);
 							Node lhs = exprTree.Root().GetChildren()[0];
-							Console.WriteLine("FALSIFYING " + lhs.ToString());
+							string lhsName = lhs.ToString();
+							if (Regex.IsMatch(lhsName, "_[a-z][0-9]+", RegexOptions.IgnoreCase))
+							{
+								GPUVerify.GVUtil.stringToRefutedAnnotation(program, lhsName, currentImpl.Name);
+								Microsoft.Boogie.Houdini.Houdini.RefutedAnnotation annotation = GPUVerify.GVUtil.stringToRefutedAnnotation(program, lhsName, currentImpl.Name);
+								Microsoft.Boogie.Houdini.ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
+								}
 						}
 						else if (!passedAsserts.Contains(assert))
 							passedAsserts.Add(assert);
