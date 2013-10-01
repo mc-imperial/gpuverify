@@ -22,6 +22,7 @@ namespace GPUVerify
     public string ConfigFile = "inference.cfg";
     public string ParallelInferenceScheduling = "default";
     public bool ParallelInference = false;
+    public bool DynamicAnalysis = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -37,6 +38,11 @@ namespace GPUVerify
 
       if (name == "parallelInference") {
         ParallelInference = true;
+        return true;
+      }
+			
+      if (name == "dynamicAnalysis") {
+        DynamicAnalysis = true;
         return true;
       }
 

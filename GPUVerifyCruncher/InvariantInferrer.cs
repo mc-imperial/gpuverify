@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 ﻿using GPUVerify;
+using DynamicAnalysis;
 
 namespace Microsoft.Boogie
 {
@@ -53,9 +54,13 @@ namespace Microsoft.Boogie
     }
 
     public int inferInvariants(Program program)
-    {
+    {		
       Houdini.HoudiniOutcome outcome = null;
-
+	
+	  if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
+	    DynamicAnalysis.MainClass.Start(getFreshProgram(), false, 10);
+	  }
+			
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
         List<Task> unsoundTasks = new List<Task>();
         List<Task> soundTasks = new List<Task>();
@@ -107,7 +112,7 @@ namespace Microsoft.Boogie
         GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
         return errorCount + inconclusives + timeOuts + outOfMemories;
       }
-
+			
       return 0;
     }
 
@@ -133,7 +138,7 @@ namespace Microsoft.Boogie
       KernelAnalyser.PipelineOutcome oc;
       List<string> filesToProcess = new List<string>();
       filesToProcess.Add(fileNames[fileNames.Count - 1]);
-
+			
       Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
       if (program == null) Environment.Exit(1);
       oc = KernelAnalyser.ResolveAndTypecheck(program, filesToProcess[0]);

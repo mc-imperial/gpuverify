@@ -130,6 +130,7 @@ class CommandLineOptions(object):
   invInferConfigFile = "inference.cfg"
   stagedInference = False
   parallelInference = False
+  dynamicAnalysis = False
   scheduling = "default"
   debuggingParallelInference = 0
   stopAtOpt = False
@@ -367,6 +368,7 @@ def showHelpAndExit():
   print "                          performance for complex kernels (but this is not guaranteed)"
   print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
   print "                          inference (but this is not guaranteed)"
+  print "  --dynamic-analysis      Use dynamic analysis to falsify invariants."
   print "  --scheduling=X          Choose a scheduling strategy from the following: 'default' or"
   print "                          'unsound-first'. The default strategy is 'default'."
   print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
@@ -507,6 +509,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.stagedInference = True
     if o == "--parallel-inference":
       CommandLineOptions.parallelInference = True
+    if o == "--dynamic-analysis":
+      CommandLineOptions.dynamicAnalysis = True
     if o == "--stop-at-opt":
       CommandLineOptions.stopAtOpt = True
     if o == "--stop-at-gbpl":
@@ -715,7 +719,7 @@ def main(argv=None):
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
               'no-infer', 'infer-timeout=', 'staged-inference',
-              'parallel-inference', 'scheduling=', 'debug-parallel-inference=',
+              'parallel-inference', 'dynamic-analysis', 'scheduling=', 'debug-parallel-inference=',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic='
              ])
@@ -861,6 +865,9 @@ def main(argv=None):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
     if CommandLineOptions.debuggingParallelInference > 0:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugParallelHoudini" ]
+      
+  if CommandLineOptions.dynamicAnalysis:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicAnalysis" ]
   
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]

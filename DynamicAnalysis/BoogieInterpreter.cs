@@ -18,7 +18,7 @@ namespace DynamicAnalysis
 		}
 	}
 	
-	class BoogieInterpreter
+	public class BoogieInterpreter
 	{		
 		private static Block current = null;
 		private static Random Random = new Random();
@@ -34,7 +34,7 @@ namespace DynamicAnalysis
 			EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
 			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());
 			
-			Print.VerboseMessage(GPU.Instance.ToString());
+			Console.WriteLine(GPU.Instance.ToString());
 			
 			InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().
 			                 Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
@@ -205,6 +205,7 @@ namespace DynamicAnalysis
 				foreach (Implementation impl in implementations)
 				{
 					Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
+					Print.VerboseMessage(String.Format("#Requires '{0}'", impl.Proc.Requires.Count));
 					foreach (Requires requires in impl.Proc.Requires)
 					{
 						EvaluateRequires(requires);
@@ -222,7 +223,7 @@ namespace DynamicAnalysis
 					}
 				}
 			}
-			catch
+			finally
 			{
 				Memory.Dump();
 			}
@@ -230,7 +231,8 @@ namespace DynamicAnalysis
 		
 		private static void EvaluateRequires (Requires requires)
 		{
-			ExprTree tree = new ExprTree(requires.Condition);
+			ExprTree tree = new ExprTree(requires.Condition);	
+			Console.WriteLine(requires.Condition.ToString());
 			foreach (HashSet<Node> nodes in tree)
 			{	
 				foreach (Node node in nodes)
@@ -257,7 +259,7 @@ namespace DynamicAnalysis
 					}
 					else if (node is BinaryNode<bool>)
 					{
-						BinaryNode<bool> binary            = node as BinaryNode<bool>;
+						BinaryNode<bool> binary          = node as BinaryNode<bool>;
 						ScalarSymbolNode<BitVector> left = binary.GetChildren()[0] as ScalarSymbolNode<BitVector>;
 						LiteralNode<BitVector> right     = binary.GetChildren()[1] as LiteralNode<BitVector>;
 						if (left != null && right != null && binary.op == "==")
@@ -271,6 +273,8 @@ namespace DynamicAnalysis
 		
 		private static void InitialiseFormalParams (List<Variable> formals)
 		{
+			// Currently do nothing as all scalar types are initialised indirectly through a requires clause
+			/*
 			foreach (Variable v in formals)
 			{
 				Print.VerboseMessage(String.Format("Found formal parameter '{0}' with type '{1}'", v.Name, v.TypedIdent.Type.ToString()));
@@ -290,6 +294,7 @@ namespace DynamicAnalysis
 				else
 					throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
 			}
+			*/
 		}
 		
 		private static void InterpretBasicBlock ()

@@ -5,7 +5,7 @@ using Microsoft.Boogie;
 
 namespace DynamicAnalysis
 {
-	class MainClass
+	public class MainClass
 	{
 		public static void Main (string[] args)
 		{
@@ -24,6 +24,13 @@ namespace DynamicAnalysis
         		writer.WriteLine();
         		program.Emit(writer);
 			}
+			Start(program);
+		}
+		
+		public static void Start (Program program, bool verbose = false, int debug = 0)
+		{
+			Print.verbose = verbose;
+			Print.debug = debug;
 			BoogieInterpreter.Interpret(program);
 		}
 	}

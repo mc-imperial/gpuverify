@@ -37,6 +37,12 @@
     <Compile Include="RefutationEngine.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DynamicAnalysis\DynamicAnalysis.csproj">
+      <Project>{5E7E9AF7-4166-4082-B88B-F7766023D877}</Project>
+      <Name>DynamicAnalysis</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\GPUVerifyLib\GPUVerifyLib.csproj">
       <Project>{5E7E9AF7-4166-4082-B88B-F7766023D877}</Project>
       <Name>GPUVerifyLib</Name>
