@@ -8,6 +8,8 @@ using System.Text.RegularExpressions;
 using Microsoft.Boogie;
 using Microsoft.Basetypes;
 
+using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
+
 namespace DynamicAnalysis
 {
 	class UnhandledException : Exception
@@ -20,8 +22,8 @@ namespace DynamicAnalysis
 	
 	public class BoogieInterpreter
 	{		
-	    private static Program program;
-	    private static Implementation currentImpl;
+	  private static Program program;
+	  private static Implementation currentImpl;
 		private static Block current = null;
 		private static Random Random = new Random();
 		private static Memory Memory = new Memory();
@@ -32,7 +34,7 @@ namespace DynamicAnalysis
 		
 		public static void Interpret (Program program)
 		{
-		    BoogieInterpreter.program = program;
+		  BoogieInterpreter.program = program;
 			EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
 			EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
 			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
@@ -363,12 +365,11 @@ namespace DynamicAnalysis
 							passedAsserts.Remove(assert);
 							Node lhs = exprTree.Root().GetChildren()[0];
 							string lhsName = lhs.ToString();
-							if (Regex.IsMatch(lhsName, "_[a-z][0-9]+", RegexOptions.IgnoreCase))
-							{
-								GPUVerify.GVUtil.stringToRefutedAnnotation(program, lhsName, currentImpl.Name);
-								Microsoft.Boogie.Houdini.Houdini.RefutedAnnotation annotation = GPUVerify.GVUtil.stringToRefutedAnnotation(program, lhsName, currentImpl.Name);
-								Microsoft.Boogie.Houdini.ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
-								}
+              if (Regex.IsMatch(lhsName, "_[a-z][0-9]+", RegexOptions.IgnoreCase))
+              {
+                ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, currentImpl.Name);
+                ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
+              }
 						}
 						else if (!passedAsserts.Contains(assert))
 							passedAsserts.Add(assert);

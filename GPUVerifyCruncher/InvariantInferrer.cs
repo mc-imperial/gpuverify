@@ -64,6 +64,9 @@ namespace Microsoft.Boogie
     public int inferInvariants(List<string> fileNames)
     {   
       Houdini.HoudiniOutcome outcome = null;
+      List<Task> unsoundTasks = new List<Task>();
+      List<Task> soundTasks = new List<Task>();
+      CancellationTokenSource tokenSource = new CancellationTokenSource();
       this.fileNames = fileNames;
 
       if (CommandLineOptions.Clo.Trace) {
@@ -71,14 +74,14 @@ namespace Microsoft.Boogie
       }
 
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
-        DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), false, 10);
+        unsoundTasks.Add(Task.Factory.StartNew(
+          () => {
+          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false));
+        }, tokenSource.Token
+        ));
       }
 
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-        List<Task> unsoundTasks = new List<Task>();
-        List<Task> soundTasks = new List<Task>();
-        CancellationTokenSource tokenSource = new CancellationTokenSource();
-
         // Schedule the unsound refutatiom engines for execution
         foreach (RefutationEngine engine in refutationEngines) {
           if (!engine.isTrusted) {
@@ -182,31 +185,6 @@ namespace Microsoft.Boogie
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
       return program;
-    }
-
-    private Houdini.Houdini.RefutedAnnotation stringToRefutedAnnotation(Program program, string constant, string implementation)
-    {
-      Houdini.Houdini.RefutedAnnotation ra = null;
-      Variable variable = null;
-      Implementation refutationSite = null;
-
-      foreach (var v in program.TopLevelDeclarations.OfType<Variable>()) {
-        if (v.Name.Equals(constant)) {
-          variable = v;
-          break;
-        }
-      }
-
-      foreach (var r in program.TopLevelDeclarations.OfType<Implementation>()) {
-        if (r.Name.Equals(implementation)) {
-          refutationSite = r;
-          break;
-        }
-      }
-
-      ra = Houdini.Houdini.RefutedAnnotation.BuildRefutedAssert(variable, refutationSite);
-
-      return ra;
     }
 
     /// <summary>

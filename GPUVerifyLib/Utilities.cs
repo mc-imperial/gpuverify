@@ -16,8 +16,13 @@ using System.Reflection;
 using System.IO;
 using Microsoft.Boogie;
 
+using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
+
 namespace GPUVerify
 {
+  /// <summary>
+  /// Utility class for GPUVerify.
+  /// </summary>
   public static class GVUtil
   {
     public static IEnumerable<Implementation> Implementations(this Program p)
@@ -30,9 +35,13 @@ namespace GPUVerify
       return p.Implementations().Select(Item => Item.Blocks).SelectMany(Item => Item);
     }
 
-    public static Microsoft.Boogie.Houdini.Houdini.RefutedAnnotation stringToRefutedAnnotation(Program program, string constant, string implementation)
+    /// <summary>
+    /// Returns a Microsoft.Boogie.Houdini.ConcurrentHoudini.RefutedAnnotation object by iterating the
+    /// TopLevelDeclarations of a Program using the specified strings.
+    /// </summary>
+    public static ConcurrentHoudini.RefutedAnnotation getRefutedAnnotation(Program program, string constant, string implementation)
     {
-      Microsoft.Boogie.Houdini.Houdini.RefutedAnnotation ra = null;
+      ConcurrentHoudini.RefutedAnnotation ra = null;
       Variable variable = null;
       Implementation refutationSite = null;
 
@@ -50,11 +59,14 @@ namespace GPUVerify
         }
       }
 
-      ra = Microsoft.Boogie.Houdini.Houdini.RefutedAnnotation.BuildRefutedAssert(variable, refutationSite);
+      ra = ConcurrentHoudini.RefutedAnnotation.BuildRefutedAssert(variable, refutationSite);
 
       return ra;
     }
 
+    /// <summary>
+    /// IO utility class for GPUVerify.
+    /// </summary>
     public static class IO
     {
       public static void EmitProgram(Program prog, string filename)
