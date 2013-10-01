@@ -100,7 +100,8 @@ namespace GPUVerify
       if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
 
       KernelAnalyser.DisableRaceChecking(program);
-      KernelAnalyser.EliminateDeadVariablesAndInline(program);
+      KernelAnalyser.EliminateDeadVariables(program);
+      KernelAnalyser.Inline(program);
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
       int exitCode = inferrer.inferInvariants(program);
@@ -115,8 +116,9 @@ namespace GPUVerify
       oc = KernelAnalyser.ResolveAndTypecheck(program, filesToProcess[0]);
       if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
 
-      KernelAnalyser.EliminateDeadVariablesAndInline(program);
-
+      KernelAnalyser.EliminateDeadVariables(program);
+      KernelAnalyser.Inline(program);
+      
       CommandLineOptions.Clo.PrintUnstructured = 2;
 
       inferrer.applyInvariants(program);

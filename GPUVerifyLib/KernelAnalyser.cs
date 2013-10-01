@@ -80,7 +80,7 @@ namespace GPUVerify
       return PipelineOutcome.ResolvedAndTypeChecked;
     }
 
-    public static void EliminateDeadVariablesAndInline(Program program)
+    public static void EliminateDeadVariables(Program program)
     {
       Contract.Requires(program != null);
 
@@ -98,8 +98,13 @@ namespace GPUVerify
           Console.WriteLine("Coalescing blocks...");
         Microsoft.Boogie.BlockCoalescer.CoalesceBlocks(program);
       }
-
-      // Inline
+    }
+		
+    public static void Inline(Program program)
+	{
+	  Contract.Requires(program != null);
+	
+	  // Inline
       var TopLevelDeclarations = cce.NonNull(program.TopLevelDeclarations);
 
       if (CommandLineOptions.Clo.ProcedureInlining != CommandLineOptions.Inlining.None) {
@@ -132,7 +137,7 @@ namespace GPUVerify
           }
         }
       }
-    }
+	}
 
     public static void DisableRaceChecking(Program program)
     {

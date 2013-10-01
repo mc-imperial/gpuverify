@@ -86,7 +86,8 @@ namespace Microsoft.Boogie
       KernelAnalyser.PipelineOutcome oc = KernelAnalyser.ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
       if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
 
-      KernelAnalyser.EliminateDeadVariablesAndInline(program);
+      KernelAnalyser.EliminateDeadVariables(program);
+      KernelAnalyser.Inline(program);
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
       CommandLineOptions.Clo.PrintUnstructured = 2;

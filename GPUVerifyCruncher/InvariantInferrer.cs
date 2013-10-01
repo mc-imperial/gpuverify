@@ -58,7 +58,7 @@ namespace Microsoft.Boogie
       Houdini.HoudiniOutcome outcome = null;
 	
 	  if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
-	    DynamicAnalysis.MainClass.Start(getFreshProgram(), false, 10);
+	    DynamicAnalysis.MainClass.Start(getFreshProgram(false), false, 10);
 	  }
 			
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
@@ -133,7 +133,7 @@ namespace Microsoft.Boogie
       return true;
     }
 
-    private Program getFreshProgram()
+    private Program getFreshProgram(bool inline = true)
     {
       KernelAnalyser.PipelineOutcome oc;
       List<string> filesToProcess = new List<string>();
@@ -145,7 +145,9 @@ namespace Microsoft.Boogie
       if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) Environment.Exit(1);
 
       KernelAnalyser.DisableRaceChecking(program);
-      KernelAnalyser.EliminateDeadVariablesAndInline(program);
+      KernelAnalyser.EliminateDeadVariables(program);
+      if (inline)
+        KernelAnalyser.Inline(program);
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
       return program;
