@@ -58,7 +58,7 @@ namespace Microsoft.Boogie
       Houdini.HoudiniOutcome outcome = null;
 	
 	  if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
-	    DynamicAnalysis.MainClass.Start(getFreshProgram(false), false, 10);
+	    DynamicAnalysis.MainClass.Start(getFreshProgram(false));
 	  }
 			
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {

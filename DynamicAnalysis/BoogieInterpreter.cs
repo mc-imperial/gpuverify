@@ -32,14 +32,9 @@ namespace DynamicAnalysis
 		{
 			EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
 			EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
-			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());
-			
-			Console.WriteLine(GPU.Instance.ToString());
-			
+			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
 			InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().
 			                 Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
-			
-			Output();
 		}
 		
 		private static BitVector GetRandomBV (int width)
@@ -232,7 +227,6 @@ namespace DynamicAnalysis
 		private static void EvaluateRequires (Requires requires)
 		{
 			ExprTree tree = new ExprTree(requires.Condition);	
-			Console.WriteLine(requires.Condition.ToString());
 			foreach (HashSet<Node> nodes in tree)
 			{	
 				foreach (Node node in nodes)
@@ -363,6 +357,8 @@ namespace DynamicAnalysis
 							Print.VerboseMessage("Falsifying assertion: " + assertStr);
 							failedAsserts.Add(assert);
 							passedAsserts.Remove(assert);
+							Node lhs = exprTree.Root().GetChildren()[0];
+							Console.WriteLine("FALSIFYING " + lhs.ToString());
 						}
 						else if (!passedAsserts.Contains(assert))
 							passedAsserts.Add(assert);
