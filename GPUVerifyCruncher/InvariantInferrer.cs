@@ -187,11 +187,12 @@ namespace Microsoft.Boogie
     private Houdini.Houdini.RefutedAnnotation stringToRefutedAnnotation(Program program, string constant, string implementation)
     {
       Houdini.Houdini.RefutedAnnotation ra = null;
+      Variable variable = null;
       Implementation refutationSite = null;
 
-      foreach (var r in program.TopLevelDeclarations.OfType<Variable>()) {
-        if (r.Name.Equals(constant)) {
-          refutationSite = r;
+      foreach (var v in program.TopLevelDeclarations.OfType<Variable>()) {
+        if (v.Name.Equals(constant)) {
+          variable = v;
           break;
         }
       }
@@ -203,7 +204,7 @@ namespace Microsoft.Boogie
         }
       }
 
-      ra = Houdini.Houdini.RefutedAnnotation.BuildRefutedAssert(constant, refutationSite);
+      ra = Houdini.Houdini.RefutedAnnotation.BuildRefutedAssert(variable, refutationSite);
 
       return ra;
     }
