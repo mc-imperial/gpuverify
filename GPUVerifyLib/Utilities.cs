@@ -30,6 +30,31 @@ namespace GPUVerify
       return p.Implementations().Select(Item => Item.Blocks).SelectMany(Item => Item);
     }
 
+    public static Microsoft.Boogie.Houdini.Houdini.RefutedAnnotation stringToRefutedAnnotation(Program program, string constant, string implementation)
+    {
+      Microsoft.Boogie.Houdini.Houdini.RefutedAnnotation ra = null;
+      Variable variable = null;
+      Implementation refutationSite = null;
+
+      foreach (var v in program.TopLevelDeclarations.OfType<Variable>()) {
+        if (v.Name.Equals(constant)) {
+          variable = v;
+          break;
+        }
+      }
+
+      foreach (var r in program.TopLevelDeclarations.OfType<Implementation>()) {
+        if (r.Name.Equals(implementation)) {
+          refutationSite = r;
+          break;
+        }
+      }
+
+      ra = Microsoft.Boogie.Houdini.Houdini.RefutedAnnotation.BuildRefutedAssert(variable, refutationSite);
+
+      return ra;
+    }
+
     public static class IO
     {
       public static void EmitProgram(Program prog, string filename)
