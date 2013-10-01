@@ -208,50 +208,6 @@ namespace Microsoft.Boogie
       return ra;
     }
 
-//    private bool ExchangeRefutedAnnotations()
-//      709      {
-//      //HashSet<RefutedAnnotation> sharedRefuted = locallyRefuted;
-//      string refutedInformation;
-//      710        int count = 0;
-//      711   
-//        using (var fileStream = new FileStream(@"houdini.csv", FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite))
-//          using (var input = new StreamReader(fileStream))
-//          712        foreach (RefutedAnnotation key in refutedSharedAnnotations.Keys) {
-//        713          KeyValuePair<Variable, bool> kv = currentHoudiniState.Assignment.FirstOrDefault(entry => entry.Key.Name.Equals(key.Constant.Name) && entry.Value);
-//        using (var output = new StreamWriter(fileStream)) {
-//          while ((refutedInformation = input.ReadLine()) != null) {
-//            var ri = refutedInformation.Split(',');
-//
-//            KeyValuePair<Variable, bool> kv = currentHoudiniState.Assignment.FirstOrDefault(entry => entry.Key.Name.Equals(ri[0]) && entry.Value);
-//            714   
-//              715          if (kv.Key != null) {
-//              RefutedAnnotation ra = null;
-//              Implementation refutationSite = null;
-//
-//              foreach (var r in program.TopLevelDeclarations.OfType<Implementation>()) {
-//                if (r.Name.Equals(ri[3])) {
-//                  refutationSite = r;
-//                  break;
-//                }
-//              }
-//              Debug.Assert(refutationSite != null);
-//
-//              if (ri[1].Equals("REQUIRES")) {
-//                Procedure proc = null;
-//                foreach (var p in program.TopLevelDeclarations.OfType<Procedure>()) {
-//                  if (p.Name.Equals(ri[2])) {
-//                    proc = p;
-//                    break;
-//                  }
-//                }
-//                Debug.Assert(proc != null);
-//                ra = RefutedAnnotation.BuildRefutedRequires(kv.Key, proc, refutationSite);
-//              } else if (ri[1].Equals("ENSURES"))
-//                ra = RefutedAnnotation.BuildRefutedEnsures(kv.Key, refutationSite);
-//              else if (ri[1].Equals("ASSERT"))
-//                ra = RefutedAnnotation.BuildRefutedAssert(kv.Key, refutationSite);
-//              Debug.Assert(ra != null);
-
     /// <summary>
     /// Prints the outcome of the invariant inference process.
     /// </summary>
