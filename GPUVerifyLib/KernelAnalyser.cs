@@ -101,10 +101,10 @@ namespace GPUVerify
     }
 		
     public static void Inline(Program program)
-	{
-	  Contract.Requires(program != null);
-	
-	  // Inline
+    {
+      Contract.Requires(program != null);
+
+      // Inline
       var TopLevelDeclarations = cce.NonNull(program.TopLevelDeclarations);
 
       if (CommandLineOptions.Clo.ProcedureInlining != CommandLineOptions.Inlining.None) {
@@ -137,7 +137,7 @@ namespace GPUVerify
           }
         }
       }
-	}
+    }
 
     public static void DisableRaceChecking(Program program)
     {

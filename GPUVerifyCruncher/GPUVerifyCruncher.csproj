@@ -9,7 +9,7 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>GPUVerifyCruncher</RootNamespace>
     <AssemblyName>GPUVerifyCruncher</AssemblyName>
-    <TargetFrameworkProfile Condition=" '$(OS)' == 'Windows_NT' ">Client</TargetFrameworkProfile>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -38,7 +38,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DynamicAnalysis\DynamicAnalysis.csproj">
-      <Project>{5E7E9AF7-4166-4082-B88B-F7766023D877}</Project>
+      <Project>{328D351F-689A-48C9-9BD8-C87995CB20A2}</Project>
       <Name>DynamicAnalysis</Name>
     </ProjectReference>
   </ItemGroup>

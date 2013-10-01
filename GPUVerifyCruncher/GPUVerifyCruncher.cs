@@ -79,52 +79,11 @@ namespace GPUVerify
     static int InferInvariantsInFiles(List<string> fileNames)
     {
       Contract.Requires(cce.NonNullElements(fileNames));
+      InvariantInferrer inferrer = new InvariantInferrer();
 
-      Program program = null;
-      KernelAnalyser.PipelineOutcome oc;
-      List<string> filesToProcess = new List<string>();
-      filesToProcess.Add(fileNames[fileNames.Count - 1]);
-
-      var annotatedFile = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar +
-        Path.GetFileNameWithoutExtension(filesToProcess[0]);// + ".inv";
-
-      InvariantInferrer inferrer = new InvariantInferrer(fileNames);
-
-      if (CommandLineOptions.Clo.Trace) {
-        Console.WriteLine("Compute invariants without race checking");
-      }
-
-      program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
-      if (program == null) return 1;
-      oc = KernelAnalyser.ResolveAndTypecheck(program, filesToProcess[0]);
-      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
-
-      KernelAnalyser.DisableRaceChecking(program);
-      KernelAnalyser.EliminateDeadVariables(program);
-      KernelAnalyser.Inline(program);
-      KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
-
-      int exitCode = inferrer.inferInvariants(program);
+      int exitCode = inferrer.inferInvariants(fileNames);
       if (exitCode != 0) return exitCode;
-
-      if (CommandLineOptions.Clo.Trace) {
-        Console.WriteLine("Apply inferred invariants (if any) to the original program");
-      }
-
-      program = GVUtil.IO.ParseBoogieProgram(filesToProcess, false);
-      if (program == null) return 1;
-      oc = KernelAnalyser.ResolveAndTypecheck(program, filesToProcess[0]);
-      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
-
-      KernelAnalyser.EliminateDeadVariables(program);
-      KernelAnalyser.Inline(program);
-      
-      CommandLineOptions.Clo.PrintUnstructured = 2;
-
-      inferrer.applyInvariants(program);
-
-      if (File.Exists(filesToProcess[0])) File.Delete(filesToProcess[0]);
-      GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile);
+      inferrer.applyInvariantsAndEmitProgram();
 
       return 0;
     }
