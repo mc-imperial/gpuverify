@@ -27,7 +27,8 @@ namespace DynamicAnalysis
 		
 		public static void WarningMessage (string arg)
 		{
-			Console.WriteLine("****************** WARNING: {0}", arg);
+		    if (verbose)
+		         Console.WriteLine("****************** WARNING: {0}", arg);
 		}
 		
 		public static void ExitMessage (string arg)
