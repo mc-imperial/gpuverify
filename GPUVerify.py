@@ -131,7 +131,7 @@ class CommandLineOptions(object):
   stagedInference = False
   parallelInference = False
   dynamicAnalysis = False
-  scheduling = "default"
+  scheduling = "all-together"
   debuggingParallelInference = 0
   stopAtOpt = False
   stopAtGbpl = False
@@ -357,7 +357,7 @@ def showHelpAndExit():
   print "                          (default is --atomic=rw)"
   print "  --no-refined-atomics    Don't do abstraction refinement on the return values from atomics"
   print "  --solver=X              Choose which SMT Theorem Prover to use in the backend."
-  print "                          Available options: 'Z3' or 'cvc4' (default is Z3)"
+  print "                          Available options: 'Z3' or 'cvc4' (default is 'Z3')"
   print "  --logic=X               Define the logic to be used by the CVC4 SMT solver backend"
   print "                          (default is QF_ALL_SUPPORTED)"
   print ""
@@ -369,13 +369,14 @@ def showHelpAndExit():
   print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
   print "                          inference (but this is not guaranteed)"
   print "  --dynamic-analysis      Use dynamic analysis to falsify invariants."
-  print "  --scheduling=X          Choose a scheduling strategy from the following: 'default', 'unsound-first',"
-  print "                          'dynamic-first' or 'phased'. The 'default' strategy executes all refutation"
-  print "                          engines together. The 'unsound-first' strategy executes any unsound engines"
-  print "                          engines (either static or dynamic) before the sound engines. The 'dynamic-first'"
-  print "                          strategy executes any dynamic engines before the static engines. The 'phased'"
-  print "                          strategy executes first any dynamic engines, then any unsound static engines and"
-  print "                          then the sound static engines."
+  print "  --scheduling=X          Choose a parallel scheduling strategy from the following: 'all-together',"
+  print "                          'unsound-first', 'dynamic-first' or 'phased'. The 'all-together' strategy"
+  print "                          executes all refutation engines together. The 'unsound-first' strategy"
+  print "                          executes any unsound engines (either static or dynamic) before the sound"
+  print "                          engines. The 'dynamic-first' strategy executes any dynamic engines before"
+  print "                          the static engines. The 'phased' strategy executes first any dynamic engines,"
+  print "                          then any unsound static engines and then the sound static engines. The default"
+  print "                          scheduling is 'all-together'."
   print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
   print "                          for varying levels of debugging information"
   print "  --infer-config-file=X.cfg       Specify a custom configuration file to be used"
@@ -583,10 +584,10 @@ def processGeneralOptions(opts, args):
       else:
         GPUVerifyError("argument to --solver must be 'Z3' or 'CVC4'", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--scheduling":
-      if a.lower() in ("default","unsound-first","dynamic-first","phased"):
+      if a.lower() in ("all-together","unsound-first","dynamic-first","phased"):
         CommandLineOptions.scheduling = a.lower()
       else:
-        GPUVerifyError("argument to --scheduling must be 'default', 'unsound-first', 'dynamic-first' or'phased'", ErrorCodes.COMMAND_LINE_ERROR)
+        GPUVerifyError("argument to --scheduling must be 'all-together', 'unsound-first', 'dynamic-first' or'phased'", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--logic":
       if a.upper() in ("ALL_SUPPORTED","QF_ALL_SUPPORTED"):
         CommandLineOptions.logic = a.upper()
