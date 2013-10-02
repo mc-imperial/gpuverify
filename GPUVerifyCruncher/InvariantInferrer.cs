@@ -64,42 +64,45 @@ namespace Microsoft.Boogie
     public int inferInvariants(List<string> fileNames)
     {   
       Houdini.HoudiniOutcome outcome = null;
-      List<Task> unsoundTasks = new List<Task>();
-      List<Task> soundTasks = new List<Task>();
-      CancellationTokenSource tokenSource = new CancellationTokenSource();
       this.fileNames = fileNames;
 
       if (CommandLineOptions.Clo.Trace) {
-        Console.WriteLine("Compute invariants without race checking");
+        Console.WriteLine("Computing invariants without race checking...");
       }
 
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
-        unsoundTasks.Add(Task.Factory.StartNew(
-          () => {
-          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(-1, -1, -1), Tuple.Create(-1, -1, -1));
-        }, tokenSource.Token
-        ));
-        
-        unsoundTasks.Add(Task.Factory.StartNew(
-          () => {
-          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue), Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue));
-        }, tokenSource.Token
-        ));
-        
-        unsoundTasks.Add(Task.Factory.StartNew(
-          () => {
-          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(0, 0, 0), Tuple.Create(0, 0, 0));
-        }, tokenSource.Token
-        ));
-
-        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased") ||
-            ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("dynamic-first")) {
-          Task.WaitAll(unsoundTasks.ToArray());
-        }
-      }
-
+      // Concurrent invariant inference
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-        // Schedule the unsound refutatiom engines for execution
+        List<Task> unsoundTasks = new List<Task>();
+        List<Task> soundTasks = new List<Task>();
+        CancellationTokenSource tokenSource = new CancellationTokenSource();
+
+        // Schedule the dynamic analysis engines (if any) for execution
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
+          unsoundTasks.Add(Task.Factory.StartNew(
+            () => {
+            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(-1, -1, -1), Tuple.Create(-1, -1, -1));
+          }, tokenSource.Token
+          ));
+
+          unsoundTasks.Add(Task.Factory.StartNew(
+            () => {
+            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue), Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue));
+          }, tokenSource.Token
+          ));
+
+          unsoundTasks.Add(Task.Factory.StartNew(
+            () => {
+            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(0, 0, 0), Tuple.Create(0, 0, 0));
+          }, tokenSource.Token
+          ));
+
+          if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased") ||
+              ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("dynamic-first")) {
+            Task.WaitAll(unsoundTasks.ToArray());
+          }
+        }
+
+        // Schedule the unsound refutation engines (if any) for execution
         foreach (RefutationEngine engine in refutationEngines) {
           if (!engine.isTrusted) {
             unsoundTasks.Add(Task.Factory.StartNew(
@@ -127,11 +130,18 @@ namespace Microsoft.Boogie
         }
         Task.WaitAny(soundTasks.ToArray());
         tokenSource.Cancel();
-      } else {
+      }
+      // Sequential invariant inference
+      else {
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
+          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(-1, -1, -1), Tuple.Create(-1, -1, -1));
+        }
+
         refutationEngines[0].run(getFreshProgram(false, true), ref outcome);
       }
 
-      PrintOutcome(outcome);
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
+        printOutcome(outcome);
 
       if (!AllImplementationsValid(outcome)) {
         int verified = 0;
@@ -166,7 +176,7 @@ namespace Microsoft.Boogie
       CommandLineOptions.Clo.PrintUnstructured = 2;
 
       if (CommandLineOptions.Clo.Trace) {
-        Console.WriteLine("Apply inferred invariants (if any) to the original program");
+        Console.WriteLine("Applying inferred invariants (if any) to the original program...");
       }
 
       if (refutationEngines != null && refutationEngines[engineIdx] != null) {
@@ -206,36 +216,18 @@ namespace Microsoft.Boogie
       return program;
     }
 
-    /// <summary>
-    /// Prints the outcome of the invariant inference process.
-    /// </summary>
-    public static void PrintOutcome(Houdini.HoudiniOutcome outcome, Houdini.HoudiniSession.HoudiniStatistics houdiniStats = null)
+    private void printOutcome(Houdini.HoudiniOutcome outcome)
     {
-      if (CommandLineOptions.Clo.PrintAssignment) {
-        Console.WriteLine("Assignment computed by Houdini:");
-        foreach (var x in outcome.assignment) {
-          Console.WriteLine(x.Key + " = " + x.Value);
-        }
+      int numTrueAssigns = 0;
+
+      Console.WriteLine("Assignment computed by Houdini:");
+      foreach (var x in outcome.assignment) {
+        if (x.Value) numTrueAssigns++;
+        Console.WriteLine(x.Key + " = " + x.Value);
       }
 
-      if (CommandLineOptions.Clo.Trace) {
-        int numTrueAssigns = 0;
-        foreach (var x in outcome.assignment) {
-          if (x.Value)
-            numTrueAssigns++;
-        }
-
-        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
-
-        if (houdiniStats != null) {
-          Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
-          Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
-          Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
-          Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
-          Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
-        }
-      }
+      Console.WriteLine("Number of true assignments = " + numTrueAssigns);
+      Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
     }
 
     /// <summary>

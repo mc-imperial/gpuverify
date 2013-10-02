@@ -106,7 +106,7 @@ class CommandLineOptions(object):
                      "/doNotUseLabels", "/enhancedErrorMessages:1"
                    ]
   gpuVerifyVCGenOptions = []
-  gpuVerifyCruncherOptions = [ "/noinfer", "/contractInfer" ]
+  gpuVerifyCruncherOptions = []
   gpuVerifyBoogieDriverOptions = []
   bugleOptions = []
   mode = AnalysisMode.ALL
@@ -132,7 +132,8 @@ class CommandLineOptions(object):
   parallelInference = False
   dynamicAnalysis = False
   scheduling = "all-together"
-  debuggingParallelInference = 0
+  inferInfo = False
+  debuggingHoudini = False
   stopAtOpt = False
   stopAtGbpl = False
   stopAtBpl = False
@@ -377,10 +378,9 @@ def showHelpAndExit():
   print "                          the static engines. The 'phased' strategy executes first any dynamic engines,"
   print "                          then any unsound static engines and then the sound static engines. The default"
   print "                          scheduling is 'all-together'."
-  print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
-  print "                          for varying levels of debugging information"
   print "  --infer-config-file=X.cfg       Specify a custom configuration file to be used"
   print "                          during invariant inference"
+  print "  --infer-info            Prints information about the inference process."
   print ""
   print "OPENCL OPTIONS:"
   print "  --local_size=X          Specify whether work-group is 1D, 2D"
@@ -517,6 +517,10 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.parallelInference = True
     if o == "--dynamic-analysis":
       CommandLineOptions.dynamicAnalysis = True
+    if o == "--infer-info":
+      CommandLineOptions.inferInfo = True
+    if o == "--debug-houdini":
+      CommandLineOptions.debuggingHoudini = True
     if o == "--stop-at-opt":
       CommandLineOptions.stopAtOpt = True
     if o == "--stop-at-gbpl":
@@ -593,15 +597,6 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.logic = a.upper()
       else:
         GPUVerifyError("argument to --logic must be 'ALL_SUPPORTED' or 'QF_ALL_SUPPORTED'", ErrorCodes.COMMAND_LINE_ERROR)
-    if o == "--debug-parallel-inference":
-      try:
-        if int(a) < 0:
-          GPUVerifyError("negative value " + a + " provided as argument to --debug-parallel-inference", ErrorCodes.COMMAND_LINE_ERROR)
-        elif int(a) > 3:
-          GPUVerifyError("value greater than '3' provided as argument to --debug-parallel-inference", ErrorCodes.COMMAND_LINE_ERROR)
-        CommandLineOptions.debuggingParallelInference = int(a)
-      except ValueError:
-        GPUVerifyError("non integer value '" + a + "' provided as argument to --debug-parallel-inference", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--bugle-lang":
       if a.lower() in ("cl", "cu"):
         CommandLineOptions.bugleLanguage = a.lower()
@@ -724,8 +719,8 @@ def main(argv=None):
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
-              'no-infer', 'infer-timeout=', 'staged-inference',
-              'parallel-inference', 'dynamic-analysis', 'scheduling=', 'debug-parallel-inference=',
+              'no-infer', 'infer-timeout=', 'staged-inference', 'parallel-inference',
+              'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic='
              ])
@@ -861,21 +856,20 @@ def main(argv=None):
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyCruncherOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
-  
+    
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/noinfer" ]
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/contractInfer" ]
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
+  if CommandLineOptions.inferInfo:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferInfo" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
+  if CommandLineOptions.debuggingHoudini:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugConcurrentHoudini" ]
   if CommandLineOptions.parallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
-    if CommandLineOptions.debuggingParallelInference > 2:
-      CommandLineOptions.gpuVerifyCruncherOptions += [ "/printAssignment" ]
-    if CommandLineOptions.debuggingParallelInference > 1:
-      CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
-    if CommandLineOptions.debuggingParallelInference > 0:
-      CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugParallelHoudini" ]
-      
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
   if CommandLineOptions.dynamicAnalysis:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicAnalysis" ]
-  
-  CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:LOGIC=" + CommandLineOptions.logic ]

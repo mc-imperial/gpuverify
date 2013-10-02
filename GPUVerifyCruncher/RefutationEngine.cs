@@ -70,10 +70,10 @@ namespace Microsoft.Boogie
     /// </summary>
     public int run(Program program, ref Houdini.HoudiniOutcome outcome)
     {
-      if (CommandLineOptions.Clo.Trace) {
+      if (CommandLineOptions.Clo.Trace)
         Console.WriteLine("INFO:[Engine-" + name + "] started crunching ...");
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
         printConfig();
-      }
 
       if (loopUnroll != -1)
         program.UnrollLoops(loopUnroll, CommandLineOptions.Clo.SoundLoopUnrolling);
@@ -86,12 +86,23 @@ namespace Microsoft.Boogie
       else
         outcome = houdini.PerformHoudiniInference();
 
-      if (CommandLineOptions.Clo.Trace) {
+      if (CommandLineOptions.Clo.Trace)
         Console.WriteLine("INFO:[Engine-" + name + "] finished.");
-      }
 
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugParallelHoudini) {
-        InvariantInferrer.PrintOutcome(outcome, houdiniStats);
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugConcurrentHoudini) {
+        int numTrueAssigns = 0;
+        foreach (var x in outcome.assignment) {
+          if (x.Value)
+            numTrueAssigns++;
+        }
+
+        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
+        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+        Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
+        Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
+        Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
+        Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
+        Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
       }
 
       return id;

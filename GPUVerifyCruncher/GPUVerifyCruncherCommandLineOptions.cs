@@ -20,9 +20,10 @@ namespace GPUVerify
   public class GPUVerifyCruncherCommandLineOptions : GVCommandLineOptions
   {
     public string ConfigFile = "inference.cfg";
-    public string ParallelInferenceScheduling = "default";
+    public string ParallelInferenceScheduling = "all-together";
     public bool ParallelInference = false;
     public bool DynamicAnalysis = false;
+    public bool InferInfo = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -32,6 +33,13 @@ namespace GPUVerify
       if (name == "invInferConfigFile") {
         if (ps.ConfirmArgumentCount(1)) {
           ConfigFile = ps.args[ps.i];
+        }
+        return true;
+      }
+
+      if (name == "parallelInferenceScheduling") {
+        if (ps.ConfirmArgumentCount(1)) {
+          ParallelInferenceScheduling = ps.args[ps.i];
         }
         return true;
       }
@@ -46,10 +54,8 @@ namespace GPUVerify
         return true;
       }
 
-      if (name == "parallelInferenceScheduling") {
-        if (ps.ConfirmArgumentCount(1)) {
-          ParallelInferenceScheduling = ps.args[ps.i];
-        }
+      if (name == "inferInfo") {
+        InferInfo = true;
         return true;
       }
 
