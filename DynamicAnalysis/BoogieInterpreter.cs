@@ -22,41 +22,40 @@ namespace DynamicAnalysis
 	
 	public class BoogieInterpreter
 	{		
-	  private static Program program;
-	  private static Implementation currentImpl;
-		private static Block current = null;
-		private static Random Random = new Random();
-		private static Memory Memory = new Memory();
-		private static Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>(); 
-		private static Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
-		private static HashSet<AssertCmd> failedAsserts = new HashSet<AssertCmd>();
-		private static HashSet<AssertCmd> passedAsserts = new HashSet<AssertCmd>();
+        private Program program;
+	    private Implementation currentImpl;
+		private Block current = null;
+		private Random Random = new Random();
+		private Memory Memory = new Memory();
+		private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>(); 
+		private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
+		private HashSet<AssertCmd> failedAsserts = new HashSet<AssertCmd>();
+		private HashSet<AssertCmd> passedAsserts = new HashSet<AssertCmd>();
 		
-		public static void Interpret (Program program)
+		public BoogieInterpreter (Program program)
 		{
-		  BoogieInterpreter.program = program;
+		    this.program = program;
 			EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
 			EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
 			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
-			InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().
-			                 Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
+			InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
 		}
 		
-		private static BitVector GetRandomBV (int width)
+		private BitVector GetRandomBV (int width)
 		{
 			if (width == 1)
 				return new BitVector(Random.Next(0, 1));
-			int lowestVal  = (int) -Math.Pow(2, width-1);
+			int lowestVal = (int) -Math.Pow(2, width-1);
 			int highestVal = (int) Math.Pow(2, width-1) - 1;
 			return new BitVector(Random.Next(lowestVal, highestVal));
 		}
 		
-		private static bool IsRaceArrayOffsetVariable (string name)
+		private bool IsRaceArrayOffsetVariable (string name)
 		{
 			return Regex.IsMatch(name, "_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase);
 		}
 				
-		private static ExprTree GetExprTree (Expr expr)
+		private ExprTree GetExprTree (Expr expr)
 		{
 			if (!ExprTrees.ContainsKey(expr))
 				ExprTrees[expr] = new ExprTree(expr);
@@ -64,7 +63,7 @@ namespace DynamicAnalysis
 			return ExprTrees[expr];
 		}
 		
-		private static void EvaluateGlobalVariables (IEnumerable<GlobalVariable> declarations)
+		private void EvaluateGlobalVariables (IEnumerable<GlobalVariable> declarations)
 		{
 			foreach (GlobalVariable decl in declarations)
 			{
@@ -75,7 +74,7 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void EvaluateConstants (IEnumerable<Constant> constants)
+		private void EvaluateConstants (IEnumerable<Constant> constants)
 		{
 			foreach (Constant constant in constants)
 			{
@@ -132,7 +131,7 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void EvaulateAxioms (IEnumerable<Axiom> axioms)
+		private void EvaulateAxioms (IEnumerable<Axiom> axioms)
 		{
 			foreach (Axiom axiom in axioms)
 			{
@@ -151,7 +150,7 @@ namespace DynamicAnalysis
 							// Assume that equality is actually assignment into the variable of interest
 							search = false;
 							ScalarSymbolNode<BitVector> left = (ScalarSymbolNode<BitVector>) binary.GetChildren()[0];
-							LiteralNode<BitVector> right     = (LiteralNode<BitVector>) binary.GetChildren()[1];
+							LiteralNode<BitVector> right   = (LiteralNode<BitVector>) binary.GetChildren()[1];
 							if (left.symbol == "group_size_x") 
 							{
 								if (!GPU.Instance.IsUserSetBlockDim(DIMENSION.X))
@@ -198,13 +197,13 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void InterpretKernels (IEnumerable<Implementation> implementations)
+		private void InterpretKernels (IEnumerable<Implementation> implementations)
 		{
 			try
 			{
 				foreach (Implementation impl in implementations)
 				{
-				    currentImpl = impl;
+				  currentImpl = impl;
 					Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
 					Print.VerboseMessage(String.Format("#Requires '{0}'", impl.Proc.Requires.Count));
 					foreach (Requires requires in impl.Proc.Requires)
@@ -224,13 +223,13 @@ namespace DynamicAnalysis
 					}
 				}
 			}
-			finally
+			catch 
 			{
-				//Memory.Dump();
+				Memory.Dump();
 			}
 		}
 		
-		private static void EvaluateRequires (Requires requires)
+		private void EvaluateRequires (Requires requires)
 		{
 			ExprTree tree = new ExprTree(requires.Condition);	
 			foreach (HashSet<Node> nodes in tree)
@@ -259,9 +258,9 @@ namespace DynamicAnalysis
 					}
 					else if (node is BinaryNode<bool>)
 					{
-						BinaryNode<bool> binary          = node as BinaryNode<bool>;
+						BinaryNode<bool> binary     = node as BinaryNode<bool>;
 						ScalarSymbolNode<BitVector> left = binary.GetChildren()[0] as ScalarSymbolNode<BitVector>;
-						LiteralNode<BitVector> right     = binary.GetChildren()[1] as LiteralNode<BitVector>;
+						LiteralNode<BitVector> right   = binary.GetChildren()[1] as LiteralNode<BitVector>;
 						if (left != null && right != null && binary.op == "==")
 						{
 							Memory.Store(left.symbol, right.evaluations[0]);
@@ -271,7 +270,7 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void InitialiseFormalParams (List<Variable> formals)
+		private void InitialiseFormalParams (List<Variable> formals)
 		{
 			// Currently do nothing as all scalar types are initialised indirectly through a requires clause
 			/*
@@ -297,7 +296,7 @@ namespace DynamicAnalysis
 			*/
 		}
 		
-		private static void InterpretBasicBlock ()
+		private void InterpretBasicBlock ()
 		{
 			Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", current.Label), 1);
 			// Execute all the statements
@@ -336,7 +335,7 @@ namespace DynamicAnalysis
 						else
 						{
 							SimpleAssignLhs lhs = (SimpleAssignLhs) LhsEval.Item1;
-							ExprTree tree       = LhsEval.Item2;
+							ExprTree tree    = LhsEval.Item2;
 							Memory.Store(lhs.AssignedVariable.Name, tree.evaluation);
 						}
 					}
@@ -365,11 +364,11 @@ namespace DynamicAnalysis
 							passedAsserts.Remove(assert);
 							Node lhs = exprTree.Root().GetChildren()[0];
 							string lhsName = lhs.ToString();
-              if (Regex.IsMatch(lhsName, "_[a-z][0-9]+", RegexOptions.IgnoreCase))
-              {
-                ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, currentImpl.Name);
-                ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
-              }
+						    if (Regex.IsMatch(lhsName, "_[a-z][0-9]+", RegexOptions.IgnoreCase))
+						    {
+						      ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, currentImpl.Name);
+						      ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
+						    }
 						}
 						else if (!passedAsserts.Contains(assert))
 							passedAsserts.Add(assert);
@@ -394,13 +393,12 @@ namespace DynamicAnalysis
 				else
 					throw new UnhandledException("Unhandled command: " + cmd.ToString());
 			}
-			Print.DebugMessage(Memory.Dump, 10);
 		}
 		
-		private static void EvaluateBinaryNode (BinaryNode<BitVector> binary)
+		private void EvaluateBinaryNode (BinaryNode<BitVector> binary)
 		{
 			Print.DebugMessage("Evaluating binary bv node", 10);
-			ExprNode<BitVector> left  = binary.GetChildren()[0] as ExprNode<BitVector>;
+			ExprNode<BitVector> left = binary.GetChildren()[0] as ExprNode<BitVector>;
 			ExprNode<BitVector> right = binary.GetChildren()[1] as ExprNode<BitVector>;
 			if (left != null && right != null)
 			{
@@ -469,14 +467,14 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void EvaluateBinaryNode (BinaryNode<bool> binary)
+		private void EvaluateBinaryNode (BinaryNode<bool> binary)
 		{
 			Print.DebugMessage("Evaluating binary bool node", 10);
-			if (binary.op == "||"  ||
-			    binary.op == "&&"  ||
-			    binary.op == "==>")
+			if (binary.op == "||" ||
+			  binary.op == "&&" ||
+			  binary.op == "==>")
 			{
-				ExprNode<bool> left  = binary.GetChildren()[0] as ExprNode<bool>;
+				ExprNode<bool> left = binary.GetChildren()[0] as ExprNode<bool>;
 				ExprNode<bool> right = binary.GetChildren()[1] as ExprNode<bool>;
 				if (left != null && right != null)
 				{
@@ -513,7 +511,7 @@ namespace DynamicAnalysis
 			}
 			else
 			{
-				ExprNode<BitVector> left  = binary.GetChildren()[0] as ExprNode<BitVector>;
+				ExprNode<BitVector> left = binary.GetChildren()[0] as ExprNode<BitVector>;
 				ExprNode<BitVector> right = binary.GetChildren()[1] as ExprNode<BitVector>;
 				if (left != null && right != null)
 				{
@@ -599,7 +597,7 @@ namespace DynamicAnalysis
 			}
 		}
 		
-		private static void EvaluateExprTree (ExprTree tree)
+		private void EvaluateExprTree (ExprTree tree)
 		{			
 			foreach (HashSet<Node> nodes in tree)
 			{
@@ -655,7 +653,7 @@ namespace DynamicAnalysis
 						else if (node is UnaryNode<bool>)
 						{
 							UnaryNode<bool> unary = node as UnaryNode<bool>;
-							ExprNode<bool> child  = (ExprNode<bool>) unary.GetChildren()[0];
+							ExprNode<bool> child = (ExprNode<bool>) unary.GetChildren()[0];
 							switch (unary.op)
 							{
 							case "!":
@@ -674,8 +672,8 @@ namespace DynamicAnalysis
 						else if (node is TernaryNode<bool>)
 						{
 							TernaryNode<bool> ternary = node as TernaryNode<bool>;
-							ExprNode<bool> one   = (ExprNode<bool>) ternary.GetChildren()[0];
-							ExprNode<bool> two   = (ExprNode<bool>) ternary.GetChildren()[1];
+							ExprNode<bool> one  = (ExprNode<bool>) ternary.GetChildren()[0];
+							ExprNode<bool> two  = (ExprNode<bool>) ternary.GetChildren()[1];
 							ExprNode<bool> three = (ExprNode<bool>) ternary.GetChildren()[2];
 							if (one.evaluations[0])
 								ternary.evaluations.Add(two.evaluations[0]);
@@ -685,8 +683,8 @@ namespace DynamicAnalysis
 						else if (node is TernaryNode<BitVector>)
 						{
 							TernaryNode<BitVector> ternary = node as TernaryNode<BitVector>;
-							ExprNode<bool> one          = (ExprNode<bool>) ternary.GetChildren()[0];
-							ExprNode<BitVector> two   = (ExprNode<BitVector>) ternary.GetChildren()[1];
+							ExprNode<bool> one     = (ExprNode<bool>) ternary.GetChildren()[0];
+							ExprNode<BitVector> two  = (ExprNode<BitVector>) ternary.GetChildren()[1];
 							ExprNode<BitVector> three = (ExprNode<BitVector>) ternary.GetChildren()[2];
 							if (one.evaluations[0])
 								ternary.evaluations.Add(two.evaluations[0]);
@@ -719,7 +717,7 @@ namespace DynamicAnalysis
 			}
 		}
 							
-		private static void LogRead (CallCmd call)
+		private void LogRead (CallCmd call)
 		{
 			Print.DebugMessage("In log read", 10);
 			int dollarIndex = call.callee.IndexOf('$');
@@ -727,12 +725,12 @@ namespace DynamicAnalysis
 			string raceArrayOffsetName = "_READ_OFFSET_" + call.callee.Substring(dollarIndex) + "$1";
 			Print.ConditionalExitMessage(Memory.HadRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
 			Expr offsetExpr = call.Ins[1];
-			ExprTree tree   = GetExprTree(offsetExpr);
+			ExprTree tree  = GetExprTree(offsetExpr);
 			EvaluateExprTree(tree);
 			Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
 		}
 		
-		private static void LogWrite (CallCmd call)
+		private void LogWrite (CallCmd call)
 		{
 			Print.DebugMessage("In log write", 10);
 			int dollarIndex = call.callee.IndexOf('$');
@@ -740,12 +738,12 @@ namespace DynamicAnalysis
 			string raceArrayOffsetName = "_WRITE_OFFSET_" + call.callee.Substring(dollarIndex) + "$1";
 			Print.ConditionalExitMessage(Memory.HadRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
 			Expr offsetExpr = call.Ins[1];
-			ExprTree tree   = GetExprTree(offsetExpr);
+			ExprTree tree  = GetExprTree(offsetExpr);
 			EvaluateExprTree(tree);
 			Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
 		}
 		
-		private static Block TransferControl ()
+		private Block TransferControl ()
 		{
 			TransferCmd transfer = current.TransferCmd;
 			if (transfer is GotoCmd)
@@ -754,7 +752,7 @@ namespace DynamicAnalysis
 				if (goto_.labelNames.Count == 1)
 				{
 					string succLabel = goto_.labelNames[0];
-					Block succ       = LabelToBlock[succLabel];
+					Block succ    = LabelToBlock[succLabel];
 					return succ;
 				}
 				else
@@ -762,9 +760,9 @@ namespace DynamicAnalysis
 					// Loop through all potential successors and find one whose guard evaluates to true
 					foreach (string succLabel in goto_.labelNames)
 					{
-						Block succ                = LabelToBlock[succLabel];
+						Block succ        = LabelToBlock[succLabel];
 						PredicateCmd predicateCmd = (PredicateCmd) succ.Cmds[0];
-						ExprTree exprTree         = GetExprTree(predicateCmd.Expr);
+						ExprTree exprTree     = GetExprTree(predicateCmd.Expr);
 						EvaluateExprTree(exprTree);
 						if (exprTree.evaluation.Equals(BitVector.True))
 							return succ;
@@ -777,7 +775,7 @@ namespace DynamicAnalysis
 			throw new UnhandledException("Unhandled control transfer command: " + transfer.ToString());
 		}
 		
-		private static void Output ()
+		private void Output ()
 		{						
 			if (failedAsserts.Count > 0)
 			{

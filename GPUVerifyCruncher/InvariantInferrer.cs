@@ -76,7 +76,7 @@ namespace Microsoft.Boogie
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
         unsoundTasks.Add(Task.Factory.StartNew(
           () => {
-          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false));
+          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), true, 10);
         }, tokenSource.Token
         ));
       }

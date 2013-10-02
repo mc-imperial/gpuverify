@@ -31,7 +31,7 @@ namespace DynamicAnalysis
 		{
 			Print.verbose = verbose;
 			Print.debug = debug;
-			BoogieInterpreter.Interpret(program);
+			new BoogieInterpreter(program);
 		}
 	}
 	
