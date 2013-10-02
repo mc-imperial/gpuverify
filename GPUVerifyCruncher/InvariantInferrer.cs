@@ -91,11 +91,11 @@ namespace Microsoft.Boogie
           DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(0, 0, 0), Tuple.Create(0, 0, 0));
         }, tokenSource.Token
         ));
-      }
 
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("dynamic-first") ||
-          ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased")) {
-        Task.WaitAll(unsoundTasks.ToArray());
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("dynamic-first") ||
+            ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased")) {
+          Task.WaitAll(unsoundTasks.ToArray());
+        }
       }
 
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
