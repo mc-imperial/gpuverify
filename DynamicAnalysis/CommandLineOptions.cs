@@ -9,7 +9,9 @@ namespace DynamicAnalysis
 {
 	public class CommandLineOptions
 	{
-		private static List<string> Files = new List<string>();
+		public static List<string> Files = new List<string>();
+		public static Tuple<int, int, int> ThreadID = Tuple.Create(int.MaxValue, -1, -1);
+        public static Tuple<int, int, int> GroupID = Tuple.Create(-1, -1, -1);
 		
 		public static void Parse(string[] args)
 		{	
@@ -51,26 +53,12 @@ namespace DynamicAnalysis
 					
 				case "-tid":
 				case "/tid":
-					Tuple<int, int, int> threadID = HandleTuple(afterColon);
-					GPU.Instance.SetThreadID(threadID);
+					ThreadID = HandleTuple(afterColon);
 					break;
 					
 				case "-gid":
 				case "/gid":
-					Tuple<int, int, int> groupID = HandleTuple(afterColon);
-					GPU.Instance.SetGroupID(groupID);
-					break;
-					
-				case "-blockDim":
-				case "/blockDim":
-					Tuple<int, int, int> blockDim = HandleTuple(afterColon);
-					GPU.Instance.SetBlockDim(blockDim);
-					break;
-					
-				case "-gridDim":
-				case "/gridDim":
-					Tuple<int, int, int> gridDim = HandleTuple(afterColon);
-					GPU.Instance.SetGridDim(gridDim);
+					GroupID = HandleTuple(afterColon);
 					break;
 					
 				default:
@@ -80,11 +68,6 @@ namespace DynamicAnalysis
 			}
 			// Grab the Boogie files
 			HandleFiles();			
-		}
-		
-		public static string GetBoogieFile ()
-		{
-			return Files[0];
 		}
 		
 		private static void HandleDebug (string val)
@@ -175,8 +158,6 @@ namespace DynamicAnalysis
   /h                            : output this message
   /d:level                      : output debug messages at or above the specified level
   /v                            : output verbose messages
-  /tid:[x,y,z]                  : set the thread ID
-  /gid:[x,y,z]                  : set the group ID
   /blockDim:[x,y,z]             : set the block dimensions
   /gridDim:[x,y,z]              : set the grid dimensions
 ");

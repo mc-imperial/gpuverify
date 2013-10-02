@@ -11,7 +11,7 @@ namespace DynamicAnalysis
 		{
 			CommandLineOptions.Parse(args);
 			Microsoft.Boogie.CommandLineOptions.Install(new OverrideCommandLineOptions());
-			string file = CommandLineOptions.GetBoogieFile();
+			string file = CommandLineOptions.Files[0];
 			Program program;
 			var defines = new List<string>() { "FILE_0" };
 			int errors = Microsoft.Boogie.Parser.Parse(file, defines, out program);
@@ -24,14 +24,14 @@ namespace DynamicAnalysis
         		writer.WriteLine();
         		program.Emit(writer);
 			}
-			Start(program);
+			Start(program, CommandLineOptions.ThreadID, CommandLineOptions.GroupID, Print.verbose, Print.debug);
 		}
 		
-		public static void Start (Program program, bool verbose = false, int debug = 0)
+		public static void Start (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID, bool verbose = false, int debug = 0)
 		{
 			Print.verbose = verbose;
 			Print.debug = debug;
-			new BoogieInterpreter(program);
+			new BoogieInterpreter(program, threadID, groupID);
 		}
 	}
 	

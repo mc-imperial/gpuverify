@@ -23,7 +23,10 @@ namespace DynamicAnalysis
 	public class BoogieInterpreter
 	{		
         private Program program;
-	    private Implementation currentImpl;
+        private Tuple<int, int, int> threadID;
+        private Tuple<int, int, int> groupID;
+        private GPU gpu = new GPU();
+	    private Implementation impl;
 		private Block current = null;
 		private Random Random = new Random();
 		private Memory Memory = new Memory();
@@ -32,9 +35,11 @@ namespace DynamicAnalysis
 		private HashSet<AssertCmd> failedAsserts = new HashSet<AssertCmd>();
 		private HashSet<AssertCmd> passedAsserts = new HashSet<AssertCmd>();
 		
-		public BoogieInterpreter (Program program)
+		public BoogieInterpreter (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
 		{
 		    this.program = program;
+		    this.threadID = threadID;
+		    this.groupID = groupID;
 			EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
 			EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
 			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
@@ -88,45 +93,75 @@ namespace DynamicAnalysis
 				}
 				else if (Regex.IsMatch(constant.Name, "local_id_x", RegexOptions.IgnoreCase))
 				{
-					if (GPU.Instance.IsUserSetThreadID(DIMENSION.X))
-						Memory.Store(constant.Name, new BitVector(GPU.Instance.threadID[DIMENSION.X]));
+					if (threadID.Item1 > -1)
+					{
+					    if (threadID.Item1 == int.MaxValue)
+					        Memory.Store(constant.Name, new BitVector(gpu.blockDim[DIMENSION.X] - 1));
+					    else 
+							Memory.Store(constant.Name, new BitVector(threadID.Item1));
+					}
 					else
-						Memory.Store(constant.Name, new BitVector(Random.Next(1, GPU.Instance.blockDim[DIMENSION.X])));
+						Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.blockDim[DIMENSION.X] - 1)));
 				}
 				else if (Regex.IsMatch(constant.Name, "local_id_y", RegexOptions.IgnoreCase))
 				{
-					if (GPU.Instance.IsUserSetThreadID(DIMENSION.Y))
-						Memory.Store(constant.Name, new BitVector(GPU.Instance.threadID[DIMENSION.Y]));
+					if (threadID.Item2 > -1)
+					{
+					    if (threadID.Item2 == int.MaxValue)
+					        Memory.Store(constant.Name, new BitVector(gpu.blockDim[DIMENSION.Y] - 1));
+					    else 
+					        Memory.Store(constant.Name, new BitVector(threadID.Item2));
+					}
 					else
-						Memory.Store(constant.Name, new BitVector(Random.Next(1, GPU.Instance.blockDim[DIMENSION.Y])));
+						Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.blockDim[DIMENSION.Y] - 1)));
 				}
 				else if (Regex.IsMatch(constant.Name, "local_id_z", RegexOptions.IgnoreCase))
 				{
-					if (GPU.Instance.IsUserSetThreadID(DIMENSION.Z))
-						Memory.Store(constant.Name, new BitVector(GPU.Instance.threadID[DIMENSION.Z]));
+					if (threadID.Item3 > -1)
+					{
+					    if (threadID.Item3 == int.MaxValue)
+					        Memory.Store(constant.Name, new BitVector(gpu.blockDim[DIMENSION.Z] - 1));
+					    else 
+					        Memory.Store(constant.Name, new BitVector(threadID.Item3));
+					}
 					else
-						Memory.Store(constant.Name, new BitVector(Random.Next(1, GPU.Instance.blockDim[DIMENSION.Z])));
+						Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.blockDim[DIMENSION.Z] - 1)));
 				}
 				else if (Regex.IsMatch(constant.Name, "group_id_x", RegexOptions.IgnoreCase))
 				{
-					if (GPU.Instance.IsUserSetGroupID(DIMENSION.X))
-						Memory.Store(constant.Name, new BitVector(GPU.Instance.groupID[DIMENSION.X]));
+					if (groupID.Item1 > -1)
+                    {
+					    if (groupID.Item1 == int.MaxValue)
+					        Memory.Store(constant.Name, new BitVector(gpu.gridDim[DIMENSION.X] - 1));
+					    else 
+					        Memory.Store(constant.Name, new BitVector(groupID.Item1));
+					}
 					else
-						Memory.Store(constant.Name, new BitVector(Random.Next(1, GPU.Instance.gridDim[DIMENSION.X])));
+						Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.gridDim[DIMENSION.X] - 1)));
 				}
 				else if (Regex.IsMatch(constant.Name, "group_id_y", RegexOptions.IgnoreCase))
 				{
-					if (GPU.Instance.IsUserSetGroupID(DIMENSION.Y))
-						Memory.Store(constant.Name, new BitVector(GPU.Instance.groupID[DIMENSION.Y]));
+					if (groupID.Item2 > -1)
+                    {
+					    if (groupID.Item2 == int.MaxValue)
+					        Memory.Store(constant.Name, new BitVector(gpu.gridDim[DIMENSION.Y] - 1));
+					    else 
+					        Memory.Store(constant.Name, new BitVector(groupID.Item2));
+					}
 					else
-						Memory.Store(constant.Name, new BitVector(Random.Next(1, GPU.Instance.gridDim[DIMENSION.Y])));
+						Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.gridDim[DIMENSION.Y] - 1)));
 				}
 				else if (Regex.IsMatch(constant.Name, "group_id_z", RegexOptions.IgnoreCase))
 				{
-					if (GPU.Instance.IsUserSetGroupID(DIMENSION.Z))
-						Memory.Store(constant.Name, new BitVector(GPU.Instance.groupID[DIMENSION.Z]));
+					if (groupID.Item3 > -1)
+					{
+					    if (groupID.Item3 == int.MaxValue)
+					        Memory.Store(constant.Name, new BitVector(gpu.gridDim[DIMENSION.Z] - 1));
+					    else 
+					        Memory.Store(constant.Name, new BitVector(groupID.Item3));
+					}
 					else
-						Memory.Store(constant.Name, new BitVector(Random.Next(1, GPU.Instance.gridDim[DIMENSION.Z])));
+						Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.gridDim[DIMENSION.Z] - 1)));
 				}
 			}
 		}
@@ -153,39 +188,33 @@ namespace DynamicAnalysis
 							LiteralNode<BitVector> right   = (LiteralNode<BitVector>) binary.GetChildren()[1];
 							if (left.symbol == "group_size_x") 
 							{
-								if (!GPU.Instance.IsUserSetBlockDim(DIMENSION.X))
-									GPU.Instance.blockDim[DIMENSION.X] = right.evaluations[0].Data;
-								Memory.Store(left.symbol, new BitVector(GPU.Instance.blockDim[DIMENSION.X]));
+								gpu.blockDim[DIMENSION.X] = right.evaluations[0].Data;
+								Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.X]));
 							}
 							else if (left.symbol == "group_size_y")
 							{
-								if (!GPU.Instance.IsUserSetBlockDim(DIMENSION.Y))
-									GPU.Instance.blockDim[DIMENSION.Y] = right.evaluations[0].Data;
-								Memory.Store(left.symbol, new BitVector(GPU.Instance.blockDim[DIMENSION.Y]));
+								gpu.blockDim[DIMENSION.Y] = right.evaluations[0].Data;
+								Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Y]));
 							}
 							else if (left.symbol == "group_size_z")
 							{
-								if (!GPU.Instance.IsUserSetBlockDim(DIMENSION.Z))
-									GPU.Instance.blockDim[DIMENSION.Z] = right.evaluations[0].Data;
-								Memory.Store(left.symbol, new BitVector(GPU.Instance.blockDim[DIMENSION.Z]));
+								gpu.blockDim[DIMENSION.Z] = right.evaluations[0].Data;
+								Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Z]));
 							}
 							else if (left.symbol == "num_groups_x")
 							{
-								if (!GPU.Instance.IsUserSetGridDim(DIMENSION.X))
-									GPU.Instance.gridDim[DIMENSION.X] = right.evaluations[0].Data;
-								Memory.Store(left.symbol, new BitVector(GPU.Instance.gridDim[DIMENSION.X]));
+								gpu.gridDim[DIMENSION.X] = right.evaluations[0].Data;
+								Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.X]));
 							}
 							else if (left.symbol == "num_groups_y")
 							{
-								if (!GPU.Instance.IsUserSetGridDim(DIMENSION.Y))
-									GPU.Instance.gridDim[DIMENSION.Y] = right.evaluations[0].Data;
-								Memory.Store(left.symbol, new BitVector(GPU.Instance.gridDim[DIMENSION.Y]));
+								gpu.gridDim[DIMENSION.Y] = right.evaluations[0].Data;
+								Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Y]));
 							}
 							else if (left.symbol == "num_groups_z")
 							{
-								if (!GPU.Instance.IsUserSetGridDim(DIMENSION.Z))
-									GPU.Instance.gridDim[DIMENSION.Z] = right.evaluations[0].Data;
-								Memory.Store(left.symbol, new BitVector(GPU.Instance.gridDim[DIMENSION.Z]));
+								gpu.gridDim[DIMENSION.Z] = right.evaluations[0].Data;
+								Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Z]));
 							}
 							else
 								Print.ExitMessage("Unhandled GPU axiom: " + axiom.ToString());
@@ -203,9 +232,8 @@ namespace DynamicAnalysis
 			{
 				foreach (Implementation impl in implementations)
 				{
-				  currentImpl = impl;
 					Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
-					Print.VerboseMessage(String.Format("#Requires '{0}'", impl.Proc.Requires.Count));
+					this.impl = impl;
 					foreach (Requires requires in impl.Proc.Requires)
 					{
 						EvaluateRequires(requires);
@@ -223,9 +251,10 @@ namespace DynamicAnalysis
 					}
 				}
 			}
-			catch 
+			finally 
 			{
-				Memory.Dump();
+				Print.DebugMessage(Memory.Dump, 10);
+				Print.DebugMessage(Output, 10);
 			}
 		}
 		
@@ -305,7 +334,6 @@ namespace DynamicAnalysis
 				if (cmd is AssignCmd)
 				{
 					AssignCmd assign = cmd as AssignCmd;
-					Print.VerboseMessage(assign.ToString());
 					Print.DebugMessage(assign.ToString().Replace("\n", String.Empty), 5);
 					List<ExprTree> evaluations = new List<ExprTree>();
 					// First evaluate all RHS expressions
@@ -359,14 +387,14 @@ namespace DynamicAnalysis
 						EvaluateExprTree(exprTree);
 						if (exprTree.evaluation.Equals(BitVector.False))
 						{
-							Print.VerboseMessage("Falsifying assertion: " + assertStr);
 							failedAsserts.Add(assert);
 							passedAsserts.Remove(assert);
 							Node lhs = exprTree.Root().GetChildren()[0];
 							string lhsName = lhs.ToString();
-						    if (Regex.IsMatch(lhsName, "_[a-z][0-9]+", RegexOptions.IgnoreCase))
+						    if (Regex.IsMatch(lhsName, "^_[a-z][0-9]+"))
 						    {
-						      ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, currentImpl.Name);
+						      Print.VerboseMessage("Falsifying conjectured invariant: " + assertStr);
+						      ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, impl.Name);
 						      ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
 						    }
 						}
