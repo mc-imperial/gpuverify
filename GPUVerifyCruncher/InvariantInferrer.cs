@@ -93,6 +93,11 @@ namespace Microsoft.Boogie
         ));
       }
 
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("dynamic-first") ||
+          ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased")) {
+        Task.WaitAll(unsoundTasks.ToArray());
+      }
+
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
         // Schedule the unsound refutatiom engines for execution
         foreach (RefutationEngine engine in refutationEngines) {
@@ -105,8 +110,10 @@ namespace Microsoft.Boogie
           }
         }
 
-        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("unsound-first"))
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("unsound-first") ||
+            ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased")) {
           Task.WaitAll(unsoundTasks.ToArray());
+        }
 
         // Schedule the sound refutation engines for execution
         foreach (RefutationEngine engine in refutationEngines) {

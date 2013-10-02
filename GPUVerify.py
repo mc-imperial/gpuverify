@@ -369,8 +369,13 @@ def showHelpAndExit():
   print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
   print "                          inference (but this is not guaranteed)"
   print "  --dynamic-analysis      Use dynamic analysis to falsify invariants."
-  print "  --scheduling=X          Choose a scheduling strategy from the following: 'default' or"
-  print "                          'unsound-first'. The default strategy is 'default'."
+  print "  --scheduling=X          Choose a scheduling strategy from the following: 'default', 'unsound-first',"
+  print "                          'dynamic-first' or 'phased'. The 'default' strategy executes all refutation"
+  print "                          engines together. The 'unsound-first' strategy executes any unsound engines"
+  print "                          engines (either static or dynamic) before the sound engines. The 'dynamic-first'"
+  print "                          strategy executes any dynamic engines before the static engines. The 'phased'"
+  print "                          strategy executes first any dynamic engines, then any unsound static engines and"
+  print "                          then the sound static engines."
   print "  --debug-parallel-inference=X    Enable debugging of the parallel inference process. Options: 1-3"
   print "                          for varying levels of debugging information"
   print "  --infer-config-file=X.cfg       Specify a custom configuration file to be used"
@@ -578,10 +583,10 @@ def processGeneralOptions(opts, args):
       else:
         GPUVerifyError("argument to --solver must be 'Z3' or 'CVC4'", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--scheduling":
-      if a.lower() in ("default","unsound-first"):
+      if a.lower() in ("default","unsound-first","dynamic-first","phased"):
         CommandLineOptions.scheduling = a.lower()
       else:
-        GPUVerifyError("argument to --scheduling must be 'default' or 'unsound-first'", ErrorCodes.COMMAND_LINE_ERROR)
+        GPUVerifyError("argument to --scheduling must be 'default', 'unsound-first', 'dynamic-first' or'phased'", ErrorCodes.COMMAND_LINE_ERROR)
     if o == "--logic":
       if a.upper() in ("ALL_SUPPORTED","QF_ALL_SUPPORTED"):
         CommandLineOptions.logic = a.upper()
