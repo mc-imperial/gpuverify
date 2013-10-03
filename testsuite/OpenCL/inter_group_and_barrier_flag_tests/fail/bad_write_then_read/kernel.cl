@@ -1,7 +1,7 @@
 //xfail:BOOGIE_ERROR
 //--local_size=1024 --num_groups=1024
-//kernel.cl:21:5:[\s]+read by thread[\s]+\([\d]+, 0, 0\)[\s]+group[\s]+\([\d]+, 0, 0\)[\s]+y = p\[0];
-//kernel.cl:15:12:[\s]+write by thread[\s]+\([\d]+, 0, 0\)[\s]+group[\s]+\([\d]+, 0, 0\)[\s]+p\[0] = get_local_id\(0\);
+//kernel.cl:21:5:[\s]+read by thread[\s]+[\d]+[\s]+in group[\s]+[\d]+[\s]+y = p\[0];
+//kernel.cl:15:12:[\s]+write by thread[\s]+[\d]+[\s]+in group[\s]+[\d]+[\s]+p\[0] = get_local_id\(0\);
 
 
 

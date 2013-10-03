@@ -1,8 +1,8 @@
 //xfail:BOOGIE_ERROR
 //--local_size=1024 --num_groups=1024
 //kernel.cl:[\s]+error:[\s]+possible[\s]+read-write[\s]+race on \(\(char\*\)p\)\[0]
-//kernel.cl:19:5:[\s]+write by thread[\s]+\([\d]+, 0, 0\)[\s]+group[\s]+\([\d]+, 0, 0\)[\s]+p\[0] = 0;
-//kernel.cl:14:3:[\s]+read by thread[\s]+\([\d]+, 0, 0\)[\s]+group[\s]+\([\d]+, 0, 0\)[\s]+y = p\[0];
+//kernel.cl:19:5:[\s]+write by thread[\s]+[\d]+[\s]+in group[\s]+[\d]+[\s]+p\[0] = 0;
+//kernel.cl:14:3:[\s]+read by thread[\s]+[\d]+[\s]+in group[\s]+[\d]+[\s]+y = p\[0];
 
 
 __kernel void foo(__local int* p) {
