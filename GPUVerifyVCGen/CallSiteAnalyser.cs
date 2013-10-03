@@ -20,7 +20,6 @@ namespace GPUVerify
   class CallSiteAnalyser
   {
     private GPUVerifier verifier;
-
     private Dictionary<Procedure, List<CallCmd>> CallSites;
 
     public CallSiteAnalyser(GPUVerifier verifier)
@@ -32,19 +31,14 @@ namespace GPUVerify
     internal void Analyse()
     {
       FindAllCallSites();
-
       LiteralArgumentAnalyser();
     }
 
     private void FindAllCallSites()
     {
       foreach (Declaration D in verifier.Program.TopLevelDeclarations)
-        {
-          if (D is Implementation)
-            {
-              FindCallSites(D as Implementation);
-            }
-        }
+        if (D is Implementation)
+          FindCallSites(D as Implementation);
     }
 
     private void FindCallSites(Implementation impl)
@@ -55,9 +49,7 @@ namespace GPUVerify
     private void FindCallSites(List<Block> blocks)
     {
       foreach (Block b in blocks)
-        {
-          FindCallSites(b);
-        }
+        FindCallSites(b);
     }
 
     private void FindCallSites(Block b)
@@ -73,6 +65,11 @@ namespace GPUVerify
             {
               CallCmd callCmd = c as CallCmd;
 
+              // Only consider non-inlined procedures
+              if (QKeyValue.FindIntAttribute(callCmd.Proc.Attributes,
+                                             "inline", -1) != -1)
+                continue;
+
               if (!CallSites.ContainsKey(callCmd.Proc))
                 {
                   CallSites[callCmd.Proc] = new List<CallCmd>();
@@ -85,45 +82,34 @@ namespace GPUVerify
 
     private void LiteralArgumentAnalyser()
     {
-      foreach(Procedure p in CallSites.Keys)
+      foreach (Procedure p in CallSites.Keys)
+        for (int i = 0; i < p.InParams.Count(); i++)
+          LiteralArgumentAnalyser(p, i);
+    }
+
+    private void LiteralArgumentAnalyser(Procedure p, int arg)
+    {
+      LiteralExpr literal = null;
+
+      foreach (CallCmd callCmd in CallSites[p])
         {
-          for (int i = 0; i < p.InParams.Count(); i++)
-            {
-              LiteralExpr literal = null;
-              bool arbitrary = false;
+          if (callCmd.Ins[arg] == null)
+            return;
 
-              foreach (CallCmd callCmd in CallSites[p])
-                {
-                  if (callCmd.Ins[i] == null)
-                    {
-                      arbitrary = true;
-                      break;
-                    }
+          if (!(callCmd.Ins[arg] is LiteralExpr))
+            continue;
 
-                  if (callCmd.Ins[i] is LiteralExpr)
-                    {
-                      LiteralExpr l = callCmd.Ins[i] as LiteralExpr;
+          LiteralExpr l = callCmd.Ins[arg] as LiteralExpr;
 
-                      if (literal == null)
-                        {
-                          literal = l;
-                        }
-                      else if (!l.Equals(literal))
-                        {
-                          arbitrary = true;
-                          break;
-                        }
-                    }
-                }
+          if (literal == null)
+            literal = l;
+          else if (!literal.Equals(l))
+            return;
 
-              if (literal != null && !arbitrary)
-                {
-                  Expr e;
-                  e = new IdentifierExpr(Token.NoToken, p.InParams[i]);
-                  e = Expr.Eq(e, literal);
-                  p.Requires.Add(new Requires(false, e));
-                }
-            }
+          Expr e;
+          e = new IdentifierExpr(Token.NoToken, p.InParams[arg]);
+          e = Expr.Eq(e, literal);
+          p.Requires.Add(new Requires(false, e));
         }
     }
   }
