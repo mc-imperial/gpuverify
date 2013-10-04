@@ -190,11 +190,15 @@ namespace GPUVerify {
               string LoopPredicate = ((guard as NAryExpr).Args[0] as IdentifierExpr).Name;
               LoopPredicate = LoopPredicate.Substring(0, LoopPredicate.IndexOf('$'));
 
-              verifier.AddCandidateInvariant(region, Expr.Eq(
+              var uniformEnabledPredicate = Expr.Eq(
                   // Int type used here, but it doesn't matter as we will print and then re-parse the program
                   new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$1", Microsoft.Boogie.Type.Int))),
                   new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$2", Microsoft.Boogie.Type.Int)))
-              ), "loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
+              );
+
+              verifier.AddCandidateInvariant(region, uniformEnabledPredicate, "loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
+
+              verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), uniformEnabledPredicate), "same group loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
 
               Dictionary<string, int> assignmentCounts = GetAssignmentCounts(Impl);
 
