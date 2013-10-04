@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=512 --gridDim=1
-//kernel.cu:56:21: error: loop invariant might not be maintained
+//--blockDim=512 --gridDim=1 --no-infer
+//kernel.cu:57:21: error: loop invariant might not be maintained
 
 #include <cuda.h>
 
@@ -51,6 +51,7 @@ __global__ void helloCUDA(
         numPointsPerCurve = numTimeOffsets;
 
             for(int j = 0;
+                    //__invariant(0 <= j), //< the missing invariant
                     __invariant(__implies(__write(sdata), ((__write_offset(sdata)/sizeof(float)) % blockDim.x) == threadIdx.x)),
                     __invariant(!__read(sdata)),
                     __invariant(__implies(__write(sdata), (__write_offset(sdata)/sizeof(float)) < (j/16)*blockDim.x)),
