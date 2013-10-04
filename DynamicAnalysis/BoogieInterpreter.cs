@@ -412,7 +412,7 @@ namespace DynamicAnalysis
 							if (exprTree.evaluation.Equals(BitVector.False))
 							{
 								AssertStatus [assert] = false;
-								Print.VerboseMessage("Falsifying conjectured invariant: " + assertStr);
+								Print.VerboseMessage("Falsifying conjectured invariant: " + lhsName);
 								ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, impl.Name);
 								ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
 							}
