@@ -710,7 +710,7 @@ def main(argv=None):
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group',
               'only-log', 'adversarial-abstraction', 'equality-abstraction',
-              'no-annotations', '--only-requires', 'no-barrier-access-checks', 'no-constant-write-checks', 'no-loop-predicate-invariants',
+              'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer',
               'no-uniformity-analysis', 'call-site-analysis',
               'clang-opt=',
