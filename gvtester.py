@@ -597,8 +597,8 @@ def main(arg):
 
     #General options
     parser.add_argument("--kernel-regex", type=str, default=r"^kernel\.(cu|cl)$", help="Regex for kernel file names (default: \"%(default)s\")")
-    parser.add_argument("--from-file", type=str, default=None, help="File containing relative paths of kernels to test")
-    parser.add_argument("--ignore-file", type=str, default=None, help="File containing relative paths of kernels to ignore")
+    parser.add_argument("--from-file", type=str, default=None, action='append', help="File containing relative paths of kernels to test")
+    parser.add_argument("--ignore-file", type=str, default=None, action='append', help="File containing relative paths of kernels to ignore")
     parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])
     parser.add_argument("-w","--write-pickle",type=str, default="", help="Write detailed log information in pickle format to a file")
     parser.add_argument("-p","--canonical-path-prefix", type=str, default="testsuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
@@ -645,16 +645,17 @@ def main(arg):
     openCLCount=0
     kernelFiles=[]
     if (args.from_file):
-      kernels = [line.strip() for line in open(args.from_file) if not line.startswith('#')]
-      for kernel in kernels:
-        if kernel.endswith('cu'):
-          cudaCount+=1
-        elif kernel.endswith('cl'):
-          openCLCount+=1
-        else:
-          logging.debug("Not a valid kernel:\"{}\"".format(kernel))
-          return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
-        kernelFiles.append(os.path.join(recursionRootPath,kernel))
+      for f in args.from_file:
+        kernels = [line.strip() for line in open(f) if not line.startswith('#')]
+        for kernel in kernels:
+          if kernel.endswith('cu'):
+            cudaCount+=1
+          elif kernel.endswith('cl'):
+            openCLCount+=1
+          else:
+            logging.debug("Not a valid kernel:\"{}\"".format(kernel))
+            return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
+          kernelFiles.append(os.path.join(recursionRootPath,kernel))
 
     else:
       matcher=re.compile(args.kernel_regex)
@@ -675,17 +676,18 @@ def main(arg):
     openCLCountIgnored=0
     kernelFilesIgnored=[]
     if (args.ignore_file):
-      kernels = [line.strip() for line in open(args.ignore_file) if not line.startswith('#')]
-      for kernel in kernels:
-        if kernel.endswith('cu'):
-          cudaCountIgnored+=1
-        elif kernel.endswith('cl'):
-          openCLCountIgnored+=1
-        else:
-          logging.debug("Not a valid kernel:\"{}\"".format(kernel))
-          return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
-        kernelFilesIgnored.append(os.path.join(recursionRootPath,kernel))
-      kernelFiles = list(set(kernelFiles) - set(kernelFilesIgnored))
+      for f in args.ignore_file:
+        kernels = [line.strip() for line in open(f) if not line.startswith('#')]
+        for kernel in kernels:
+          if kernel.endswith('cu'):
+            cudaCountIgnored+=1
+          elif kernel.endswith('cl'):
+            openCLCountIgnored+=1
+          else:
+            logging.debug("Not a valid kernel:\"{}\"".format(kernel))
+            return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
+          kernelFilesIgnored.append(os.path.join(recursionRootPath,kernel))
+        kernelFiles = list(set(kernelFiles) - set(kernelFilesIgnored))
 
       logging.info("Found    {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
       logging.info("Ignoring {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCountIgnored,cudaCountIgnored))
