@@ -375,6 +375,7 @@ def showHelpAndExit():
   print "  --math-int              Represent integer types using mathematical integers"
   print "                          instead of bit-vectors"
   print "  --no-annotations        Ignore all source-level annotations"
+  print "  --only-requires         Ignore all source-level annotations except for requires"
   print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
   print "  --no-constant-write-checks      Turn off access checks for writes to constant space"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
@@ -503,11 +504,14 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.keepTemps = True
     if o == "--math-int":
       CommandLineOptions.mathInt = True
-    if o == "--no-annotations":
+    if o in ("--no-annotations", "--only-requires"):
       # Must be added after include of opencl or cuda header
       noAnnotationsHeader = [ "-include", "annotations/no_annotations.h" ]
       clangOpenCLOptions.extend(noAnnotationsHeader)
       clangCUDAOptions.extend(noAnnotationsHeader)
+      if o == "--only-requires":
+        clangOpenCLDefines.append("ONLY_REQUIRES")
+        clangCUDADefines.append("ONLY_REQUIRES")
     if o == "--no-barrier-access-checks":
       CommandLineOptions.noBarrierAccessChecks = True
     if o == "--no-constant-write-checks":
@@ -706,7 +710,7 @@ def main(argv=None):
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group',
               'only-log', 'adversarial-abstraction', 'equality-abstraction',
-              'no-annotations', 'no-barrier-access-checks', 'no-constant-write-checks', 'no-loop-predicate-invariants',
+              'no-annotations', '--only-requires', 'no-barrier-access-checks', 'no-constant-write-checks', 'no-loop-predicate-invariants',
               'no-smart-predication', 'no-source-loc-infer',
               'no-uniformity-analysis', 'call-site-analysis',
               'clang-opt=',
