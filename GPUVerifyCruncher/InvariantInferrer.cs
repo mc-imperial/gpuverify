@@ -143,8 +143,7 @@ namespace Microsoft.Boogie
           DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
 					                                Tuple.Create(-1, -1, -1), 
 					                                Tuple.Create(-1, -1, -1),
-					                                true,
-					                                10);
+					                                true);
         }
 
         refutationEngines[0].run(getFreshProgram(false, true), ref outcome);
@@ -179,7 +178,10 @@ namespace Microsoft.Boogie
     {
       List<string> filesToProcess = new List<string>();
       filesToProcess.Add(fileNames[fileNames.Count - 1]);
-      var annotatedFile = Path.GetDirectoryName(filesToProcess[0]) + Path.VolumeSeparatorChar +
+	  string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
+	  if (string.IsNullOrEmpty (directoryContainingFiles))
+	    directoryContainingFiles = Directory.GetCurrentDirectory ();
+      var annotatedFile = directoryContainingFiles + Path.VolumeSeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);
 
       Program program = getFreshProgram(true, true);
