@@ -80,19 +80,25 @@ namespace Microsoft.Boogie
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
           unsoundTasks.Add(Task.Factory.StartNew(
             () => {
-            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(-1, -1, -1), Tuple.Create(-1, -1, -1));
+            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
+						                                Tuple.Create(-1, -1, -1), 
+						                                Tuple.Create(-1, -1, -1));
           }, tokenSource.Token
           ));
 
           unsoundTasks.Add(Task.Factory.StartNew(
             () => {
-            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue), Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue));
+            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
+						                                Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue), 
+						                                Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue));
           }, tokenSource.Token
           ));
 
           unsoundTasks.Add(Task.Factory.StartNew(
             () => {
-            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(0, 0, 0), Tuple.Create(0, 0, 0));
+            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
+						                                Tuple.Create(0, 0, 0), 
+						                                Tuple.Create(0, 0, 0));
           }, tokenSource.Token
           ));
 
@@ -134,7 +140,11 @@ namespace Microsoft.Boogie
       // Sequential invariant inference
       else {
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
-          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), Tuple.Create(-1, -1, -1), Tuple.Create(-1, -1, -1));
+          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
+					                                Tuple.Create(-1, -1, -1), 
+					                                Tuple.Create(-1, -1, -1),
+					                                true,
+					                                10);
         }
 
         refutationEngines[0].run(getFreshProgram(false, true), ref outcome);

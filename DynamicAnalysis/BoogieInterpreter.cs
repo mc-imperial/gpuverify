@@ -32,11 +32,11 @@ namespace DynamicAnalysis
 		private Memory Memory = new Memory();
 		private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>(); 
 		private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
-		private HashSet<AssertCmd> failedAsserts = new HashSet<AssertCmd>();
-		private HashSet<AssertCmd> passedAsserts = new HashSet<AssertCmd>();
-		
+		private Dictionary<AssertCmd, bool> AssertStatus = new Dictionary<AssertCmd, bool>();
+
 		public BoogieInterpreter (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
 		{
+			Console.WriteLine("Falsyifying invariants with dynamic analysis...");
 		    this.program = program;
 		    this.threadID = threadID;
 		    this.groupID = groupID;
@@ -44,7 +44,25 @@ namespace DynamicAnalysis
 			EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
 			EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
 			InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
+			Console.WriteLine("{0} invariants out of {1} falsified", FalsfifiedInvariants(), TotalInvariants());
 		}
+
+		public int FalsfifiedInvariants ()
+		{
+			int count = 0;
+			foreach (var tupleKey in AssertStatus) 
+			{
+				if (!tupleKey.Value)
+					count++;
+			}
+			return count;
+		}
+
+		public int TotalInvariants ()
+		{
+			return AssertStatus.Keys.Count;
+		}
+
 		
 		private BitVector GetRandomBV (int width)
 		{
@@ -382,24 +400,23 @@ namespace DynamicAnalysis
 					string assertStr = assert.ToString().Replace("\n", String.Empty);
 					Print.DebugMessage(assertStr, 5);
 					ExprTree exprTree = GetExprTree(assert.Expr);
-					if (!failedAsserts.Contains(assert))
+					Node lhs = exprTree.Root().GetChildren()[0];
+					string lhsName = lhs.ToString();
+					if (Regex.IsMatch (lhsName, "^_[a-z][0-9]+")) 
 					{
-						EvaluateExprTree(exprTree);
-						if (exprTree.evaluation.Equals(BitVector.False))
+						if (!AssertStatus.ContainsKey (assert))
+							AssertStatus [assert] = true;
+						if (AssertStatus[assert])
 						{
-							failedAsserts.Add(assert);
-							passedAsserts.Remove(assert);
-							Node lhs = exprTree.Root().GetChildren()[0];
-							string lhsName = lhs.ToString();
-						    if (Regex.IsMatch(lhsName, "^_[a-z][0-9]+"))
-						    {
-						      Print.VerboseMessage("Falsifying conjectured invariant: " + assertStr);
-						      ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, impl.Name);
-						      ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
-						    }
+							EvaluateExprTree(exprTree);
+							if (exprTree.evaluation.Equals(BitVector.False))
+							{
+								AssertStatus [assert] = false;
+								Print.VerboseMessage("Falsifying conjectured invariant: " + assertStr);
+								ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, impl.Name);
+								ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
+							}
 						}
-						else if (!passedAsserts.Contains(assert))
-							passedAsserts.Add(assert);
 					}
 				}
 				else if (cmd is HavocCmd)
@@ -802,20 +819,20 @@ namespace DynamicAnalysis
 				return null;
 			throw new UnhandledException("Unhandled control transfer command: " + transfer.ToString());
 		}
-		
+
 		private void Output ()
-		{						
-			if (failedAsserts.Count > 0)
+		{		
+			Console.WriteLine("************************ The following asserts do NOT hold ************************");
+			foreach (var tupleKey in AssertStatus) 
 			{
-				Console.WriteLine("************************ The following asserts do NOT hold ************************");
-				foreach (AssertCmd assert in failedAsserts)
-					Console.WriteLine(assert.ToString());
+				if (!tupleKey.Value)
+					Console.WriteLine(tupleKey.Key.ToString());
 			}
-			if (passedAsserts.Count > 0)
+			Console.WriteLine("************************ The following asserts do HOLD ************************");
+			foreach (var tupleKey in AssertStatus) 
 			{
-				Console.WriteLine("************************ The following asserts HOLD ************************");
-				foreach (AssertCmd assert in passedAsserts)
-					Console.WriteLine(assert.ToString());
+				if (tupleKey.Value)
+					Console.WriteLine(tupleKey.Key.ToString());
 			}
 		}
 	}
