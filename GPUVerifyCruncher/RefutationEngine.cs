@@ -22,12 +22,10 @@ namespace Microsoft.Boogie
   /// Wrapper class for a concurrent Houdini instance. It is able to run either on
   /// the main thread or on a worker thread.
   /// </summary>
-  public class RefutationEngine
+  public class StaticRefutationEngine : RefutationEngine
   {
-    public int id;
-    public string name;
-    public bool isTrusted;
-
+    private Houdini.ConcurrentHoudini houdini = null;
+    private bool isTrusted;
     private string solver;
     private int errorLimit;
     private bool disableLEI;
@@ -35,10 +33,13 @@ namespace Microsoft.Boogie
     private bool modifyTSO;
     private int loopUnroll;
 
-    public Houdini.ConcurrentHoudini houdini = null;
+    public override int ID { get { return this.id; } }
+    public override string Name { get { return this.name; } }
+    public bool IsTrusted { get { return this.isTrusted; } }
+    public Houdini.ConcurrentHoudini Houdini { get { return this.houdini; } }
 
-    public RefutationEngine(int id, string name, string solver, string errorLimit, string disableLEI,
-                            string disableLMI, string modifyTSO, string loopUnroll)
+    public StaticRefutationEngine(int id, string name, string solver, string errorLimit, string disableLEI,
+                                  string disableLMI, string modifyTSO, string loopUnroll)
     {
       this.id = id;
       this.name = name;
@@ -68,7 +69,7 @@ namespace Microsoft.Boogie
     /// Starts a new concurrent Houdini execution. Returns the outcome of the
     /// Houdini process by reference.
     /// </summary>
-    public int run(Program program, ref Houdini.HoudiniOutcome outcome)
+    public int start(Program program, ref Houdini.HoudiniOutcome outcome)
     {
       if (CommandLineOptions.Clo.Trace)
         Console.WriteLine("INFO:[Engine-" + name + "] started crunching ...");
@@ -109,9 +110,9 @@ namespace Microsoft.Boogie
     }
 
     /// <summary>
-    /// Prints the configuration options of the Refutation Engine.
+    /// Prints the configuration options of the Static Refutation Engine.
     /// </summary>
-    public void printConfig()
+    public override void printConfig()
     {
       Console.WriteLine("######################################");
       Console.WriteLine("# Configuration for " + name + ":");
@@ -124,5 +125,94 @@ namespace Microsoft.Boogie
       Console.WriteLine("# loopUnroll = " + loopUnroll);
       Console.WriteLine("######################################");
     }
+  }
+
+  /// <summary>
+  /// Wrapper class for a concurrent dynamic analyser instance. It is able to run either on
+  /// the main thread or on a worker thread.
+  /// </summary>
+  public class DynamicRefutationEngine : RefutationEngine
+  {
+    private int threadId_X;
+    private int threadId_Y;
+    private int threadId_Z;
+    private int groupId_X;
+    private int groupId_Y;
+    private int groupId_Z;
+
+    public override int ID { get { return this.id; } }
+    public override string Name { get { return this.name; } }
+
+    public DynamicRefutationEngine(int id, string name, string threadId_X, string threadId_Y, string threadId_Z,
+                                   string groupId_X, string groupId_Y, string groupId_Z)
+    {
+      this.id = id;
+      this.name = name;
+      this.threadId_X = checkForMaxAndParseInt(threadId_X);
+      this.threadId_Y = checkForMaxAndParseInt(threadId_Y);
+      this.threadId_Z = checkForMaxAndParseInt(threadId_Z);
+      this.groupId_X = checkForMaxAndParseInt(groupId_X);
+      this.groupId_Y = checkForMaxAndParseInt(groupId_Y);
+      this.groupId_Z = checkForMaxAndParseInt(groupId_Z);
+    }
+
+    /// <summary>
+    /// Starts a new concurrent dynamic analyser execution.
+    /// </summary>
+    public void start(Program program, bool verbose = false, int debug = 0)
+    {
+      if (CommandLineOptions.Clo.Trace)
+        Console.WriteLine("INFO:[Engine-" + name + "] started crunching ...");
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
+        printConfig();
+
+      DynamicAnalysis.MainClass.Start(program, 
+                                      Tuple.Create(threadId_X, threadId_Y, threadId_Z), 
+                                      Tuple.Create(groupId_X, groupId_Y, groupId_Z),
+                                      verbose, debug);
+
+      if (CommandLineOptions.Clo.Trace)
+        Console.WriteLine("INFO:[Engine-" + name + "] finished.");
+    }
+
+    private int checkForMaxAndParseInt(string value)
+    {
+      if (value.ToLower().Equals("max")) return int.MaxValue;
+      else return int.Parse(value);
+    }
+
+    /// <summary>
+    /// Prints the configuration options of the Static Refutation Engine.
+    /// </summary>
+    public override void printConfig()
+    {
+      Console.WriteLine("######################################");
+      Console.WriteLine("# Configuration for " + name + ":");
+      Console.WriteLine("# id = " + id);
+      Console.WriteLine("# threadId_X = " + threadId_X);
+      Console.WriteLine("# threadId_Y = " + threadId_Y);
+      Console.WriteLine("# threadId_Z = " + threadId_Z);
+      Console.WriteLine("# groupId_X = " + groupId_X);
+      Console.WriteLine("# groupId_Y = " + groupId_Y);
+      Console.WriteLine("# groupId_Z = " + groupId_Z);
+      Console.WriteLine("######################################");
+    }
+  }
+
+  /// <summary>
+  /// An abstract class for a refutation engine.
+  /// </summary>
+  public abstract class RefutationEngine
+  {
+    protected int id;
+    protected string name;
+
+    public abstract int ID { get; }
+    public abstract string Name { get; }
+
+    /// <summary>
+    /// Prints the configuration options of the Refutation Engine.
+    /// </summary>
+    public abstract void printConfig();
   }
 }

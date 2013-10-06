@@ -28,7 +28,8 @@ namespace Microsoft.Boogie
   /// </summary>
   public class InvariantInferrer
   {
-    private RefutationEngine[] refutationEngines = null;
+    private StaticRefutationEngine[] staticEngines = null;
+    private DynamicRefutationEngine[] dynamicEngines = null;
     private Configuration config = null;
     private int engineIdx;
     private List<string> fileNames;
@@ -36,30 +37,50 @@ namespace Microsoft.Boogie
     public InvariantInferrer()
     {
       this.config = new Configuration();
-      this.refutationEngines = new RefutationEngine[config.getNumberOfEngines()];
+      this.staticEngines = new StaticRefutationEngine[config.getNumberOfEngines("static")];
+      this.dynamicEngines = new DynamicRefutationEngine[config.getNumberOfEngines("dynamic")];
       this.engineIdx = 0;
       string conf;
 
-      // Initialise refutation engines
-      for (int i = 0; i < refutationEngines.Length; i++) {
+      // Initialise static refutation engines
+      for (int i = 0; i < staticEngines.Length; i++) {
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-          conf = config.getValue("ParallelInference", "Engine_" + (i + 1));
+          conf = config.getValue("ParallelStaticInference", "Engine_" + (i + 1));
         } else {
-          conf = config.getValue("Inference", "Engine");
+          conf = config.getValue("StaticInference", "Engine");
         }
 
-        refutationEngines[i] = new RefutationEngine(i, conf,
-                                                    config.getValue(conf, "Solver"),
-                                                    config.getValue(conf, "ErrorLimit"),
-                                                    config.getValue(conf, "DisableLEI"),
-                                                    config.getValue(conf, "DisableLMI"),
-                                                    config.getValue(conf, "ModifyTSO"),
-                                                    config.getValue(conf, "LoopUnroll"));
+        staticEngines[i] = new StaticRefutationEngine(i, conf,
+                                                      config.getValue(conf, "Solver"),
+                                                      config.getValue(conf, "ErrorLimit"),
+                                                      config.getValue(conf, "DisableLEI"),
+                                                      config.getValue(conf, "DisableLMI"),
+                                                      config.getValue(conf, "ModifyTSO"),
+                                                      config.getValue(conf, "LoopUnroll"));
+      }
+
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
+        // Initialise dynamic refutation engines
+        for (int i = 0; i < dynamicEngines.Length; i++) {
+          if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
+            conf = config.getValue("ParallelDynamicInference", "Engine_" + (i + 1));
+          } else {
+            conf = config.getValue("DynamicInference", "Engine");
+          }
+
+          dynamicEngines[i] = new DynamicRefutationEngine(i, conf,
+                                                          config.getValue(conf, "ThreadID_X"),
+                                                          config.getValue(conf, "ThreadID_Y"),
+                                                          config.getValue(conf, "ThreadID_Z"),
+                                                          config.getValue(conf, "GroupID_X"),
+                                                          config.getValue(conf, "GroupID_Y"),
+                                                          config.getValue(conf, "GroupID_Z"));
+        }
       }
     }
 
     /// <summary>
-    /// Schedules instances of Houdini for sequential or concurrent execution.
+    /// Schedules refutation engines for sequential or concurrent execution.
     /// </summary>
     public int inferInvariants(List<string> fileNames)
     {   
@@ -76,31 +97,15 @@ namespace Microsoft.Boogie
         List<Task> soundTasks = new List<Task>();
         CancellationTokenSource tokenSource = new CancellationTokenSource();
 
-        // Schedule the dynamic analysis engines (if any) for execution
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
-          unsoundTasks.Add(Task.Factory.StartNew(
-            () => {
-            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
-						                                Tuple.Create(-1, -1, -1), 
-						                                Tuple.Create(-1, -1, -1));
-          }, tokenSource.Token
-          ));
-
-          unsoundTasks.Add(Task.Factory.StartNew(
-            () => {
-            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
-						                                Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue), 
-						                                Tuple.Create(int.MaxValue, int.MaxValue, int.MaxValue));
-          }, tokenSource.Token
-          ));
-
-          unsoundTasks.Add(Task.Factory.StartNew(
-            () => {
-            DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
-						                                Tuple.Create(0, 0, 0), 
-						                                Tuple.Create(0, 0, 0));
-          }, tokenSource.Token
-          ));
+          // Schedule the dynamic analysis engines (if any) for execution
+          foreach (DynamicRefutationEngine dynamicEngine in dynamicEngines) {
+            unsoundTasks.Add(Task.Factory.StartNew(
+              () => {
+              dynamicEngine.start(getFreshProgram(false, false));
+            }, tokenSource.Token
+            ));
+          }
 
           if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased") ||
               ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("dynamic-first")) {
@@ -109,11 +114,11 @@ namespace Microsoft.Boogie
         }
 
         // Schedule the unsound refutation engines (if any) for execution
-        foreach (RefutationEngine engine in refutationEngines) {
-          if (!engine.isTrusted) {
+        foreach (StaticRefutationEngine staticEngine in staticEngines) {
+          if (!staticEngine.IsTrusted) {
             unsoundTasks.Add(Task.Factory.StartNew(
               () => {
-              engine.run(getFreshProgram(false, true), ref outcome);
+              staticEngine.start(getFreshProgram(false, true), ref outcome);
             }, tokenSource.Token
             ));
           }
@@ -125,11 +130,11 @@ namespace Microsoft.Boogie
         }
 
         // Schedule the sound refutation engines for execution
-        foreach (RefutationEngine engine in refutationEngines) {
-          if (engine.isTrusted) {
+        foreach (StaticRefutationEngine staticEngine in staticEngines) {
+          if (staticEngine.IsTrusted) {
             soundTasks.Add(Task.Factory.StartNew(
               () => {
-              engineIdx = engine.run(getFreshProgram(false, true), ref outcome);
+              engineIdx = staticEngine.start(getFreshProgram(false, true), ref outcome);
             }, tokenSource.Token
             ));
           }
@@ -139,14 +144,9 @@ namespace Microsoft.Boogie
       }
       // Sequential invariant inference
       else {
-        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
-          DynamicAnalysis.MainClass.Start(getFreshProgram(false, false), 
-					                                Tuple.Create(-1, -1, -1), 
-					                                Tuple.Create(-1, -1, -1),
-					                                true);
-        }
-
-        refutationEngines[0].run(getFreshProgram(false, true), ref outcome);
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis)
+          dynamicEngines[0].start(getFreshProgram(false, false), true);
+        staticEngines[0].start(getFreshProgram(false, true), ref outcome);
       }
 
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
@@ -178,9 +178,9 @@ namespace Microsoft.Boogie
     {
       List<string> filesToProcess = new List<string>();
       filesToProcess.Add(fileNames[fileNames.Count - 1]);
-	  string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
-	  if (string.IsNullOrEmpty (directoryContainingFiles))
-	    directoryContainingFiles = Directory.GetCurrentDirectory ();
+      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
+      if (string.IsNullOrEmpty (directoryContainingFiles))
+        directoryContainingFiles = Directory.GetCurrentDirectory ();
       var annotatedFile = directoryContainingFiles + Path.VolumeSeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);
 
@@ -191,8 +191,8 @@ namespace Microsoft.Boogie
         Console.WriteLine("Applying inferred invariants (if any) to the original program...");
       }
 
-      if (refutationEngines != null && refutationEngines[engineIdx] != null) {
-        refutationEngines[engineIdx].houdini.ApplyAssignment(program);
+      if (staticEngines != null && staticEngines[engineIdx] != null) {
+        staticEngines[engineIdx].Houdini.ApplyAssignment(program);
       }
 
       if (File.Exists(filesToProcess[0])) File.Delete(filesToProcess[0]);
@@ -260,12 +260,15 @@ namespace Microsoft.Boogie
         return info[key1][key2];
       }
 
-      public int getNumberOfEngines()
+      public int getNumberOfEngines(string type)
       {
         int num = 1;
 
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-          num = ((Dictionary<string, string>)info ["ParallelInference"]).Count;
+          if (type.ToLower().Equals("static"))
+            num = ((Dictionary<string, string>)info ["ParallelStaticInference"]).Count;
+          else if (type.ToLower().Equals("dynamic"))
+            num = ((Dictionary<string, string>)info ["ParallelDynamicInference"]).Count;
         }
 
         return num;
