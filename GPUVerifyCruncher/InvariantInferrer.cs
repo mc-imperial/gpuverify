@@ -40,31 +40,41 @@ namespace Microsoft.Boogie
       this.engineIdx = 0;
       int idCounter = 0;
 
-            foreach (KeyValuePair<string, string> kvp in config.getRefutationEngines()) {
-              // Initialise static refutation engines
-              if (kvp.Key.Contains("StaticEngine")) {
-                refutationEngines.Add(new StaticRefutationEngine(idCounter, kvp.Value,
-                                                                 config.getValue(kvp.Value, "Solver"),
-                                                                 config.getValue(kvp.Value, "ErrorLimit"),
-                                                                 config.getValue(kvp.Value, "DisableLEI"),
-                                                                 config.getValue(kvp.Value, "DisableLMI"),
-                                                                 config.getValue(kvp.Value, "ModifyTSO"),
-                                                                 config.getValue(kvp.Value, "LoopUnroll")));
-              }
-              // Initialise dynamic refutation engines (if any)
-              else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis &&
-                       kvp.Key.Contains("DynamicEngine")) {
-                refutationEngines.Add(new DynamicRefutationEngine(idCounter, kvp.Value,
-                                                                  config.getValue(kvp.Value, "ThreadID_X"),
-                                                                  config.getValue(kvp.Value, "ThreadID_Y"),
-                                                                  config.getValue(kvp.Value, "ThreadID_Z"),
-                                                                  config.getValue(kvp.Value, "GroupID_X"),
-                                                                  config.getValue(kvp.Value, "GroupID_Y"),
-                                                                  config.getValue(kvp.Value, "GroupID_Z")));
-              }
-      
-              idCounter++;
-            }
+      // Find the static refutation engines
+      Dictionary<string, string> staticEngines = config.getRefutationEngines().
+        Where(kvp => kvp.Key.Contains("StaticEngine")).
+          ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+      // Initialise static refutation engines
+      foreach (KeyValuePair<string, string> kvp in staticEngines) {
+        refutationEngines.Add(new StaticRefutationEngine(idCounter, kvp.Value,
+                                                         config.getValue(kvp.Value, "Solver"),
+                                                         config.getValue(kvp.Value, "ErrorLimit"),
+                                                         config.getValue(kvp.Value, "DisableLEI"),
+                                                         config.getValue(kvp.Value, "DisableLMI"),
+                                                         config.getValue(kvp.Value, "ModifyTSO"),
+                                                         config.getValue(kvp.Value, "LoopUnroll")));
+        idCounter++;
+      }
+
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
+        // Find the dynamic refutation engines (if any)
+        Dictionary<string, string> dynamicEngines = config.getRefutationEngines().
+          Where(kvp => kvp.Key.Contains("DynamicEngine")).
+            ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+        // Initialise dynamic refutation engines (if any)
+        foreach (KeyValuePair<string, string> kvp in dynamicEngines) {
+          refutationEngines.Add(new DynamicRefutationEngine(idCounter, kvp.Value,
+                                                            config.getValue(kvp.Value, "ThreadID_X"),
+                                                            config.getValue(kvp.Value, "ThreadID_Y"),
+                                                            config.getValue(kvp.Value, "ThreadID_Z"),
+                                                            config.getValue(kvp.Value, "GroupID_X"),
+                                                            config.getValue(kvp.Value, "GroupID_Y"),
+                                                            config.getValue(kvp.Value, "GroupID_Z")));
+          idCounter++;
+        }
+      }
     }
 
     /// <summary>
