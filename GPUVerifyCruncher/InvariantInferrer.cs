@@ -45,9 +45,9 @@ namespace Microsoft.Boogie
       // Initialise static refutation engines
       for (int i = 0; i < staticEngines.Length; i++) {
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-          conf = config.getValue("ParallelStaticInference", "Engine_" + (i + 1));
+          conf = config.getValue("ParallelInference", "StaticEngine_" + (i + 1));
         } else {
-          conf = config.getValue("StaticInference", "Engine");
+          conf = config.getValue("Inference", "StaticEngine");
         }
 
         staticEngines[i] = new StaticRefutationEngine(i, conf,
@@ -63,9 +63,9 @@ namespace Microsoft.Boogie
         // Initialise dynamic refutation engines
         for (int i = 0; i < dynamicEngines.Length; i++) {
           if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-            conf = config.getValue("ParallelDynamicInference", "Engine_" + (i + 1));
+            conf = config.getValue("ParallelInference", "DynamicEngine_" + (i + 1));
           } else {
-            conf = config.getValue("DynamicInference", "Engine");
+            conf = config.getValue("Inference", "DynamicEngine");
           }
 
           dynamicEngines[i] = new DynamicRefutationEngine(i, conf,
@@ -262,13 +262,17 @@ namespace Microsoft.Boogie
 
       public int getNumberOfEngines(string type)
       {
-        int num = 1;
+        int num = 0;
 
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
-          if (type.ToLower().Equals("static"))
-            num = ((Dictionary<string, string>)info ["ParallelStaticInference"]).Count;
-          else if (type.ToLower().Equals("dynamic"))
-            num = ((Dictionary<string, string>)info ["ParallelDynamicInference"]).Count;
+          foreach (var key in info["ParallelInference"].Keys) {
+            if (type.ToLower().Equals("static") && key.Contains("StaticEngine"))
+              num++;
+            else if (type.ToLower().Equals("dynamic") && key.Contains("DynamicEngine"))
+              num++;
+          }
+        } else {
+          num++;
         }
 
         return num;
