@@ -74,6 +74,9 @@ namespace GPUVerify {
         else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "constant_write")) {
           ReportFailingConstantWriteCheck(AssertCex);
         }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "bad_pointer_access")) {
+          ReportFailingBadPointerAccess(AssertCex);
+        }
         else {
           ReportFailingAssert(AssertCex);
         }
@@ -327,6 +330,10 @@ namespace GPUVerify {
 
     private static void ReportFailingConstantWriteCheck(AssertCounterexample err) {
       ReportThreadSpecificFailure(err, "possible attempt to modify constant memory");
+    }
+
+    private static void ReportFailingBadPointerAccess(AssertCounterexample err) {
+      ReportThreadSpecificFailure(err, "possible null pointer access");
     }
 
     private static void ReportEnsuresFailure(Absy node) {
