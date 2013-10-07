@@ -678,7 +678,6 @@ def processGeneralOptions(opts, args):
       if ext != ".bpl":
         GPUVerifyError("'" + a + "' specified via --boogie-file should have extension .bpl", ErrorCodes.COMMAND_LINE_ERROR)
       CommandLineOptions.gpuVerifyCruncherOptions += [ a ]
-      CommandLineOptions.gpuVerifyBoogieDriverOptions += [ a ]
     if o == "--infer-config-file":
       filename, ext = SplitFilenameExt(a)
       if ext != ".cfg":
