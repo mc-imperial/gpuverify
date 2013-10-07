@@ -70,6 +70,9 @@ namespace GPUVerify
         else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "barrier_invariant_access_check")) {
           ReportFailingBarrierInvariantAccessCheck(AssertCex);
         }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "constant_write")) {
+          ReportFailingConstantWriteCheck(AssertCex);
+        }
         else {
           ReportFailingAssert(AssertCex);
         }
@@ -319,6 +322,10 @@ namespace GPUVerify
 
     private static void ReportFailingBarrierInvariantAccessCheck(AssertCounterexample err) {
       ReportThreadSpecificFailure(err, "insufficient permission may be held for evaluation of this barrier invariant");
+    }
+
+    private static void ReportFailingConstantWriteCheck(AssertCounterexample err) {
+      ReportThreadSpecificFailure(err, "possible attempt to modify constant memory");
     }
 
     private static void ReportEnsuresFailure(Absy node) {
