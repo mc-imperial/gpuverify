@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -37,7 +37,54 @@ namespace GPUVerify {
     public static void PreInstrument(GPUVerifier verifier, Implementation impl) {
       foreach (var region in verifier.RootRegion(impl).SubRegions()) {
         GenerateCandidateForReducedStrengthStrideVariables(verifier, impl, region);
+        GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
       }
+    }
+
+    private static void GenerateCandidateForNonNegativeGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
+        var visitor = new VariablesOccurringInExpressionVisitor();
+        HashSet<Variable> partitionVars = new HashSet<Variable>();
+        HashSet<Variable> nonnegVars = new HashSet<Variable>();
+
+        foreach (var assume in region.Cmds().OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
+        {
+            visitor.Visit(assume.Expr);
+            partitionVars.UnionWith(visitor.GetVariables());
+        }
+        var formals = impl.InParams.Select(x => x.Name);
+        var modset = GetModifiedVariables(region).Select(x => x.Name);
+        foreach (var v in partitionVars)
+        {
+            var expr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+            if (!(expr is NAryExpr)) continue;
+            var nary = expr as NAryExpr;
+            if (!(nary.Fun.FunctionName.Equals("BV32_SLE") ||
+                  nary.Fun.FunctionName.Equals("BV32_SLT") ||
+                  nary.Fun.FunctionName.Equals("BV32_SGE") ||
+                  nary.Fun.FunctionName.Equals("BV32_SGT"))) continue;
+            visitor.Visit(nary);
+            nonnegVars.UnionWith(
+                visitor.GetVariables().Where(
+                  x => x.Name.StartsWith("$") && 
+                       !formals.Contains(x.Name) && 
+                       modset.Contains(x.Name) &&
+                       IsBVType(x.TypedIdent.Type)
+                )
+            );
+        }
+        foreach (var v in nonnegVars)
+        {
+            int BVWidth = (v.TypedIdent.Type as BvType).Bits;
+            var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetLiteral(0,BVWidth), new IdentifierExpr(v.tok, v));
+            verifier.AddCandidateInvariant(region, inv, "guard variable " + v + " is nonneg", InferenceStages.BASIC_CANDIDATE_STAGE);
+        }
+    }
+
+    private static bool IsBVType(Microsoft.Boogie.Type type)
+    {
+        return type.Equals(Microsoft.Boogie.Type.GetBvType(32))
+            || type.Equals(Microsoft.Boogie.Type.GetBvType(16))
+            || type.Equals(Microsoft.Boogie.Type.GetBvType(8));
     }
 
     private static void GenerateCandidateForReducedStrengthStrideVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
@@ -143,11 +190,15 @@ namespace GPUVerify {
               string LoopPredicate = ((guard as NAryExpr).Args[0] as IdentifierExpr).Name;
               LoopPredicate = LoopPredicate.Substring(0, LoopPredicate.IndexOf('$'));
 
-              verifier.AddCandidateInvariant(region, Expr.Eq(
+              var uniformEnabledPredicate = Expr.Eq(
                   // Int type used here, but it doesn't matter as we will print and then re-parse the program
                   new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$1", Microsoft.Boogie.Type.Int))),
                   new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$2", Microsoft.Boogie.Type.Int)))
-              ), "loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
+              );
+
+              verifier.AddCandidateInvariant(region, uniformEnabledPredicate, "loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
+
+              verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), uniformEnabledPredicate), "same group loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
 
               Dictionary<string, int> assignmentCounts = GetAssignmentCounts(Impl);
 

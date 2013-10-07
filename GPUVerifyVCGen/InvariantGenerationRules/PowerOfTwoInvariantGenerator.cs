@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -29,6 +29,8 @@ namespace GPUVerify.InvariantGenerationRules
 
         public override void GenerateCandidates(Implementation Impl, IRegion region)
         {
+            HashSet<Variable> modset = LoopInvariantGenerator.GetModifiedVariables(region);
+
             foreach (Variable v in Impl.LocVars)
             {
                 string basicName = GPUVerifier.StripThreadIdentifier(v.Name);
@@ -36,12 +38,12 @@ namespace GPUVerify.InvariantGenerationRules
                 {
                     if (verifier.mayBePowerOfTwoAnalyser.MayBePowerOfTwo(Impl.Name, basicName))
                     {
-                        if (verifier.ContainsNamedVariable(LoopInvariantGenerator.GetModifiedVariables(region), basicName))
+                        if (verifier.ContainsNamedVariable(modset, basicName))
                         {
                             verifier.AddCandidateInvariant(region, MakePowerOfTwoExpr(v), "pow2 disjunction", InferenceStages.BASIC_CANDIDATE_STAGE);
                             for (int i = (1 << 15); i > 0; i >>= 1)
                             {
-                                verifier.AddCandidateInvariant(region, 
+                                verifier.AddCandidateInvariant(region,
                                     verifier.IntRep.MakeSlt(
                                     new IdentifierExpr(v.tok, v),
                                     verifier.IntRep.GetLiteral(i, 32)),
@@ -55,6 +57,25 @@ namespace GPUVerify.InvariantGenerationRules
                     }
                 }
             }
+
+            // Relational Power Of Two
+            var incs = modset.Where(v => verifier.relationalPowerOfTwoAnalyser.IsInc(Impl.Name, v.Name));
+            var decs = modset.Where(v => verifier.relationalPowerOfTwoAnalyser.IsDec(Impl.Name, v.Name));
+            if (incs.ToList().Count() == 1 && decs.ToList().Count() == 1)
+            {
+                var inc = incs.Single();
+                var dec = decs.Single();
+                for (int i = (1 << 15); i > 0; i >>= 1)
+                {
+                    var mulInv = Expr.Eq(verifier.IntRep.MakeMul(new IdentifierExpr(inc.tok, inc), new IdentifierExpr(dec.tok, dec)), verifier.IntRep.GetLiteral(i, 32));
+                    verifier.AddCandidateInvariant(region, mulInv, "relational pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
+                    var disjInv = Expr.Or(
+                      Expr.And(Expr.Eq(new IdentifierExpr(dec.tok, dec), verifier.IntRep.GetLiteral(0, 32)),
+                               Expr.Eq(new IdentifierExpr(inc.tok, inc), verifier.IntRep.GetLiteral(2*i, 32))),
+                      mulInv);
+                    verifier.AddCandidateInvariant(region, disjInv, "relational pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
+                }
+            }
         }
 
         private Expr MakePowerOfTwoExpr(Variable v)
@@ -62,7 +83,7 @@ namespace GPUVerify.InvariantGenerationRules
             Expr result = null;
             for (int i = 1 << 15; i > 0; i >>= 1)
             {
-                Expr eq = Expr.Eq(new IdentifierExpr(v.tok, v), 
+                Expr eq = Expr.Eq(new IdentifierExpr(v.tok, v),
                   verifier.IntRep.GetLiteral(i, 32));
                 result = (result == null ? eq : Expr.Or(eq, result));
             }

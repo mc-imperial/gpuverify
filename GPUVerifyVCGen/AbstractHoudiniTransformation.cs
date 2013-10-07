@@ -1,4 +1,14 @@
-﻿using System;
+﻿//===-----------------------------------------------------------------------==//
+//
+//                GPUVerify - a Verifier for GPU Kernels
+//
+// This file is distributed under the Microsoft Public License.  See
+// LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -165,7 +175,6 @@ namespace GPUVerify
           }
           oldCandidateInvariants.RemoveAll(item => toRemove.Contains(item));
         }
-            
 
       } while(antecedent != null);
 
@@ -235,7 +244,6 @@ namespace GPUVerify
       }
       return v;
     }
-  
-  
+
   }
 }

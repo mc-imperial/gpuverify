@@ -1,9 +1,12 @@
 //--local_size=4 --num_groups=1
+
 /*
  * This kernel suffers from barrier divergence.
  * Can you see why?
  */
-__kernel void inloop() {
+__kernel void inloop(/* no inputs or outputs
+                         in this illustrative
+                         example */) {
   __local int A[2][4];
   int buf, i, j;
 
@@ -11,16 +14,13 @@ __kernel void inloop() {
   int x = tid == 0 ? 4 : 1;
   int y = tid == 0 ? 1 : 4;
 
-  buf = i = 0;
-  while (i < x) {
-    j = 0;
-    while (j < y) {
+  buf = 0;
+  for(int i = 0; i < x; i++) {
+    for(int j = 0; j < y; j++) {
       barrier(CLK_LOCAL_MEM_FENCE);
       A[1-buf][tid] = A[buf][(tid+1)%4];
       buf = 1 - buf;
-      j++;
     }
-    i++;
   }
 }
 

@@ -28,6 +28,7 @@ namespace GPUVerify
     public static bool Inference = true;
     public static bool ArrayEqualities = false;
     public static bool BarrierAccessChecks = true;
+    public static bool ConstantWriteChecks = true;
     public static bool ShowStages = false;
     public static bool ShowUniformityAnalysis = false;
     public static bool DoUniformityAnalysis = true;
@@ -47,6 +48,8 @@ namespace GPUVerify
     public static bool AtomicVsWrite = true;
     public static bool RefinedAtomics = true;
     public static bool OptimiseReads = false;
+    public static bool CheckSingleNonInlinedImpl = false;
+    public static bool DoCallSiteAnalysis = false;
 
     public static int Parse(string[] args)
     {
@@ -163,6 +166,11 @@ namespace GPUVerify
           BarrierAccessChecks = false;
           break;
 
+          case "-noConstantWriteChecks":
+          case "/noConstantWriteChecks":
+          ConstantWriteChecks = false;
+          break;
+
           case "-asymmetricAsserts":
           case "/asymmetricAsserts":
           AsymmetricAsserts = true;
@@ -228,12 +236,22 @@ namespace GPUVerify
           OptimiseReads = true;
           break;
 
+          case "-checkSingleNonInlinedImpl":
+          case "/checkSingleNonInlinedImpl":
+          CheckSingleNonInlinedImpl = true;
+          break;
+
+          case "-callSiteAnalysis":
+          case "/callSiteAnalysis":
+          DoCallSiteAnalysis = true;
+          break;
+
           default:
           inputFiles.Add(args[i]);
           break;
         }
-      }
 
+      }
       return 0;
     }
 
@@ -242,6 +260,7 @@ namespace GPUVerify
     public static void Usage()
     {
       // Ensure that we only print the help message once
+
       if (printedHelp)
       {
         return;
@@ -257,7 +276,7 @@ namespace GPUVerify
   Debugging GPUVerifyVCGen
   ------------------------
   /showArrayControlFlowAnalysis : show results of array control flow analysis
-  /showMayBePowerOfTwoAnalysis  : show results of analysis that flags up 
+  /showMayBePowerOfTwoAnalysis  : show results of analysis that flags up
                                     variables that might be powers of two
   /showUniformityAnalysis       : show results of uniformity analysis
   /showStages                   : dump intermediate stages of processing to a
@@ -265,16 +284,16 @@ namespace GPUVerify
 
   Optimisations
   -------------
-  /noSmartPredication           : use simple, general predication instead of 
+  /noSmartPredication           : use simple, general predication instead of
                                     default smarter method
   /noUniformityAnalysis         : do not apply uniformity analysis to restrict
                                     predication
 
   Shared state abstraction
   ------------------------
-  /adversarialAbstraction       : completely abstract shared arrays so that 
+  /adversarialAbstraction       : completely abstract shared arrays so that
                                     reads are nondeterministic
-  /equalityAbstraction          : make shared arrays nondeterministic, but 
+  /equalityAbstraction          : make shared arrays nondeterministic, but
                                     consistent between threads, at barriers
 
   Invariant inference
@@ -288,16 +307,19 @@ namespace GPUVerify
                                     can be wrong, hindering verification
   /arrayEqualities              : generate equality candidate invariants for
                                     array variables
+  /callSiteAnalysis             : generate procedure preconditions based on
+                                    procedure call sites
 
   Property checking
   -----------------
-  /onlyDivergence               : verify freedom from barrier divergence, but 
+  /onlyDivergence               : verify freedom from barrier divergence, but
                                     not data races
   /onlyIntraGroupRaceChecking   : do not consider inter-group data races
   /noBenign                     : do not tolerate benign data races
   /noBarrierAccessChecks        : do not check barrier invariant accesses
+  /noConstantWriteChecks        : do not check writes to constant space
 
 ");
-    }
+        }
   }
 }

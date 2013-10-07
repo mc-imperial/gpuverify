@@ -1,4 +1,14 @@
-﻿using System;
+﻿//===-----------------------------------------------------------------------==//
+//
+//                GPUVerify - a Verifier for GPU Kernels
+//
+// This file is distributed under the Microsoft Public License.  See
+// LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -93,7 +103,7 @@ namespace GPUVerify
 
     }
 
-    private Dictionary<Block, Tuple<HashSet<VariableDescriptor>, HashSet<VariableDescriptor>>> GenKillCache = 
+    private Dictionary<Block, Tuple<HashSet<VariableDescriptor>, HashSet<VariableDescriptor>>> GenKillCache =
       new Dictionary<Block,Tuple<HashSet<VariableDescriptor>,HashSet<VariableDescriptor>>>();
 
     private Tuple<HashSet<VariableDescriptor>, HashSet<VariableDescriptor>> GenKill(Block b) {

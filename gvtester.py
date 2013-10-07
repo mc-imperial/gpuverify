@@ -28,7 +28,8 @@ class GPUVerifyErrorCodes(ErrorCodes):
         REGEX_MISMATCH_ERROR as that is a possible point of failure
         during testing
     """
-    REGEX_MISMATCH_ERROR=-1 #Overwritten by static_init()
+    # It is unlikely we'll have more than 99 error codes in the parent
+    REGEX_MISMATCH_ERROR=100
 
     errorCodeToString = {} #Overwritten by static_init()
     @classmethod
@@ -43,8 +44,9 @@ class GPUVerifyErrorCodes(ErrorCodes):
         for num in [ getattr(base,x) for x in codes ]:
             if num > largest : largest=num
 
-        #We'll take the next error codes
-        cls.REGEX_MISMATCH_ERROR=largest +1
+        # Check that REGEX_MISMATCH_ERROR doesn't conflict
+        # with an existing error code
+        assert largest < cls.REGEX_MISMATCH_ERROR
 
         #Build reverse mapping dictionary { num:string }
         codes=[e for e in dir(cls) if not e.startswith('_')]
@@ -80,7 +82,7 @@ GPUVerifyTesterErrorCodes=enum('SUCCESS', 'FILE_SEARCH_ERROR','KERNEL_PARSE_ERRO
 
 class GPUVerifyTestKernel:
 
-    def __init__(self,path,timeAsCSV,additionalOptions=None):
+    def __init__(self,path,timeAsCSV,csvFile,additionalOptions=None):
         """
 
             Initialise CUDA/OpenCL GPUVerify test.
@@ -96,6 +98,7 @@ class GPUVerifyTestKernel:
         logging.debug("Parsing kernel \"{0}\" for test parameters".format(path))
         self.path=path
         self.timeAsCSV=timeAsCSV
+        self.csvFile = csvFile
 
         #Use with so that if exception thrown file is still closed
         #Note need to use universal line endings to handle DOS format (groan) kernels
@@ -263,8 +266,8 @@ class GPUVerifyTestKernel:
 
         if self.timeAsCSV:
             #Print csv output for user to see
-            print(stdout[0].split('\n')[-2])
-            sys.stdout.flush()
+            self.csvFile.write(stdout[0].split('\n')[-2] + "\n")
+            self.csvFile.flush()
 
         logging.debug(self) #Show after test information
 
@@ -594,7 +597,8 @@ def main(arg):
 
     #General options
     parser.add_argument("--kernel-regex", type=str, default=r"^kernel\.(cu|cl)$", help="Regex for kernel file names (default: \"%(default)s\")")
-    parser.add_argument("--from-file", type=str, default=None, help="File containing relative paths of kernels to test")
+    parser.add_argument("--from-file", type=str, default=None, action='append', help="File containing relative paths of kernels to test")
+    parser.add_argument("--ignore-file", type=str, default=None, action='append', help="File containing relative paths of kernels to ignore")
     parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])
     parser.add_argument("-w","--write-pickle",type=str, default="", help="Write detailed log information in pickle format to a file")
     parser.add_argument("-p","--canonical-path-prefix", type=str, default="testsuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
@@ -604,6 +608,7 @@ def main(arg):
                         help="Pass a command line options to GPUVerify for all tests. This option can be specified multiple times.  E.g. --gvopt=--keep-temps --gvopt=--no-benign",
                         metavar='GPUVerifyCmdLineOption')
     parser.add_argument("--time-as-csv", action="store_true", default=False, help="Print timing of each test as CSV")
+    parser.add_argument("--csv-file", type=str, default=None, help="Write timing data to a file (Note: requires --time-as-csv to be enabled)")
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
@@ -640,16 +645,17 @@ def main(arg):
     openCLCount=0
     kernelFiles=[]
     if (args.from_file):
-      kernels = [line.strip() for line in open(args.from_file) if not line.startswith('#')]
-      for kernel in kernels:
-        if kernel.endswith('cu'):
-          cudaCount+=1
-        elif kernel.endswith('cl'):
-          openCLCount+=1
-        else:
-          logging.debug("Not a valid kernel:\"{}\"".format(kernel))
-          return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
-        kernelFiles.append(os.path.join(recursionRootPath,kernel))
+      for f in args.from_file:
+        kernels = [line.strip() for line in open(f) if not line.startswith('#')]
+        for kernel in kernels:
+          if kernel.endswith('cu'):
+            cudaCount+=1
+          elif kernel.endswith('cl'):
+            openCLCount+=1
+          else:
+            logging.debug("Not a valid kernel:\"{}\"".format(kernel))
+            return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
+          kernelFiles.append(os.path.join(recursionRootPath,kernel))
 
     else:
       matcher=re.compile(args.kernel_regex)
@@ -666,8 +672,28 @@ def main(arg):
 
                   kernelFiles.append(os.path.join(root,f))
 
+    cudaCountIgnored=0
+    openCLCountIgnored=0
+    kernelFilesIgnored=[]
+    if (args.ignore_file):
+      for f in args.ignore_file:
+        kernels = [line.strip() for line in open(f) if not line.startswith('#')]
+        for kernel in kernels:
+          if kernel.endswith('cu'):
+            cudaCountIgnored+=1
+          elif kernel.endswith('cl'):
+            openCLCountIgnored+=1
+          else:
+            logging.debug("Not a valid kernel:\"{}\"".format(kernel))
+            return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
+          kernelFilesIgnored.append(os.path.join(recursionRootPath,kernel))
+        kernelFiles = list(set(kernelFiles) - set(kernelFilesIgnored))
 
-    logging.info("Found {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
+      logging.info("Found    {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
+      logging.info("Ignoring {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCountIgnored,cudaCountIgnored))
+      logging.info("Running  {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount-openCLCountIgnored,cudaCount-cudaCountIgnored))
+    else:
+      logging.info("Found {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
 
     if len(kernelFiles) == 0:
         logging.error("Could not find any OpenCL or CUDA kernels")
@@ -676,9 +702,10 @@ def main(arg):
     #Do in place sort of paths so we have a guaranteed order
     kernelFiles.sort()
     tests=[]
+    csvFile = open(args.csv_file,"w") if args.csv_file else sys.stdout
     for kernelPath in kernelFiles:
         try:
-            tests.append(GPUVerifyTestKernel(kernelPath, args.time_as_csv, getattr(args,'gvopt=') ))
+            tests.append(GPUVerifyTestKernel(kernelPath, args.time_as_csv, csvFile, getattr(args,'gvopt=') ))
         except KernelParseError as e:
             logging.error(e)
             if args.stop_on_fail:

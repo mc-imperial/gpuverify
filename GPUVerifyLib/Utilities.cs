@@ -237,7 +237,7 @@ namespace GPUVerify
         Console.Error.WriteLine();
         Console.Error.WriteLine("  https://gpuverify.codeplex.com");
         Console.Error.WriteLine();
-        #endregion"
+        #endregion
 
         #region Now try to give the user a specific hint if this looks like a common problem
         try {

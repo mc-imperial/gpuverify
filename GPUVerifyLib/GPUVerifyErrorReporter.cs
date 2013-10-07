@@ -184,11 +184,15 @@ namespace GPUVerify
 
       AddPadding(ref locinfo1, ref locinfo2);
 
-      ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " group " + group2, ErrorMsgType.NoError);
+      /* TODO:
+         Why is thread2 being printed with locinfo1, and thread1 being
+         printed with locinfo2? Check whether this is correct.
+       */
+      ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " in group " + group2, ErrorMsgType.NoError);
       GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
 
 
-      ErrorWriteLine(locinfo2, access1 + " by thread " + thread1 + " group " + group1, ErrorMsgType.NoError);
+      ErrorWriteLine(locinfo2, access1 + " by thread " + thread1 + " in group " + group1, ErrorMsgType.NoError);
       GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
     }
 
@@ -293,7 +297,7 @@ namespace GPUVerify
       Debug.Assert(relevantThread == 1 || relevantThread == 2);
 
       ErrorWriteLine(sli.ToString(), messagePrefix + " for thread " +
-                     (relevantThread == 1 ? thread1 : thread2) + " group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
+        (relevantThread == 1 ? thread1 : thread2) + " in group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
       GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
     }
 
@@ -351,13 +355,28 @@ namespace GPUVerify
     }
 
     private static string GetGroup(Model model, bool withSpaces, int thread) {
-      return "("
-        + GetGid(model, "x", thread)
-          + "," + (withSpaces ? " " : "")
-          + GetGid(model, "y", thread)
-          + "," + (withSpaces ? " " : "")
-          + GetGid(model, "z", thread)
-          + ")";
+      switch (((GVCommandLineOptions)CommandLineOptions.Clo).GridHighestDim) {
+        case 0:
+        return ""
+          + GetGid(model, "x", thread);
+        case 1:
+        return "("
+          + GetGid(model, "x", thread)
+            + "," + (withSpaces ? " " : "")
+            + GetGid(model, "y", thread)
+            + ")";
+        case 2:
+        return "("
+          + GetGid(model, "x", thread)
+            + "," + (withSpaces ? " " : "")
+            + GetGid(model, "y", thread)
+            + "," + (withSpaces ? " " : "")
+            + GetGid(model, "z", thread)
+            + ")";
+        default:
+        Debug.Assert(false, "GetGroup(): Reached default case in switch over GridHighestDim.");
+        return "";
+      }
     }
 
     private static int GetGid(Model model, string dimension, int thread) {
@@ -370,13 +389,28 @@ namespace GPUVerify
     }
 
     private static string GetThreadTwo(Model model, bool withSpaces) {
-      return "("
-        + GetLidX2(model)
-          + "," + (withSpaces ? " " : "")
-          + GetLidY2(model)
-          + "," + (withSpaces ? " " : "")
-          + GetLidZ2(model)
-          + ")";
+      switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
+        case 0:
+        return ""
+          + GetLidX2(model);
+        case 1:
+        return "("
+          + GetLidX2(model)
+            + "," + (withSpaces ? " " : "")
+            + GetLidY2(model)
+            + ")";
+        case 2:
+        return "("
+          + GetLidX2(model)
+            + "," + (withSpaces ? " " : "")
+            + GetLidY2(model)
+            + "," + (withSpaces ? " " : "")
+            + GetLidZ2(model)
+            + ")";
+        default:
+        Debug.Assert(false, "GetThreadTwo(): Reached default case in switch over BlockHighestDim.");
+        return "";
+      }
     }
 
     private static int GetLidZ2(Model model) {
@@ -391,14 +425,29 @@ namespace GPUVerify
       return model.TryGetFunc("local_id_x$2").GetConstant().AsInt();
     }
 
-    private static string GetThreadOne(Model model, bool withSpaces) {
-      return "("
-        + model.TryGetFunc("local_id_x$1").GetConstant().AsInt()
-          + "," + (withSpaces ? " " : "")
-          + model.TryGetFunc("local_id_y$1").GetConstant().AsInt()
-          + "," + (withSpaces ? " " : "")
-          + model.TryGetFunc("local_id_z$1").GetConstant().AsInt()
-          + ")";
+    private static string GetThreadOne(Model model, bool withSpaces) { 
+      switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
+        case 0:
+        return "" 
+          + model.TryGetFunc("local_id_x$1").GetConstant().AsInt();
+        case 1:
+        return "("
+          + model.TryGetFunc("local_id_x$1").GetConstant().AsInt()
+            + "," + (withSpaces ? " " : "")
+            + model.TryGetFunc("local_id_y$1").GetConstant().AsInt()
+            + ")";
+        case 2:
+        return "("
+          + model.TryGetFunc("local_id_x$1").GetConstant().AsInt()
+            + "," + (withSpaces ? " " : "")
+            + model.TryGetFunc("local_id_y$1").GetConstant().AsInt()
+            + "," + (withSpaces ? " " : "")
+            + model.TryGetFunc("local_id_z$1").GetConstant().AsInt()
+            + ")";
+        default:
+        Debug.Assert(false, "GetThreadOne(): Reached default case in switch over BlockHighestDim.");
+        return "";
+      }
     }
 
     private static string GetArrayName(Requires requires) {

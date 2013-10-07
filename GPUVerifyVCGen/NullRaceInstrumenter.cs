@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,12 +21,12 @@ namespace GPUVerify
 
         public void AddRaceCheckingCandidateInvariants(Implementation impl, IRegion region)
         {
-            
+
         }
 
         public void AddKernelPrecondition()
         {
-            
+
         }
 
         public void AddRaceCheckingInstrumentation()
@@ -53,7 +53,7 @@ namespace GPUVerify
         {
 
         }
-        
+
         public void AddSourceLocationLoopInvariants(Implementation impl, IRegion region)
         {
 

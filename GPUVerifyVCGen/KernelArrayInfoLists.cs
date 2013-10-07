@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -21,12 +21,14 @@ namespace GPUVerify
     {
         private List<Variable> GlobalVariables;
         private List<Variable> GroupSharedVariables;
+        private List<Variable> ConstantVariables;
         private List<Variable> PrivateVariables;
 
         public KernelArrayInfoLists()
         {
             GlobalVariables = new List<Variable>();
             GroupSharedVariables = new List<Variable>();
+            ConstantVariables = new List<Variable>();
             PrivateVariables = new List<Variable>();
         }
 
@@ -40,6 +42,16 @@ namespace GPUVerify
             return GroupSharedVariables;
         }
 
+        public ICollection<Variable> getConstantArrays()
+        {
+            return ConstantVariables;
+        }
+
+        public ICollection<Variable> getPrivateArrays()
+        {
+            return PrivateVariables;
+        }
+
         public ICollection<Variable> getAllNonLocalArrays()
         {
             List<Variable> all = new List<Variable>();
@@ -48,22 +60,23 @@ namespace GPUVerify
             return all;
         }
 
-        public ICollection<Variable> getPrivateArrays()
-        {
-            return PrivateVariables;
-        }
-
         public ICollection<Variable> getAllArrays()
         {
             List<Variable> all = new List<Variable>();
             all.AddRange(getAllNonLocalArrays());
+            all.AddRange(getConstantArrays());
             all.AddRange(PrivateVariables);
             return all;
         }
 
-        public bool Contains(Variable v)
+        public bool ContainsNonLocalArray(Variable v)
         {
             return getAllNonLocalArrays().Contains(v);
+        }
+
+        public bool ContainsConstantArray(Variable v)
+        {
+            return ConstantVariables.Contains(v);
         }
 
     }

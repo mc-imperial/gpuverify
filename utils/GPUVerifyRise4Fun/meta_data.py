@@ -31,17 +31,35 @@ class BasicMetaData(object):
       # that Rise4Fun expects
       version, _NOT_USED = gvapi.GPUVerifyTool(config.GPUVERIFY_ROOT_DIR, 
                                                config.GPUVERIFY_TEMP_DIR).getVersionString()
-      version +=".0"
+
+      localVersion = '0'
+      if config.INCLUDE_VERSION_FROM_LOCAL:
+        # Grab GPUVerify version from the repository that the webservice is in
+        # which is not necessarily the same repository that GPUVerify is in.
+        # This requires that the GPUVerify version at this location be 
+        # correctly configured.
+        pathToLocalGV = os.path.dirname(os.path.abspath(__file__))
+        pathToLocalGV = os.path.join(pathToLocalGV,'..','..') # Go out two directorys
+        pathToLocalGV = os.path.abspath(pathToLocalGV)
+        _logging.debug('Using path to local GPUVerify as "{}"'.format(pathToLocalGV))
+        localVersion, _NOT_USED = gvapi.GPUVerifyTool(pathToLocalGV, 
+                                                      config.GPUVERIFY_TEMP_DIR).getVersionString()
+
+      # Construct version
+      # <x>.<y>.0
+      # <x> : Version of GPUVerify that will be invoked by GPUVerifyRise4Fun
+      # <y> : Version of GPUVerify Rise4Fun
+      version += "." + localVersion + ".0"
 
       self.metadata = {
         "Name": "GPUVerify",
         "DisplayName": "GPUVerify",
         "DisableErrorTable": True, # Request to not show Visual Studio style error/warning table on web page
         "Version": version,
-        "Email": "fixme@imperial.ac.uk",
-        "SupportEmail": "fixme@imperial.ac.uk",
-        "TermsOfUseUrl": "", # To be populated
-        "PrivacyUrl": "", # To be populated
+        "Email": "gpuverify-support@googlegroups.com",
+        "SupportEmail": "gpuverify-support@googlegroups.com",
+        "TermsOfUseUrl": "http://multicore.doc.ic.ac.uk/tools/GPUVerify/", # FIXME: NOT PROPER POLICY
+        "PrivacyUrl": "http://multicore.doc.ic.ac.uk/tools/GPUVerify/", # FIXME: NOT PROPER POLICY
         "Institution": "Multicore programming Group, Imperial College London",
         "InstitutionUrl": "http://multicore.doc.ic.ac.uk",
         "InstitutionImageUrl": "" , #To be populated 
@@ -129,6 +147,8 @@ class OpenCLMetaData(BasicMetaData):
     self.metadata['MimeType'] += 'x-c' #HACK : Use 'C' language definition implicitly
 
     self.metadata['Question'] = 'Is this OpenCL kernel correct?'
+    self.metadata['DisplayName'] += '-OpenCL'
+    self.metadata['Name'] += 'OpenCL'
 
     self.findSamplesAndTutorials(os.path.join(sourceRoot, self.folderName))
     self.loadLanguageSyntax(opencl.syntax)
@@ -149,6 +169,8 @@ class CUDAMetaData(BasicMetaData):
     self.metadata['MimeType'] += 'x-c' #HACK: Use 'C' language definition implicitly
 
     self.metadata['Question'] = 'Is this CUDA kernel correct?'
+    self.metadata['DisplayName'] += '-CUDA'
+    self.metadata['Name'] += 'CUDA'
 
     self.findSamplesAndTutorials(os.path.join(sourceRoot, self.folderName))
     self.loadLanguageSyntax(cuda.syntax)

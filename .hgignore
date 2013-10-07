@@ -52,3 +52,6 @@ run.pickle
 GPUVerify.v11.suo
 */*.csproj.user
 
+#gv-rise4fun counters
+utils/GPUVerifyRise4Fun/*-counter.pickle
+

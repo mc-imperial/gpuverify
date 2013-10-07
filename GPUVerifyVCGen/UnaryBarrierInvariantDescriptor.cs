@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -20,7 +20,7 @@ namespace GPUVerify {
 
     public UnaryBarrierInvariantDescriptor(Expr Predicate, Expr BarrierInvariant,
         QKeyValue SourceLocationInfo, KernelDualiser Dualiser, string ProcName,
-        GPUVerifier Verifier) : 
+        GPUVerifier Verifier) :
       base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName, Verifier) {
       InstantiationExprs = new List<Expr>();
     }
@@ -35,7 +35,7 @@ namespace GPUVerify {
         foreach (var Thread in new int[] { 1, 2 }) {
           var vd = new VariableDualiser(Thread, Dualiser.verifier.uniformityAnalyser, ProcName);
           var ThreadInstantiationExpr = vd.VisitExpr(Instantiation);
-          var ti = new ThreadInstantiator(ThreadInstantiationExpr, Thread, 
+          var ti = new ThreadInstantiator(ThreadInstantiationExpr, Thread,
             Dualiser.verifier.uniformityAnalyser, ProcName);
 
           result.Add(new AssumeCmd(

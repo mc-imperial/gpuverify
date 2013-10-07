@@ -12,15 +12,47 @@ import multiprocessing # Only for determining number of CPU cores available
 import getversion
 import pprint
 
-#Try to import the paths need for GPUVerify's tools
-if os.path.isfile(sys.path[0] + os.sep + 'gvfindtools.py'):
+"""
+    Print an error message to stderr and exit with status code.
+
+    msg : A String describing the error
+    code : An error code (integer) from ErrorCodes class
+"""
+def GPUVerifyError(msg, code):
+  # Determine string for error code
+  codeString = None
+  for cs in [ x for x in dir(ErrorCodes) if not x.startswith('_') ]:
+    if getattr(ErrorCodes, cs) == code:
+      codeString = cs
+
+  if codeString == None:
+    codeString = 'UNKNOWN'
+
+  sys.stderr.write('GPUVerify: {} error: {}\n'.format(codeString, msg))
+  sys.exit(code)
+
+class ErrorCodes(object):
+  SUCCESS = 0
+  COMMAND_LINE_ERROR = 1
+  CLANG_ERROR = 2
+  OPT_ERROR = 3
+  BUGLE_ERROR = 4
+  GPUVERIFYVCGEN_ERROR = 5
+  BOOGIE_ERROR = 6
+  BOOGIE_TIMEOUT = 7
+  CTRL_C = 8
+  GPUVERIFYVCGEN_TIMEOUT = 9
+  CONFIGURATION_ERROR = 10
+
+# Try to import the paths need for GPUVerify's tools
+try:
   import gvfindtools
-  #Initialise the paths (only needed for deployment)
+  # Initialise the paths (only needed for deployment version of gvfindtools.py)
   gvfindtools.init(sys.path[0])
-else:
-  sys.stderr.write('Error: Cannot find \'gvfindtools.py\'.'
-                   'Did you forget to create it from a template?\n')
-  sys.exit(1)
+except ImportError:
+  GPUVerifyError('Cannot find \'gvfindtools.py\'.'
+                 ' Did you forget to create it from a template?',
+                 ErrorCodes.CONFIGURATION_ERROR)
 
 """ Timing for the toolchain pipeline """
 Timing = []
@@ -73,7 +105,29 @@ clangCoreOptions = [ "-target", "nvptx--bugle",
                      "-g",
                      "-gcolumn-info",
                      "-emit-llvm",
-                     "-c" ]
+                     "-c"
+                   ]
+
+if os.name == "posix":
+
+  if os.path.isfile(gvfindtools.bugleBinDir \
+                    + "/libbugleInlineCheckPlugin.so"):
+    bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
+                             + "/libbugleInlineCheckPlugin.so"
+  elif os.path.isfile(gvfindtools.bugleBinDir \
+                      + "/libbugleInlineCheckPlugin.dylib"):
+    bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
+                             + "/libbugleInlineCheckPlugin.dylib"
+  else:
+    GPUVerifyError('Could not find Bugle Inline Check plugin', ErrorCodes.CONFIGURATION_ERROR)
+
+  clangInlineOptions = [ "-Xclang", "-load",
+                         "-Xclang", bugleInlineCheckPlugin,
+                         "-Xclang", "-add-plugin",
+                         "-Xclang", "inline-check"
+                       ]
+else:
+  clangInlineOptions = []
 
 clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                        "-O0",
@@ -149,6 +203,8 @@ class CommandLineOptions(object):
   asymmetricAsserts = False
   generateSmt2 = False
   noBarrierAccessChecks = False
+  noConstantWriteChecks = False
+  callSiteAnalysis = False
   testsuite = False
   warpSync = False
   warpSize = 32
@@ -246,18 +302,6 @@ def run(command,timeout=0):
 
   return stdout, stderr, proc.returncode
 
-class ErrorCodes(object):
-  SUCCESS = 0
-  COMMAND_LINE_ERROR = 1
-  CLANG_ERROR = 2
-  OPT_ERROR = 3
-  BUGLE_ERROR = 4
-  GPUVERIFYVCGEN_ERROR = 5
-  BOOGIE_ERROR = 6
-  BOOGIE_TIMEOUT = 7
-  CTRL_C = 8
-  GPUVERIFYVCGEN_TIMEOUT = 9
-
 def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
   """ Run a tool.
       If the timeout is set to 0 then there will be no timeout.
@@ -325,6 +369,7 @@ def showHelpAndExit():
   print "  --boogie-opt=...        Specify option to be passed to Boogie"
   print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
   print "  --bugle-opt=...         Specify option to be passed to Bugle"
+  print "  --call-site-analysis    Turn on call site analysis"
   print "  --clang-opt=...         Specify option to be passed to CLANG"
   print "  --debug                 Enable debugging of GPUVerify components: exceptions will"
   print "                          not be suppressed"
@@ -335,7 +380,9 @@ def showHelpAndExit():
   print "  --math-int              Represent integer types using mathematical integers"
   print "                          instead of bit-vectors"
   print "  --no-annotations        Ignore all source-level annotations"
+  print "  --only-requires         Ignore all source-level annotations except for requires"
   print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
+  print "  --no-constant-write-checks      Turn off access checks for writes to constant space"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
@@ -408,10 +455,6 @@ def processVector(vector):
 
 def GPUVerifyWarn(msg):
   print "GPUVerify: warning: " + msg
-
-def GPUVerifyError(msg, code):
-  print >> sys.stderr, "GPUVerify: error: " + msg
-  sys.exit(code)
 
 def Verbose(msg):
   if(CommandLineOptions.verbose):
@@ -487,13 +530,18 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.keepTemps = True
     if o == "--math-int":
       CommandLineOptions.mathInt = True
-    if o == "--no-annotations":
+    if o in ("--no-annotations", "--only-requires"):
       # Must be added after include of opencl or cuda header
       noAnnotationsHeader = [ "-include", "annotations/no_annotations.h" ]
       clangOpenCLOptions.extend(noAnnotationsHeader)
       clangCUDAOptions.extend(noAnnotationsHeader)
+      if o == "--only-requires":
+        clangOpenCLDefines.append("ONLY_REQUIRES")
+        clangCUDADefines.append("ONLY_REQUIRES")
     if o == "--no-barrier-access-checks":
       CommandLineOptions.noBarrierAccessChecks = True
+    if o == "--no-constant-write-checks":
+      CommandLineOptions.noConstantWriteChecks = True
     if o == "--no-loop-predicate-invariants":
       CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
@@ -542,6 +590,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.testsuite = True
     if o == "--no-refined-atomics":
       CommandLineOptions.noRefinedAtomics = True
+    if o == "--call-site-analysis":
+      CommandLineOptions.callSiteAnalysis = True
 
   # All options whose processing can result in an error go in this loop.
   # See also the comment above the previous loop.
@@ -643,7 +693,8 @@ def processOpenCLOptions(opts, args):
       try:
         CommandLineOptions.groupSize = processVector(a)
       except ValueError:
-        GPUVerifyError("argument to --local_size must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR) 
+        GPUVerifyError("argument to --local_size must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
           GPUVerifyError("values specified for local_size dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
@@ -653,7 +704,8 @@ def processOpenCLOptions(opts, args):
       try:
         CommandLineOptions.numGroups = processVector(a)
       except ValueError:
-        GPUVerifyError("argument to --num_groups must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR) 
+        GPUVerifyError("argument to --num_groups must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for num_groups dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
@@ -677,6 +729,7 @@ def processCUDAOptions(opts, args):
         CommandLineOptions.groupSize = processVector(a)
       except ValueError:
         GPUVerifyError("argument to --blockDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
           GPUVerifyError("values specified for blockDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
@@ -687,6 +740,7 @@ def processCUDAOptions(opts, args):
         CommandLineOptions.numGroups = processVector(a)
       except ValueError:
         GPUVerifyError("argument to --gridDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for gridDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
@@ -708,18 +762,19 @@ def main(argv=None):
 
   try:
     opts, args = getopt.gnu_getopt(argv[1:],'D:I:h', 
-             ['help', 'version', 'debug', 'findbugs', 'verify', 'verbose', 'silent',
+             ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
-              'no-annotations', 'no-barrier-access-checks', 'no-loop-predicate-invariants',
-              'no-smart-predication', 'no-source-loc-infer', 'no-uniformity-analysis', 'clang-opt=', 
+              'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
+              'no-loop-predicate-invariants', 'no-smart-predication', 'no-source-loc-infer',
+              'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-bpl', 'stop-at-inv',
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
-              'no-infer', 'infer-timeout=', 'staged-inference', 'parallel-inference',
+              'infer-timeout=', 'staged-inference', 'parallel-inference',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic='
@@ -740,6 +795,7 @@ def main(argv=None):
 
   if ext == ".cl":
     CommandLineOptions.clangOptions += clangOpenCLOptions
+    CommandLineOptions.clangOptions += clangInlineOptions
     if CommandLineOptions.testsuite:
       rmFlags = [ "-include", "opencl.h" ]
       CommandLineOptions.clangOptions = [ i for i in CommandLineOptions.clangOptions if i not in rmFlags ]
@@ -830,6 +886,8 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noInfer" ]
   if CommandLineOptions.noBarrierAccessChecks:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noBarrierAccessChecks" ]
+  if CommandLineOptions.noConstantWriteChecks:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/noConstantWriteChecks" ]
   if CommandLineOptions.noLoopPredicateInvariants:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noLoopPredicateInvariants" ]
   if CommandLineOptions.noSmartPredication:
@@ -847,6 +905,8 @@ def main(argv=None):
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/stagedInference" ]
   if CommandLineOptions.mathInt:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/mathInt" ]
+  if CommandLineOptions.callSiteAnalysis:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/callSiteAnalysis" ]
 
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 

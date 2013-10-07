@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -19,16 +19,13 @@ using System.Diagnostics;
 namespace GPUVerify
 {
 
-
-
-
     class ReadCollector : AccessCollector
     {
 
         public List<AccessRecord> accesses = new List<AccessRecord>();
 
-        public ReadCollector(IKernelArrayInfo NonLocalState)
-            : base(NonLocalState)
+        public ReadCollector(IKernelArrayInfo State)
+            : base(State)
         {
         }
 
@@ -51,7 +48,7 @@ namespace GPUVerify
                 var Index = node.Args[1];
                 this.VisitExpr(node.Args[1]);
 
-                if (NonLocalState.Contains(ReadVariable))
+                if (State.ContainsNonLocalArray(ReadVariable))
                 {
                     accesses.Add(new AccessRecord(ReadVariable, Index));
                 }

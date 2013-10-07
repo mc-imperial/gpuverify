@@ -1,7 +1,7 @@
 //xfail:BOOGIE_ERROR
 //--local_size=8 --num_groups=8
 //kernel.cl:[\s]+error:[\s]+possible[\s]+write-write[\s]+race on \(\(char\*\)p\)\[0]
-//kernel.cl:15:12:[\s]+write by thread[\s]+\([\d]+, 0, 0\)[\s]+group[\s]+\([\d]+, 0, 0\)[\s]+p\[0] = get_global_id\(0\);
+//kernel.cl:15:12:[\s]+write by thread[\s]+[\d]+[\s]+in group[\s]+[\d]+[\s]+p\[0] = get_global_id\(0\);
 
 
 

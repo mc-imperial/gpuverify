@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -23,13 +23,17 @@ namespace GPUVerify
 
         ICollection<Variable> getGroupSharedArrays();
 
+        ICollection<Variable> getConstantArrays();
+
         ICollection<Variable> getPrivateArrays();
 
         ICollection<Variable> getAllNonLocalArrays();
 
         ICollection<Variable> getAllArrays();
 
-        bool Contains(Variable v);
+        bool ContainsNonLocalArray(Variable v);
+
+        bool ContainsConstantArray(Variable v);
 
     }
 }

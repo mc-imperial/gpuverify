@@ -1,8 +1,8 @@
 //xfail:BOOGIE_ERROR
 //--local_size=1024 --num_groups=1
 //kernel.cl: error: possible atomic-write race on \(\(char\*\)A\)\[48\]:
-//write by thread \(12, 0, 0\) group \(0, 0, 0\)
-//atomic by thread \(\d+, 0, 0\) group \(0, 0, 0\)
+//write by thread 12 in group 0
+//atomic by thread \d+ in group 0
 
 kernel void pointers (local int* A, local int* B, int c)
 {

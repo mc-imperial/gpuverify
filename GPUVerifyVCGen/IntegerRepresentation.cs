@@ -1,4 +1,14 @@
-﻿using System;
+﻿//===-----------------------------------------------------------------------==//
+//
+//                GPUVerify - a Verifier for GPU Kernels
+//
+// This file is distributed under the Microsoft Public License.  See
+// LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -145,7 +155,7 @@ namespace GPUVerify
     public MathIntegerRepresentation(GPUVerifier verifier) {
       this.verifier = verifier;
     }
-    
+
     public Microsoft.Boogie.Type GetIntType(int Width) {
       return Microsoft.Boogie.Type.Int;
     }

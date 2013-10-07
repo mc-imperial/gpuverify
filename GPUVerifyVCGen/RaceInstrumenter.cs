@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -33,19 +33,13 @@ namespace GPUVerify {
     private Dictionary<string, List<int>> WriteAccessSourceLocations = new Dictionary<string, List<int>>();
     private Dictionary<string, List<int>> AtomicAccessSourceLocations = new Dictionary<string, List<int>>();
 
-    public IKernelArrayInfo NonLocalStateToCheck;
+    public IKernelArrayInfo StateToCheck;
 
     private Dictionary<string, Procedure> RaceCheckingProcedures = new Dictionary<string, Procedure>();
 
     public RaceInstrumenter(GPUVerifier verifier) {
       this.verifier = verifier;
-      NonLocalStateToCheck = new KernelArrayInfoLists();
-      foreach (Variable v in verifier.KernelArrayInfo.getGlobalArrays()) {
-        NonLocalStateToCheck.getGlobalArrays().Add(v);
-      }
-      foreach (Variable v in verifier.KernelArrayInfo.getGroupSharedArrays()) {
-        NonLocalStateToCheck.getGroupSharedArrays().Add(v);
-      }
+      StateToCheck = verifier.KernelArrayInfo;
     }
 
     private void AddNoAccessCandidateInvariants(IRegion region, Variable v) {
@@ -94,7 +88,7 @@ namespace GPUVerify {
       List<Expr> offsetPredicatesWrite = new List<Expr>();
       List<Expr> offsetPredicatesAtomic = new List<Expr>();
 
-      foreach (Variable v in NonLocalStateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddNoAccessCandidateInvariants(region, v);
         AddReadOrWrittenOffsetIsThreadIdCandidateInvariants(impl, region, v, AccessType.READ);
         AddReadOrWrittenOffsetIsThreadIdCandidateInvariants(impl, region, v, AccessType.WRITE);
@@ -383,7 +377,7 @@ namespace GPUVerify {
     }
 
     public void AddKernelPrecondition() {
-      foreach (Variable v in NonLocalStateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddRequiresNoPendingAccess(v);
         AddRequiresSourceAccessZero(v);
       }
@@ -437,9 +431,12 @@ namespace GPUVerify {
 
         if (c is AssertCmd) {
           AssertCmd assertion = c as AssertCmd;
-          if (QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc")) {
+          if (QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc") &&
+              !QKeyValue.FindBoolAttribute(assertion.Attributes, "constant_write")) {
             SourceLocationAttributes = assertion.Attributes;
             // Remove source location assertions
+            // Constant write source locations have been added by the
+            // constant write instrumenter and should not be removed
             continue;
           }
         }
@@ -495,7 +492,7 @@ namespace GPUVerify {
         if (c is AssignCmd) {
           AssignCmd assign = c as AssignCmd;
 
-          ReadCollector rc = new ReadCollector(NonLocalStateToCheck);
+          ReadCollector rc = new ReadCollector(StateToCheck);
           foreach (var rhs in assign.Rhss)
             rc.Visit(rhs);
           if (rc.accesses.Count > 0) {
@@ -505,9 +502,9 @@ namespace GPUVerify {
           }
 
           foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) {
-            WriteCollector wc = new WriteCollector(NonLocalStateToCheck);
+            WriteCollector wc = new WriteCollector(StateToCheck);
             wc.Visit(LhsRhs.Item1);
-            if (wc.GetAccess() != null) {
+            if (wc.FoundWrite()) {
               AccessRecord ar = wc.GetAccess();
               AddLogAndCheckCalls(result, ar, AccessType.WRITE, LhsRhs.Item2);
             }
@@ -756,14 +753,14 @@ namespace GPUVerify {
     }
 
     public void AddRaceCheckingCandidateRequires(Procedure Proc) {
-      foreach (Variable v in NonLocalStateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddNoAccessCandidateRequires(Proc, v);
         AddReadOrWrittenOffsetIsThreadIdCandidateRequires(Proc, v);
       }
     }
 
     public void AddRaceCheckingCandidateEnsures(Procedure Proc) {
-      foreach (Variable v in NonLocalStateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddNoAccessCandidateEnsures(Proc, v);
         AddReadOrWrittenOffsetIsThreadIdCandidateEnsures(Proc, v);
       }
@@ -810,7 +807,7 @@ namespace GPUVerify {
     }
 
     public void AddRaceCheckingDeclarations() {
-      foreach (Variable v in NonLocalStateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddRaceCheckingDecsAndProcsForVar(v);
       }
     }

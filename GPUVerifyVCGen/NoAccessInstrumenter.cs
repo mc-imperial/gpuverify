@@ -24,17 +24,11 @@ namespace GPUVerify {
 
     protected GPUVerifier verifier;
 
-    public IKernelArrayInfo NonLocalStateToCheck;
+    public IKernelArrayInfo StateToCheck;
 
     public NoAccessInstrumenter(GPUVerifier verifier) {
       this.verifier = verifier;
-      NonLocalStateToCheck = new KernelArrayInfoLists();
-      foreach (Variable v in verifier.KernelArrayInfo.getGlobalArrays()) {
-        NonLocalStateToCheck.getGlobalArrays().Add(v);
-      }
-      foreach (Variable v in verifier.KernelArrayInfo.getGroupSharedArrays()) {
-        NonLocalStateToCheck.getGroupSharedArrays().Add(v);
-      }
+      StateToCheck = verifier.KernelArrayInfo;
     }
 
     public void AddNoAccessInstrumentation() {
@@ -61,7 +55,7 @@ namespace GPUVerify {
         if (c is AssignCmd) {
           AssignCmd assign = c as AssignCmd;
 
-          ReadCollector rc = new ReadCollector(NonLocalStateToCheck);
+          ReadCollector rc = new ReadCollector(StateToCheck);
           foreach (var rhs in assign.Rhss)
             rc.Visit(rhs);
           if (rc.accesses.Count > 0) {
@@ -71,9 +65,9 @@ namespace GPUVerify {
           }
 
           foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) {
-            WriteCollector wc = new WriteCollector(NonLocalStateToCheck);
+            WriteCollector wc = new WriteCollector(StateToCheck);
             wc.Visit(LhsRhs.Item1);
-            if (wc.GetAccess() != null) {
+            if (wc.FoundWrite()) {
               AccessRecord ar = wc.GetAccess();
               AddNoAccessAssumes(result, ar);
             }

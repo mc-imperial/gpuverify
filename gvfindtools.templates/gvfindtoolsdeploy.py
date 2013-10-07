@@ -12,6 +12,7 @@ import os
 #Paths, use init() to set them.
 bugleSrcDir = None
 bugleBinDir = None
+libclcSrcDir = None
 libclcInstallDir = None
 llvmSrcDir = None
 llvmBinDir = None
@@ -27,7 +28,7 @@ cvc4BinDir=None
 def init(pathPrefix):
   """Modify this modules variables by adding a path prefix"""
 
-  global bugleSrcDir, bugleBinDir, libclcInstallDir
+  global bugleSrcDir, bugleBinDir, libclcSrcDir, libclcInstallDir
   global llvmSrcDir, llvmBinDir, llvmLibDir
   global gpuVerifyVCGenBinDir, gpuVerifyCruncherBinDir, gpuVerifyBoogieDriverBinDir
   global z3SrcDir, z3BinDir, cvc4SrcDir, cvc4BinDir
@@ -36,6 +37,9 @@ def init(pathPrefix):
 
   #The Path to the directory where the "bugle" executable can be found.
   bugleBinDir = pathPrefix + os.sep + "bin"
+
+  #The path to the libclc Source directory. Not used in the deployed setting
+  libclcInstallDir = pathPrefix + os.sep + "libclc"
 
   #The path to the directory where libclc can be found. The include/ and lib/clc/ folders should be there
   libclcInstallDir = pathPrefix + os.sep + "libclc"

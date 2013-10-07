@@ -11,7 +11,7 @@ This guide will walk you through the build process.
 There are specific instructions for Linux, Mac OS X and Windows however they
 have a common set of prerequisites which are:
 
-* CMake >=2.8
+* CMake >=2.8.8
 * Python 2.7
 * Mercurial
 * Git
@@ -91,7 +91,6 @@ Replace as appropriate or setup an environment variable.::
                       nvptx--bugle
      $ make
      $ make install
-     $ cp LICENSE.TXT ${BUILD_ROOT}/libclc/install
 
 #. Get Bugle and configure for building (we do an out of source build)::
 
@@ -129,7 +128,7 @@ Replace as appropriate or setup an environment variable.::
     $ ln -s z3 z3.exe
 
 #. (Optional) Get the CVC4 SMT Solver and build.
-   Note that building CVC4 further requires automake and boost.::
+   Note that building CVC4 further requires automake and boost::
 
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
@@ -180,6 +179,9 @@ Replace as appropriate or setup an environment variable.::
 
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
+
+      #The path to the libclc Source directory.
+      libclcSrcDir = rootDir + "/libclc/src"
 
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + "/libclc/install"
@@ -299,7 +301,6 @@ Replace as appropriate or setup an environment variable.::
      $ sed "s#clang++ -o utils/prepare-builtins#clang++ -stdlib=libc++ -std=c++11 -o utils/prepare-builtins#" Makefile.old > Makefile
      $ make
      $ make install
-     $ cp LICENSE.TXT ${BUILD_ROOT}/libclc/install
 
 #. Get Bugle and configure for building (we do an out of source build)::
 
@@ -338,7 +339,7 @@ Replace as appropriate or setup an environment variable.::
     $ ln -s z3 z3.exe
 
 #. (Optional) Get the CVC4 SMT Solver and build.
-   Note that building CVC4 further requires automake and boost.::
+   Note that building CVC4 further requires automake and boost::
 
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
@@ -393,6 +394,9 @@ Replace as appropriate or setup an environment variable.::
 
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
+
+      #The path to the libclc Source directory.
+      libclcSrcDir = rootDir + "/libclc/src"
 
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + "/libclc/install"
@@ -449,7 +453,7 @@ Replace as appropriate or setup an environment variable.::
    ::
 
      $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
-	 
+
    You can also check that your CVC4 test run matches the current CVC4 baseline.
    ::
 
@@ -464,14 +468,14 @@ Replace as appropriate or setup an environment variable.::
 Windows
 -------
 In addition to the common prerequisites a Windows build of GPUVerify requires
-Microsoft Visual Studio 2010.
+Microsoft Visual Studio 2010 and GnuWin32.
 
 To build GPUVerify follow this guide in a powershell window.
 
 Note ``${BUILD_ROOT}`` refers to where ever you wish to build GPUVerify.
 Replace as appropriate or setup an environment variable.::
 
-      > ${BUILD_ROOT}=C:\path\to\build
+      > ${BUILD_ROOT}='C:\path\to\build'
 
 We recommend that you build GPUVerify to a local hard drive like ``C:``
 since this avoids problems with invoking scripts on network mounted
@@ -494,7 +498,7 @@ drives.
 #. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.3)::
 
       > $LLVM_RELEASE=33
-      > mkdir llvm_and_clang
+      > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
       > cd ${BUILD_ROOT}\llvm_and_clang\src\tools
@@ -514,18 +518,25 @@ drives.
 
       > msbuild /p:Configuration=Release LLVM.sln
 
-#. Get libclc. You can download this from the GPUVerify website and unzip
-   this in ``${BUILD_ROOT}``. You can also do this at the command line::
+#. Get libclc source and binaries. You can download the binaries from the
+   GPUVerify website and unzip this in ``${BUILD_ROOT}``. From the command
+   line do::
 
+      > cd ${BUILD_ROOT}
+      > mkdir ${BUILD_ROOT}\libclc
+      > git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}\libclc\src
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
       > (new-object System.Net.WebClient).DownloadFile($libclc_url, "${BUILD_ROOT}\libclc-nightly.zip")
+      > $shell = new-object -com shell.application
       > $zip   = $shell.namespace("${BUILD_ROOT}\libclc-nightly.zip")
       > $dest  = $shell.namespace("${BUILD_ROOT}")
       > $dest.Copyhere($zip.items(), 0x14)
+      > del ${BUILD_ROOT}\libclc-nightly.zip
 
 #. Get Bugle and configure for building (we do an out of source build)::
 
       > cd ${BUILD_ROOT}
+      > mkdir ${BUILD_ROOT}\bugle
       > git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}\bugle\src
       > mkdir ${BUILD_ROOT}\bugle\build
       > cd ${BUILD_ROOT}\bugle\build
@@ -567,7 +578,7 @@ drives.
 
       > cd ${BUILD_ROOT}
       > hg clone https://hg.codeplex.com/gpuverify
-      > cd gpuverify
+      > cd ${BUILD_ROOT}\gpuverify
       > msbuild /p:Configuration=Release GPUVerify.sln
 
 #. Configure GPUVerify front end.::
@@ -587,6 +598,9 @@ drives.
 
       #The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + r"\bugle\build\Release"
+
+      #The path to the libclc Source directory.
+      libclcSrcDir = rootDir + r"\libclc\src"
 
       #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + r"\libclc\install"
@@ -640,13 +654,13 @@ drives.
    ::
 
      $ .\gvtester.py --compare-pickle testsuite\baseline.pickle run.pickle
-	 
+
    You can also check that your CVC4 test run matches the current CVC4 baseline.
    ::
 
      $ .\gvtester.py --compare-pickle testsuite\baseline_cvc4.pickle run.pickle
 
-   You should expect the last line of output to be.::
+   You should expect the last line of output to be::
 
      INFO:testsuite/baseline.pickle = new.pickle
 
@@ -660,6 +674,9 @@ To deploy a stand alone version of GPUVerify run::
   $ mkdir -p /path/to/deploy/gpuverify
   $ cd ${BUILD_ROOT}/gpuverify
   $ ./deploy.py /path/to/deploy/gpuverify
+
+In the case you only built the Z3 solver, additionally supply the
+``--solver=z3`` option to ``deploy.py``.
 
 This will copy the necessary files to run a standalone copy of GPUVerify in an
 intelligent manner by
@@ -831,25 +848,18 @@ Adding additional GPUVerify error codes
 ---------------------------------------
 
 ``gvtester.py`` directly imports the GPUVerify codes so that it is aware of the
-different error codes that it can return. An additional error condition can
-occur where everything passes but one or more regular expressions fail to
-match.  ``gvtester.py`` has its own special error code for this which is given
-the next available integer after GPUVerify's highest error code. 
+different error codes that it can return. An additional error condition
+(REGEX_MISMATCH_ERROR) can occur where everything passes but one or more
+regular expressions fail to match.  ``gvtester.py`` has its own special error
+code for this. In the past this was the next available integer. This was a bad
+design choice because it meant everytime a new error code was added in
+GPUVerify the error code for REGEX_MISMATCH_ERROR  would change and would make
+any existing pickle files invalid. This meant that the baseline had to be
+updated everytime an errorcode was added. Now the REGEX_MISMATCH_ERROR is given
+a large fixed value. At run time ``gvtester.py`` will check there is no
+conflict.
 
-This can cause problems if a new error code is added to ``GPUVerify.py`` and
-then ``gvtester.py`` is told to examine a pickle file that was generated when
-the new error code didn't exist. In this situation ``gvtester.py`` can
-incorrectly report the return code of a test. 
-
-For example ``REGEX_MISMATCH_ERROR`` could have the number ``8`` prior to
-adding a new error code and a pickle file is recorded that stores the error
-code of a particular test as ``8``. Then if a new error code is added, for
-example ``WEIRD_ERROR`` then that gets assigned number ``8`` and
-``REGEX_MISMATCH_ERROR`` now gets assigned number ``9``.  Now if
-``gvtester.py`` opens the old pickle file that contains a test that returned
-``8`` then it will report that the test failed with ``WEIRD_ERROR`` instead of
-``REGEX_MISMATCH_ERROR`` (which is actually what happened).
-
-If you add new error codes to GPUVerify you should re-generate the baseline
-file and be very wary of comparising newly generated pickle files against old
-ones.
+To add an error code simply add it to the ErrorCodes class in ``GPUVerify.py``.
+Make sure your new error code has a value larger than existing error codes.
+There is no need to regenerate the baseline unless you've changed the testsuite
+in some way.

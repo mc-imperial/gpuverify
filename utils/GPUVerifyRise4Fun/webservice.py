@@ -4,8 +4,9 @@ from socket import gethostname
 import logging
 import pprint
 import traceback
+import pprint
 
-#import observers.example
+import observers.kernelcounter
 
 app = Flask(__name__)
 
@@ -19,6 +20,14 @@ cudaMetaData = {}
 openclMetaData = {} 
 _tool = None
 
+# This is not ideal, we delay initialisation
+# until the first request which could slow
+# down the first request. However this is
+# the only way I could find to perform initilisation
+# after forking in Tornado (required so each
+# KernelCounterObserver can initialise itself 
+# correctly)
+@app.before_first_request
 def init():
   # Pre-compute metadata information
   global cudaMetaData , openclMetaData, _gpuverifyObservers, _tool
@@ -29,7 +38,7 @@ def init():
   _tool = gvapi.GPUVerifyTool(app.config['GPUVERIFY_ROOT_DIR'], app.config['GPUVERIFY_TEMP_DIR'])
 
   #Register observers
-  #_tool.registerObserver( observers.example.ExampleObserver() )
+  _tool.registerObserver( observers.kernelcounter.KernelCounterObserver(app.config['KERNEL_COUNTER_PATH']) )
 
 #Setup routing
 @app.errorhandler(404)
@@ -51,11 +60,12 @@ def getToolInfo(lang):
   # Patch meta data with image URL
   metaData['InstitutionImageUrl'] = url_for('static', filename='imperial-college-logo.png', _external=True)
 
+  # Do not have proper privacy policy/Terms of use URL for now
   # Patch meta data with privacy policy URL
-  metaData['PrivacyUrl'] = url_for('static', filename='privacy-policy.html', _external=True)
+  # metaData['PrivacyUrl'] = url_for('static', filename='privacy-policy.html', _external=True)
 
   # Patch meta data with terms of use URL
-  metaData['TermsOfUseUrl'] = url_for('static', filename='terms-of-use.html', _external=True)
+  # metaData['TermsOfUseUrl'] = url_for('static', filename='terms-of-use.html', _external=True)
   return jsonify(metaData)
 
 @app.route('/<lang>/language', methods=['GET'])
@@ -99,8 +109,9 @@ def runGpuverify(lang):
   toolMessage=None
   dimMessage=""
   safeArgs=[]
+  ignoredArgs=[]
   try:
-    _tool.extractOtherCmdArgs(source,safeArgs)
+    _tool.extractOtherCmdArgs(source, safeArgs, ignoredArgs)
 
     if lang == CUDAMetaData.folderName:
       blockDim=[]
@@ -108,7 +119,11 @@ def runGpuverify(lang):
       _tool.extractGridSizeFromSource(source, blockDim, gridDim)
 
       returnMessage['Version'] = cudaMetaData.metadata['Version']
-      (returnCode, toolMessage) = _tool.runCUDA(source, blockDim=blockDim , gridDim=gridDim, extraCmdLineArgs=safeArgs)
+      (returnCode, toolMessage) = _tool.runCUDA(source, 
+                                                blockDim=blockDim, 
+                                                gridDim=gridDim,
+                                                timeout=app.config['GPUVERIFY_TIMEOUT'],
+                                                extraCmdLineArgs=safeArgs)
 
     else:
       returnMessage['Version'] = openclMetaData.metadata['Version']
@@ -117,19 +132,24 @@ def runGpuverify(lang):
       numOfGroups=[]
       _tool.extractNDRangeFromSource(source,localSize, numOfGroups)
 
-      (returnCode, toolMessage) = _tool.runOpenCL(source, localSize=localSize , numOfGroups=numOfGroups, extraCmdLineArgs=safeArgs)
+      (returnCode, toolMessage) = _tool.runOpenCL(source, 
+                                                  localSize=localSize, 
+                                                  numOfGroups=numOfGroups,
+                                                  timeout=app.config['GPUVERIFY_TIMEOUT'],
+                                                  extraCmdLineArgs=safeArgs)
 
     # We might have an extra message to show.
     extraHelpMessage=""
     if gvapi.helpMessage[returnCode] != "":
       extraHelpMessage = gvapi.helpMessage[returnCode] + '\n' 
 
-    # Strip out any leading new lines from tool output.
-    for (index,char) in enumerate(toolMessage):
-      if char != '\n':
-        toolMessage=toolMessage[index:]
-        break
-    
+    toolMessage = filterToolOutput(toolMessage)
+
+    # If we have ignored command line arguments warn the user about this
+    if len(ignoredArgs) != 0:
+      warning = 'Warning ignored command line option(s):\n{0}\n\n'.format(pprint.pformat(ignoredArgs))
+      toolMessage = warning + toolMessage
+
     returnMessage['Outputs'][0]['Value'] = (extraHelpMessage + toolMessage).decode('utf8')
 
   except Exception as e:
@@ -145,6 +165,25 @@ def checkLang(lang):
     return True
   else:
     return False
+
+def filterToolOutput(toolMessage):
+    # Strip out any leading new lines from tool output.
+    for (index,char) in enumerate(toolMessage):
+      if char != '\n':
+        toolMessage=toolMessage[index:]
+        break
+
+    # Remove any absolute paths for source files and
+    # replace with just the source file name.
+    dirOrFileRegex = r'[a-z0-9_.-]+'
+    ext = r'\.(cl|cu|h|hpp)'
+    regex = r'/(' +dirOrFileRegex+ r'/)*(' + dirOrFileRegex + ext + r')\b'
+    _logging.debug('Using regex:{0}'.format(regex))
+    (output, n) = re.subn(regex, r'\2', toolMessage, flags=re.IGNORECASE)
+    _logging.info('Filtering output. {0} replacements were made.'.format(n))
+    _logging.debug('Replacing:\n{0}\nWith:\n{1}'.format(toolMessage, output))
+    return output
+
 
 
 if __name__ == '__main__':
@@ -171,7 +210,4 @@ if __name__ == '__main__':
   if args.public:
     options['host'] = '0.0.0.0'
 
-  init() #Delay so debug output may be seen
   app.run(debug=args.debug, port=args.port, **options)
-else:
-  init()

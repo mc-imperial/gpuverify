@@ -1,7 +1,12 @@
 //--local_size=1024 --num_groups=1
+
 /* 
- * The intention of this kernel is to Increment each element of A with its
- * neighbouring element, offset places away.
+ * The intention of this kernel is to increment each
+ * element of 'A' with its neighbouring element,
+ * 'offset' places away.
+ *
+ * A barrier statement ensures that read-write data
+ * races do not occur.
  */
 
 

@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -81,10 +81,13 @@ namespace GPUVerify
 
         internal IRaceInstrumenter RaceInstrumenter;
         internal INoAccessInstrumenter NoAccessInstrumenter;
+        internal IConstantWriteInstrumenter ConstantWriteInstrumenter;
 
         internal UniformityAnalyser uniformityAnalyser;
         internal MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
+        internal RelationalPowerOfTwoAnalyser relationalPowerOfTwoAnalyser;
         internal ArrayControlFlowAnalyser arrayControlFlowAnalyser;
+        internal CallSiteAnalyser callSiteAnalyser;
         internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
         internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
 
@@ -103,13 +106,16 @@ namespace GPUVerify
             {
                 this.NoAccessInstrumenter = new NoAccessInstrumenter(this);
             }
+
+            if (GPUVerifyVCGenCommandLineOptions.ConstantWriteChecks) {
+                this.ConstantWriteInstrumenter = new ConstantWriteInstrumenter(this);
+            }
             if (!GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
                 this.RaceInstrumenter = new RaceInstrumenter(this);
             } else {
                 this.RaceInstrumenter = new NullRaceInstrumenter();
             }
-
         }
 
         private void CheckWellFormedness()
@@ -139,6 +145,21 @@ namespace GPUVerify
                     }
                   }
                 }
+              }
+            }
+
+            if (GPUVerifyVCGenCommandLineOptions.CheckSingleNonInlinedImpl)
+            {
+              var NonInlinedImpls = Program.TopLevelDeclarations.Where(
+                  d => d is Implementation &&
+                  QKeyValue.FindIntAttribute((d as Implementation).Attributes, "inline", -1) == -1);
+              if (NonInlinedImpls.Count() != 1)
+              {
+                  Console.WriteLine("GPUVerify: warning: Found {0} non-inlined implementations.", NonInlinedImpls.Count());
+                  foreach (Implementation impl in NonInlinedImpls)
+                  {
+                      Console.WriteLine("  {0}", impl.Name);
+                  }
               }
             }
         }
@@ -307,6 +328,10 @@ namespace GPUVerify
                     {
                         KernelArrayInfo.getGlobalArrays().Add(D as Variable);
                     }
+                    else if (QKeyValue.FindBoolAttribute(D.Attributes, "constant"))
+                    {
+                        KernelArrayInfo.getConstantArrays().Add(D as Variable);
+                    }
                     else
                     {
                         KernelArrayInfo.getPrivateArrays().Add(D as Variable);
@@ -415,6 +440,11 @@ namespace GPUVerify
 
             DoArrayControlFlowAnalysis();
 
+            if (GPUVerifyVCGenCommandLineOptions.DoCallSiteAnalysis)
+            {
+                DoCallSiteAnalysis();
+            }
+
             if (GPUVerifyVCGenCommandLineOptions.Inference)
             {
 
@@ -429,7 +459,12 @@ namespace GPUVerify
 
             }
 
+            if (GPUVerifyVCGenCommandLineOptions.ConstantWriteChecks) {
+                ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
+            }
+
             RaceInstrumenter.AddRaceCheckingInstrumentation();
+
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
             {
                 NoAccessInstrumenter.AddNoAccessInstrumentation();
@@ -567,6 +602,14 @@ namespace GPUVerify
         {
             mayBePowerOfTwoAnalyser = new MayBePowerOfTwoAnalyser(this);
             mayBePowerOfTwoAnalyser.Analyse();
+            relationalPowerOfTwoAnalyser = new RelationalPowerOfTwoAnalyser(this);
+            relationalPowerOfTwoAnalyser.Analyse();
+        }
+
+        private void DoCallSiteAnalysis()
+        {
+            callSiteAnalyser = new CallSiteAnalyser(this);
+            callSiteAnalyser.Analyse();
         }
 
         private void DoArrayControlFlowAnalysis()
