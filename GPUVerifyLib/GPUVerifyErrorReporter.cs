@@ -19,10 +19,11 @@ using Microsoft.Basetypes;
 using System.Text.RegularExpressions;
 using System.Diagnostics.Contracts;
 
-namespace GPUVerify
-{
-  public class GPUVerifyErrorReporter
-  {
+
+namespace GPUVerify {
+
+  class GPUVerifyErrorReporter {
+
     enum RaceType {
       WW,
       RW,
@@ -39,7 +40,7 @@ namespace GPUVerify
       NoError
     };
 
-    public static void ReportCounterexample(Counterexample error) {
+    internal static void ReportCounterexample(Counterexample error) {
       if (error is CallCounterexample) {
         CallCounterexample CallCex = (CallCounterexample)error;
         if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "barrier_divergence")) {
@@ -72,6 +73,9 @@ namespace GPUVerify
         }
         else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "constant_write")) {
           ReportFailingConstantWriteCheck(AssertCex);
+        }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "bad_pointer_access")) {
+          ReportFailingBadPointerAccess(AssertCex);
         }
         else {
           ReportFailingAssert(AssertCex);
@@ -192,11 +196,11 @@ namespace GPUVerify
          printed with locinfo2? Check whether this is correct.
        */
       ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " in group " + group2, ErrorMsgType.NoError);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
+      Microsoft.Boogie.GPUVerifyBoogieDriver.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
 
 
       ErrorWriteLine(locinfo2, access1 + " by thread " + thread1 + " in group " + group1, ErrorMsgType.NoError);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
+      Microsoft.Boogie.GPUVerifyBoogieDriver.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
     }
 
     private static uint GetOffsetInBytes(Variable OffsetVar, Model m, CallCmd FailingCall) {
@@ -300,8 +304,8 @@ namespace GPUVerify
       Debug.Assert(relevantThread == 1 || relevantThread == 2);
 
       ErrorWriteLine(sli.ToString(), messagePrefix + " for thread " +
-        (relevantThread == 1 ? thread1 : thread2) + " in group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+                     (relevantThread == 1 ? thread1 : thread2) + " in group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
+      Microsoft.Boogie.GPUVerifyBoogieDriver.ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportFailingAssert(AssertCounterexample err) {
@@ -328,18 +332,22 @@ namespace GPUVerify
       ReportThreadSpecificFailure(err, "possible attempt to modify constant memory");
     }
 
+    private static void ReportFailingBadPointerAccess(AssertCounterexample err) {
+      ReportThreadSpecificFailure(err, "possible null pointer access");
+    }
+
     private static void ReportEnsuresFailure(Absy node) {
       Console.WriteLine("");
       var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
       ErrorWriteLine(sli.ToString(), "postcondition might not hold on all return paths", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      Microsoft.Boogie.GPUVerifyBoogieDriver.ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportBarrierDivergence(Absy node) {
       Console.WriteLine("");
       var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
       ErrorWriteLine(sli.ToString(), "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      Microsoft.Boogie.GPUVerifyBoogieDriver.ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportRequiresFailure(Absy callNode, Absy reqNode) {
@@ -348,10 +356,10 @@ namespace GPUVerify
       var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), reqNode.tok);
 
       ErrorWriteLine(CallSLI.ToString(), "a precondition for this call might not hold", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine(), 2));
+      Microsoft.Boogie.GPUVerifyBoogieDriver.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine(), 2));
 
       ErrorWriteLine(RequiresSLI.ToString(), "this is the precondition that might not hold", ErrorMsgType.Note);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine(), 2));
+      Microsoft.Boogie.GPUVerifyBoogieDriver.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine(), 2));
     }
 
     private static void GetThreadsAndGroupsFromModel(Model model, out string thread1, out string thread2, out string group1, out string group2, bool withSpaces) {
@@ -362,7 +370,7 @@ namespace GPUVerify
     }
 
     private static string GetGroup(Model model, bool withSpaces, int thread) {
-      switch (((GVCommandLineOptions)CommandLineOptions.Clo).GridHighestDim) {
+      switch (((GPUVerifyBoogieDriverCommandLineOptions)CommandLineOptions.Clo).GridHighestDim) {
         case 0:
         return ""
           + GetGid(model, "x", thread);
@@ -388,7 +396,7 @@ namespace GPUVerify
 
     private static int GetGid(Model model, string dimension, int thread) {
       string name = "group_id_" + dimension;
-      if(!((GVCommandLineOptions)CommandLineOptions.Clo).OnlyIntraGroupRaceChecking) {
+      if(!((GPUVerifyBoogieDriverCommandLineOptions)CommandLineOptions.Clo).OnlyIntraGroupRaceChecking) {
         name += "$" + thread;
       }
 
@@ -396,7 +404,7 @@ namespace GPUVerify
     }
 
     private static string GetThreadTwo(Model model, bool withSpaces) {
-      switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
+      switch (((GPUVerifyBoogieDriverCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
         case 0:
         return ""
           + GetLidX2(model);
@@ -420,6 +428,7 @@ namespace GPUVerify
       }
     }
 
+
     private static int GetLidZ2(Model model) {
       return model.TryGetFunc("local_id_z$2").GetConstant().AsInt();
     }
@@ -433,7 +442,7 @@ namespace GPUVerify
     }
 
     private static string GetThreadOne(Model model, bool withSpaces) { 
-      switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
+      switch (((GPUVerifyBoogieDriverCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
         case 0:
         return "" 
           + model.TryGetFunc("local_id_x$1").GetConstant().AsInt();
@@ -522,7 +531,7 @@ namespace GPUVerify
       string StateId = QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id");
       Debug.Assert(StateId != null);
 
-      if ((CommandLineOptions.Clo as GVCommandLineOptions).NoSourceLocInfer) {
+      if ((CommandLineOptions.Clo as GPUVerifyBoogieDriverCommandLineOptions).NoSourceLocInfer) {
         return CreateSourceLocQKV(0,0,GetFileName(),GetFilenamePathPrefix());
       }
 
@@ -553,13 +562,14 @@ namespace GPUVerify
       }
     }
 
-    public static void FixStateIds(Program Program) {
+    internal static void FixStateIds(Program Program) {
       new StateIdFixer().FixStateIds(Program);
     }
+
   }
 
-  class StateIdFixer
-  {
+  class StateIdFixer {
+
     // For race reporting, we emit a bunch of "state_id" attributes.
     // It is important that these are not duplicated.  However,
     // loop unrolling duplicates them.  This class is responsible for
@@ -572,7 +582,7 @@ namespace GPUVerify
       Debug.Assert(CommandLineOptions.Clo.LoopUnrollCount != -1);
 
       foreach(var impl in Program.Implementations()) {
-        impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds)); 
+        impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds));
       }
 
     }
@@ -632,4 +642,5 @@ namespace GPUVerify
     }
 
   }
+
 }
