@@ -693,6 +693,7 @@ def processOpenCLOptions(opts, args):
         CommandLineOptions.groupSize = processVector(a)
       except ValueError:
         GPUVerifyError("argument to --local_size must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
@@ -704,6 +705,7 @@ def processOpenCLOptions(opts, args):
         CommandLineOptions.numGroups = processVector(a)
       except ValueError:
         GPUVerifyError("argument to --num_groups must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
@@ -728,6 +730,7 @@ def processCUDAOptions(opts, args):
         CommandLineOptions.groupSize = processVector(a)
       except ValueError:
         GPUVerifyError("argument to --blockDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
@@ -739,6 +742,7 @@ def processCUDAOptions(opts, args):
         CommandLineOptions.numGroups = processVector(a)
       except ValueError:
         GPUVerifyError("argument to --gridDim must be a (vector of) positive integer(s), found '" + a + "'", ErrorCodes.COMMAND_LINE_ERROR)
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:

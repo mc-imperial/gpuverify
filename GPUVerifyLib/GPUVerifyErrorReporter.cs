@@ -195,6 +195,7 @@ namespace GPUVerify {
          Why is thread2 being printed with locinfo1, and thread1 being
          printed with locinfo2? Check whether this is correct.
        */
+
       ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " in group " + group2, ErrorMsgType.NoError);
       GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
 
@@ -441,7 +442,7 @@ namespace GPUVerify {
       return model.TryGetFunc("local_id_x$2").GetConstant().AsInt();
     }
 
-    private static string GetThreadOne(Model model, bool withSpaces) { 
+    private static string GetThreadOne(Model model, bool withSpaces) {
       switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
         case 0:
         return "" 
@@ -452,7 +453,7 @@ namespace GPUVerify {
             + "," + (withSpaces ? " " : "")
             + model.TryGetFunc("local_id_y$1").GetConstant().AsInt()
             + ")";
-        case 2:
+      case 2:
         return "("
           + model.TryGetFunc("local_id_x$1").GetConstant().AsInt()
             + "," + (withSpaces ? " " : "")

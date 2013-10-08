@@ -234,6 +234,7 @@ namespace GPUVerify
           // BP5xxx: Verification errors
 
           errors.Sort(new CounterexampleComparer());
+
           foreach (Counterexample error in errors)
           {
             GPUVerifyErrorReporter.ReportCounterexample(error);
