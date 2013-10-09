@@ -38,7 +38,72 @@ namespace GPUVerify {
       foreach (var region in verifier.RootRegion(impl).SubRegions()) {
         GenerateCandidateForReducedStrengthStrideVariables(verifier, impl, region);
         GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
+        GenerateCandidateForNonUniformGuardVariables(verifier, impl, region);
       }
+    }
+
+    private static void GenerateCandidateForNonUniformGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
+        if (!verifier.ContainsBarrierCall(region)) return;
+
+        var visitor = new VariablesOccurringInExpressionVisitor();
+        HashSet<Variable> partitionVars = new HashSet<Variable>();
+        HashSet<Variable> guardVars = new HashSet<Variable>();
+
+        foreach (var assume in region.Cmds().OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
+        {
+            visitor.Visit(assume.Expr);
+            partitionVars.UnionWith(visitor.GetVariables());
+        }
+        var formals = impl.InParams.Select(x => x.Name);
+        var modset = GetModifiedVariables(region).Select(x => x.Name);
+        foreach (var v in partitionVars)
+        {
+            var expr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+            visitor.Visit(expr);
+            guardVars.UnionWith(
+                visitor.GetVariables().Where(
+                  x => x.Name.StartsWith("$") && 
+                       !formals.Contains(x.Name) && 
+                       modset.Contains(x.Name) &&
+                       !verifier.uniformityAnalyser.IsUniform(impl.Name, v.Name) &&
+                       x.TypedIdent.Type.Equals(Microsoft.Boogie.Type.GetBvType(32))
+                )
+            );
+        }
+        List<AssignCmd> assignments = new List<AssignCmd>();
+        foreach (Block b in region.PreHeaders())
+        {
+            foreach (AssignCmd c in b.Cmds.Where(x => x is AssignCmd)) {
+                assignments.Add(c);
+            }
+        }
+        Function otherbv32 = (Function)verifier.ResContext.LookUpProcedure("__other_bv32");
+        if (otherbv32 == null) 
+        {
+            List<Variable> myargs = new List<Variable>();
+            myargs.Add(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.GetBvType(32))));
+            otherbv32 = new Function(Token.NoToken, "__other_bv32", myargs, 
+              new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.GetBvType(32))));
+        }
+        foreach (var v in guardVars)
+        {
+            foreach (AssignCmd c in assignments)
+            {
+                foreach (var a in c.Lhss.Zip(c.Rhss)) {
+                    var lhs = a.Item1;
+                    var rhs = a.Item2;
+                    var sLhs = (SimpleAssignLhs)lhs;
+                    var theVar = sLhs.DeepAssignedVariable;
+                    if (theVar.Name == v.Name) {
+                      var sub = verifier.IntRep.MakeSub(new IdentifierExpr(Token.NoToken, v), rhs as Expr);
+                      List<Expr> args = new List<Expr>();
+                      args.Add(sub);
+                      var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv32), args));
+                      verifier.AddCandidateInvariant(region, inv, "guard minus initial is uniform", InferenceStages.BASIC_CANDIDATE_STAGE);
+                    }
+                }
+            }
+        }
     }
 
     private static void GenerateCandidateForNonNegativeGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {

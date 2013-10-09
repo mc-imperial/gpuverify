@@ -24,6 +24,13 @@ class UnstructuredRegion : IRegion {
   Dictionary<Block, Block> innermostHeader = new Dictionary<Block, Block>();
   Expr guard;
 
+  public IEnumerable<Block> PreHeaders() {
+    if (header == null) return Enumerable.Empty<Block>();
+    var preds = blockGraph.Predecessors(header);
+    var backedges = blockGraph.BackEdgeNodes(header);
+    return preds.Except(backedges);
+  }
+
   public UnstructuredRegion(Program p, Implementation impl) {
     blockGraph = p.ProcessLoops(impl);
     header = null;
