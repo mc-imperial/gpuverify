@@ -272,7 +272,34 @@ namespace Microsoft.Boogie
 
       public string getValue(string key1, string key2)
       {
-        return info[key1][key2];
+        string value = "";
+
+        if (info[key1].ContainsKey(key2)) {
+          value = info[key1][key2];
+        } else {
+          switch (key2) {
+          case "Solver":
+            value = "options-defined";
+            break;
+          case "ErrorLimit":
+            value = "20";
+            break;
+          case "DisableLEI":
+            value = "False";
+            break;
+          case "DisableLMI":
+            value = "False";
+            break;
+          case "ModifyTSO":
+            value = "False";
+            break;
+          case "LoopUnroll":
+            value = "-1";
+            break;
+          }
+        }
+
+        return value;
       }
 
       private void updateFromConfigurationFile()
