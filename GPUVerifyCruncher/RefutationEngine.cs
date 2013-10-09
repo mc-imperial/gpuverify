@@ -57,8 +57,15 @@ namespace Microsoft.Boogie
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
 
       CommandLineOptions.Clo.Cho[id].ProverOptions.AddRange(CommandLineOptions.Clo.ProverOptions);
-      if (solver.Equals("cvc4"))
+
+      if (solver.Equals("option-defined")) {
+        if (CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4"))
+          this.solver = "cvc4";
+        else
+          this.solver = "Z3";
+      } else if (solver.Equals("cvc4")) {
         CommandLineOptions.Clo.Cho[id].ProverOptions.Add("SOLVER=cvc4");
+      }
 
       if (this.disableLEI || this.disableLMI || this.loopUnroll != -1)
         this.isTrusted = false;

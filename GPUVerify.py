@@ -931,6 +931,8 @@ def main(argv=None):
   if CommandLineOptions.parallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
+  elif CommandLineOptions.solver == "cvc4":
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
   if CommandLineOptions.dynamicAnalysis:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicAnalysis" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]

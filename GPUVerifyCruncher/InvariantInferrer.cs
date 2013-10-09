@@ -279,7 +279,7 @@ namespace Microsoft.Boogie
         } else {
           switch (key2) {
           case "Solver":
-            value = "options-defined";
+            value = "option-defined";
             break;
           case "ErrorLimit":
             value = "20";
