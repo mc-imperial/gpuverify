@@ -175,14 +175,24 @@ namespace GPUVerify
     /// Checks if Quantifiers exists in the Boogie program. If they exist and the underlying
     /// parser is CVC4 then it enables the corresponding Logic.
     /// </summary>
-    public static void CheckForQuantifiersAndSpecifyLogic(Program program)
+    public static void CheckForQuantifiersAndSpecifyLogic(Program program, int taskID = -1)
     {
-      if ((CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4") ||
-           CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=CVC4")) &&
-          CommandLineOptions.Clo.ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
-          CheckForQuantifiers.Found(program)) {
-        CommandLineOptions.Clo.ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
-        CommandLineOptions.Clo.ProverOptions.Add("LOGIC=ALL_SUPPORTED");
+      if (taskID >= 0) {
+        if ((CommandLineOptions.Clo.Cho[taskID].ProverOptions.Contains("SOLVER=cvc4") ||
+             CommandLineOptions.Clo.Cho[taskID].ProverOptions.Contains("SOLVER=CVC4")) &&
+            CommandLineOptions.Clo.Cho[taskID].ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
+            CheckForQuantifiers.Found(program)) {
+          CommandLineOptions.Clo.Cho[taskID].ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
+          CommandLineOptions.Clo.Cho[taskID].ProverOptions.Add("LOGIC=ALL_SUPPORTED");
+        }
+      } else {
+        if ((CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4") ||
+             CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=CVC4")) &&
+            CommandLineOptions.Clo.ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
+            CheckForQuantifiers.Found(program)) {
+          CommandLineOptions.Clo.ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
+          CommandLineOptions.Clo.ProverOptions.Add("LOGIC=ALL_SUPPORTED");
+        }
       }
     }
 

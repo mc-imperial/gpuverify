@@ -229,7 +229,6 @@ namespace Microsoft.Boogie
       if (!raceCheck) KernelAnalyser.DisableRaceChecking(program);
       KernelAnalyser.EliminateDeadVariables(program);
       if (inline) KernelAnalyser.Inline(program);
-      KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
 
       return program;
     }

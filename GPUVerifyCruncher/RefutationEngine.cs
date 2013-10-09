@@ -79,6 +79,9 @@ namespace Microsoft.Boogie
     /// </summary>
     public int start(Program program, ref Houdini.HoudiniOutcome outcome)
     {
+      if (solver.Equals("cvc4"))
+        KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program, id);
+
       if (CommandLineOptions.Clo.Trace)
         Console.WriteLine("INFO:[Engine-" + name + "] started crunching ...");
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
