@@ -15,7 +15,7 @@ __kernel void matrix_transpose(global float* A)
   int tile_x = get_group_id(0);
   int tile_y = get_group_id(1);
 
-	tile[x][y] = A[((x + (tile_x * SIZE)) * LENGTH) + (y + (tile_y * SIZE))];
+	//tile[x][y] = A[((x + (tile_x * SIZE)) * LENGTH) + (y + (tile_y * SIZE))];
 
 	tile[x][y] = tile[y][x];
 

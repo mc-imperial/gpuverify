@@ -17,7 +17,7 @@ __global__ void matrix_transpose(float* A)
   int tile_x = blockIdx.x;
   int tile_y = blockIdx.y;
 
-	tile[x][y] = A[((x + (tile_x * SIZE)) * LENGTH) + (y + (tile_y * SIZE))];
+	//tile[x][y] = A[((x + (tile_x * SIZE)) * LENGTH) + (y + (tile_y * SIZE))];
 
 	tile[x][y] = tile[y][x];
 
