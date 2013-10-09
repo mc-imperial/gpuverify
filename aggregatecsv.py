@@ -37,6 +37,9 @@ class CsvError(Exception):
         return repr(self.value)
 
 class CsvData:
+    clangMean = 0
+    clangError = 0
+    
     def __init__(self, kernelName, exitStatus):
         self.kernelName = kernelName
         self.exitStatus = exitStatus
