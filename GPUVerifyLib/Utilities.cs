@@ -203,7 +203,7 @@ namespace GPUVerify
       {
         Contract.Requires(s != null);
         ConsoleColor col = Console.ForegroundColor;
-        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.ForegroundColor = ConsoleColor.Cyan;
         Console.Error.WriteLine(s);
         Console.ForegroundColor = col;
       }
