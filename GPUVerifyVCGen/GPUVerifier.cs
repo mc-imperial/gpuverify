@@ -2215,6 +2215,8 @@ namespace GPUVerify
           Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
 
           Expr condition = Expr.Eq(sides[0],sides[1]);
+          Expr group_guard = (new string[] {"X","Y","Z"}).Select(d => (Expr) Expr.Eq(Expr.Ident(MakeGroupId(d,1)),Expr.Ident(MakeGroupId(d,2)))).Aggregate(Expr.And);
+          condition = Expr.And(condition,group_guard);
           IfCmd ifcmd = new IfCmd (Token.NoToken, condition, new StmtList (thenblocks,Token.NoToken), /* another IfCmd for elsif */ null, /* then branch */ null);
 
           List<BigBlock> blocks = new List<BigBlock>();
