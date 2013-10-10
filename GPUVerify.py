@@ -1016,7 +1016,7 @@ def main(argv=None):
     if not CommandLineOptions.skip["cruncher"]:
       RunTool("gpuverifycruncher",
               (["mono"] if os.name == "posix" else []) +
-              [gvfindtools.gpuVerifyCruncherBinDir + "/GPUVerifyCruncher.exe"] +
+              [gvfindtools.gpuVerifyCruncherBinDir + os.sep + "GPUVerifyCruncher.exe"] +
               CommandLineOptions.gpuVerifyCruncherOptions,
               ErrorCodes.BOOGIE_ERROR,
               **timeoutArguments)

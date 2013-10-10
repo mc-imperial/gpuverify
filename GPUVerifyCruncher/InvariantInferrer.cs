@@ -187,7 +187,7 @@ namespace Microsoft.Boogie
       string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
       if (string.IsNullOrEmpty (directoryContainingFiles))
         directoryContainingFiles = Directory.GetCurrentDirectory ();
-      var annotatedFile = directoryContainingFiles + Path.VolumeSeparatorChar +
+      var annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);
 
       Program program = getFreshProgram(true, true);
