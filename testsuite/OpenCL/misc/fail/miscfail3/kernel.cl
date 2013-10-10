@@ -4,7 +4,9 @@
 
 __kernel void foo(__local int* A) {
 
-    A[get_local_id(0)] = get_local_id(0);
+    if(get_local_id(0) != 0) {
+      A[get_local_id(0)] = get_local_id(0);
+    }
 
     for(int i = 0; i < 100; i++) {
 

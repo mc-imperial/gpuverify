@@ -72,9 +72,13 @@ namespace GPUVerify {
             cwc.Visit(LhsRhs.Item1);
             if (cwc.FoundWrite()) {
               AssertCmd constantAssert = new AssertCmd(Token.NoToken, Expr.False);
-              constantAssert.Attributes = SourceLocationAttributes;
               constantAssert.Attributes
-                  = new QKeyValue(Token.NoToken, "constant_write", new List<object>(), constantAssert.Attributes);
+                  = new QKeyValue(Token.NoToken, "constant_write", new List<object>(), null);
+              for(QKeyValue attr = SourceLocationAttributes; attr != null; attr = attr.Next) {
+                if(attr.Key != "sourceloc") {
+                  constantAssert.Attributes = new QKeyValue(attr.tok, attr.Key, attr.Params, constantAssert.Attributes);
+                }
+              }
               result.Add(constantAssert);
             }
           }
