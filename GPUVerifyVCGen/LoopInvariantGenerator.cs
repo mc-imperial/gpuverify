@@ -45,12 +45,12 @@ namespace GPUVerify {
     private static void GenerateCandidateForNonUniformGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
         if (!verifier.ContainsBarrierCall(region)) return;
 
-        var visitor = new VariablesOccurringInExpressionVisitor();
         HashSet<Variable> partitionVars = new HashSet<Variable>();
         HashSet<Variable> guardVars = new HashSet<Variable>();
 
         foreach (var assume in region.Cmds().OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
         {
+            var visitor = new VariablesOccurringInExpressionVisitor();
             visitor.Visit(assume.Expr);
             partitionVars.UnionWith(visitor.GetVariables());
         }
@@ -58,14 +58,16 @@ namespace GPUVerify {
         var modset = GetModifiedVariables(region).Select(x => x.Name);
         foreach (var v in partitionVars)
         {
-            var expr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+            Expr expr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+            if (expr == null) continue;
+            var visitor = new VariablesOccurringInExpressionVisitor();
             visitor.Visit(expr);
             guardVars.UnionWith(
                 visitor.GetVariables().Where(
                   x => x.Name.StartsWith("$") && 
                        !formals.Contains(x.Name) && 
                        modset.Contains(x.Name) &&
-                       !verifier.uniformityAnalyser.IsUniform(impl.Name, v.Name) &&
+                       !verifier.uniformityAnalyser.IsUniform(impl.Name, x.Name) &&
                        x.TypedIdent.Type.Equals(Microsoft.Boogie.Type.GetBvType(32))
                 )
             );
