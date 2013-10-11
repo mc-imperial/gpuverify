@@ -197,6 +197,8 @@ namespace GPUVerify {
         }
 
         Expr lowerBound = verifier.varDefAnalyses[impl].SubstDefinitions(constant, impl.Name);
+        if (lowerBound == null) continue;
+
         var visitor = new VariablesOccurringInExpressionVisitor();
         visitor.VisitExpr(lowerBound);
         var groupIds = visitor.GetVariables().Where(x => GPUVerifier.IsDualisedGroupIdConstant(x));
