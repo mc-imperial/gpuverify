@@ -92,6 +92,7 @@ namespace GPUVerify {
                 foreach (var a in c.Lhss.Zip(c.Rhss)) {
                     var lhs = a.Item1;
                     var rhs = a.Item2;
+                    if (!(lhs is SimpleAssignLhs)) continue;
                     var sLhs = (SimpleAssignLhs)lhs;
                     var theVar = sLhs.DeepAssignedVariable;
                     if (theVar.Name == v.Name) {
