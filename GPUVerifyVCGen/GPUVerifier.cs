@@ -1827,6 +1827,12 @@ namespace GPUVerify
             return variable.Name.Equals(_GROUP_X.Name) || variable.Name.Equals(_GROUP_Y.Name) || variable.Name.Equals(_GROUP_Z.Name);
         }
 
+        public static bool IsDualisedGroupIdConstant(Variable variable)
+        {
+            var name = StripThreadIdentifier(variable.Name);
+            return name.Equals(_GROUP_X.Name) || name.Equals(_GROUP_Y.Name) || name.Equals(_GROUP_Z.Name);
+        }
+
         internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId)
         {
             region.AddInvariant(Program.CreateCandidateInvariant(e, tag, StageId));

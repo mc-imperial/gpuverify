@@ -90,6 +90,9 @@ namespace GPUVerify {
 
       foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddNoAccessCandidateInvariants(region, v);
+        AddOffsetIsBlockBoundedCandidateInvariants(impl, region, v, AccessType.READ);
+        AddOffsetIsBlockBoundedCandidateInvariants(impl, region, v, AccessType.WRITE);
+        AddOffsetIsBlockBoundedCandidateInvariants(impl, region, v, AccessType.ATOMIC);
         AddReadOrWrittenOffsetIsThreadIdCandidateInvariants(impl, region, v, AccessType.READ);
         AddReadOrWrittenOffsetIsThreadIdCandidateInvariants(impl, region, v, AccessType.WRITE);
         AddReadOrWrittenOffsetIsThreadIdCandidateInvariants(impl, region, v, AccessType.ATOMIC);
@@ -166,6 +169,55 @@ namespace GPUVerify {
       }
 
       return offsetPreds;
+    }
+
+    private void AddOffsetIsBlockBoundedCandidateInvariants(Implementation impl, IRegion region, Variable v, AccessType Access) {
+      var modset = LoopInvariantGenerator.GetModifiedVariables(region).Select(x => x.Name);
+      foreach (Expr e in GetOffsetsAccessed(region, v, Access)) {
+        if (!(e is NAryExpr)) continue;
+
+        NAryExpr nary = e as NAryExpr;
+        if (!nary.Fun.FunctionName.Equals("BV32_ADD")) continue;
+
+        Expr lhs = nary.Args[0];
+        Expr rhs = nary.Args[1];
+        var lhsVisitor = new VariablesOccurringInExpressionVisitor();
+        lhsVisitor.Visit(lhs);
+        var lhsVars = lhsVisitor.GetVariables();
+        var rhsVisitor = new VariablesOccurringInExpressionVisitor();
+        rhsVisitor.Visit(rhs);
+        var rhsVars = rhsVisitor.GetVariables();
+        Expr constant;
+        if (lhsVars.All(x => !modset.Contains(x.Name)) && rhsVars.Any(x =>  modset.Contains(x.Name))) {
+          constant = lhs;
+        } else if (rhsVars.All(x => !modset.Contains(x.Name)) && lhsVars.Any(x =>  modset.Contains(x.Name))) {
+          constant = rhs;
+        } else {
+          continue;
+        }
+
+        Expr lowerBound = verifier.varDefAnalyses[impl].SubstDefinitions(constant, impl.Name);
+        var visitor = new VariablesOccurringInExpressionVisitor();
+        visitor.VisitExpr(lowerBound);
+        var groupIds = visitor.GetVariables().Where(x => GPUVerifier.IsDualisedGroupIdConstant(x));
+        if (groupIds.Count() != 1) continue;
+
+        // Getting here means the access consists of a constant (not in the
+        // loop's modset) plus a changing index. Furthermore, the constant
+        // contains exactly one group-id variable. We guess this forms a lower
+        // and upper bound for the access. i.e.,
+        //   constant <= access <= constant[group-id+1/group-id]
+        Variable groupId = groupIds.Single();
+        Expr groupIdPlusOne = verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), verifier.IntRep.GetLiteral(1,32));
+        Dictionary<Variable, Expr> substs = new Dictionary<Variable, Expr>();
+        substs.Add(groupId, groupIdPlusOne);
+        Substitution s = Substituter.SubstitutionFromHashtable(substs);
+        Expr upperBound = Substituter.Apply(s, lowerBound);
+        var lowerBoundInv = Expr.Imp(AccessHasOccurred(v, Access, 1), verifier.IntRep.MakeSle(lowerBound, OffsetXExpr(v, Access, 1)));
+        var upperBoundInv = Expr.Imp(AccessHasOccurred(v, Access, 1), verifier.IntRep.MakeSlt(            OffsetXExpr(v, Access, 1), upperBound));
+        verifier.AddCandidateInvariant(region, lowerBoundInv, "access lower bound", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+        verifier.AddCandidateInvariant(region, upperBoundInv, "access upper bound", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+      }
     }
 
     private void AddReadOrWrittenOffsetIsThreadIdCandidateInvariants(Implementation impl, IRegion region, Variable v, AccessType Access) {
