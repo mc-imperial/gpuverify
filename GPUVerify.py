@@ -451,7 +451,7 @@ def processVector(vector):
   if vector[0] == '[' and vector[-1] == ']':
     return map(int, vector[1:-1].split(","))
   else:
-    return [ int(vector) ]
+    return map(int, vector.split(","))
 
 def GPUVerifyWarn(msg):
   print "GPUVerify: warning: " + msg
