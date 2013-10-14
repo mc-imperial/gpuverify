@@ -1,5 +1,5 @@
 from meta_data import *
-from flask import Flask, jsonify, url_for, request
+from flask import Flask, jsonify, url_for, request, abort
 from socket import gethostname
 import logging
 import pprint
@@ -195,13 +195,10 @@ if __name__ == '__main__':
   parser.add_argument('-p', '--port', type=int, default=55000, help='Port to use. Default %(default)s')
   parser.add_argument('-d', '--debug', action='store_true',default=False, help='Use Flask Debug mode and show debugging output. Default %(default)s')
   parser.add_argument('--public', action='store_true', default=False, help='Make publically accessible. Default %(default)s')
-  parser.add_argument('-s','--server-name', type=str, default=gethostname() , help='Set server hostname. Default "%(default)s"')
+  parser.add_argument('-s','--server-name', type=str, default='localhost' , help='Set server hostname. This is ignored is --public is used. Default "%(default)s"')
 
   args = parser.parse_args()
 
-  app.config['SERVER_NAME'] = args.server_name + ':' + str(args.port)
-
-  print("Setting SERVER_NAME to " + app.config['SERVER_NAME'])
 
   if args.debug:
     print("Using Debug mode")
@@ -211,5 +208,10 @@ if __name__ == '__main__':
   options = { }
   if args.public:
     options['host'] = '0.0.0.0'
+    app.config['SERVER_NAME'] = gethostname() + ':' + str(args.port)
+  else:
+    app.config['SERVER_NAME'] = args.server_name + ':' + str(args.port)
+
+  print("Setting SERVER_NAME to " + app.config['SERVER_NAME'])
 
   app.run(debug=args.debug, port=args.port, **options)
