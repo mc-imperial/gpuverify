@@ -191,7 +191,7 @@ if __name__ == '__main__':
   import argparse
   parser = argparse.ArgumentParser(description='Run Development version of GPUVerifyRise4Fun web service')
   parser.add_argument('-p', '--port', type=int, default=55000, help='Port to use. Default %(default)s')
-  parser.add_argument('-d', '--debug', action='store_true',default=False, help='Use Flask Debug mode. Default %(default)s')
+  parser.add_argument('-d', '--debug', action='store_true',default=False, help='Use Flask Debug mode and show debugging output. Default %(default)s')
   parser.add_argument('--public', action='store_true', default=False, help='Make publically accessible. Default %(default)s')
   parser.add_argument('-s','--server-name', type=str, default=gethostname() , help='Set server hostname. Default "%(default)s"')
 
