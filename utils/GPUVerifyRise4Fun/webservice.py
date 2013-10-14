@@ -173,11 +173,13 @@ def filterToolOutput(toolMessage):
         toolMessage=toolMessage[index:]
         break
 
-    # Remove any absolute paths for source files and
-    # replace with just the source file name.
+    # Remove any absolute paths for files (e.g. tools and source files) and 
+    # replace with just the basename.
+    # Microsoft in their "infinite" wisdom use flags like "/noinfer"
+    # So we have to be careful when filtering.
+
     dirOrFileRegex = r'[a-z0-9_.-]+'
-    ext = r'\.(cl|cu|h|hpp)'
-    regex = r'/(' +dirOrFileRegex+ r'/)*(' + dirOrFileRegex + ext + r')\b'
+    regex = r'/(' +dirOrFileRegex+ r'/)+(' + dirOrFileRegex + r')\b'
     _logging.debug('Using regex:{0}'.format(regex))
     (output, n) = re.subn(regex, r'\2', toolMessage, flags=re.IGNORECASE)
     _logging.info('Filtering output. {0} replacements were made.'.format(n))
