@@ -111,7 +111,7 @@ def runGpuverify(lang):
   safeArgs=[]
   ignoredArgs=[]
   try:
-    _tool.extractOtherCmdArgs(source, safeArgs, ignoredArgs)
+    _tool.extractOtherCmdArgs(source, safeArgs, ignoredArgs, app.config['GPUVERIFY_DEFAULT_ARGS'])
 
     if lang == CUDAMetaData.folderName:
       blockDim=[]

@@ -76,15 +76,19 @@ class GPUVerifyTool(object):
     else:
       self.observers.append(observer)
 
-  def extractOtherCmdArgs(self, source, args, ignoredArgs=None):
+  def extractOtherCmdArgs(self, source, args, ignoredArgs=None, additionalArgs=None):
     """
       Extract command line arguments from the first line of the source code
-      that are allowed to be passed to runOpencl() or runCUDA() as extraCmdLineArgs
+      that are allowed (i.e. some filtering is done) to be passed to runOpencl() 
+      or runCUDA() as extraCmdLineArgs
 
-      source : The source code as a string
+      source : The source code as a string where arguments will be extracted from.
       args   : A list that this function will populate
       ignoredArgs : If not None this list will be populated with arguments that
                     were ignored (except the NDRange arguments like --blockDim).
+      additionalArgs : If not None this list be used as additional command line
+                       arguments. Just like the arguments in the source code these 
+                       will be filtered.
     """
     if len(args) != 0:
       raise Exception("Argument list must be empty")
@@ -95,6 +99,9 @@ class GPUVerifyTool(object):
       raise Exception('First line of source must have // style comment')
 
     foundArgs=firstLine.split()[1:] #Split on spaces, removing the comment
+
+    if additionalArgs:
+        foundArgs.extend(additionalArgs)
 
     #A whitelist of allowed options (NDRange or Grid Size args are deliberatly not here)
     safeOptions=['--adversarial-abstraction',

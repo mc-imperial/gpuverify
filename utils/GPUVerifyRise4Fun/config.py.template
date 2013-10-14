@@ -15,3 +15,9 @@ KERNEL_COUNTER_PATH= os.getcwd() # This sets the directory to place KernelCounte
 # If set true the version number will include the output of running --version on GPUVerify in this repository.
 # You should set this to False if you have not configured the local version of GPUVerify
 INCLUDE_VERSION_FROM_LOCAL=False
+
+# List of default arguments to pass to GPUVerify
+# Note you should not pass --timeout= ( see GPUVERIFY_TIMEOUT )
+# Note you should not pass --blockDim= , --gridDim=, --local_size or --num_groups=
+# These arguments are filtered and may be blocked (see extractOtherCmdArgs() )
+GPUVERIFY_DEFAULT_ARGS= ['--verbose']
