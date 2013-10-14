@@ -27,6 +27,12 @@ GPUVerifyVCGen/obj/*
 DynamicAnalysis/bin/*
 DynamicAnalysis/obj/*
 
+#GPUVerifyCruncher
+GPUVerifyCruncher/obj/*
+
+#GPUVerifyLib
+GPUVerifyLib/obj/*
+
 #GPUVerify Temporary files
 *.bc
 *.bpl
@@ -44,6 +50,9 @@ Documentation/_build
 
 #gv-rise4fun configuration
 utils/GPUVerifyRise4Fun/config.py
+
+#gv-rise4fun virtual environment
+utils/GPUVerifyRise4Fun/venv
 
 #gvtester dump
 run.pickle
