@@ -97,11 +97,37 @@ class GPUVerifyTool(object):
     foundArgs=firstLine.split()[1:] #Split on spaces, removing the comment
 
     #A whitelist of allowed options (NDRange or Grid Size args are deliberatly not here)
-    safeOptions=['--findbugs',r'--loop-unwind=\d+','--no-benign','--no-infer','--only-divergence',
-                 '--only-intra-group', '--time','--verify','--verbose','--adversarial-abstraction',
-                 '--array-equalities', '--asymmetric-asserts','--equality-abstraction','--debug',
-                 '--no-barrier-access-checks', '--no-loop-predicate-invariants','--no-smart-predication',
-                 '--no-source-loc-infer', '--staged-inference']
+    safeOptions=['--adversarial-abstraction',
+                 '--array-equalities',
+                 '--asymmetric-asserts',
+                 r'--atomic=(r|rw|none)',
+                 '--debug',
+                 #'--dynamic-analysis', # Note sure if safe, disable for now
+                 '--equality-abstraction',
+                 '--findbugs',
+                 r'--loop-unwind=\d+',
+                 '--math-int',
+                 '--no-annotations',
+                 '--no-barrier-access-checks',
+                 '--no-benign',
+                 '--no-constant-write-checks',
+                 '--no-infer',
+                 '--no-loop-predicate-invariants',
+                 '--no-refinded-atomics',
+                 '--no-smart-predication',
+                 '--no-source-loc-infer',
+                 '--no-uniformity-analysis',
+                 '--only-divergence',
+                 '--only-intra-group',
+                 '--only-requires',
+                 '--parallel-inference',
+                 '--time',
+                 '--staged-inference',
+                 # r'--scheduling=[a-z-]+', # Not sure if safe
+                 '--verify',
+                 '--verbose',
+                 r'--warp-sync=\d{1,3}']
+
     for arg in foundArgs:
       matcher=None
       for option in safeOptions:
