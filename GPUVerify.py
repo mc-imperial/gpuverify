@@ -204,8 +204,8 @@ class CommandLineOptions(object):
   generateSmt2 = False
   noBarrierAccessChecks = False
   noConstantWriteChecks = False
+  noInline = False
   callSiteAnalysis = False
-  testsuite = False
   warpSync = False
   warpSize = 32
   atomic = "rw"
@@ -383,6 +383,7 @@ def showHelpAndExit():
   print "  --only-requires         Ignore all source-level annotations except for requires"
   print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
   print "  --no-constant-write-checks      Turn off access checks for writes to constant space"
+  print "  --no-inline             Turn off automatic inlining by Bugle"
   print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
   print "                          related to predicates, which can be incorrect"
   print "  --no-smart-predication  Turn off smart predication"
@@ -396,7 +397,6 @@ def showHelpAndExit():
   print "  --stop-at-bpl           Stop after generating bpl"
   print "  --stop-at-inv           Stop after generating an annotated with invariants bpl"
   print "  --time-as-csv=label     Print timing as CSV row with label"
-  print "  --testsuite             Testing testsuite program"
   print "  --vcgen-timeout=X       Allow VCGen to run for X seconds."
   print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
   print "                          engine"
@@ -542,6 +542,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.noBarrierAccessChecks = True
     if o == "--no-constant-write-checks":
       CommandLineOptions.noConstantWriteChecks = True
+    if o == "--no-inline":
+      CommandLineOptions.noInline = True
     if o == "--no-loop-predicate-invariants":
       CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
@@ -586,8 +588,6 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.asymmetricAsserts = True
     if o == "--gen-smt2":
       CommandLineOptions.generateSmt2 = True
-    if o == "--testsuite":
-      CommandLineOptions.testsuite = True
     if o == "--no-refined-atomics":
       CommandLineOptions.noRefinedAtomics = True
     if o == "--call-site-analysis":
@@ -711,11 +711,6 @@ def processOpenCLOptions(opts, args):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for num_groups dimensions must be positive", ErrorCodes.COMMAND_LINE_ERROR)
 
-  if CommandLineOptions.testsuite:
-    if CommandLineOptions.groupSize or CommandLineOptions.numGroups:
-      GPUVerifyWarn("local_size and num_groups flags ignored when using --testsuite")
-    return
-
   if CommandLineOptions.groupSize == []:
     GPUVerifyError("work group size must be specified via --local_size=...", ErrorCodes.COMMAND_LINE_ERROR)
   if CommandLineOptions.numGroups == []:
@@ -748,11 +743,6 @@ def processCUDAOptions(opts, args):
         if CommandLineOptions.numGroups[i] <= 0:
           GPUVerifyError("values specified for gridDim must be positive", ErrorCodes.COMMAND_LINE_ERROR)
 
-  if CommandLineOptions.testsuite:
-    if CommandLineOptions.groupSize or CommandLineOptions.numGroups:
-      GPUVerifyWarn("blockDim and gridDim flags ignored when using --testsuite")
-    return
-
   if CommandLineOptions.groupSize == []:
     GPUVerifyError("thread block size must be specified via --blockDim=...", ErrorCodes.COMMAND_LINE_ERROR)
   if CommandLineOptions.numGroups == []:
@@ -769,13 +759,13 @@ def main(argv=None):
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
               'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
-              'no-loop-predicate-invariants', 'no-smart-predication', 'no-source-loc-infer',
+              'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication', 'no-source-loc-infer',
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-bpl', 'stop-at-inv',
               'time', 'time-as-csv=', 'keep-temps',
-              'asymmetric-asserts', 'gen-smt2', 'testsuite', 'bugle-lang=','timeout=',
+              'asymmetric-asserts', 'gen-smt2', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
               'infer-timeout=', 'staged-inference', 'parallel-inference',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
@@ -799,26 +789,21 @@ def main(argv=None):
   if ext == ".cl":
     CommandLineOptions.clangOptions += clangOpenCLOptions
     CommandLineOptions.clangOptions += clangInlineOptions
-    if CommandLineOptions.testsuite:
-      rmFlags = [ "-include", "opencl.h" ]
-      CommandLineOptions.clangOptions = [ i for i in CommandLineOptions.clangOptions if i not in rmFlags ]
     CommandLineOptions.includes += clangOpenCLIncludes
     CommandLineOptions.defines += clangOpenCLDefines
-    if not CommandLineOptions.testsuite:
-      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
-      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-      CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-      CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
+    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+    CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+    CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
   elif ext == ".cu":
     CommandLineOptions.clangOptions += clangCUDAOptions
     CommandLineOptions.includes += clangCUDAIncludes
     CommandLineOptions.defines += clangCUDADefines
-    if not CommandLineOptions.testsuite:
-      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
-      CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-      CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-      CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
+    CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
+    CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
+    CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
 
   # Intermediate filenames
   bcFilename = filename + '.bc'
@@ -852,6 +837,8 @@ def main(argv=None):
     CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
     if CommandLineOptions.mathInt:
       CommandLineOptions.bugleOptions += [ "-i", "math" ]
+    if not CommandLineOptions.noInline:
+      CommandLineOptions.bugleOptions += [ "-inline" ]
   elif not CommandLineOptions.skip['bugle']:
     lang = CommandLineOptions.bugleLanguage
     if not lang: # try to infer
@@ -1020,7 +1007,7 @@ def main(argv=None):
               CommandLineOptions.gpuVerifyCruncherOptions,
               ErrorCodes.BOOGIE_ERROR,
               **timeoutArguments)
-              
+
     if CommandLineOptions.stopAtInv: return 0
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
