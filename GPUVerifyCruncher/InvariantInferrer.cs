@@ -12,7 +12,7 @@ using DynamicAnalysis;
 
 namespace Microsoft.Boogie
 {
-  ﻿using System;
+  using System;
   using System.IO;
   using System.Collections.Generic;
   using System.Threading;

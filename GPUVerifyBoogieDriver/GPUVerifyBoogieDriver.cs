@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using GPUVerify;
+using GPUVerify;
 
 namespace Microsoft.Boogie
 {
