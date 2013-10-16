@@ -32,6 +32,11 @@ namespace DynamicAnalysis
 			scalars.Clear();
 			arrays.Clear();
 		}
+
+    public void ClearRaceArrayOffset (string name)
+    {
+      raceArrayOffsets[name].Clear();
+    }
 		
 		public bool HadRaceArrayVariable (string name)
 		{
@@ -65,7 +70,7 @@ namespace DynamicAnalysis
 		
 		public void Store (string name, BitVector val, bool uninitialised = false)
 		{
-			scalars[name] = val;
+      scalars[name] = val;
 			if (uninitialised)
 				uninitialisedVariables.Add(name);
 			else if (uninitialisedVariables.Contains(name))
