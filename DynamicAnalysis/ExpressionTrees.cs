@@ -170,7 +170,7 @@ namespace DynamicAnalysis
 					if (call.FunctionName == "BV32_UGT" ||
 						call.FunctionName == "BV32_UGE" ||
 					    call.FunctionName == "BV32_ULT" ||
-						call.FunctionName == "BV32_ULE" ||
+						call.FunctionName == "BV32_ULE" || 
 					    call.FunctionName == "BV32_SGT" || 
 					    call.FunctionName == "BV32_SGE" ||
 					    call.FunctionName == "BV32_SLT" || 

@@ -428,7 +428,7 @@ namespace DynamicAnalysis
             throw new UnhandledException("Unhandled command: " + cmd.ToString());
         }
     }
-
+    
     private void EvaluateBinaryNode(BinaryNode<BitVector> binary)
     {
       Print.DebugMessage("Evaluating binary bv node", 10);
@@ -470,6 +470,10 @@ namespace DynamicAnalysis
                             binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
                             break;
                           }
+                          
+                        case "BV32_SDIV":
+                          binary.evaluations.Add(lhs / rhs);
+                          break;
                         case "BV32_LSHR":
                           binary.evaluations.Add(lhs >> rhs.Data);
                           break;
@@ -490,6 +494,18 @@ namespace DynamicAnalysis
                           break;
                         case "BV32_AND":
                           binary.evaluations.Add(lhs & rhs);
+                          break;
+                        case "FADD32":
+                          binary.evaluations.Add(lhs + rhs);
+                          break;
+                        case "FSUB32":
+                          binary.evaluations.Add(lhs - rhs);
+                          break;
+                        case "FMUL32":
+                          binary.evaluations.Add(lhs * rhs);
+                          break;
+                        case "FDIV32":
+                          binary.evaluations.Add(lhs / rhs);
                           break;
                         default:
                           Print.ExitMessage("Unhandled bv binary op: " + binary.op);
