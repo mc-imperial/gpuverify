@@ -108,7 +108,6 @@ namespace GPUVerify {
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "read_write")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.READ, ModelWithStates);
         ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RW);
-
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_write")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
