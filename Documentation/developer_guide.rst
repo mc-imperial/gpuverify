@@ -851,13 +851,8 @@ Adding additional GPUVerify error codes
 different error codes that it can return. An additional error condition
 (REGEX_MISMATCH_ERROR) can occur where everything passes but one or more
 regular expressions fail to match.  ``gvtester.py`` has its own special error
-code for this. In the past this was the next available integer. This was a bad
-design choice because it meant everytime a new error code was added in
-GPUVerify the error code for REGEX_MISMATCH_ERROR  would change and would make
-any existing pickle files invalid. This meant that the baseline had to be
-updated everytime an errorcode was added. Now the REGEX_MISMATCH_ERROR is given
-a large fixed value. At run time ``gvtester.py`` will check there is no
-conflict.
+code for this. At run time ``gvtester.py`` will check there is no conflict
+between the GPUVerify error codes and REGEX_MISMATCH_ERROR.
 
 To add an error code simply add it to the ErrorCodes class in ``GPUVerify.py``.
 Make sure your new error code has a value larger than existing error codes.
