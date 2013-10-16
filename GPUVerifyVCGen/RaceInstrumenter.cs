@@ -459,17 +459,6 @@ namespace GPUVerify {
       }
     }
 
-    private StmtList AddRaceCheckCalls(StmtList stmtList) {
-      Contract.Requires(stmtList != null);
-
-      StmtList result = new StmtList(new List<BigBlock>(), stmtList.EndCurly);
-
-      foreach (BigBlock bodyBlock in stmtList.BigBlocks) {
-        result.BigBlocks.Add(AddRaceCheckCalls(bodyBlock));
-      }
-      return result;
-    }
-
     private Block AddRaceCheckCalls(Block b) {
       b.Cmds = AddRaceCheckCalls(b.Cmds);
       return b;
@@ -662,29 +651,6 @@ namespace GPUVerify {
       if (!SourceLocations[Key].Contains(CurrStmtNo)) {
         SourceLocations[Key].Add(CurrStmtNo);
       }
-    }
-
-    private BigBlock AddRaceCheckCalls(BigBlock bb) {
-      BigBlock result = new BigBlock(bb.tok, bb.LabelName, AddRaceCheckCalls(bb.simpleCmds), null, bb.tc);
-
-      if (bb.ec is WhileCmd) {
-        WhileCmd WhileCommand = bb.ec as WhileCmd;
-        result.ec = new WhileCmd(WhileCommand.tok, WhileCommand.Guard,
-                WhileCommand.Invariants, AddRaceCheckCalls(WhileCommand.Body));
-      }
-      else if (bb.ec is IfCmd) {
-        IfCmd IfCommand = bb.ec as IfCmd;
-        Debug.Assert(IfCommand.elseIf == null); // We don't handle else if yet
-        result.ec = new IfCmd(IfCommand.tok, IfCommand.Guard, AddRaceCheckCalls(IfCommand.thn), IfCommand.elseIf, IfCommand.elseBlock != null ? AddRaceCheckCalls(IfCommand.elseBlock) : null);
-      }
-      else if (bb.ec is BreakCmd) {
-        result.ec = bb.ec;
-      }
-      else {
-        Debug.Assert(bb.ec == null);
-      }
-
-      return result;
     }
 
     private Procedure GetRaceCheckingProcedure(IToken tok, string name) {
