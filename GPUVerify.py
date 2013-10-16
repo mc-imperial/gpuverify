@@ -109,7 +109,6 @@ clangCoreOptions = [ "-target", "nvptx--bugle",
                    ]
 
 if os.name == "posix":
-
   if os.path.isfile(gvfindtools.bugleBinDir \
                     + "/libbugleInlineCheckPlugin.so"):
     bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
