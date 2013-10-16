@@ -78,10 +78,17 @@ and known sources of unsoundness in the tool.
   unsoundness.
 
 In verify mode, any defects reported by GPUVerify are **possible**
-defects.  If the kernel contains loops or multiple (non-inlined)
-procedures there is a high chance that they may be *false positives*
-arising due to limitations of the tool's invariant and contract
-inference procedures.
+defects.  If the kernel contains loops there is a high chance that
+they may be *false positives* arising due to limitations of the
+tool's invariant inference procedures.
+
+A similar issue as with loop invariants should not arise when multiple
+(non-inlined) procedures are present; procedures are automatically inlined.
+This does mean that the tool will report an error when multual recursive
+procedures are present.  To verify multual recursive procedures, disable
+automatic inlining with the ``--no-inline`` flag.  Observe that this will
+increase the chance of *false positives* arising due to limitations of the
+tool's contract inference procedures.
 
 Findbugs mode
 -------------
