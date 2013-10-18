@@ -722,23 +722,23 @@ respectively). These files contain special comments at the head of the file that
 instruct ``gvtester.py`` what to do. The syntax is as follows::
 
 
-  <line_1> ::= "//" ( "pass" | ("xfail:" <xfail-code> ) )
-  <xfail-code> ::= "COMMAND_LINE_ERROR" |
-                   "CLANG_ERROR" |
-                   "OPT_ERROR" |
-                   "BUGLE_ERROR" |
-                   "GPUVERIFYVCGEN_ERROR" |
-                   "GPUVERIFYVCGEN_TIMEOUT" |
-				   "CRUNCHER_ERROR" |
-				   "CRUNCHER_TIMEOUT" |
-                   "BOOGIE_ERROR" |
-                   "BOOGIE_TIMEOUT" |
-				   "CTRL_C"
+  <line_1>     ::= "//" ( "pass" | ("xfail:" <xfail-code> ) )
+  <xfail-code> ::= "COMMAND_LINE_ERROR"
+                |  "CLANG_ERROR"
+                |  "OPT_ERROR"
+                |  "BUGLE_ERROR"
+                |  "GPUVERIFYVCGEN_ERROR"
+                |  "GPUVERIFYVCGEN_TIMEOUT"
+                |  "CRUNCHER_ERROR"
+                |  "CRUNCHER_TIMEOUT"
+                |  "BOOGIE_ERROR"
+                |  "BOOGIE_TIMEOUT"
+                |  "CTRL_C"
 
-  <line_2> ::= "//" <cmd-args>?
-  <cmd-args> ::= <gv-arg> | <gv-arg> " "+ <cmd-args>
+  <line_2>     ::= "//" <cmd-args>?
+  <cmd-args>   ::= <gv-arg> | <gv-arg> " "+ <cmd-args>
 
-  <line_n> ::= "//" <python_regex>
+  <line_n>     ::= "//" <python_regex>
 
 ``<line_1>`` is telling ``gvtester.py`` whether or not the kernel is expected
 to pass ("pass") or expected to fail ("xfail"). If the kernel is expected to
@@ -832,7 +832,7 @@ These rules are:
 #. Remove all text leading up to the Canonical path prefix.
 #. Replace Windows slashes with UNIX ones.
 
-For example the two paths below refer to the same test. 
+For example the two paths below refer to the same test.
 
 - ``/home/person/gpuverify/testsuite/OpenCL/typestest``
 - ``c:\program files\gpuverify\testsuite\OpenCL\typestest``
