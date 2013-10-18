@@ -362,12 +362,12 @@ namespace DynamicAnalysis
         {
             Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", current.Label), 1);
             // Execute all the statements
-            foreach (Cmd cmd in current.Cmds)
+            foreach (var it in current.Cmds.Select((cmd, index) => new { Value = cmd, Index = index }) )
             {
                 //Console.Write(cmd.ToString());
-                if (cmd is AssignCmd)
+                if (it.Value is AssignCmd)
                 {
-                    AssignCmd assign = cmd as AssignCmd;
+                    AssignCmd assign = it.Value as AssignCmd;
                     List<ExprTree> evaluations = new List<ExprTree>();
                     // First evaluate all RHS expressions
                     foreach (Expr expr in assign.Rhss)
@@ -403,9 +403,9 @@ namespace DynamicAnalysis
                         }
                     }
                 }
-                else if (cmd is CallCmd)
+                else if (it.Value is CallCmd)
                 {
-                    CallCmd call = cmd as CallCmd;
+                    CallCmd call = it.Value as CallCmd;
                     if (Regex.IsMatch(call.callee, "_LOG_READ_", RegexOptions.IgnoreCase))
                         LogRead(call);
                     else if (Regex.IsMatch(call.callee, "_LOG_WRITE_", RegexOptions.IgnoreCase))
@@ -413,9 +413,9 @@ namespace DynamicAnalysis
                     else if (Regex.IsMatch(call.callee, "bugle_barrier", RegexOptions.IgnoreCase))
                         Barrier(call);
                 }
-                else if (cmd is AssertCmd)
+                else if (it.Value is AssertCmd)
                 {
-                    AssertCmd assert = cmd as AssertCmd;
+                    AssertCmd assert = it.Value as AssertCmd;
                     // Only check asserts which have attributes as these are the conjectured invariants
                     if (assert.Attributes != null)
                     {
@@ -427,19 +427,28 @@ namespace DynamicAnalysis
                             EvaluateExprTree(exprTree);
                             if (exprTree.evaluation.Equals(BitVector.False))
                             {
-                                Node lhs = exprTree.Root().GetChildren()[0];
-                                string lhsName = lhs.ToString();
                                 AssertStatus[assert] = false;
+                                Regex r = new Regex("_[a-z][0-9]+");
+                                MatchCollection matches = r.Matches(assert.ToString());
+                                string BoogieVariable = null;
+                                foreach (Match match in matches)
+                                {
+                                    foreach (Capture capture in match.Captures)
+                                    {
+                                        BoogieVariable = capture.Value;
+                                    }
+                                }
+                                Print.ConditionalExitMessage(BoogieVariable != null, "Unable to find Boogie variable");        
                                 Console.Write("Removing " + assert.ToString());
-                                ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, lhsName, impl.Name);
-                                ConcurrentHoudini.RefutedSharedAnnotations[lhsName] = annotation;
+                                ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
+                                ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
                             }
                         }
                     }
                 }
-                else if (cmd is HavocCmd)
+                else if (it.Value is HavocCmd)
                 {
-                    HavocCmd havoc = cmd as HavocCmd;
+                    HavocCmd havoc = it.Value as HavocCmd;
                     foreach (IdentifierExpr id in havoc.Vars)
                     {
                         if (id.Type is BvType)
@@ -449,12 +458,12 @@ namespace DynamicAnalysis
                         }
                     }
                 }
-                else if (cmd is AssumeCmd)
+                else if (it.Value is AssumeCmd)
                 {
-                    AssumeCmd assume = cmd as AssumeCmd;
+                    AssumeCmd assume = it.Value as AssumeCmd;
                 }
                 else
-                    throw new UnhandledException("Unhandled command: " + cmd.ToString());
+                    throw new UnhandledException("Unhandled command: " + it.Value.ToString());
             }
         }
 
