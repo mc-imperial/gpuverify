@@ -173,7 +173,7 @@ namespace GPUVerify
       {
         Contract.Requires(0 <= errors && 0 <= inconclusives && 0 <= timeOuts && 0 <= outOfMemories);
 
-        Console.WriteLine();
+        //Console.WriteLine();
         if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
           Console.Write("{0} finished with {1} credible, {2} doomed{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
         } else {

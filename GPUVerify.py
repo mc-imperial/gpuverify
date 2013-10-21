@@ -276,7 +276,7 @@ def run(command,timeout=0):
     print " ".join(command)
   else:
     popenargs['bufsize']=0
-    popenargs['stdout']=subprocess.PIPE
+    #popenargs['stdout']=subprocess.PIPE
     popenargs['stderr']=subprocess.STDOUT
 
   killer=None
