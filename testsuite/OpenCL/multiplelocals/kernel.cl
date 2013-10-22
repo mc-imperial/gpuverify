@@ -15,13 +15,13 @@ void baz(int y)
 __kernel void foo(float x) {
   {
     int x = 4, y=2;
-	x++;
-	x++;
-	y++;
-	y++;
+    x++;
+    x++;
+    y++;
+    y++;
   }
   {
     int x = 2;
-	int foo = 2;
+    int foo = 2;
   }
 }
