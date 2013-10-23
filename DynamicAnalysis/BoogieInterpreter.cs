@@ -55,23 +55,6 @@ namespace DynamicAnalysis
             EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
             EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
             InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
-            Console.WriteLine("{0} invariants out of {1} falsified", FalsfifiedInvariants(), TotalInvariants());
-        }
-
-        public int FalsfifiedInvariants()
-        {
-            int count = 0;
-            foreach (var tupleKey in AssertStatus)
-            {
-                if (!tupleKey.Value)
-                    count++;
-            }
-            return count;
-        }
-
-        public int TotalInvariants()
-        {
-            return AssertStatus.Keys.Count;
         }
 
         private BitVector GetRandomBV(int width)
@@ -271,7 +254,6 @@ namespace DynamicAnalysis
                         LabelToBlock[block.Label] = block;
                     }
                     InitialiseFormalParams(impl.InParams);
-                    Memory.Dump();
                     current = impl.Blocks[0];
                     while (current != null && assumesHold)
                     {
@@ -280,7 +262,7 @@ namespace DynamicAnalysis
                     }
                 }
             }
-            finally
+            catch
             {
                 Memory.Dump();
                 Print.DebugMessage(Output, 10);
@@ -953,9 +935,6 @@ namespace DynamicAnalysis
                                 break;
                             }
                     }
-                    
-                    
-                    Console.WriteLine(name +  " " + arrayName + " " + accessType);
                 }
                 Memory.ClearRaceArrayOffset(name);
             }
