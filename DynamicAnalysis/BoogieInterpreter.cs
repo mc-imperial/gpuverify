@@ -41,9 +41,9 @@ namespace DynamicAnalysis
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
         private Dictionary<AssertCmd, bool> AssertStatus = new Dictionary<AssertCmd, bool>();
-        private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPResults = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
-        private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> DPResults = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
-
+        private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPBVInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
+        private Dictionary<Tuple<BitVector, BitVector, string>, bool> FPBoolInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, bool>();
+        
         public BoogieInterpreter(Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
         {
             Console.WriteLine("Falsyifying invariants with dynamic analysis...");
@@ -77,9 +77,9 @@ namespace DynamicAnalysis
         {
             if (width == 1)
                 return new BitVector(Random.Next(0, 1));
-            int lowestVal = (int)-Math.Pow(2, width - 1);
-            int highestVal = (int)Math.Pow(2, width - 1) - 1;
-            return new BitVector(Random.Next(lowestVal, highestVal));
+            int lowestVal = 1;
+            int highestVal = 16;
+            return new BitVector(Random.Next(lowestVal, highestVal+1));
         }
 
         private bool IsRaceArrayOffsetVariable(string name)
@@ -334,40 +334,52 @@ namespace DynamicAnalysis
 
         private void InitialiseFormalParams(List<Variable> formals)
         {
-            // Currently do nothing as all scalar types are initialised indirectly through a requires clause
-            /*
-			foreach (Variable v in formals)
-			{
-				Print.VerboseMessage(String.Format("Found formal parameter '{0}' with type '{1}'", v.Name, v.TypedIdent.Type.ToString()));
-				if (v.TypedIdent.Type is BvType)
-				{
-					BvType bv = (BvType) v.TypedIdent.Type;
-					Memory.Store(v.Name, GetRandomBV(bv.Bits));
-				}
-				else if (v.TypedIdent.Type is BasicType)
-				{
-					BasicType basic = (BasicType) v.TypedIdent.Type;
-					if (basic.IsInt)
-						Memory.Store(v.Name, GetRandomBV(32));
-					else
-						throw new UnhandledException(String.Format("Unhandled basic type '{0}'", basic.ToString()));
-				}
-				else
-					throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
+            foreach (Variable v in formals)
+            {
+                // Only initialise formal parameters not initialised through requires clauses
+                if (!Memory.Contains(v.Name))
+                {
+                    Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised", v.Name, v.TypedIdent.Type.ToString()));
+                    if (v.TypedIdent.Type is BvType)
+                    {
+                        BvType bv = (BvType)v.TypedIdent.Type;
+                        Memory.Store(v.Name, GetRandomBV(bv.Bits));
+                    }
+                    else if (v.TypedIdent.Type is BasicType)
+                    {
+                        BasicType basic = (BasicType)v.TypedIdent.Type;
+                        if (basic.IsInt)
+                            Memory.Store(v.Name, GetRandomBV(32));
+                        else
+                            throw new UnhandledException(String.Format("Unhandled basic type '{0}'", basic.ToString()));
+                    }
+                    else
+                        throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
+                }
 			}
-			*/
+        }
+
+        private bool IsFormalParameter(string symbol)
+        {
+            foreach (Variable v in impl.InParams)
+            {
+                if (symbol.Equals(v.Name))
+                    return true;
+            }
+            return false;
         }
 
         private void InterpretBasicBlock()
         {
             Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", current.Label), 1);
             // Execute all the statements
-            foreach (var it in current.Cmds.Select((cmd, index) => new { Value = cmd, Index = index }) )
-            {
-                //Console.Write(cmd.ToString());
-                if (it.Value is AssignCmd)
+            foreach (Cmd cmd in current.Cmds)
+            {   
+                Console.Write(cmd.ToString());
+                
+                if (cmd is AssignCmd)
                 {
-                    AssignCmd assign = it.Value as AssignCmd;
+                    AssignCmd assign = cmd as AssignCmd;
                     List<ExprTree> evaluations = new List<ExprTree>();
                     // First evaluate all RHS expressions
                     foreach (Expr expr in assign.Rhss)
@@ -403,9 +415,9 @@ namespace DynamicAnalysis
                         }
                     }
                 }
-                else if (it.Value is CallCmd)
+                else if (cmd is CallCmd)
                 {
-                    CallCmd call = it.Value as CallCmd;
+                    CallCmd call = cmd as CallCmd;
                     if (Regex.IsMatch(call.callee, "_LOG_READ_", RegexOptions.IgnoreCase))
                         LogRead(call);
                     else if (Regex.IsMatch(call.callee, "_LOG_WRITE_", RegexOptions.IgnoreCase))
@@ -413,9 +425,9 @@ namespace DynamicAnalysis
                     else if (Regex.IsMatch(call.callee, "bugle_barrier", RegexOptions.IgnoreCase))
                         Barrier(call);
                 }
-                else if (it.Value is AssertCmd)
+                else if (cmd is AssertCmd)
                 {
-                    AssertCmd assert = it.Value as AssertCmd;
+                    AssertCmd assert = cmd as AssertCmd;
                     // Only check asserts which have attributes as these are the conjectured invariants
                     if (assert.Attributes != null)
                     {
@@ -446,9 +458,9 @@ namespace DynamicAnalysis
                         }
                     }
                 }
-                else if (it.Value is HavocCmd)
+                else if (cmd is HavocCmd)
                 {
-                    HavocCmd havoc = it.Value as HavocCmd;
+                    HavocCmd havoc = cmd as HavocCmd;
                     foreach (IdentifierExpr id in havoc.Vars)
                     {
                         if (id.Type is BvType)
@@ -458,12 +470,12 @@ namespace DynamicAnalysis
                         }
                     }
                 }
-                else if (it.Value is AssumeCmd)
+                else if (cmd is AssumeCmd)
                 {
-                    AssumeCmd assume = it.Value as AssumeCmd;
+                    AssumeCmd assume = cmd as AssumeCmd;
                 }
                 else
-                    throw new UnhandledException("Unhandled command: " + it.Value.ToString());
+                    throw new UnhandledException("Unhandled command: " + cmd.ToString());
             }
         }
 
@@ -538,9 +550,9 @@ namespace DynamicAnalysis
                                 case "FDIV32":
                                     {
                                         Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
-                                        if (!FPResults.ContainsKey(FPTriple))
-                                            FPResults[FPTriple] = BitVector.Zero;
-                                        binary.evaluations.Add(FPResults[FPTriple]);
+                                        if (!FPBVInterpretations.ContainsKey(FPTriple))
+                                            FPBVInterpretations[FPTriple] = new BitVector(Random.Next());
+                                        binary.evaluations.Add(FPBVInterpretations[FPTriple]);
                                         break;
                                     }
                                 case "FADD64":
@@ -548,10 +560,10 @@ namespace DynamicAnalysis
                                 case "FMUL64":
                                 case "FDIV64":
                                     {
-                                        Tuple<BitVector, BitVector, string> DPTriple = Tuple.Create(lhs, rhs, binary.op);
-                                        if (!DPResults.ContainsKey(DPTriple))
-                                            DPResults[DPTriple] = BitVector.Zero;
-                                        binary.evaluations.Add(DPResults[DPTriple]);
+                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
+                                        if (!FPBVInterpretations.ContainsKey(FPTriple))
+                                            FPBVInterpretations[FPTriple] = new BitVector(Random.Next());
+                                        binary.evaluations.Add(FPBVInterpretations[FPTriple]);
                                         break;
                                     }
                                 default:
@@ -678,6 +690,26 @@ namespace DynamicAnalysis
                                         case "BV32_SGE":
                                             binary.evaluations.Add(lhs >= rhs);
                                             break;
+                                        case "FLT32":
+                                        case "FLE32":
+                                        case "FGT32":
+                                        case "FGE32":
+                                        case "FLT64":
+                                        case "FLE64":
+                                        case "FGT64":
+                                        case "FGE64":
+                                            {
+                                                Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
+                                                if (!FPBoolInterpretations.ContainsKey(FPTriple))
+                                                {
+                                                    if (Random.Next(0, 2) == 0)
+                                                        FPBoolInterpretations[FPTriple] = false;
+                                                    else
+                                                        FPBoolInterpretations[FPTriple] = true;
+                                                }
+                                                binary.evaluations.Add(FPBoolInterpretations[FPTriple]);
+                                                break;
+                                            }
                                         default:
                                             throw new UnhandledException("Unhandled bool bv binary op: " + binary.op);
                                     }
@@ -707,33 +739,29 @@ namespace DynamicAnalysis
                                 foreach (BitVector offset in Memory.GetRaceArrayOffsets(scalar.symbol))
                                     scalar.evaluations.Add(offset);
                             }
-                            else if (!Memory.Contains(scalar.symbol))
-                            {
-                                // Not in memory
-                                scalar.uninitialised = true;
-                            }
                             else
                             {
-                                // TODO: Check that we really need this
-                                //if (!Memory.Contains(scalar.symbol))
-                                //    Memory.Store(scalar.symbol, BitVector.Zero, true);
-                                scalar.evaluations.Add(Memory.GetValue(scalar.symbol));
+                                if (!Memory.Contains(scalar.symbol))
+                                {
+                                    scalar.uninitialised = true;
+                                }
+                                else
+                                    scalar.evaluations.Add(Memory.GetValue(scalar.symbol));
                             }
                         }
                         else if (node is ScalarSymbolNode<bool>)
                         {
                             ScalarSymbolNode<bool> scalar = node as ScalarSymbolNode<bool>;
-                            if (Memory.Contains(scalar.symbol))
+                            if (!Memory.Contains(scalar.symbol))
+                            {
+                                scalar.uninitialised = true;
+                            }
+                            else
                             {
                                 if (Memory.GetValue(scalar.symbol).Equals(BitVector.True))
                                     scalar.evaluations.Add(true);
                                 else
-                                    scalar.evaluations.Add(false);
-                            }
-                            else
-                            {
-                                // Not in memory
-                                scalar.uninitialised = true;
+                                    scalar.evaluations.Add(false);   
                             }
                         }
                     }
@@ -762,7 +790,10 @@ namespace DynamicAnalysis
                             switch (unary.op)
                             {
                                 case "!":
-                                    unary.evaluations.Add(!child.evaluations[0]);
+                                    if (child.uninitialised)
+                                        node.uninitialised = true;
+                                    else
+                                        unary.evaluations.Add(!child.evaluations[0]);
                                     break;
                             }
                         }
@@ -780,11 +811,20 @@ namespace DynamicAnalysis
                                 case "FABS64":
                                 case "FEXP32":
                                 case "FEXP64":
-                                    unary.evaluations.Add(BitVector.Zero);
-                                    break;
+                                    {
+                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluations[0], BitVector.Zero, unary.op);
+                                        if (!FPBVInterpretations.ContainsKey(FPTriple))
+                                            FPBVInterpretations[FPTriple] = new BitVector(Random.Next());
+                                        unary.evaluations.Add(FPBVInterpretations[FPTriple]);
+                                        break;
+                                    }
                                 case "BV1_ZEXT32":
                                     BitVector ZeroExtended = BitVector.ZeroExtend(child.evaluations[0], 31);
                                     unary.evaluations.Add(ZeroExtended);
+                                    break;
+                                case "UI32_TO_FP32":
+                                case "SI32_TO_FP32":
+                                    unary.evaluations.Add(child.evaluations[0]);
                                     break;
                                 default:
                                     throw new UnhandledException("Unhandled bv unary op: " + unary.op);
@@ -792,11 +832,17 @@ namespace DynamicAnalysis
                         }
                         else if (node is BinaryNode<BitVector>)
                         {
-                            EvaluateBinaryNode((BinaryNode<BitVector>)node);
+                            BinaryNode<BitVector> binary = (BinaryNode<BitVector>)node;
+                            EvaluateBinaryNode(binary);
+                            if (binary.evaluations.Count == 0)
+                                binary.uninitialised = true;
                         }
                         else if (node is BinaryNode<bool>)
-                        {
-                            EvaluateBinaryNode((BinaryNode<bool>)node);
+                        {                     
+                            BinaryNode<bool> binary = (BinaryNode<bool>)node;
+                            EvaluateBinaryNode(binary);
+                            if (binary.evaluations.Count == 0)
+                                binary.uninitialised = true;
                         }
                         else if (node is TernaryNode<bool>)
                         {
@@ -845,6 +891,7 @@ namespace DynamicAnalysis
             }
             
             Node root = tree.Root();
+            tree.unitialised = root.uninitialised;
             if (root is ExprNode<bool>)
             {
                 ExprNode<bool> boolRoot = root as ExprNode<bool>;
@@ -856,26 +903,51 @@ namespace DynamicAnalysis
                         tree.evaluation = BitVector.False;
                         break;
                     }
-                }		
+                }       
             }
-            else
+            else if (!root.uninitialised)
             {
                 ExprNode<BitVector> bvRoot = root as ExprNode<BitVector>;
-                if (bvRoot.uninitialised)
-                    tree.unitialised = true;
-                else
-                {
-                    tree.unitialised = false;
-                    Print.ConditionalExitMessage(bvRoot.evaluations.Count == 1, "Number of bv evaluations should be 1");
-                    tree.evaluation = bvRoot.evaluations[0];
-                }
+                Print.ConditionalExitMessage(bvRoot.evaluations.Count == 1, "Number of bv evaluations should be 1. Instead found " + bvRoot.evaluations.Count.ToString());
+                tree.evaluation = bvRoot.evaluations[0];
             }
         }
 
         private void Barrier(CallCmd call)
         {
-            foreach (string name in  Memory.GetRaceArrayVariables())
+            foreach (string name in Memory.GetRaceArrayVariables())
             {
+                if (Memory.GetRaceArrayOffsets(name).Count > 0)
+                {
+                    int dollarIndex = name.IndexOf('$');
+                    Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
+                    string arrayName = name.Substring(dollarIndex);
+                    string accessType = name.Substring(0, dollarIndex);
+                    switch (accessType)
+                    {
+                        case "_WRITE_OFFSET_":
+                            {
+                                string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
+                                Memory.Store(accessTracker, BitVector.True);
+                                break;   
+                            }
+                        case "_READ_OFFSET_":
+                            {
+                                string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
+                                Memory.Store(accessTracker, BitVector.True);
+                                break;
+                            } 
+                        case "_ATOMIC_OFFSET_":
+                            {
+                                string accessTracker = "_ATOMIC_HAS_OCCURRED_" + arrayName; 
+                                Memory.Store(accessTracker, BitVector.True);
+                                break;
+                            }
+                    }
+                    
+                    
+                    Console.WriteLine(name +  " " + arrayName + " " + accessType);
+                }
                 Memory.ClearRaceArrayOffset(name);
             }
         }
@@ -890,7 +962,8 @@ namespace DynamicAnalysis
             Expr offsetExpr = call.Ins[1];
             ExprTree tree = GetExprTree(offsetExpr);
             EvaluateExprTree(tree);
-            Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
+            if (!tree.unitialised)
+                Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
         }
 
         private void LogWrite(CallCmd call)
@@ -903,7 +976,8 @@ namespace DynamicAnalysis
             Expr offsetExpr = call.Ins[1];
             ExprTree tree = GetExprTree(offsetExpr);
             EvaluateExprTree(tree);
-            Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
+            if (!tree.unitialised)
+                Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
         }
 
         private Block TransferControl()

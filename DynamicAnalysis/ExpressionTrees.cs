@@ -190,7 +190,11 @@ namespace DynamicAnalysis
                         call.FunctionName == "FLT32" ||
                         call.FunctionName == "FLE32" ||
                         call.FunctionName == "FGT32" ||
-                        call.FunctionName == "FGE32")
+                        call.FunctionName == "FGE32" ||
+                        call.FunctionName == "FLT64" ||
+                        call.FunctionName == "FLE64" ||
+                        call.FunctionName == "FGT64" ||
+                        call.FunctionName == "FGE64")
                             parent = new BinaryNode<bool>(call.FunctionName, one, two);
                         else
                             parent = new BinaryNode<BitVector>(call.FunctionName, one, two);
@@ -205,6 +209,9 @@ namespace DynamicAnalysis
                 }
                 else if (nary.Fun is MapSelect)
                 {
+                    
+                    Console.WriteLine(nary.Args[0].Type.ToString());
+            
                     Node parent;
                     IdentifierExpr identifier = (IdentifierExpr)nary.Args[0];
                     if (nary.Type.IsBv || nary.Type.IsInt)

@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Linq;
 using Microsoft.Boogie;
 
@@ -30,8 +31,7 @@ namespace DynamicAnalysis
         private Dictionary<string, BitVector> scalars = new Dictionary<string, BitVector>();
         private Dictionary<string, Dictionary <SubscriptExpr, BitVector>> arrays = new Dictionary<string, Dictionary <SubscriptExpr, BitVector>>();
         private Dictionary<string, HashSet<BitVector>> raceArrayOffsets = new Dictionary<string, HashSet<BitVector>>();
-        private HashSet<string> uninitialisedVariables = new HashSet<string>();
-
+       
         public Memory()
         {
         }
@@ -80,10 +80,6 @@ namespace DynamicAnalysis
         public void Store(string name, BitVector val)
         {
             scalars[name] = val;
-            //if (uninitialised)
-            //    uninitialisedVariables.Add(name);
-            //else if (uninitialisedVariables.Contains(name))
-            //    uninitialisedVariables.Remove(name);
         }
 
         public bool Contains(string name)
@@ -101,8 +97,6 @@ namespace DynamicAnalysis
 
         public BitVector GetValue(string name)
         {
-            if (uninitialisedVariables.Contains(name))
-                Print.WarningMessage(String.Format("Variable '{0}' is unitialised. Returning sentinel value {1}", name, scalars[name].ToString()));
             if (scalars.ContainsKey(name))
                 return scalars[name];
             throw new UnitialisedException(String.Format("Location '{0}' has not been initialised", name));
