@@ -280,8 +280,8 @@ Replace as appropriate or setup an environment variable.::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
-     $ ../src/configure --enable-optimized --disable-assertions \
-                        --enable-libcpp --enable-cxx11
+     $ CXXFLAGS="-stdlib=libc++" LDFLAGS="-stdlib=libc++" \
+       cmake -D CMAKE_BUILD_TYPE=Release ../src
 
    Compile  LLVM and Clang::
 
@@ -294,11 +294,10 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}
      $ git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}/libclc/src
      $ cd libclc/src
-     $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
+     $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
+                      --with-cxx-compiler=c++ \
                       --prefix=${BUILD_ROOT}/libclc/install \
                       nvptx--bugle
-     $ mv Makefile Makefile.old
-     $ sed "s#clang++ -o utils/prepare-builtins#clang++ -stdlib=libc++ -std=c++11 -o utils/prepare-builtins#" Makefile.old > Makefile
      $ make
      $ make install
 
@@ -308,8 +307,7 @@ Replace as appropriate or setup an environment variable.::
      $ git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}/bugle/src
      $ mkdir ${BUILD_ROOT}/bugle/build
      $ cd ${BUILD_ROOT}/bugle/build
-     $ CXXFLAGS="-std=c++11 -stdlib=libc++" \
-       cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/Release/bin/llvm-config \
+     $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
              -D CMAKE_BUILD_TYPE=Release \
              -D LIBCLC_DIR=${BUILD_ROOT}/libclc/install \
              ../src
@@ -405,10 +403,10 @@ Replace as appropriate or setup an environment variable.::
       llvmSrcDir = rootDir + "/llvm_and_clang/src"
 
       #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
-      llvmBinDir = rootDir + "/llvm_and_clang/build/Release/bin"
+      llvmBinDir = rootDir + "/llvm_and_clang/build/bin"
 
       #The path containing the llvm libraries
-      llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
+      llvmLibDir = rootDir + "/llvm_and_clang/build/lib"
 
       #The path to the directory containing GPUVerifyVCGen.exe
       gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
