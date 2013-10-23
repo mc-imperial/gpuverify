@@ -36,6 +36,7 @@ namespace DynamicAnalysis
         private GPU gpu = new GPU();
         private Implementation impl;
         private Block current = null;
+        private bool assumesHold = true;
         private Random Random = new Random();
         private Memory Memory = new Memory();
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
@@ -272,7 +273,7 @@ namespace DynamicAnalysis
                     InitialiseFormalParams(impl.InParams);
                     Memory.Dump();
                     current = impl.Blocks[0];
-                    while (current != null)
+                    while (current != null && assumesHold)
                     {
                         InterpretBasicBlock();
                         current = TransferControl();
@@ -375,7 +376,7 @@ namespace DynamicAnalysis
             // Execute all the statements
             foreach (Cmd cmd in current.Cmds)
             {   
-                Console.Write(cmd.ToString());
+                //Console.Write(cmd.ToString());
                 
                 if (cmd is AssignCmd)
                 {
@@ -473,6 +474,14 @@ namespace DynamicAnalysis
                 else if (cmd is AssumeCmd)
                 {
                     AssumeCmd assume = cmd as AssumeCmd;
+                    ExprTree exprTree = GetExprTree(assume.Expr);
+                    EvaluateExprTree(exprTree);
+                    if (exprTree.evaluation.Equals(BitVector.False))
+                    {
+                        assumesHold = false;
+                        Console.WriteLine("ASSUME FALSIFIED: " + assume.Expr.ToString());
+                        break;
+                    }
                 }
                 else
                     throw new UnhandledException("Unhandled command: " + cmd.ToString());
