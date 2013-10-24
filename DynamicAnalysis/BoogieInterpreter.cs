@@ -102,32 +102,32 @@ namespace DynamicAnalysis
                             LiteralNode<BitVector> right = (LiteralNode<BitVector>)binary.GetChildren()[1];
                             if (left.symbol == "group_size_x")
                             {
-                                gpu.blockDim[DIMENSION.X] = right.evaluations[0].ConvertToInt32();
+                                gpu.blockDim[DIMENSION.X] = right.GetUniqueElement().ConvertToInt32();
                                 Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.X]));
                             }
                             else if (left.symbol == "group_size_y")
                             {
-                                gpu.blockDim[DIMENSION.Y] = right.evaluations[0].ConvertToInt32();
+                                gpu.blockDim[DIMENSION.Y] = right.GetUniqueElement().ConvertToInt32();
                                 Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Y]));
                             }
                             else if (left.symbol == "group_size_z")
                             {
-                                gpu.blockDim[DIMENSION.Z] = right.evaluations[0].ConvertToInt32();
+                                gpu.blockDim[DIMENSION.Z] = right.GetUniqueElement().ConvertToInt32();
                                 Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Z]));
                             }
                             else if (left.symbol == "num_groups_x")
                             {
-                                gpu.gridDim[DIMENSION.X] = right.evaluations[0].ConvertToInt32();
+                                gpu.gridDim[DIMENSION.X] = right.GetUniqueElement().ConvertToInt32();
                                 Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.X]));
                             }
                             else if (left.symbol == "num_groups_y")
                             {
-                                gpu.gridDim[DIMENSION.Y] = right.evaluations[0].ConvertToInt32();
+                                gpu.gridDim[DIMENSION.Y] = right.GetUniqueElement().ConvertToInt32();
                                 Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Y]));
                             }
                             else if (left.symbol == "num_groups_z")
                             {
-                                gpu.gridDim[DIMENSION.Z] = right.evaluations[0].ConvertToInt32();
+                                gpu.gridDim[DIMENSION.Z] = right.GetUniqueElement().ConvertToInt32();
                                 Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Z]));
                             }
                             else
@@ -302,7 +302,7 @@ namespace DynamicAnalysis
                                 ScalarSymbolNode<BitVector> left = binary.GetChildren()[0] as ScalarSymbolNode<BitVector>;
                                 LiteralNode<BitVector> right = binary.GetChildren()[1] as LiteralNode<BitVector>;
                                 if (left != null && right != null && binary.op == "==")
-                                    Memory.Store(left.symbol, right.evaluations[0]);
+                                    Memory.Store(left.symbol, right.GetUniqueElement());
                             }
                         }
                     }
@@ -422,10 +422,6 @@ namespace DynamicAnalysis
                                 KilledAsserts.Add(BoogieVariable);
                                 ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
                                 ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
-                            }
-                            else
-                            {
-                                //Console.Write("==========> Keeping " + assert.ToString());
                             }
                         }
                     }
@@ -764,7 +760,7 @@ namespace DynamicAnalysis
                         SubscriptExpr subscriptExpr = new SubscriptExpr();
                         foreach (ExprNode<BitVector> child in _node.GetChildren())
                         {
-                            BitVector subscript = child.evaluations[0];
+                            BitVector subscript = child.GetUniqueElement();
                             subscriptExpr.AddIndex(subscript);
                         }
                         if (!Memory.Contains(_node.basename, subscriptExpr))
@@ -797,7 +793,7 @@ namespace DynamicAnalysis
                         else
                         {
                             Print.ConditionalExitMessage(one.evaluations.Count == 1 && two.evaluations.Count == 1, "Unable to process concatentation expression because the children have mutliple evaluations");
-                            BitVector eval = BitVector.Concatenate(one.evaluations[0], two.evaluations[0]);
+                            BitVector eval = BitVector.Concatenate(one.GetUniqueElement(), two.GetUniqueElement());
                             _node.evaluations.Add(eval);
                         }   
                     }
@@ -812,7 +808,7 @@ namespace DynamicAnalysis
                             switch (_node.op)
                             {
                                 case "!":
-                                    if (child.evaluations[0].Equals(BitVector.True))
+                                    if (child.GetUniqueElement().Equals(BitVector.True))
                                         _node.evaluations.Add(BitVector.False);
                                     else
                                         _node.evaluations.Add(BitVector.True);
@@ -826,19 +822,19 @@ namespace DynamicAnalysis
                                 case "FEXP32":
                                 case "FEXP64":
                                     {
-                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluations[0], BitVector.Zero, _node.op);
+                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.GetUniqueElement(), BitVector.Zero, _node.op);
                                         if (!FPInterpretations.ContainsKey(FPTriple))
                                             FPInterpretations[FPTriple] = new BitVector(Random.Next());
                                         _node.evaluations.Add(FPInterpretations[FPTriple]);
                                         break;
                                     }
                                 case "BV1_ZEXT32":
-                                    BitVector ZeroExtended = BitVector.ZeroExtend(child.evaluations[0], 31);
+                                    BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 31);
                                     _node.evaluations.Add(ZeroExtended);                          
                                     break;
                                 case "UI32_TO_FP32":
                                 case "SI32_TO_FP32":
-                                    _node.evaluations.Add(child.evaluations[0]);
+                                    _node.evaluations.Add(child.GetUniqueElement());
                                     break;
                                 default:
                                     throw new UnhandledException("Unhandled bv unary op: " + _node.op);
@@ -862,19 +858,19 @@ namespace DynamicAnalysis
                             node.uninitialised = true;
                         else
                         {
-                            if (one.evaluations[0].Equals(BitVector.True))
+                            if (one.GetUniqueElement().Equals(BitVector.True))
                             {
                                 if (two.uninitialised)
                                     node.uninitialised = true;
                                 else
-                                    _node.evaluations.Add(two.evaluations[0]);
+                                    _node.evaluations.Add(two.GetUniqueElement());
                             }
                             else
                             {
                                 if (three.uninitialised)
                                     node.uninitialised = true;
                                 else
-                                    _node.evaluations.Add(three.evaluations[0]);
+                                    _node.evaluations.Add(three.GetUniqueElement());
                             }
                         }
                     }
@@ -885,7 +881,7 @@ namespace DynamicAnalysis
             tree.unitialised = root.uninitialised;
             if (root.evaluations.Count == 1)
             {
-                tree.evaluation = root.evaluations[0];
+                tree.evaluation = root.GetUniqueElement();
             }
             else
             {

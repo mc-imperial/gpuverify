@@ -9,6 +9,7 @@
 
 using System;
 using System.Text;
+using System.Linq;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using Microsoft.Basetypes;
@@ -253,7 +254,7 @@ namespace DynamicAnalysis
 
     public class ExprNode<T> : Node
     {
-        public List<T> evaluations = new List<T>();
+        public HashSet<T> evaluations = new HashSet<T>();
 
         public override void ClearState()
         {
@@ -261,6 +262,11 @@ namespace DynamicAnalysis
             uninitialised = false;
         }
         
+        public T GetUniqueElement ()
+        {
+            Print.ConditionalExitMessage(evaluations.Count == 1, "There is no unique element in the evaluation set");
+            return evaluations.First();
+        }
     }
 
     public class OpNode<T> : ExprNode<T>
@@ -376,8 +382,7 @@ namespace DynamicAnalysis
 
         public override string ToString()
         {
-            Console.WriteLine("HERE");
-            return evaluations[0].ToString();
+            return GetUniqueElement().ToString();
         }
     }
 }
