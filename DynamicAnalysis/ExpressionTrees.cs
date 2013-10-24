@@ -125,11 +125,7 @@ namespace DynamicAnalysis
                     Node one = CreateFromExpr(nary.Args[0]);
                     Node two = CreateFromExpr(nary.Args[1]);
                     Node three = CreateFromExpr(nary.Args[2]);
-                    Node parent;
-                    if (two is ExprNode<bool> || three is ExprNode<bool>)
-                        parent = new TernaryNode<bool>(nary.Fun.FunctionName, one, two, three);
-                    else
-                        parent = new TernaryNode<BitVector>(nary.Fun.FunctionName, one, two, three);
+                    Node parent = new TernaryNode<BitVector>(nary.Fun.FunctionName, one, two, three);
                     one.parent = parent;
                     two.parent = parent;
                     three.parent = parent;
@@ -139,20 +135,9 @@ namespace DynamicAnalysis
                 {
                     Node one = CreateFromExpr(nary.Args[0]);
                     Node two = CreateFromExpr(nary.Args[1]);
-                    Node parent;
-                    BinaryOperator binOp = nary.Fun as BinaryOperator;
-                    if (binOp.Op == BinaryOperator.Opcode.Or ||
-                    binOp.Op == BinaryOperator.Opcode.And ||
-                    binOp.Op == BinaryOperator.Opcode.Le ||
-                    binOp.Op == BinaryOperator.Opcode.Lt ||
-                    binOp.Op == BinaryOperator.Opcode.Ge ||
-                    binOp.Op == BinaryOperator.Opcode.Gt ||
-                    binOp.Op == BinaryOperator.Opcode.Eq ||
-                    binOp.Op == BinaryOperator.Opcode.Neq ||
-                    binOp.Op == BinaryOperator.Opcode.Imp)
-                        parent = new BinaryNode<bool>(nary.Fun.FunctionName, one, two);
-                    else
-                        parent = new BinaryNode<BitVector>(nary.Fun.FunctionName, one, two);
+                    //Node parent;
+                    //BinaryOperator binOp = nary.Fun as BinaryOperator;
+                    Node parent = new BinaryNode<BitVector>(nary.Fun.FunctionName, one, two);
                     one.parent = parent;
                     two.parent = parent;
                     return parent;
@@ -160,7 +145,7 @@ namespace DynamicAnalysis
                 else if (nary.Fun is UnaryOperator)
                 {
                     Node one = CreateFromExpr(nary.Args[0]);
-                    UnaryNode<bool> parent = new UnaryNode<bool>(nary.Fun.FunctionName, one);
+                    UnaryNode<BitVector> parent = new UnaryNode<BitVector>(nary.Fun.FunctionName, one);
                     one.parent = parent;
                     return parent;
                 }
@@ -178,26 +163,7 @@ namespace DynamicAnalysis
                     {
                         Node one = CreateFromExpr(nary.Args[0]);
                         Node two = CreateFromExpr(nary.Args[1]);
-                        Node parent;
-                        if (call.FunctionName == "BV32_UGT" ||
-                        call.FunctionName == "BV32_UGE" ||
-                        call.FunctionName == "BV32_ULT" ||
-                        call.FunctionName == "BV32_ULE" ||
-                        call.FunctionName == "BV32_SGT" ||
-                        call.FunctionName == "BV32_SGE" ||
-                        call.FunctionName == "BV32_SLT" ||
-                        call.FunctionName == "BV32_SLE" ||
-                        call.FunctionName == "FLT32" ||
-                        call.FunctionName == "FLE32" ||
-                        call.FunctionName == "FGT32" ||
-                        call.FunctionName == "FGE32" ||
-                        call.FunctionName == "FLT64" ||
-                        call.FunctionName == "FLE64" ||
-                        call.FunctionName == "FGT64" ||
-                        call.FunctionName == "FGE64")
-                            parent = new BinaryNode<bool>(call.FunctionName, one, two);
-                        else
-                            parent = new BinaryNode<BitVector>(call.FunctionName, one, two);
+                        Node parent = new BinaryNode<BitVector>(call.FunctionName, one, two);
                         one.parent = parent;
                         two.parent = parent;
                         return parent;
@@ -209,16 +175,21 @@ namespace DynamicAnalysis
                 }
                 else if (nary.Fun is MapSelect)
                 {
+                    List<Expr> indices = new List<Expr>();
+                    while (true)
+                    {
+                        NAryExpr nary2 = nary.Args[0] as NAryExpr;
+                        Print.ConditionalExitMessage(nary.Args.Count == 2, "Map select has more than two arguments");
+                        indices.Insert(0, nary.Args[1]);
+                        if (nary2 == null)
+                            break;
+                        else
+                            nary = nary2;
+                    }
                     
-                    Console.WriteLine(nary.Args[0].Type.ToString());
-            
-                    Node parent;
-                    IdentifierExpr identifier = (IdentifierExpr)nary.Args[0];
-                    if (nary.Type.IsBv || nary.Type.IsInt)
-                        parent = new MapSymbolNode<BitVector>(identifier.Name);
-                    else
-                        parent = new MapSymbolNode<bool>(identifier.Name);
-                    foreach (Expr index in nary.Args.GetRange(1, nary.Args.Count - 1))
+                    IdentifierExpr identifier = nary.Args[0] as IdentifierExpr;
+                    Node parent = new MapSymbolNode<BitVector>(identifier.Name);
+                    foreach (Expr index in indices)
                     {
                         Node child = CreateFromExpr(index);
                         parent.children.Add(child);
@@ -232,10 +203,7 @@ namespace DynamicAnalysis
             else if (expr is IdentifierExpr)
             {
                 IdentifierExpr identifier = expr as IdentifierExpr;
-                if (identifier.Type.IsBv || identifier.Type.IsInt)
-                    return new ScalarSymbolNode<BitVector>(identifier.Name);
-                else if (identifier.Type.IsBool)
-                    return new ScalarSymbolNode<bool>(identifier.Name);
+                return new ScalarSymbolNode<BitVector>(identifier.Name);
             }
             else if (expr is LiteralExpr)
             {
@@ -253,7 +221,10 @@ namespace DynamicAnalysis
                 else if (literal.Val is bool)
                 {
                     bool boolean = (bool)literal.Val;
-                    return new LiteralNode<bool>(boolean);
+                    if (boolean)
+                        return new LiteralNode<BitVector>(BitVector.True);
+                    else
+                        return new LiteralNode<BitVector>(BitVector.False);
                 }
             }
 			

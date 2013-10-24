@@ -350,6 +350,16 @@ namespace DynamicAnalysis
             }
         }
         
+        public static bool operator true (BitVector a)
+        {
+            return a.Equals(BitVector.True);
+        }
+        
+        public static bool operator false (BitVector a)
+        {
+            return a.Equals(BitVector.False);
+        }
+        
         public static BitVector ZeroExtend (BitVector a, int width)
         {
             BitVector b = new BitVector();
