@@ -53,7 +53,7 @@ namespace DynamicAnalysis
         {
             foreach (Node node in nodes)
             {
-                if (!(node is LiteralNode<bool> || node is LiteralNode<BitVector>))
+                if (!(node is LiteralNode<BitVector>))
                     node.ClearState();
             }
             unitialised = false;
@@ -135,8 +135,6 @@ namespace DynamicAnalysis
                 {
                     Node one = CreateFromExpr(nary.Args[0]);
                     Node two = CreateFromExpr(nary.Args[1]);
-                    //Node parent;
-                    //BinaryOperator binOp = nary.Fun as BinaryOperator;
                     Node parent = new BinaryNode<BitVector>(nary.Fun.FunctionName, one, two);
                     one.parent = parent;
                     two.parent = parent;
@@ -198,7 +196,7 @@ namespace DynamicAnalysis
                     return parent;
                 }
                 else
-                    Print.VerboseMessage("Unhandled Nary expression: " + nary.Fun.GetType().ToString());
+                    Print.ExitMessage("Unhandled Nary expression: " + nary.Fun.GetType().ToString());
             }
             else if (expr is IdentifierExpr)
             {
@@ -226,9 +224,29 @@ namespace DynamicAnalysis
                     else
                         return new LiteralNode<BitVector>(BitVector.False);
                 }
+                else
+                    Print.ExitMessage("Unhandled literal expression: " + literal.ToString());
             }
-			
-            Print.ExitMessage("Unhandled expression tree: " + expr.ToString());
+            else if (expr is BvExtractExpr)
+            {
+                BvExtractExpr bvExtract = expr as BvExtractExpr;
+                Node child = CreateFromExpr(bvExtract.Bitvector);
+                Node parent = new BVExtractNode<BitVector>(child, bvExtract.End, bvExtract.Start);
+                child.parent = parent;
+                return parent;
+            }
+			else if (expr is BvConcatExpr)
+            {
+                BvConcatExpr bvConcat = expr as BvConcatExpr;
+                Node one = CreateFromExpr(bvConcat.E0);
+                Node two = CreateFromExpr(bvConcat.E1);
+                Node parent = new BVConcatenationNode<BitVector>(one, two);
+                one.parent = parent;
+                two.parent = parent;
+                return parent;
+            }
+            
+            Print.ExitMessage("Unhandled expression tree: " + expr.ToString() + " " + expr.Type.ToString());
             return null;
         }
     }
@@ -242,6 +260,7 @@ namespace DynamicAnalysis
             evaluations.Clear();
             uninitialised = false;
         }
+        
     }
 
     public class OpNode<T> : ExprNode<T>
@@ -319,6 +338,34 @@ namespace DynamicAnalysis
             return basename;
         }
     }
+    
+    public class BVExtractNode<T> : ExprNode<T>
+    {
+        public int low;
+        public int high;
+
+        public BVExtractNode(Node one, int high, int low)
+        {
+            children.Add(one);
+            this.high = high;
+            this.low = low;
+        }
+
+        public override string ToString()
+        {
+            return "[" + high.ToString() + ":" + low.ToString() + "]";
+        }
+    }
+    
+    public class BVConcatenationNode<T> : ExprNode<T>
+    {
+        public BVConcatenationNode(Node one, Node two)
+        {
+            children.Add(one);
+            children.Add(two);
+        }
+    }
+    
 
     public class LiteralNode<T> : ExprNode<T>
     {
@@ -329,6 +376,7 @@ namespace DynamicAnalysis
 
         public override string ToString()
         {
+            Console.WriteLine("HERE");
             return evaluations[0].ToString();
         }
     }

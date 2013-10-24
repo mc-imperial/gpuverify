@@ -86,6 +86,20 @@ namespace DynamicAnalysis
         {
             return scalars.ContainsKey(name);
         }
+        
+        public bool Contains(string name, SubscriptExpr subscript)
+        {
+            if (arrays.ContainsKey(name))
+            {
+                Dictionary <SubscriptExpr, BitVector> arrayLocations = arrays[name];
+                foreach (KeyValuePair<SubscriptExpr, BitVector> item in arrayLocations)
+                {
+                    if (SubscriptExpr.Matches(item.Key, subscript))
+                        return true;
+                }
+            }
+            return false;
+        }
 
         public void Store(string name, SubscriptExpr subscript, BitVector val)
         {

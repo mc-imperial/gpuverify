@@ -42,6 +42,7 @@ namespace DynamicAnalysis
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
         private Dictionary<AssertCmd, BitVector> AssertStatus = new Dictionary<AssertCmd, BitVector>();
+        private HashSet<string> KilledAsserts = new HashSet<string>();
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         
         public BoogieInterpreter(Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
@@ -53,8 +54,8 @@ namespace DynamicAnalysis
             EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
             EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
             EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
-            Memory.Dump(); 
             InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
+            SummarizeKilledInvariants();
         }
 
         private BitVector GetRandomBV(int width)
@@ -62,7 +63,7 @@ namespace DynamicAnalysis
             if (width == 1)
                 return new BitVector(Random.Next(0, 1));
             int lowestVal = 1;
-            int highestVal = 16;
+            int highestVal = 128;
             return new BitVector(Random.Next(lowestVal, highestVal+1));
         }
 
@@ -273,41 +274,35 @@ namespace DynamicAnalysis
         {
             // The following code currently ignores requires which are implications
             ExprTree tree = new ExprTree(requires.Condition);	
-            OpNode<bool> root = tree.Root() as OpNode<bool>;
+            OpNode<BitVector> root = tree.Root() as OpNode<BitVector>;
             if (root != null)
             {          
-                foreach (HashSet<Node> nodes in tree)
-                {	
-                    foreach (Node node in nodes)
-                    {
-                        if (node is ScalarSymbolNode<bool> && root.op != "==>")
+                if (root.op == "==" || root.op == "!" || root.op == "&&")
+                {
+                    foreach (HashSet<Node> nodes in tree)
+                    {	
+                        foreach (Node node in nodes)
                         {
-                            // Initially assume the boolean variable holds. If it is negated this will be handled
-                            // further up in the expression tree
-                            ScalarSymbolNode<bool> scalar = (ScalarSymbolNode<bool>)node;
-                            Memory.Store(scalar.symbol, BitVector.True);
-                        }
-                        else if (node is UnaryNode<bool> && root.op != "==>")
-                        {
-                            UnaryNode<bool> unary = node as UnaryNode<bool>;
-                            ScalarSymbolNode<bool> child = (ScalarSymbolNode<bool>)unary.GetChildren()[0];
-                            switch (unary.op)
+                            if (node is ScalarSymbolNode<BitVector>)
                             {
-                                case "!":
-                                    {
-                                        Memory.Store(child.symbol, BitVector.False);
-                                        break;
-                                    }
+                                // Initially assume the boolean variable holds. If it is negated this will be handled
+                                // further up in the expression tree
+                                ScalarSymbolNode<BitVector> scalar = (ScalarSymbolNode<BitVector>)node;
+                                Memory.Store(scalar.symbol, BitVector.True);
                             }
-                        }
-                        else if (node is BinaryNode<bool>)
-                        {
-                            BinaryNode<bool> binary = node as BinaryNode<bool>;
-                            ScalarSymbolNode<BitVector> left = binary.GetChildren()[0] as ScalarSymbolNode<BitVector>;
-                            LiteralNode<BitVector> right = binary.GetChildren()[1] as LiteralNode<BitVector>;
-                            if (left != null && right != null && binary.op == "==")
+                            else if (node is UnaryNode<BitVector>)
                             {
-                                Memory.Store(left.symbol, right.evaluations[0]);
+                                UnaryNode<BitVector> unary = node as UnaryNode<BitVector>;
+                                ScalarSymbolNode<BitVector> child = (ScalarSymbolNode<BitVector>)unary.GetChildren()[0];
+                                Memory.Store(child.symbol, BitVector.False);                                
+                            }
+                            else if (node is BinaryNode<BitVector>)
+                            {
+                                BinaryNode<BitVector> binary = node as BinaryNode<BitVector>;
+                                ScalarSymbolNode<BitVector> left = binary.GetChildren()[0] as ScalarSymbolNode<BitVector>;
+                                LiteralNode<BitVector> right = binary.GetChildren()[1] as LiteralNode<BitVector>;
+                                if (left != null && right != null && binary.op == "==")
+                                    Memory.Store(left.symbol, right.evaluations[0]);
                             }
                         }
                     }
@@ -348,8 +343,7 @@ namespace DynamicAnalysis
             // Execute all the statements
             foreach (Cmd cmd in current.Cmds)
             {   
-                //Console.Write(cmd.ToString());
-                
+                Console.Write(cmd.ToString());
                 if (cmd is AssignCmd)
                 {
                     AssignCmd assign = cmd as AssignCmd;
@@ -407,7 +401,7 @@ namespace DynamicAnalysis
                         ExprTree tree = GetExprTree(assert.Expr);
                         if (!AssertStatus.ContainsKey(assert))
                             AssertStatus[assert] = BitVector.True;
-                        if (AssertStatus[assert])
+                        if (AssertStatus[assert].Equals(BitVector.True))
                         {
                             EvaluateExprTree(tree);
                             if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
@@ -423,10 +417,15 @@ namespace DynamicAnalysis
                                         BoogieVariable = capture.Value;
                                     }
                                 }
-                                Print.ConditionalExitMessage(BoogieVariable != null, "Unable to find Boogie variable");        
-                                Console.Write("==========> Removing " + assert.ToString());
+                                Print.ConditionalExitMessage(BoogieVariable != null, "Unable to find Boogie variable");
+                                Console.Write("==========> Removing " + assert.ToString());                                
+                                KilledAsserts.Add(BoogieVariable);
                                 ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
                                 ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
+                            }
+                            else
+                            {
+                                //Console.Write("==========> Keeping " + assert.ToString());
                             }
                         }
                     }
@@ -497,234 +496,238 @@ namespace DynamicAnalysis
             Print.DebugMessage("Evaluating binary bv node", 10);
             ExprNode<BitVector> left = binary.GetChildren()[0] as ExprNode<BitVector>;
             ExprNode<BitVector> right = binary.GetChildren()[1] as ExprNode<BitVector>;
-            if (left != null && right != null)
+            foreach (BitVector lhs in left.evaluations)
             {
-                if (left.evaluations.Count > 0 && right.evaluations.Count > 0)
+                foreach (BitVector rhs in right.evaluations)
                 {
-                    foreach (BitVector lhs in left.evaluations)
+                    switch (binary.op)
                     {
-                        foreach (BitVector rhs in right.evaluations)
-                        {
-                            switch (binary.op)
+                        case "||":
+                            if (lhs.Equals(BitVector.True) || rhs.Equals(BitVector.True))
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            
+                            break;
+                        case "&&":
+                            if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "==>":
+                            if (rhs.Equals(BitVector.True))
+                                binary.evaluations.Add(BitVector.True);
+                            else if (lhs.Equals(BitVector.False))
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "BV1_XOR":
+                            if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.False))
+                                binary.evaluations.Add(BitVector.True);
+                            else if (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.True))
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                        case "<":
+                            if (lhs < rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "<=":
+                            if (lhs <= rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case ">":
+                            if (lhs > rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case ">=":
+                            if (lhs >= rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "==":
+                            if (lhs == rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "!=":
+                            if (lhs != rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "BV32_ULT":
                             {
-                                case "||":
-                                    if (lhs || rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "&&":
-                                    if (lhs && rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "==>":
-                                    if (rhs.Equals(BitVector.True))
-                                        binary.evaluations.Add(BitVector.True);
-                                    else if (lhs.Equals(BitVector.False))
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "<":
-                                    if (lhs < rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "<=":
-                                    if (lhs <= rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case ">":
-                                    if (lhs > rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case ">=":
-                                    if (lhs >= rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "==":
-                                    if (lhs == rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "!=":
-                                    if (lhs != rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "BV32_ULT":
-                                    {
-                                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                        if (lhsUnsigned < rhsUnsigned)
-                                            binary.evaluations.Add(BitVector.True);
-                                        else
-                                            binary.evaluations.Add(BitVector.False);break;
-                                    }
-                                case "BV32_ULE":
-                                    {
-                                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
-                                        if (lhsUnsigned <= rhsUnsigned)
-                                            binary.evaluations.Add(BitVector.True);
-                                        else
-                                            binary.evaluations.Add(BitVector.False);
-                                        break;
-                                    }
-                                case "BV32_UGT":
-                                    {
-                                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                        if (lhsUnsigned > rhsUnsigned)
-                                            binary.evaluations.Add(BitVector.True);
-                                        else
-                                            binary.evaluations.Add(BitVector.False);break;
-                                    }
-                                case "BV32_UGE":
-                                    {
-                                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                        if (lhsUnsigned >= rhsUnsigned)
-                                            binary.evaluations.Add(BitVector.True);
-                                        else
-                                            binary.evaluations.Add(BitVector.False);
-                                        break;
-                                    }
-                                case "BV32_SLT":
-                                    if (lhs < rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "BV32_SLE":
-                                    if (lhs <= rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "BV32_SGT":
-                                    if (lhs > rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "BV32_SGE":
-                                    if (lhs >= rhs)
-                                        binary.evaluations.Add(BitVector.True);
-                                    else
-                                        binary.evaluations.Add(BitVector.False);
-                                    break;
-                                case "FLT32":
-                                case "FLE32":
-                                case "FGT32":
-                                case "FGE32":
-                                case "FLT64":
-                                case "FLE64":
-                                case "FGT64":
-                                case "FGE64":
-                                    {
-                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
-                                        if (!FPInterpretations.ContainsKey(FPTriple))
-                                        {
-                                            if (Random.Next(0, 2) == 0)
-                                                FPInterpretations[FPTriple] = BitVector.False;
-                                            else
-                                                FPInterpretations[FPTriple] = BitVector.True;
-                                        }
-                                        binary.evaluations.Add(FPInterpretations[FPTriple]);
-                                        break;
-                                    }
-                                case "+":
-                                    binary.evaluations.Add(lhs + rhs);
-                                    break;
-                                case "-":
-                                    binary.evaluations.Add(lhs - rhs);
-                                    break;
-                                case "*":
-                                    binary.evaluations.Add(lhs * rhs);
-                                    break;
-                                case "/":
-                                    binary.evaluations.Add(lhs / rhs);
-                                    break;
-                                case "BV32_UREM":
-                                    {
-                                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                        binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
-                                        break;
-                                    }
-                                case "BV32_UDIV":
-                                    {
-                                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                        binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
-                                        break;
-                                    }
-                                case "BV32_SDIV":
-                                    binary.evaluations.Add(lhs / rhs);
-                                    break;
-                                case "BV32_LSHR":
-                                    binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
-                                    break;
-                                case "BV32_SHL":
-                                    binary.evaluations.Add(lhs << rhs.ConvertToInt32());
-                                    break;
-                                case "BV32_ADD":
-                                    binary.evaluations.Add(lhs + rhs);
-                                    break;
-                                case "BV32_SUB":
-                                    binary.evaluations.Add(lhs - rhs);
-                                    break;
-                                case "BV32_MUL":
-                                    binary.evaluations.Add(lhs * rhs);
-                                    break;
-                                case "BV32_DIV":
-                                    binary.evaluations.Add(lhs / rhs);
-                                    break;
-                                case "BV32_AND":
-                                    binary.evaluations.Add(lhs & rhs);
-                                    break;
-                                case "FADD32":
-                                case "FSUB32":
-                                case "FMUL32":
-                                case "FDIV32":
-                                    {
-                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
-                                        if (!FPInterpretations.ContainsKey(FPTriple))
-                                            FPInterpretations[FPTriple] = new BitVector(Random.Next());
-                                        binary.evaluations.Add(FPInterpretations[FPTriple]);
-                                        break;
-                                    }
-                                case "FADD64":
-                                case "FSUB64":
-                                case "FMUL64":
-                                case "FDIV64":
-                                    {
-                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
-                                        if (!FPInterpretations.ContainsKey(FPTriple))
-                                            FPInterpretations[FPTriple] = new BitVector(Random.Next());
-                                        binary.evaluations.Add(FPInterpretations[FPTriple]);
-                                        break;
-                                    }
-                                default:
-                                    throw new UnhandledException("Unhandled bv binary op: " + binary.op);
+                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                                if (lhsUnsigned < rhsUnsigned)
+                                    binary.evaluations.Add(BitVector.True);
+                                else
+                                    binary.evaluations.Add(BitVector.False);
+                                break;
                             }
-                        }
+                        case "BV32_ULE":
+                            {
+                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
+                                if (lhsUnsigned <= rhsUnsigned)
+                                    binary.evaluations.Add(BitVector.True);
+                                else
+                                    binary.evaluations.Add(BitVector.False);
+                                break;
+                            }
+                        case "BV32_UGT":
+                            {
+                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                                if (lhsUnsigned > rhsUnsigned)
+                                    binary.evaluations.Add(BitVector.True);
+                                else
+                                    binary.evaluations.Add(BitVector.False);
+                                break;
+                            }
+                        case "BV32_UGE":
+                            {
+                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                                if (lhsUnsigned >= rhsUnsigned)
+                                    binary.evaluations.Add(BitVector.True);
+                                else
+                                    binary.evaluations.Add(BitVector.False);
+                                break;
+                            }
+                        case "BV32_SLT":
+                            if (lhs < rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "BV32_SLE":
+                            if (lhs <= rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "BV32_SGT":
+                            if (lhs > rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "BV32_SGE":
+                            if (lhs >= rhs)
+                                binary.evaluations.Add(BitVector.True);
+                            else
+                                binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "FLT32":
+                        case "FLE32":
+                        case "FGT32":
+                        case "FGE32":
+                        case "FLT64":
+                        case "FLE64":
+                        case "FGT64":
+                        case "FGE64":
+                            {
+                                Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
+                                if (!FPInterpretations.ContainsKey(FPTriple))
+                                {
+                                    if (Random.Next(0, 2) == 0)
+                                        FPInterpretations[FPTriple] = BitVector.False;
+                                    else
+                                        FPInterpretations[FPTriple] = BitVector.True;
+                                }
+                                binary.evaluations.Add(FPInterpretations[FPTriple]);
+                                break;
+                            }
+                        case "+":
+                            binary.evaluations.Add(lhs + rhs);
+                            break;
+                        case "-":
+                            binary.evaluations.Add(lhs - rhs);
+                            break;
+                        case "*":
+                            binary.evaluations.Add(lhs * rhs);
+                            break;
+                        case "/":
+                            binary.evaluations.Add(lhs / rhs);
+                            break;
+                        case "BV32_UREM":
+                            {
+                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                                binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
+                                break;
+                            }
+                        case "BV32_UDIV":
+                            {
+                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                                binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
+                                break;
+                            }
+                        case "BV32_SDIV":
+                            binary.evaluations.Add(lhs / rhs);
+                            break;
+                        case "BV32_LSHR":
+                            binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
+                            break;
+                        case "BV32_SHL":
+                            binary.evaluations.Add(lhs << rhs.ConvertToInt32());
+                            break;
+                        case "BV32_ADD":
+                            binary.evaluations.Add(lhs + rhs);
+                            break;
+                        case "BV32_SUB":
+                            binary.evaluations.Add(lhs - rhs);
+                            break;
+                        case "BV32_MUL":
+                            binary.evaluations.Add(lhs * rhs);
+                            break;
+                        case "BV32_DIV":
+                            binary.evaluations.Add(lhs / rhs);
+                            break;
+                        case "BV32_AND":
+                            binary.evaluations.Add(lhs & rhs);
+                            break;
+                        case "FADD32":
+                        case "FSUB32":
+                        case "FMUL32":
+                        case "FDIV32":
+                            {
+                                Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
+                                if (!FPInterpretations.ContainsKey(FPTriple))
+                                    FPInterpretations[FPTriple] = new BitVector(Random.Next());
+                                binary.evaluations.Add(FPInterpretations[FPTriple]);
+                                break;
+                            }
+                        case "FADD64":
+                        case "FSUB64":
+                        case "FMUL64":
+                        case "FDIV64":
+                            {
+                                Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
+                                if (!FPInterpretations.ContainsKey(FPTriple))
+                                    FPInterpretations[FPTriple] = new BitVector(Random.Next());
+                                binary.evaluations.Add(FPInterpretations[FPTriple]);
+                                break;
+                            }
+                        default:
+                            throw new UnhandledException("Unhandled bv binary op: " + binary.op);
                     }
                 }
             }
-        }
+        }        
 
         private void EvaluateExprTree(ExprTree tree)
         {			
@@ -732,56 +735,87 @@ namespace DynamicAnalysis
             {
                 foreach (Node node in nodes)
                 {
-                    if (node.IsLeaf())
+                    if (node is ScalarSymbolNode<BitVector>)
                     {
-                        if (node is ScalarSymbolNode<BitVector>)
+                        ScalarSymbolNode<BitVector> _node = node as ScalarSymbolNode<BitVector>;
+                        if (IsRaceArrayOffsetVariable(_node.symbol))
+                        {							
+                            foreach (BitVector offset in Memory.GetRaceArrayOffsets(_node.symbol))
+                            {
+                                _node.evaluations.Add(offset);
+                            }
+                        }
+                        else
                         {
-                            ScalarSymbolNode<BitVector> scalar = node as ScalarSymbolNode<BitVector>;
-                            if (IsRaceArrayOffsetVariable(scalar.symbol))
-                            {							
-                                foreach (BitVector offset in Memory.GetRaceArrayOffsets(scalar.symbol))
-                                    scalar.evaluations.Add(offset);
+                            if (!Memory.Contains(_node.symbol))
+                            {
+                                Console.WriteLine("Variable unitialised " + _node.symbol);
+                                _node.uninitialised = true;
                             }
                             else
                             {
-                                if (!Memory.Contains(scalar.symbol))
-                                {
-                                    scalar.uninitialised = true;
-                                }
-                                else
-                                    scalar.evaluations.Add(Memory.GetValue(scalar.symbol));
+                                _node.evaluations.Add(Memory.GetValue(_node.symbol));
                             }
                         }
                     }
-                    else
+                    else if (node is MapSymbolNode<BitVector>)
                     {
-                        if (node is MapSymbolNode<BitVector>)
+                        MapSymbolNode<BitVector> _node = node as MapSymbolNode<BitVector>;
+                        SubscriptExpr subscriptExpr = new SubscriptExpr();
+                        foreach (ExprNode<BitVector> child in _node.GetChildren())
                         {
-                            MapSymbolNode<BitVector> map = node as MapSymbolNode<BitVector>;
-                            SubscriptExpr subscriptExpr = new SubscriptExpr();
-                            foreach (ExprNode<BitVector> child in map.GetChildren())
-                            {
-                                BitVector subscript = child.evaluations[0];
-                                subscriptExpr.AddIndex(subscript);
-                            }
-                            map.evaluations.Add(Memory.GetValue(map.basename, subscriptExpr));
+                            BitVector subscript = child.evaluations[0];
+                            subscriptExpr.AddIndex(subscript);
                         }
-                        else if (node is UnaryNode<BitVector>)
+                        if (!Memory.Contains(_node.basename, subscriptExpr))
+                            _node.uninitialised = true;
+                        else
+                            _node.evaluations.Add(Memory.GetValue(_node.basename, subscriptExpr));
+                    }
+                    else if (node is BVExtractNode<BitVector>)
+                    {
+                        BVExtractNode<BitVector> _node = node as BVExtractNode<BitVector>;
+                        ExprNode<BitVector> child = (ExprNode<BitVector>) _node.GetChildren()[0];
+                        if (child.uninitialised)
+                            node.uninitialised = true;
+                        else
                         {
-                            UnaryNode<BitVector> unary = node as UnaryNode<BitVector>;
-                            ExprNode<BitVector> child = (ExprNode<BitVector>)unary.GetChildren()[0];
-                            switch (unary.op)
+                            foreach (BitVector evalChild in child.evaluations)
+                            {
+                                BitVector eval = BitVector.Slice(evalChild, _node.high, _node.low);
+                                _node.evaluations.Add(eval);
+                            }
+                        }   
+                    }
+                    else if (node is BVConcatenationNode<BitVector>)
+                    {
+                        BVConcatenationNode<BitVector> _node = node as BVConcatenationNode<BitVector>;
+                        ExprNode<BitVector> one = (ExprNode<BitVector>)_node.GetChildren()[0];
+                        ExprNode<BitVector> two = (ExprNode<BitVector>)_node.GetChildren()[1];
+                        if (one.uninitialised || two.uninitialised)
+                            node.uninitialised = true;
+                        else
+                        {
+                            Print.ConditionalExitMessage(one.evaluations.Count == 1 && two.evaluations.Count == 1, "Unable to process concatentation expression because the children have mutliple evaluations");
+                            BitVector eval = BitVector.Concatenate(one.evaluations[0], two.evaluations[0]);
+                            _node.evaluations.Add(eval);
+                        }   
+                    }
+                    else if (node is UnaryNode<BitVector>)
+                    {
+                        UnaryNode<BitVector> _node = node as UnaryNode<BitVector>;
+                        ExprNode<BitVector> child = (ExprNode<BitVector>)_node.GetChildren()[0];
+                        if (child.uninitialised)
+                            node.uninitialised = true;
+                        else
+                        {
+                            switch (_node.op)
                             {
                                 case "!":
-                                    if (child.uninitialised)
-                                        node.uninitialised = true;
+                                    if (child.evaluations[0].Equals(BitVector.True))
+                                        _node.evaluations.Add(BitVector.False);
                                     else
-                                    {
-                                        if (child.evaluations[0])
-                                            unary.evaluations.Add(BitVector.False);
-                                        else
-                                            unary.evaluations.Add(BitVector.True);
-                                    }
+                                        _node.evaluations.Add(BitVector.True);
                                     break;
                                 case "FSQRT32":
                                 case "FSQRT64":
@@ -792,54 +826,59 @@ namespace DynamicAnalysis
                                 case "FEXP32":
                                 case "FEXP64":
                                     {
-                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluations[0], BitVector.Zero, unary.op);
+                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluations[0], BitVector.Zero, _node.op);
                                         if (!FPInterpretations.ContainsKey(FPTriple))
                                             FPInterpretations[FPTriple] = new BitVector(Random.Next());
-                                        unary.evaluations.Add(FPInterpretations[FPTriple]);
+                                        _node.evaluations.Add(FPInterpretations[FPTriple]);
                                         break;
                                     }
                                 case "BV1_ZEXT32":
                                     BitVector ZeroExtended = BitVector.ZeroExtend(child.evaluations[0], 31);
-                                    unary.evaluations.Add(ZeroExtended);
+                                    _node.evaluations.Add(ZeroExtended);                          
                                     break;
                                 case "UI32_TO_FP32":
                                 case "SI32_TO_FP32":
-                                    unary.evaluations.Add(child.evaluations[0]);
+                                    _node.evaluations.Add(child.evaluations[0]);
                                     break;
                                 default:
-                                    throw new UnhandledException("Unhandled bv unary op: " + unary.op);
+                                    throw new UnhandledException("Unhandled bv unary op: " + _node.op);
                             }
                         }
-                        else if (node is BinaryNode<BitVector>)
+                    }
+                    else if (node is BinaryNode<BitVector>)
+                    {
+                        BinaryNode<BitVector> _node = (BinaryNode<BitVector>)node;
+                        EvaluateBinaryNode(_node);
+                        if (_node.evaluations.Count == 0)
+                            _node.uninitialised = true;
+                    }
+                    else if (node is TernaryNode<BitVector>)
+                    {
+                        TernaryNode<BitVector> _node = node as TernaryNode<BitVector>;
+                        ExprNode<BitVector> one = (ExprNode<BitVector>)_node.GetChildren()[0];
+                        ExprNode<BitVector> two = (ExprNode<BitVector>)_node.GetChildren()[1];
+                        ExprNode<BitVector> three = (ExprNode<BitVector>)_node.GetChildren()[2];
+                        if (one.evaluations.Count == 0)
+                            node.uninitialised = true;
+                        else
                         {
-                            BinaryNode<BitVector> binary = (BinaryNode<BitVector>)node;
-                            EvaluateBinaryNode(binary);
-                            if (binary.evaluations.Count == 0)
-                                binary.uninitialised = true;
-                        }
-                        else if (node is TernaryNode<BitVector>)
-                        {
-                            TernaryNode<BitVector> ternary = node as TernaryNode<BitVector>;
-                            ExprNode<BitVector> one = (ExprNode<BitVector>)ternary.GetChildren()[0];
-                            ExprNode<BitVector> two = (ExprNode<BitVector>)ternary.GetChildren()[1];
-                            ExprNode<BitVector> three = (ExprNode<BitVector>)ternary.GetChildren()[2];
-                            if (one.evaluations[0])
+                            if (one.evaluations[0].Equals(BitVector.True))
                             {
                                 if (two.uninitialised)
                                     node.uninitialised = true;
                                 else
-                                    ternary.evaluations.Add(two.evaluations[0]);
+                                    _node.evaluations.Add(two.evaluations[0]);
                             }
                             else
                             {
                                 if (three.uninitialised)
                                     node.uninitialised = true;
                                 else
-                                    ternary.evaluations.Add(three.evaluations[0]);
+                                    _node.evaluations.Add(three.evaluations[0]);
                             }
                         }
                     }
-                }
+                } 
             }
             
             ExprNode<BitVector> root = tree.Root() as ExprNode<BitVector>;
@@ -935,6 +974,15 @@ namespace DynamicAnalysis
                 string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
                 Memory.Store(accessTracker, BitVector.True);
             }
+        }
+        
+        private void SummarizeKilledInvariants ()
+        {
+            Console.WriteLine("Dynamic analysis removed:");
+            foreach (string BoogieVariable in KilledAsserts)
+            {
+                Console.WriteLine(BoogieVariable);
+            }   
         }
     }
 }

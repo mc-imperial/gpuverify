@@ -16,8 +16,8 @@ namespace DynamicAnalysis
     public class BitVector
     {
         public static BitVector Zero = new BitVector(0);
-        public static BitVector False = Zero;
-        public static BitVector True = new BitVector(1);
+        public static BitVector False = new BitVector(0, 1);
+        public static BitVector True = new BitVector(1, 1);
         public static BitVector Max32Int = new BitVector((int)Math.Pow(2, 32) - 1);
         public string Bits;
         public int Width;
@@ -27,6 +27,15 @@ namespace DynamicAnalysis
             Width = 32;
             Bits = Convert.ToString(val, 2);
             SignExtend();
+        }
+        
+        public BitVector (int val, int width)
+        {
+            Width = width;
+            if (val == 0)
+                Bits = "0";
+            else
+                Bits = "1";
         }
 
         public BitVector(BvConst bv)
@@ -350,14 +359,24 @@ namespace DynamicAnalysis
             }
         }
         
-        public static bool operator true (BitVector a)
+        public static BitVector Slice (BitVector a, int high, int low)
         {
-            return a.Equals(BitVector.True);
+            Print.ConditionalExitMessage(high > low, "Slicing " + a.ToString() + 
+            " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not defined"); 
+            int startIndex = a.Width - high;
+            int length = high - low;
+            BitVector b = new BitVector();
+            b.Bits = a.Bits.Substring(startIndex, length);
+            b.Width = b.Bits.Length;
+            return b;
         }
         
-        public static bool operator false (BitVector a)
+        public static BitVector Concatenate (BitVector a, BitVector b)
         {
-            return a.Equals(BitVector.False);
+            BitVector c = new BitVector();
+            c.Bits = a.Bits + b.Bits;
+            c.Width = c.Bits.Length;
+            return c;
         }
         
         public static BitVector ZeroExtend (BitVector a, int width)
