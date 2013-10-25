@@ -37,7 +37,7 @@ namespace GPUVerify {
     public static void PreInstrument(GPUVerifier verifier, Implementation impl) {
       foreach (var region in verifier.RootRegion(impl).SubRegions()) {
         GenerateCandidateForReducedStrengthStrideVariables(verifier, impl, region);
-        //GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
+        GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
         GenerateCandidateForNonUniformGuardVariables(verifier, impl, region);
       }
     }
