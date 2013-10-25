@@ -172,7 +172,7 @@ namespace DynamicAnalysis
             maxLength = 0;
             foreach (string name in raceArrayOffsets.Keys.ToList())
                 maxLength = Math.Max(maxLength, name.Length);
-            Console.WriteLine("=========== Write sets ===========");
+            Console.WriteLine("=========== Race-checking sets ===========");
             foreach (KeyValuePair<string, HashSet<BitVector>> item in raceArrayOffsets)
             {
                 Console.Write(item.Key + getEmptySpaces(maxLength, item.Key.Length));

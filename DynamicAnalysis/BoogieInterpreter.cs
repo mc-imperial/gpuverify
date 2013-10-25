@@ -688,7 +688,6 @@ namespace DynamicAnalysis
                             binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
                             break;
                         case "BV32_LSHR":
-                            Memory.Dump();
                             binary.evaluations.Add(BitVector.LogicalShiftRight(lhs, rhs.ConvertToInt32()));
                             break;
                         case "BV32_SHL":
@@ -772,13 +771,22 @@ namespace DynamicAnalysis
                         SubscriptExpr subscriptExpr = new SubscriptExpr();
                         foreach (ExprNode<BitVector> child in _node.GetChildren())
                         {
-                            BitVector subscript = child.GetUniqueElement();
-                            subscriptExpr.AddIndex(subscript);
+                            if (child.uninitialised)
+                                node.uninitialised = true;
+                            else
+                            {
+                                BitVector subscript = child.GetUniqueElement();
+                                subscriptExpr.AddIndex(subscript);
+                            }
                         }
-                        if (!Memory.Contains(_node.basename, subscriptExpr))
-                            _node.uninitialised = true;
-                        else
-                            _node.evaluations.Add(Memory.GetValue(_node.basename, subscriptExpr));
+                        
+                        if (!node.uninitialised)
+                        {
+                            if (!Memory.Contains(_node.basename, subscriptExpr))
+                                node.uninitialised = true;
+                            else
+                                _node.evaluations.Add(Memory.GetValue(_node.basename, subscriptExpr));
+                        }
                     }
                     else if (node is BVExtractNode<BitVector>)
                     {
@@ -857,8 +865,6 @@ namespace DynamicAnalysis
                     }
                     else if (node is BinaryNode<BitVector>)
                     {
-                        
-                        Console.WriteLine(tree.expr.ToString());
                         BinaryNode<BitVector> _node = (BinaryNode<BitVector>)node;
                         EvaluateBinaryNode(_node);
                         if (_node.evaluations.Count == 0)

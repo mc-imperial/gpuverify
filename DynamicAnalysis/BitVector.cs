@@ -20,27 +20,23 @@ namespace DynamicAnalysis
         public static BitVector True = new BitVector(1, 1);
         public static BitVector Max32Int = new BitVector((int)Math.Pow(2, 32) - 1);
         public string Bits;
-        public int Width;
 
-        public BitVector(int val)
+        public BitVector(int val, int width = 32)
         {
-            Width = 32;
             Bits = Convert.ToString(val, 2);
-            SignExtend();
+            if (width > 1)
+                SignExtend(width);
+            Print.ConditionalExitMessage(CheckWidthIsPowerOfTwo(), "BV width is not a power of 2");
         }
         
-        public BitVector (int val, int width)
+        private BitVector (string bits)
         {
-            Width = width;
-            if (val == 0)
-                Bits = "0";
-            else
-                Bits = "1";
+            Bits = bits;
+            Print.ConditionalExitMessage(CheckWidthIsPowerOfTwo(), "BV width is not a power of 2");
         }
 
-        public BitVector(BvConst bv)
+        public BitVector (BvConst bv)
         {
-            Width = bv.Bits; 
             // Create bit-string representation
             string str = bv.ToReadableString();
             string bareStr = str.Substring(0, str.IndexOf("bv"));
@@ -55,22 +51,25 @@ namespace DynamicAnalysis
             else
             {
                 int val = Convert.ToInt32(bareStr);
-                Bits    = Convert.ToString(val, 2);
+                Bits = Convert.ToString(val, 2);
             }
-            SignExtend();
-        }
-        
-        private BitVector ()
-        {
+            SignExtend(bv.Bits);
+            Print.ConditionalExitMessage(CheckWidthIsPowerOfTwo(), "BV width is not a power of 2");
         }
 
-        private void SignExtend()
+        private void SignExtend (int width)
         {
-            if (Bits.Length < Width)
+            if (Bits.Length < width)
             {
                 char sign = Bits[0];
-                Bits = Bits.PadLeft(Width, '0');
+                Bits = Bits.PadLeft(width, '0');
             }
+        }
+        
+        private bool CheckWidthIsPowerOfTwo ()
+        {
+            int width = Bits.Length;
+            return (width != 0) && ((width & (width - 1)) == 0);
         }
 
         private string HexToBinary(char hex)
@@ -364,11 +363,9 @@ namespace DynamicAnalysis
         
         public static BitVector operator^(BitVector a, BitVector b)
         {
-            Print.ConditionalExitMessage(a.Width == b.Width, "The XOR operator requires bit vectors of equal width"); 
-            BitVector c = new BitVector();
-            c.Width = a.Width;
-            char[] bits = new char[c.Width];
-            for (int i = 0; i < c.Width; ++i)
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "The XOR operator requires bit vectors of equal width"); 
+            char[] bits = new char[a.Bits.Length];
+            for (int i = 0; i < a.Bits.Length; ++i)
             {
                 if (a.Bits[i] == '1' && b.Bits[i] == '0')
                     bits[i] = '1';
@@ -377,47 +374,37 @@ namespace DynamicAnalysis
                 else
                     bits[i] = '0';
             }
-            c.Bits = new string(bits);
-            return c;
+            return new BitVector(new string(bits));
         }
         
         public static BitVector Slice (BitVector a, int high, int low)
         {
             Print.ConditionalExitMessage(high > low, "Slicing " + a.ToString() + 
             " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not defined"); 
-            int startIndex = a.Width - high;
+            int startIndex = a.Bits.Length - high;
             int length = high - low;
-            BitVector b = new BitVector();
-            b.Bits = a.Bits.Substring(startIndex, length);
-            b.Width = b.Bits.Length;
-            return b;
+            string bits = a.Bits.Substring(startIndex, length);
+            return new BitVector(bits);
         }
         
         public static BitVector Concatenate (BitVector a, BitVector b)
         {
-            BitVector c = new BitVector();
-            c.Bits = a.Bits + b.Bits;
-            c.Width = c.Bits.Length;
-            return c;
+            string bits = a.Bits + b.Bits;
+            return new BitVector(bits);
         }
         
         public static BitVector LogicalShiftRight(BitVector a, int shift)
         {
-            BitVector b = new BitVector();
-            b.Width = a.Width;
-            b.Bits = a.Bits.Substring(0, a.Width - shift);
-            b.Bits = b.Bits.PadLeft(shift, '0');
-            Console.WriteLine(a.Width.ToString() + ", " + shift.ToString() + ": " + a.ToString() + " " + b.ToString());
-            return b;
+            string bits = a.Bits.Substring(0, a.Bits.Length - shift);
+            bits = bits.PadLeft(a.Bits.Length, '0');
+            return new BitVector(bits);
         }
         
         public static BitVector ZeroExtend (BitVector a, int width)
         {
-            BitVector b = new BitVector();
-            b.Width = width;
-            b.Bits = a.Bits;
-            b.Bits = b.Bits.PadLeft(width, '0');
-            return b;
+            string bits = a.Bits;
+            bits = bits.PadLeft(width, '0');
+            return new BitVector(bits);
         }
     }
 }
