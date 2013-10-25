@@ -67,7 +67,10 @@ namespace DynamicAnalysis
         private void SignExtend()
         {
             if (Bits.Length < Width)
+            {
+                char sign = Bits[0];
                 Bits = Bits.PadLeft(Width, '0');
+            }
         }
 
         private string HexToBinary(char hex)
@@ -359,6 +362,25 @@ namespace DynamicAnalysis
             }
         }
         
+        public static BitVector operator^(BitVector a, BitVector b)
+        {
+            Print.ConditionalExitMessage(a.Width == b.Width, "The XOR operator requires bit vectors of equal width"); 
+            BitVector c = new BitVector();
+            c.Width = a.Width;
+            char[] bits = new char[c.Width];
+            for (int i = 0; i < c.Width; ++i)
+            {
+                if (a.Bits[i] == '1' && b.Bits[i] == '0')
+                    bits[i] = '1';
+                else if (a.Bits[i] == '1' && b.Bits[i] == '0')
+                    bits[i] = '1';
+                else
+                    bits[i] = '0';
+            }
+            c.Bits = new string(bits);
+            return c;
+        }
+        
         public static BitVector Slice (BitVector a, int high, int low)
         {
             Print.ConditionalExitMessage(high > low, "Slicing " + a.ToString() + 
@@ -379,12 +401,22 @@ namespace DynamicAnalysis
             return c;
         }
         
+        public static BitVector LogicalShiftRight(BitVector a, int shift)
+        {
+            BitVector b = new BitVector();
+            b.Width = a.Width;
+            b.Bits = a.Bits.Substring(0, a.Width - shift);
+            b.Bits = b.Bits.PadLeft(shift, '0');
+            Console.WriteLine(a.Width.ToString() + ", " + shift.ToString() + ": " + a.ToString() + " " + b.ToString());
+            return b;
+        }
+        
         public static BitVector ZeroExtend (BitVector a, int width)
         {
             BitVector b = new BitVector();
-            b.Width = width + a.Width;
+            b.Width = width;
             b.Bits = a.Bits;
-            b.SignExtend();
+            b.Bits = b.Bits.PadLeft(width, '0');
             return b;
         }
     }
