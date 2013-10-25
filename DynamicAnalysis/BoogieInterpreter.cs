@@ -56,6 +56,7 @@ namespace DynamicAnalysis
             EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
             InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
             SummarizeKilledInvariants();
+            Console.WriteLine("Dynamic analysis done");
         }
 
         private BitVector GetRandomBV(int width)
@@ -343,7 +344,7 @@ namespace DynamicAnalysis
             // Execute all the statements
             foreach (Cmd cmd in current.Cmds)
             {   
-                Console.Write(cmd.ToString());
+                //Console.Write(cmd.ToString());
                 if (cmd is AssignCmd)
                 {
                     AssignCmd assign = cmd as AssignCmd;
@@ -396,7 +397,8 @@ namespace DynamicAnalysis
                 {
                     AssertCmd assert = cmd as AssertCmd;
                     // Only check asserts which have attributes as these are the conjectured invariants
-                    if (assert.Attributes != null)
+                    string tag = QKeyValue.FindStringAttribute(assert.Attributes, "tag");
+                    if (tag != null)
                     {
                         ExprTree tree = GetExprTree(assert.Expr);
                         if (!AssertStatus.ContainsKey(assert))
@@ -406,6 +408,7 @@ namespace DynamicAnalysis
                             EvaluateExprTree(tree);
                             if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                             {
+                                Console.Write("==========> Removing " + assert.ToString());
                                 AssertStatus[assert] = BitVector.False;
                                 Regex r = new Regex("_[a-z][0-9]+");
                                 MatchCollection matches = r.Matches(assert.ToString());
@@ -418,7 +421,6 @@ namespace DynamicAnalysis
                                     }
                                 }
                                 Print.ConditionalExitMessage(BoogieVariable != null, "Unable to find Boogie variable");
-                                Console.Write("==========> Removing " + assert.ToString());                                
                                 KilledAsserts.Add(BoogieVariable);
                                 ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
                                 ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
@@ -519,13 +521,20 @@ namespace DynamicAnalysis
                             else
                                 binary.evaluations.Add(BitVector.False);
                             break;
-                        case "BV1_XOR":
-                            if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.False))
+                        case "<==>":
+                            if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
                                 binary.evaluations.Add(BitVector.True);
-                            else if (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.True))
+                            else if (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False))
                                 binary.evaluations.Add(BitVector.True);
                             else
                                 binary.evaluations.Add(BitVector.False);
+                            break;
+                        case "BV1_XOR":
+                        case "BV8_XOR":
+                        case "BV16_XOR":
+                        case "BV32_XOR":
+                            binary.evaluations.Add(lhs ^ rhs);
+                            break;
                         case "<":
                             if (lhs < rhs)
                                 binary.evaluations.Add(BitVector.True);
@@ -675,8 +684,12 @@ namespace DynamicAnalysis
                         case "BV32_SDIV":
                             binary.evaluations.Add(lhs / rhs);
                             break;
-                        case "BV32_LSHR":
+                        case "BV32_ASHR":
                             binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
+                            break;
+                        case "BV32_LSHR":
+                            Memory.Dump();
+                            binary.evaluations.Add(BitVector.LogicalShiftRight(lhs, rhs.ConvertToInt32()));
                             break;
                         case "BV32_SHL":
                             binary.evaluations.Add(lhs << rhs.ConvertToInt32());
@@ -745,7 +758,6 @@ namespace DynamicAnalysis
                         {
                             if (!Memory.Contains(_node.symbol))
                             {
-                                Console.WriteLine("Variable unitialised " + _node.symbol);
                                 _node.uninitialised = true;
                             }
                             else
@@ -829,7 +841,9 @@ namespace DynamicAnalysis
                                         break;
                                     }
                                 case "BV1_ZEXT32":
-                                    BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 31);
+                                case "BV8_ZEXT32":
+                                case "BV16_ZEXT32":
+                                    BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
                                     _node.evaluations.Add(ZeroExtended);                          
                                     break;
                                 case "UI32_TO_FP32":
@@ -843,6 +857,8 @@ namespace DynamicAnalysis
                     }
                     else if (node is BinaryNode<BitVector>)
                     {
+                        
+                        Console.WriteLine(tree.expr.ToString());
                         BinaryNode<BitVector> _node = (BinaryNode<BitVector>)node;
                         EvaluateBinaryNode(_node);
                         if (_node.evaluations.Count == 0)
