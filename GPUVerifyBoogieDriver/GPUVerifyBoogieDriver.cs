@@ -75,7 +75,7 @@ namespace Microsoft.Boogie
         Environment.Exit(1);
       }
     }
-
+    
     static int VerifyFiles(List<string> fileNames)
     {
       Contract.Requires(cce.NonNullElements(fileNames));
@@ -85,7 +85,7 @@ namespace Microsoft.Boogie
 
       KernelAnalyser.PipelineOutcome oc = KernelAnalyser.ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
       if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
-
+      
       KernelAnalyser.EliminateDeadVariables(program);
       KernelAnalyser.Inline(program);
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
@@ -100,7 +100,7 @@ namespace Microsoft.Boogie
 
       return VerifyProgram(program);
     }
-
+    
     private static int VerifyProgram(Program program)
     {
       int errorCount = 0;
