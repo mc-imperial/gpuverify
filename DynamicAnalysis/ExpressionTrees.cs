@@ -264,7 +264,8 @@ namespace DynamicAnalysis
         
         public T GetUniqueElement ()
         {
-            Print.ConditionalExitMessage(evaluations.Count == 1, "There is no unique element in the evaluation set");
+            if (evaluations.Count != 1)
+                throw new UnhandledException("There is no unique element in the evaluation set");
             return evaluations.First();
         }
     }
