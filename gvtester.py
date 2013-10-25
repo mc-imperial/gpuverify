@@ -86,7 +86,7 @@ def enum(*sequential):
 
 GPUVerifyTesterErrorCodes=enum('SUCCESS', 'FILE_SEARCH_ERROR','KERNEL_PARSE_ERROR', 'TEST_FAILED', 'FILE_OPEN_ERROR', 'GENERAL_ERROR')
 
-class GPUVerifyTestKernel:
+class GPUVerifyTestKernel(object):
 
     def __init__(self,path,timeAsCSV,csvFile,additionalOptions=None):
         """
@@ -276,6 +276,7 @@ class GPUVerifyTestKernel:
             #Print csv output for user to see
             self.csvFile.write(stdout.split('\n')[-2] + "\n")
             self.csvFile.flush()
+        del self.csvFile # We cannot serialise this object so we need to remove it from this class!
 
         logging.debug(self) #Show after test information
 
@@ -347,10 +348,20 @@ class PrintXfailCodes(argparse.Action):
 
             sys.exit(GPUVerifyTesterErrorCodes.SUCCESS)
 
+def getPickleOptions():
+    """ Returns a dictionary of named options to
+        use with pickle commands
+    """
+    extraOptions = {}
+    if sys.version_info.major > 2:
+        # Make Python 3 try to produce pickle files readable in python 2
+        extraOptions['fix_imports'] = True
+    return extraOptions
+
 def openPickle(path):
     try:
         with open(path,"rb") as inputFile:
-            return pickle.load(inputFile)
+            return pickle.load(inputFile, **getPickleOptions())
     except IOError:
         logging.error("Failed to open pickle file \"" + path + "\"")
         sys.exit(GPUVerifyTesterErrorCodes.FILE_OPEN_ERROR)
@@ -756,7 +767,7 @@ def main(arg):
     if len(args.write_pickle) > 0 :
         logging.info("Writing run information to pickle file \"" + args.write_pickle + "\"")
         with open(args.write_pickle,"wb") as output:
-            pickle.dump(tests, output, 2) #Use protocol 2
+            pickle.dump(tests, output, protocol=2, **getPickleOptions())
 
     if oldTests!=None:
         doComparison(oldTests,args.compare_run,tests,"Newly completed tests", args.canonical_path_prefix)
