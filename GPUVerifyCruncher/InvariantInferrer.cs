@@ -189,8 +189,8 @@ namespace Microsoft.Boogie
         directoryContainingFiles = Directory.GetCurrentDirectory ();
       var annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);
-
-      Program program = getFreshProgram(true, true);
+      
+      Program program = getFreshProgram(true, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
 
       if (CommandLineOptions.Clo.Trace) {
