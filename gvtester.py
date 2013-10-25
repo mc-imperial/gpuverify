@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 # encoding: utf-8
 import os
 import sys
@@ -9,7 +9,13 @@ import subprocess
 import pickle
 import time
 import string
-import Queue
+try:
+    # Python 2.x
+    from Queue import Queue
+except ImportError:
+    # Python 3.x
+    from queue import Queue
+
 import threading
 import multiprocessing # Only for determining number of CPU cores available
 
@@ -56,7 +62,7 @@ class GPUVerifyErrorCodes(ErrorCodes):
     @classmethod
     def getValidxfailCodes(cls):
         codes=[]
-        for codeTuple in cls.errorCodeToString.iteritems():
+        for codeTuple in cls.errorCodeToString.items():
             #Skip SUCCESS and REGEX_MISMATCH_ERROR as it isn't sensible to expect a failure
             # at these points.
             if codeTuple[0] == cls.SUCCESS or codeTuple[0] == cls.REGEX_MISMATCH_ERROR :
@@ -74,7 +80,7 @@ def enum(*sequential):
     #Build a dictionary that maps sequential[i] => i
     enums = dict( zip(sequential, range(len(sequential))) )
     #Build a reverse dictionary
-    reverse = dict((value, key) for key, value in enums.iteritems())
+    reverse = dict((value, key) for key, value in enums.items())
     enums['reverseMapping'] = reverse
     return type('Enum', (object,) , enums)
 
@@ -212,13 +218,15 @@ class GPUVerifyTestKernel:
                                              cwd=os.path.dirname(self.path),
                                              preexec_fn=_posixSession
                                             )
-            stdout=processInstance.communicate() #Allow program to run and wait for it to exit.
+            stdout, _IGNORED = processInstance.communicate() #Allow program to run and wait for it to exit.
 
         except KeyboardInterrupt:
             logging.error("Received keyboard interrupt. Attempting to kill GPUVerify process")
             processInstance.kill()
             raise
 
+        # Handle byte/str issue in python 3.
+        stdout = stdout.decode()
 
         #Record the true return code of GPUVerify
         if processInstance.returncode < 0:
@@ -235,7 +243,7 @@ class GPUVerifyTestKernel:
         if self.gpuverifyReturnCode == self.expectedReturnCode:
             for regexToMatch in self.regex.keys():
                 matcher=re.compile(regexToMatch, re.MULTILINE) #Allow ^ to match the beginning of multiple lines
-                if matcher.search(stdout[0]) == None :
+                if matcher.search(stdout) == None :
                     self.regex[regexToMatch]=False
                     logging.error(self.path + ": Regex \"" + regexToMatch + "\" failed to match output!")
                 else:
@@ -257,7 +265,7 @@ class GPUVerifyTestKernel:
 
             #Print output for user to see
             if logging.getLogger().getEffectiveLevel() != logging.CRITICAL:
-                for line in stdout[0].split('\n'):
+                for line in stdout.split('\n'):
                     print(line)
         else:
             self.testPassed=True
@@ -266,7 +274,7 @@ class GPUVerifyTestKernel:
 
         if self.timeAsCSV:
             #Print csv output for user to see
-            self.csvFile.write(stdout[0].split('\n')[-2] + "\n")
+            self.csvFile.write(stdout.split('\n')[-2] + "\n")
             self.csvFile.flush()
 
         logging.debug(self) #Show after test information
@@ -544,7 +552,7 @@ class Worker(threading.Thread):
 
 class ThreadPool:
     def __init__(self, numberOfThreads):
-        self.theQueue = Queue.Queue(0);
+        self.theQueue = Queue(0);
 
         #Create the Threads
         self.threads= []
@@ -616,7 +624,7 @@ def main(arg):
     runGroup.add_argument("--run-only-xfail",action="store_true",default=False,help="Run only the tests that are expected to fail (xfail) (default: \"%(default)s\")")
 
 
-    args = parser.parse_args()
+    args = parser.parse_args(arg)
 
     logging.getLogger().setLevel(level=getattr(logging, args.log_level.upper(), None))
     logging.debug("Finished parsing arguments.")
@@ -760,4 +768,4 @@ def main(arg):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv))
+    sys.exit(main(sys.argv[1:]))

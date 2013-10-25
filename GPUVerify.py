@@ -273,7 +273,7 @@ def run(command,timeout=0):
   """
   popenargs={}
   if CommandLineOptions.verbose:
-    print " ".join(command)
+    print(" ".join(command))
   else:
     popenargs['bufsize']=0
     #popenargs['stdout']=subprocess.PIPE
@@ -336,128 +336,134 @@ def showVersionAndExit():
   sys.exit(ErrorCodes.SUCCESS)
 
 def showHelpAndExit():
-  print "OVERVIEW: GPUVerify driver"
-  print ""
-  print "USAGE: GPUVerify.py [options] <inputs>"
-  print ""
-  print "GENERAL OPTIONS:"
-  print "  -h, --help              Display this message"
-  print "  -I <value>              Add directory to include search path"
-  print "  -D <value>              Define symbol"
-  print "  --findbugs              Run tool in bug-finding mode"
-  print "  --loop-unwind=X         Explore traces that pass through at most X loop heads"
-  print "  --memout=X              Give Boogie a hard memory limit of X megabytes."
-  print "                          A memout of 0 disables the memout. The default is " + str(CommandLineOptions.boogieMemout) + " megabytes."
-  print "  --no-benign             Do not tolerate benign data races"
-  print "  --only-divergence       Only check for barrier divergence, not for races"
-  print "  --only-intra-group      Do not check for inter-group races"
-  print "  --time                  Show timing information"
-  print "  --timeout=X             Allow Boogie to run for X seconds before giving up."
-  print "                          A timeout of 0 disables the timeout. The default is " + str(CommandLineOptions.boogieTimeout) + " seconds."
-  print "  --verify                Run tool in verification mode"
-  print "  --verbose               Show commands to run and use verbose output"
-  print "  --version               Show version information."
-  print ""
-  print "ADVANCED OPTIONS:"
-  print "  --adversarial-abstraction  Completely abstract shared state, so that reads are"
-  print "                          nondeterministic"
-  print "  --array-equalities      Generate equality candidate invariants for array variables"
-  print "  --asymmetric-asserts    Emit assertions only for first thread.  Sound, and may lead"
-  print "                          to faster verification, but can yield false positives"
-  print "  --boogie-file=X.bpl     Specify a supporting .bpl file to be used during verification"
-  print "  --boogie-opt=...        Specify option to be passed to Boogie"
-  print "  --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file"
-  print "  --bugle-opt=...         Specify option to be passed to Bugle"
-  print "  --call-site-analysis    Turn on call site analysis"
-  print "  --clang-opt=...         Specify option to be passed to CLANG"
-  print "  --debug                 Enable debugging of GPUVerify components: exceptions will"
-  print "                          not be suppressed"
-  print "  --equality-abstraction  Make shared arrays nondeterministic, but consistent between"
-  print "                          threads, at barriers"
-  print "  --gen-smt2              Generate smt2 file"
-  print "  --keep-temps            Keep intermediate bc, gbpl and bpl files"
-  print "  --math-int              Represent integer types using mathematical integers"
-  print "                          instead of bit-vectors"
-  print "  --no-annotations        Ignore all source-level annotations"
-  print "  --only-requires         Ignore all source-level annotations except for requires"
-  print "  --no-barrier-access-checks      Turn off access checks for barrier invariants"
-  print "  --no-constant-write-checks      Turn off access checks for writes to constant space"
-  print "  --no-inline             Turn off automatic inlining by Bugle"
-  print "  --no-loop-predicate-invariants  Turn off automatic generation of loop invariants"
-  print "                          related to predicates, which can be incorrect"
-  print "  --no-smart-predication  Turn off smart predication"
-  print "  --no-source-loc-infer   Turn off inference of source location information"
-  print "  --no-uniformity-analysis  Turn off uniformity analysis"
-  print "  --only-log              Log accesses to arrays, but do not check for races.  This"
-  print "                          can be useful for determining access pattern invariants"
-  print "  --silent                Silent on success; only show errors/timing"
-  print "  --stop-at-opt           Stop after LLVM optimization pass"
-  print "  --stop-at-gbpl          Stop after generating gbpl"
-  print "  --stop-at-bpl           Stop after generating bpl"
-  print "  --stop-at-inv           Stop after generating an annotated with invariants bpl"
-  print "  --time-as-csv=label     Print timing as CSV row with label"
-  print "  --vcgen-timeout=X       Allow VCGen to run for X seconds."
-  print "  --vcgen-opt=...         Specify option to be passed to be passed to VC generation"
-  print "                          engine"
-  print "  --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32"
-  print "  --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none)"
-  print "                          (default is --atomic=rw)"
-  print "  --no-refined-atomics    Don't do abstraction refinement on the return values from atomics"
-  print "  --solver=X              Choose which SMT Theorem Prover to use in the backend."
-  print "                          Available options: 'Z3' or 'cvc4' (default is 'Z3')"
-  print "  --logic=X               Define the logic to be used by the CVC4 SMT solver backend"
-  print "                          (default is QF_ALL_SUPPORTED)"
-  print ""
-  print "INVARIANT INFERENCE OPTIONS:"
-  print "  --no-infer              Turn off invariant inference"
-  print "  --infer-timeout=X       Allow GPUVerifyCruncher to run for X seconds."
-  print "  --staged-inference      Perform invariant inference in stages; this can boost"
-  print "                          performance for complex kernels (but this is not guaranteed)"
-  print "  --parallel-inference    Use multiple solver instances in parallel to accelerate invariant"
-  print "                          inference (but this is not guaranteed)"
-  print "  --dynamic-analysis      Use dynamic analysis to falsify invariants."
-  print "  --scheduling=X          Choose a parallel scheduling strategy from the following: 'all-together',"
-  print "                          'unsound-first', 'dynamic-first' or 'phased'. The 'all-together' strategy"
-  print "                          executes all refutation engines together. The 'unsound-first' strategy"
-  print "                          executes any unsound engines (either static or dynamic) before the sound"
-  print "                          engines. The 'dynamic-first' strategy executes any dynamic engines before"
-  print "                          the static engines. The 'phased' strategy executes first any dynamic engines,"
-  print "                          then any unsound static engines and then the sound static engines. The default"
-  print "                          scheduling is 'all-together'."
-  print "  --infer-config-file=X.cfg       Specify a custom configuration file to be used"
-  print "                          during invariant inference"
-  print "  --infer-info            Prints information about the inference process."
-  print ""
-  print "OPENCL OPTIONS:"
-  print "  --local_size=X          Specify whether work-group is 1D, 2D"
-  print "              =[X,Y]      or 3D and specify size for each"
-  print "              =[X,Y,Z]    dimension"
-  print "  --num_groups=X          Specify whether grid of work-groups is"
-  print "              =[X,Y]      1D, 2D or 3D and specify size for each"
-  print "              =[X,Y,Z]    dimension"
-  print ""
-  print "CUDA OPTIONS"
-  print "  --blockDim=X            Specify whether thread block is 1D, 2D"
-  print "              =[X,Y]      or 3D and specify size for each"
-  print "              =[X,Y,Z]    dimension"
-  print "  --gridDim=X             Specify whether grid of thread blocks is"
-  print "              =[X,Y]      1D, 2D or 3D and specify size for each"
-  print "              =[X,Y,Z]    dimension"
+  stringReplacements = {
+    'boogieMemout': CommandLineOptions.boogieMemout,
+    'boogieTimeout': CommandLineOptions.boogieTimeout
+  }
+
+  print("""OVERVIEW: GPUVerify driver
+
+  USAGE: GPUVerify.py [options] <inputs>
+
+  GENERAL OPTIONS:
+    -h, --help              Display this message
+    -I <value>              Add directory to include search path
+    -D <value>              Define symbol
+    --findbugs              Run tool in bug-finding mode
+    --loop-unwind=X         Explore traces that pass through at most X loop heads
+    --memout=X              Give Boogie a hard memory limit of X megabytes.
+                            A memout of 0 disables the memout. The default is {boogieMemout} megabytes.
+    --no-benign             Do not tolerate benign data races
+    --only-divergence       Only check for barrier divergence, not for races
+    --only-intra-group      Do not check for inter-group races
+    --time                  Show timing information
+    --timeout=X             Allow Boogie to run for X seconds before giving up.
+                            A timeout of 0 disables the timeout. The default is {boogieTimeout} seconds.
+    --verify                Run tool in verification mode
+    --verbose               Show commands to run and use verbose output
+    --version               Show version information.
+
+  ADVANCED OPTIONS:
+    --adversarial-abstraction  Completely abstract shared state, so that reads are
+                            nondeterministic
+    --array-equalities      Generate equality candidate invariants for array variables
+    --asymmetric-asserts    Emit assertions only for first thread.  Sound, and may lead
+                            to faster verification, but can yield false positives
+    --boogie-file=X.bpl     Specify a supporting .bpl file to be used during verification
+    --boogie-opt=...        Specify option to be passed to Boogie
+    --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file
+    --bugle-opt=...         Specify option to be passed to Bugle
+    --call-site-analysis    Turn on call site analysis
+    --clang-opt=...         Specify option to be passed to CLANG
+    --debug                 Enable debugging of GPUVerify components: exceptions will
+                            not be suppressed
+    --equality-abstraction  Make shared arrays nondeterministic, but consistent between
+                            threads, at barriers
+    --gen-smt2              Generate smt2 file
+    --keep-temps            Keep intermediate bc, gbpl and bpl files
+    --math-int              Represent integer types using mathematical integers
+                            instead of bit-vectors
+    --no-annotations        Ignore all source-level annotations
+    --only-requires         Ignore all source-level annotations except for requires
+    --no-barrier-access-checks      Turn off access checks for barrier invariants
+    --no-constant-write-checks      Turn off access checks for writes to constant space
+    --no-inline             Turn off automatic inlining by Bugle
+    --no-loop-predicate-invariants  Turn off automatic generation of loop invariants
+                            related to predicates, which can be incorrect
+    --no-smart-predication  Turn off smart predication
+    --no-source-loc-infer   Turn off inference of source location information
+    --no-uniformity-analysis  Turn off uniformity analysis
+    --only-log              Log accesses to arrays, but do not check for races.  This
+                            can be useful for determining access pattern invariants
+    --silent                Silent on success; only show errors/timing
+    --stop-at-opt           Stop after LLVM optimization pass
+    --stop-at-gbpl          Stop after generating gbpl
+    --stop-at-bpl           Stop after generating bpl
+    --stop-at-inv           Stop after generating an annotated with invariants bpl
+    --time-as-csv=label     Print timing as CSV row with label
+    --vcgen-timeout=X       Allow VCGen to run for X seconds.
+    --vcgen-opt=...         Specify option to be passed to be passed to VC generation
+                            engine
+    --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32
+    --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none)
+                            (default is --atomic=rw)
+    --no-refined-atomics    Don't do abstraction refinement on the return values from atomics
+    --solver=X              Choose which SMT Theorem Prover to use in the backend.
+                            Available options: 'Z3' or 'cvc4' (default is 'Z3')
+    --logic=X               Define the logic to be used by the CVC4 SMT solver backend
+                            (default is QF_ALL_SUPPORTED)
+
+  INVARIANT INFERENCE OPTIONS:
+    --no-infer              Turn off invariant inference
+    --infer-timeout=X       Allow GPUVerifyCruncher to run for X seconds.
+    --staged-inference      Perform invariant inference in stages; this can boost
+                            performance for complex kernels (but this is not guaranteed)
+    --parallel-inference    Use multiple solver instances in parallel to accelerate invariant
+                            inference (but this is not guaranteed)
+    --dynamic-analysis      Use dynamic analysis to falsify invariants.
+    --scheduling=X          Choose a parallel scheduling strategy from the following: 'all-together',
+                            'unsound-first', 'dynamic-first' or 'phased'. The 'all-together' strategy
+                            executes all refutation engines together. The 'unsound-first' strategy
+                            executes any unsound engines (either static or dynamic) before the sound
+                            engines. The 'dynamic-first' strategy executes any dynamic engines before
+                            the static engines. The 'phased' strategy executes first any dynamic engines,
+                            then any unsound static engines and then the sound static engines. The default
+                            scheduling is 'all-together'.
+    --infer-config-file=X.cfg       Specify a custom configuration file to be used
+                            during invariant inference
+    --infer-info            Prints information about the inference process.
+
+  OPENCL OPTIONS:
+    --local_size=X          Specify whether work-group is 1D, 2D
+                =[X,Y]      or 3D and specify size for each
+                =[X,Y,Z]    dimension
+    --num_groups=X          Specify whether grid of work-groups is
+                =[X,Y]      1D, 2D or 3D and specify size for each
+                =[X,Y,Z]    dimension
+
+  CUDA OPTIONS
+    --blockDim=X            Specify whether thread block is 1D, 2D
+                =[X,Y]      or 3D and specify size for each
+                =[X,Y,Z]    dimension
+    --gridDim=X             Specify whether grid of thread blocks is
+                =[X,Y]      1D, 2D or 3D and specify size for each
+                =[X,Y,Z]    dimension
+  """.format(**stringReplacements))
   sys.exit(0)
 
 def processVector(vector):
   vector = vector.strip()
   if vector[0] == '[' and vector[-1] == ']':
-    return map(int, vector[1:-1].split(","))
+    return list(map(int, vector[1:-1].split(",")))
   else:
-    return map(int, vector.split(","))
+    return list(map(int, vector.split(",")))
 
 def GPUVerifyWarn(msg):
-  print "GPUVerify: warning: " + msg
+  print("GPUVerify: warning: " + msg)
 
 def Verbose(msg):
   if(CommandLineOptions.verbose):
-    print msg
+    print(msg)
 
 def getSourceFiles(args):
   if len(args) == 0:
@@ -1027,19 +1033,19 @@ def main(argv=None):
     return 0
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
-    print "No defects were found while analysing: " + ", ".join(CommandLineOptions.sourceFiles)
-    print "Notes:"
-    print "- use --loop-unwind=N with N > " + str(CommandLineOptions.loopUnwindDepth) + " to search for deeper bugs"
-    print "- re-run in verification mode to try to prove absence of defects"
+    print("No defects were found while analysing: " + ", ".join(CommandLineOptions.sourceFiles))
+    print("Notes:")
+    print("- use --loop-unwind=N with N > " + str(CommandLineOptions.loopUnwindDepth) + " to search for deeper bugs")
+    print("- re-run in verification mode to try to prove absence of defects")
   else:
-    print "Verified: " + ", ".join(CommandLineOptions.sourceFiles)
+    print("Verified: " + ", ".join(CommandLineOptions.sourceFiles))
     if not CommandLineOptions.onlyDivergence:
-      print "- no data races within " + ("work groups" if CommandLineOptions.SL == SourceLanguage.OpenCL else "thread blocks")
+      print("- no data races within " + ("work groups" if CommandLineOptions.SL == SourceLanguage.OpenCL else "thread blocks"))
       if not CommandLineOptions.onlyIntraGroup:
-        print "- no data races between " + ("work groups" if CommandLineOptions.SL == SourceLanguage.OpenCL else "thread blocks")
-    print "- no barrier divergence"
-    print "- no assertion failures"
-    print "(but absolutely no warranty provided)"
+        print("- no data races between " + ("work groups" if CommandLineOptions.SL == SourceLanguage.OpenCL else "thread blocks"))
+    print("- no barrier divergence")
+    print("- no assertion failures")
+    print("(but absolutely no warranty provided)")
 
   return 0
 
@@ -1058,19 +1064,19 @@ def showTiming():
     if len(label) > 0: row.insert(0, label)
     if exitHook.code is ErrorCodes.SUCCESS:
       row.insert(1,'PASS')
-      print ', '.join(row)
+      print(', '.join(row))
     else:
       row.insert(1,'FAIL(' + str(exitHook.code) + ')')
       print >> sys.stderr, ', '.join(row)
   else:
-    print "Timing information (%.2f secs):" % total
+    print("Timing information (%.2f secs):" % total)
     if tools:
       padTool = max([ len(tool) for tool in tools ])
       padTime = max([ len('%.3f secs' % t) for t in times ])
       for (tool, t) in Timing:
-        print "- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime))
+        print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime)))
     else:
-      print "- no tools ran"
+      print("- no tools ran")
 
 def killChildrenPosix():
   def handler(signal,frame):
