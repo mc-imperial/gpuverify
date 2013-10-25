@@ -526,6 +526,7 @@ namespace DynamicAnalysis
                                 binary.evaluations.Add(BitVector.True);
                             else
                                 binary.evaluations.Add(BitVector.False);
+                            break;
                         case "<":
                             if (lhs < rhs)
                                 binary.evaluations.Add(BitVector.True);
