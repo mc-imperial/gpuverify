@@ -12,13 +12,13 @@ import multiprocessing # Only for determining number of CPU cores available
 import getversion
 import pprint
 
-"""
-    Print an error message to stderr and exit with status code.
-
-    msg : A String describing the error
-    code : An error code (integer) from ErrorCodes class
-"""
 def GPUVerifyError(msg, code):
+  """
+      Print an error message to stderr and exit with status code.
+
+      msg : A String describing the error
+      code : An error code (integer) from ErrorCodes class
+  """
   # Determine string for error code
   codeString = None
   for cs in [ x for x in dir(ErrorCodes) if not x.startswith('_') ]:
