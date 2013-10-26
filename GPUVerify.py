@@ -116,8 +116,9 @@ class BatchCaller(object):
     """
       Remove all registered calls
     """
-    for call in self.calls:
-      self.calls.remove(call)
+    self.calls = [ ]
+
+    assert len(self.calls) == 0
 
 cleanUpHandler = BatchCaller()
 
@@ -198,76 +199,83 @@ clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
 """ Options for the tool """
-class CommandLineOptions(object):
-  SL = SourceLanguage.Unknown
-  sourceFiles = [] # The OpenCL or CUDA files to be processed
-  includes = clangCoreIncludes
-  defines = clangCoreDefines
-  clangOptions = clangCoreOptions
-  optOptions = [ "-mem2reg", "-globaldce" ]
-  defaultOptions = [ "/nologo", "/typeEncoding:m", "/mv:-",
-                     "/doModSetAnalysis", "/useArrayTheory",
-                     "/doNotUseLabels", "/enhancedErrorMessages:1"
-                   ]
-  gpuVerifyVCGenOptions = []
-  gpuVerifyCruncherOptions = []
-  gpuVerifyBoogieDriverOptions = []
-  bugleOptions = []
-  mode = AnalysisMode.ALL
-  debugging = False
-  verbose = False
-  silent = False
-  groupSize = []
-  numGroups = []
-  adversarialAbstraction = False
-  equalityAbstraction = False
-  loopUnwindDepth = 2
-  noBenign = False
-  onlyDivergence = False
-  onlyIntraGroup = False
-  onlyLog = False
-  noLoopPredicateInvariants = False
-  noSmartPredication = False
-  noSourceLocInfer = False
-  noUniformityAnalysis = False
-  inference = True
-  invInferConfigFile = "inference.cfg"
-  stagedInference = False
-  parallelInference = False
-  dynamicAnalysis = False
-  scheduling = "all-together"
-  inferInfo = False
-  debuggingHoudini = False
-  stopAtOpt = False
-  stopAtGbpl = False
-  stopAtBpl = False
-  stopAtInv = False
-  time = False
-  timeCSVLabel = None
-  boogieMemout=0
-  vcgenTimeout=0
-  cruncherTimeout=300
-  boogieTimeout=300
-  keepTemps = False
-  mathInt = False
-  asymmetricAsserts = False
-  generateSmt2 = False
-  noBarrierAccessChecks = False
-  noConstantWriteChecks = False
-  noInline = False
-  callSiteAnalysis = False
-  warpSync = False
-  warpSize = 32
-  atomic = "rw"
-  noRefinedAtomics = False
-  solver = "z3"
-  logic = "QF_ALL_SUPPORTED"
-  skip = { "clang": False,
-           "opt": False,
-           "bugle": False,
-           "vcgen": False,
-           "cruncher": False }
-  bugleLanguage = None
+class CmdLineOptions(object):
+  """
+  This class defines all the default options for the tool
+  """
+  def __init__(self):
+    self.SL = SourceLanguage.Unknown
+    self.sourceFiles = [] # The OpenCL or CUDA files to be processed
+    self.includes = clangCoreIncludes
+    self.defines = clangCoreDefines
+    self.clangOptions = list(clangCoreOptions) # Make sure we make a copy so we don't change the global list
+    self.optOptions = [ "-mem2reg", "-globaldce" ]
+    self.defaultOptions = [ "/nologo", "/typeEncoding:m", "/mv:-",
+                       "/doModSetAnalysis", "/useArrayTheory",
+                       "/doNotUseLabels", "/enhancedErrorMessages:1"
+                     ]
+    self.gpuVerifyVCGenOptions = []
+    self.gpuVerifyCruncherOptions = []
+    self.gpuVerifyBoogieDriverOptions = []
+    self.bugleOptions = []
+    self.mode = AnalysisMode.ALL
+    self.debugging = False
+    self.verbose = False
+    self.silent = False
+    self.groupSize = []
+    self.numGroups = []
+    self.adversarialAbstraction = False
+    self.equalityAbstraction = False
+    self.loopUnwindDepth = 2
+    self.noBenign = False
+    self.onlyDivergence = False
+    self.onlyIntraGroup = False
+    self.onlyLog = False
+    self.noLoopPredicateInvariants = False
+    self.noSmartPredication = False
+    self.noSourceLocInfer = False
+    self.noUniformityAnalysis = False
+    self.inference = True
+    self.invInferConfigFile = "inference.cfg"
+    self.stagedInference = False
+    self.parallelInference = False
+    self.dynamicAnalysis = False
+    self.scheduling = "all-together"
+    self.inferInfo = False
+    self.debuggingHoudini = False
+    self.stopAtOpt = False
+    self.stopAtGbpl = False
+    self.stopAtBpl = False
+    self.stopAtInv = False
+    self.time = False
+    self.timeCSVLabel = None
+    self.boogieMemout=0
+    self.vcgenTimeout=0
+    self.cruncherTimeout=300
+    self.boogieTimeout=300
+    self.keepTemps = False
+    self.mathInt = False
+    self.asymmetricAsserts = False
+    self.generateSmt2 = False
+    self.noBarrierAccessChecks = False
+    self.noConstantWriteChecks = False
+    self.noInline = False
+    self.callSiteAnalysis = False
+    self.warpSync = False
+    self.warpSize = 32
+    self.atomic = "rw"
+    self.noRefinedAtomics = False
+    self.solver = "z3"
+    self.logic = "QF_ALL_SUPPORTED"
+    self.skip = { "clang": False,
+             "opt": False,
+             "bugle": False,
+             "vcgen": False,
+             "cruncher": False }
+    self.bugleLanguage = None
+
+# Use instance of class so we can later reset it
+CommandLineOptions = CmdLineOptions()
 
 def SplitFilenameExt(f):
   filename, ext = os.path.splitext(f)
@@ -572,7 +580,6 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.inference = False
     if o == "--verbose":
       CommandLineOptions.verbose = True
-      cleanUpHandler.setVerbose()
     if o == "--silent":
       CommandLineOptions.silent = True
     if o == "--no-benign":
@@ -844,6 +851,8 @@ def _main(argv):
     processOpenCLOptions(opts, args)
   if CommandLineOptions.SL == SourceLanguage.CUDA:
     processCUDAOptions(opts, args)
+
+  cleanUpHandler.setVerbose(CommandLineOptions.verbose)
 
   filename, ext = SplitFilenameExt(args[0])
 
@@ -1152,6 +1161,17 @@ def handleTiming(exitCode):
   sys.stderr.flush()
   sys.stdout.flush()
 
+def _cleanUpGlobals():
+  """
+  In order to make the tool importable and usable
+  as a python module we need to clean up the
+  global variables.
+  """
+  global CommandLineOptions
+
+  # Reset options
+  CommandLineOptions = CmdLineOptions()
+
 def main(argv):
   """ This wraps GPUVerify's real main function so
       that we can handle exceptions and trigger our own exit
@@ -1168,7 +1188,7 @@ def main(argv):
 
     # Clean up globals so main() can be re-executed in
     # the context of an interactive python console
-    # TODO
+    cleanUpHandler.register(_cleanUpGlobals)
 
     # We should call this last.
     cleanUpHandler.register(killChildrenPosix)
