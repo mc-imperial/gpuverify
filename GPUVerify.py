@@ -17,13 +17,17 @@ class GPUVerifyException(Exception):
     for using sys.exit()
   """
 
-  def __init__(self, code, msg=None):
+  def __init__(self, code, msg=None, stdout=None, stderr=None):
     """
       code : Should be a member of the ErrorCodes class
       msg  : An optional string
+      stdout : An optional string showing stdout message of a tool
+      stderr : An optional string showing stderr message of a tool
     """
     self.code = code
     self.msg = msg
+    self.stdout= stdout
+    self.stderr = stderr
   
   def getExitCode(self):
     return self.code
@@ -45,6 +49,12 @@ class GPUVerifyException(Exception):
 
     if self.msg:
       retStr = retStr + ' ' + self.msg
+
+    if self.stdout:
+      retStr = retStr + '\n\nStandard output:\n' + str(self.stdout.decode())
+
+    if self.stderr:
+      retStr = retStr + '\n\nStandard error:\n' + str(self.stderr.decode())
 
     return retStr
 
@@ -335,8 +345,12 @@ def run(command,timeout=0):
     print(" ".join(command))
   else:
     popenargs['bufsize']=0
-    #popenargs['stdout']=subprocess.PIPE
-    popenargs['stderr']=subprocess.STDOUT
+    if __name__ != '__main__':
+      # We don't want messages to go to stdout if being used as module
+      popenargs['stdout']=subprocess.PIPE
+      popenargs['stderr']=subprocess.PIPE
+    else:
+      popenargs['stderr']=subprocess.STDOUT
 
   killer=None
   def cleanupKiller():
@@ -379,10 +393,8 @@ def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
 
   if CommandLineOptions.time:
     Timing.append((ToolName, end-start))
-  if returnCode != 0:
-    if stdout: print >> sys.stderr, stdout
-    if stderr: print >> sys.stderr, stderr
-    raise GPUVerifyException(ErrorCode)
+  if returnCode != ErrorCodes.SUCCESS:
+    raise GPUVerifyException(ErrorCode,"", stdout, stderr)
 
 def showVersionAndExit():
   """ This will check if using gpuverify from development directory.
