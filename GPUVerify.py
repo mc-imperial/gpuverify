@@ -209,7 +209,7 @@ clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
 """ Options for the tool """
-class CmdLineOptions(object):
+class DefaultCmdLineOptions(object):
   """
   This class defines all the default options for the tool
   """
@@ -285,7 +285,7 @@ class CmdLineOptions(object):
     self.bugleLanguage = None
 
 # Use instance of class so we can later reset it
-CommandLineOptions = CmdLineOptions()
+CommandLineOptions = DefaultCmdLineOptions()
 
 def SplitFilenameExt(f):
   filename, ext = os.path.splitext(f)
@@ -1182,7 +1182,7 @@ def _cleanUpGlobals():
   global CommandLineOptions
 
   # Reset options
-  CommandLineOptions = CmdLineOptions()
+  CommandLineOptions = DefaultCmdLineOptions()
 
 def main(argv):
   """ This wraps GPUVerify's real main function so
