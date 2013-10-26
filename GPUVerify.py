@@ -753,13 +753,17 @@ def processCUDAOptions(opts, args):
   if CommandLineOptions.numGroups == []:
     GPUVerifyError("grid size must be specified via --gridDim=...", ErrorCodes.COMMAND_LINE_ERROR)
 
-def main(argv=None):
-  if argv is None:
-    argv = sys.argv
-  progname = argv[0]
+def _main(argv):
+  """
+   This function should NOT be called directly instead call main()
+   It is assumed that argv has had sys.argv[0] removed 
+  """
+  progname = __name__
+  if progname.endswith('.py'):
+    progname = progname[:-3]
 
   try:
-    opts, args = getopt.gnu_getopt(argv[1:],'D:I:h', 
+    opts, args = getopt.gnu_getopt(argv,'D:I:h', 
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group', 
               'only-log', 'adversarial-abstraction', 'equality-abstraction', 
@@ -1096,6 +1100,17 @@ def exitHandler():
   if os.name == 'posix':
     killChildrenPosix()
 
+def main(argv):
+  """ This wraps GPUVerify's real main function so
+      that we can handle exceptions and trigger our own exit
+      commands.
+
+      This is the entry point that should be used if you want
+      to use this module as a library rather than a script.
+  """
+  #TODO Handle exceptions and stuff
+  _main(argv)
+
 if __name__ == '__main__':
   atexit.register(exitHandler)
-  sys.exit(main())
+  sys.exit(main(sys.argv[1:]))
