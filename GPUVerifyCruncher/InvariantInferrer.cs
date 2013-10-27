@@ -200,9 +200,8 @@ namespace Microsoft.Boogie
       if (refutationEngines != null && refutationEngines[engineIdx] != null) {
         ((StaticRefutationEngine) refutationEngines[engineIdx]).Houdini.ApplyAssignment(program);
       }
-
-      if (File.Exists(filesToProcess[0])) File.Delete(filesToProcess[0]);
-      GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile);
+      
+      GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile, "cbpl");
     }
 
     private static bool AllImplementationsValid(Houdini.HoudiniOutcome outcome)
