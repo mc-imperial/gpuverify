@@ -1022,7 +1022,7 @@ def _main(argv):
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugGPUVerify" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/debugGPUVerify" ]
   if not CommandLineOptions.mathInt:
-    # CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:OPTIMIZE_FOR_BV=true" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:OPTIMIZE_FOR_BV=true" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:OPTIMIZE_FOR_BV=true" ]
     if CommandLineOptions.solver == "z3":
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
