@@ -55,8 +55,8 @@ namespace Microsoft.Boogie
           if (extension != null) {
             extension = extension.ToLower();
           }
-          if (extension != ".bpl") {
-            GVUtil.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
+          if (extension != ".bpl" && extension != ".cbpl") {
+            GVUtil.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .(c)bpl file", file);
             Environment.Exit(1);
           }
         }

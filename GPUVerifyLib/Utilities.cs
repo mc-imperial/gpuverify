@@ -69,9 +69,9 @@ namespace GPUVerify
     /// </summary>
     public static class IO
     {
-      public static void EmitProgram(Program prog, string filename)
+      public static void EmitProgram(Program prog, string filename, string extension = "bpl")
       {
-        using (TokenTextWriter writer = new TokenTextWriter(filename + ".bpl")) {
+        using (TokenTextWriter writer = new TokenTextWriter(filename + "." + extension)) {
           prog.Emit(writer);
         }
       }
