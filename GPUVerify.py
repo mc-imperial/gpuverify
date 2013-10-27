@@ -1016,6 +1016,7 @@ def _main(argv):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
 
   if CommandLineOptions.generateSmt2:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverLog:" + smt2Filename ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
   if CommandLineOptions.debugging:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/debugGPUVerify" ]

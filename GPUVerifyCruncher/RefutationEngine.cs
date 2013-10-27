@@ -55,9 +55,7 @@ namespace Microsoft.Boogie
       CommandLineOptions.Clo.Cho[id].DisableLoopInvEntryAssert = this.disableLEI;
       CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
-
-      CommandLineOptions.Clo.Cho[id].ProverOptions.AddRange(CommandLineOptions.Clo.ProverOptions);
-
+      
       if (solver.Equals("option-defined")) {
         if (CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4"))
           this.solver = "cvc4";
@@ -65,6 +63,13 @@ namespace Microsoft.Boogie
           this.solver = "Z3";
       } else if (solver.Equals("cvc4")) {
         CommandLineOptions.Clo.Cho[id].ProverOptions.Add("SOLVER=cvc4");
+      }
+
+      foreach (var opt in CommandLineOptions.Clo.ProverOptions) {
+        if ((this.solver.Equals("Z3") && !opt.Contains("LOGIC=")) ||
+            (this.solver.Equals("cvc4") && !opt.Contains("OPTIMIZE_FOR_BV="))) {
+          CommandLineOptions.Clo.Cho[id].ProverOptions.Add(opt);
+        }
       }
 
       if (this.disableLEI || this.disableLMI || this.loopUnroll != -1)
