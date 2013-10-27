@@ -1220,6 +1220,7 @@ def main(argv):
     raise
 
   doCleanUp(timing=True) # Do this outside try block so we don't call twice!
+  return ErrorCodes.SUCCESS
   
 if __name__ == '__main__':
   try:
