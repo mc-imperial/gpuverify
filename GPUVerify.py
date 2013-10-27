@@ -1190,7 +1190,19 @@ def main(argv):
       commands.
 
       This is the entry point that should be used if you want
-      to use this module as a library rather than a script.
+      to use this file as a module rather than as a script.
+
+      If verification fails in any way then a GPUVerifyException
+      will be raised. If verification was successful ErrorCodes.SUCCESS
+      will be returned.
+
+      Example:
+
+      import GPUVerify
+      try:
+        GPUVerify.main(['--local_size=32','--num_groups=2','your_kernel.cl'])
+      except GPUVerifyVerification as e:
+        # Handle error
   """
   def doCleanUp(timing, exitCode=ErrorCodes.SUCCESS):
     if timing:
