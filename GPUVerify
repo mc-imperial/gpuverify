@@ -1,23 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-# Get the directory that this script lives in
-TOOL_ROOT="$(cd ${BASH_SOURCE[0]%/*} ; pwd)"
+python $(dirname $0)/GPUVerify.py $@
 
-# Prefer python2.7 if available
-PYTHON_EXEC="$(which python2.7)"
-
-# If that fails just try regular python
-[ -z "${PYTHON_EXEC}" ] && PYTHON_EXEC="$(which python)"
-
-if [ -z "${PYTHON_EXEC}" ]; then
-    echo "Could not find python in your PATH." 1>&2
-    exit 1
-fi
-
-# Check the python version of whatever executable we found
-if [ "$(${PYTHON_EXEC} --version 2>&1 | grep -Ec '^Python[ ]+3')" -ne 0 ]; then
-   echo "Python 3 is not yet supported."
-   exit 1
-fi
-
-"${PYTHON_EXEC}" "${TOOL_ROOT}/GPUVerify.py" $@

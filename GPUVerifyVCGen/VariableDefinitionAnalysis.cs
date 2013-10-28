@@ -122,9 +122,24 @@ class VariableDefinitionAnalysis {
   private class BuildNamedDefVisitor : Duplicator {
     private VariableDefinitionAnalysis analysis;
     public bool isSelfReferential = false;
+    private static string[] doNotExpandFunctions = new string[] { 
+      "FADD", "FSUB",
+      "FMUL", "FDIV",
+      "FPOW",
+      "FEQ", "FLT", "FUNO"
+    };
 
     public BuildNamedDefVisitor(VariableDefinitionAnalysis a) {
       analysis = a;
+    }
+
+    public override Expr VisitNAryExpr(NAryExpr expr) {
+      var name = expr.Fun.FunctionName;
+      if (doNotExpandFunctions.Any(x => name.StartsWith(x))) {
+        return expr;
+      } else {
+        return base.VisitNAryExpr(expr);
+      }
     }
 
     public override Expr VisitIdentifierExpr(IdentifierExpr expr) {
