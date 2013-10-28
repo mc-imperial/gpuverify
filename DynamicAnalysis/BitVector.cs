@@ -26,13 +26,11 @@ namespace DynamicAnalysis
             Bits = Convert.ToString(val, 2);
             if (width > 1)
                 SignExtend(width);
-            Print.ConditionalExitMessage(CheckWidthIsPowerOfTwo(), "BV width is not a power of 2");
         }
         
         private BitVector (string bits)
         {
             Bits = bits;
-            Print.ConditionalExitMessage(CheckWidthIsPowerOfTwo(), "BV width is not a power of 2");
         }
 
         public BitVector (BvConst bv)
@@ -54,7 +52,6 @@ namespace DynamicAnalysis
                 Bits = Convert.ToString(val, 2);
             }
             SignExtend(bv.Bits);
-            Print.ConditionalExitMessage(CheckWidthIsPowerOfTwo(), "BV width is not a power of 2");
         }
 
         private void SignExtend (int width)
@@ -66,12 +63,6 @@ namespace DynamicAnalysis
             }
         }
         
-        private bool CheckWidthIsPowerOfTwo ()
-        {
-            int width = Bits.Length;
-            return (width != 0) && ((width & (width - 1)) == 0);
-        }
-
         private string HexToBinary(char hex)
         {
             switch (hex)
@@ -196,6 +187,8 @@ namespace DynamicAnalysis
             }
             catch (OverflowException)
             {
+                Console.WriteLine(a.Bits);
+                Console.WriteLine(b.Bits);
                 throw;
             }
             return new BitVector(val);

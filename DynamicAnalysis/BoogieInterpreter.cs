@@ -64,7 +64,7 @@ namespace DynamicAnalysis
             if (width == 1)
                 return new BitVector(Random.Next(0, 1));
             int lowestVal = 1;
-            int highestVal = 128;
+            int highestVal = 16 ;
             return new BitVector(Random.Next(lowestVal, highestVal+1));
         }
 
@@ -148,7 +148,16 @@ namespace DynamicAnalysis
                 if (decl.TypedIdent.Type is MapType)
                     Memory.AddGlobalArray(decl.Name);
                 if (IsRaceArrayOffsetVariable(decl.Name))
-                    Memory.AddRaceArrayVariable(decl.Name);
+                {
+                    if (QKeyValue.FindBoolAttribute(decl.Attributes, "GLOBAL"))
+                    {
+                        Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GLOBAL);
+                    }
+                    else
+                    {
+                        Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GROUP_SHARED);
+                    }
+                }
             }
         }
 
@@ -635,14 +644,16 @@ namespace DynamicAnalysis
                             else
                                 binary.evaluations.Add(BitVector.False);
                             break;
-                        case "FLT32":
-                        case "FLE32":
-                        case "FGT32":
                         case "FGE32":
-                        case "FLT64":
-                        case "FLE64":
-                        case "FGT64":
                         case "FGE64":
+                        case "FGT32":
+                        case "FGT64":
+                        case "FLE32":
+                        case "FLE64":
+                        case "FLT32":
+                        case "FLT64":
+                        case "FUNO32":
+                        case "FUNO64":
                             {
                                 Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
                                 if (!FPInterpretations.ContainsKey(FPTriple))
@@ -712,20 +723,15 @@ namespace DynamicAnalysis
                             binary.evaluations.Add(lhs & rhs);
                             break;
                         case "FADD32":
-                        case "FSUB32":
-                        case "FMUL32":
-                        case "FDIV32":
-                            {
-                                Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
-                                if (!FPInterpretations.ContainsKey(FPTriple))
-                                    FPInterpretations[FPTriple] = new BitVector(Random.Next());
-                                binary.evaluations.Add(FPInterpretations[FPTriple]);
-                                break;
-                            }
                         case "FADD64":
+                        case "FSUB32":
                         case "FSUB64":
+                        case "FMUL32":
                         case "FMUL64":
+                        case "FDIV32":
                         case "FDIV64":
+                        case "FPOW32":
+                        case "FPOW64":
                             {
                                 Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
                                 if (!FPInterpretations.ContainsKey(FPTriple))
@@ -836,14 +842,20 @@ namespace DynamicAnalysis
                                     else
                                         _node.evaluations.Add(BitVector.True);
                                     break;
-                                case "FSQRT32":
-                                case "FSQRT64":
-                                case "FLOG32":
-                                case "FLOG64":
                                 case "FABS32":
                                 case "FABS64":
+                                case "FCOS32":
+                                case "FCOS64":
                                 case "FEXP32":
                                 case "FEXP64":
+                                case "FLOG32":
+                                case "FLOG64":
+                                case "FPOW32":
+                                case "FPOW64":
+                                case "FSIN32":
+                                case "FSIN64":
+                                case "FSQRT32":
+                                case "FSQRT64":
                                     {
                                         Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.GetUniqueElement(), BitVector.Zero, _node.op);
                                         if (!FPInterpretations.ContainsKey(FPTriple))
@@ -859,6 +871,8 @@ namespace DynamicAnalysis
                                     break;
                                 case "UI32_TO_FP32":
                                 case "SI32_TO_FP32":
+                                case "UI32_TO_FP64":
+                                case "SI32_TO_FP64":
                                     _node.evaluations.Add(child.GetUniqueElement());
                                     break;
                                 default:
@@ -924,38 +938,46 @@ namespace DynamicAnalysis
 
         private void Barrier(CallCmd call)
         {
+            ExprTree groupSharedTree = GetExprTree(call.Ins[0]);
+            ExprTree globalTree = GetExprTree(call.Ins[1]);
+            EvaluateExprTree(groupSharedTree);
+            EvaluateExprTree(globalTree);
+            
             foreach (string name in Memory.GetRaceArrayVariables())
             {
-                if (Memory.GetRaceArrayOffsets(name).Count > 0)
+                if ((Memory.IsInGlobalMemory(name) && globalTree.evaluation.Equals(BitVector.True)) ||
+                    (Memory.IsInGroupSharedMemory(name) && groupSharedTree.evaluation.Equals(BitVector.True)))
                 {
-                    //Memory.Dump();
-                    int dollarIndex = name.IndexOf('$');
-                    Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-                    string arrayName = name.Substring(dollarIndex);
-                    string accessType = name.Substring(0, dollarIndex);
-                    switch (accessType)
+                    if (Memory.GetRaceArrayOffsets(name).Count > 0)
                     {
-                        case "_WRITE_OFFSET_":
-                            {
-                                string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
-                                Memory.Store(accessTracker, BitVector.False);
-                                break;   
-                            }
-                        case "_READ_OFFSET_":
-                            {
-                                string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
-                                Memory.Store(accessTracker, BitVector.False);
-                                break;
-                            } 
-                        case "_ATOMIC_OFFSET_":
-                            {
-                                string accessTracker = "_ATOMIC_HAS_OCCURRED_" + arrayName; 
-                                Memory.Store(accessTracker, BitVector.False);
-                                break;
-                            }
+                        int dollarIndex = name.IndexOf('$');
+                        Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
+                        string arrayName = name.Substring(dollarIndex);
+                        string accessType = name.Substring(0, dollarIndex);
+                        switch (accessType)
+                        {
+                            case "_WRITE_OFFSET_":
+                                {
+                                    string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
+                                    Memory.Store(accessTracker, BitVector.False);
+                                    break;   
+                                }
+                            case "_READ_OFFSET_":
+                                {
+                                    string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
+                                    Memory.Store(accessTracker, BitVector.False);
+                                    break;
+                                } 
+                            case "_ATOMIC_OFFSET_":
+                                {
+                                    string accessTracker = "_ATOMIC_HAS_OCCURRED_" + arrayName; 
+                                    Memory.Store(accessTracker, BitVector.False);
+                                    break;
+                                }
+                        }
                     }
+                    Memory.ClearRaceArrayOffset(name);
                 }
-                Memory.ClearRaceArrayOffset(name);
             }
         }
 

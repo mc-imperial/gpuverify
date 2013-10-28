@@ -24,6 +24,8 @@ namespace DynamicAnalysis
         { 
         }
     }
+    
+    enum MemorySpace {GLOBAL, GROUP_SHARED};
 
     class Memory
     {
@@ -31,7 +33,7 @@ namespace DynamicAnalysis
         private Dictionary<string, BitVector> scalars = new Dictionary<string, BitVector>();
         private Dictionary<string, Dictionary <SubscriptExpr, BitVector>> arrays = new Dictionary<string, Dictionary <SubscriptExpr, BitVector>>();
         private Dictionary<string, HashSet<BitVector>> raceArrayOffsets = new Dictionary<string, HashSet<BitVector>>();
-       
+        private Dictionary<string, MemorySpace> arrayLocations = new Dictionary<string, MemorySpace>() ;
         public Memory()
         {
         }
@@ -52,9 +54,20 @@ namespace DynamicAnalysis
             return raceArrayOffsets.ContainsKey(name);
         }
 
-        public void AddRaceArrayVariable(string name)
+        public void AddRaceArrayVariable(string name, MemorySpace space)
         {
             raceArrayOffsets[name] = new HashSet<BitVector>();
+            arrayLocations[name] = space;
+        }
+        
+        public bool IsInGlobalMemory (string name)
+        {
+            return arrayLocations.ContainsKey(name) && arrayLocations[name] == MemorySpace.GLOBAL;
+        }
+        
+        public bool IsInGroupSharedMemory (string name)
+        {
+            return arrayLocations.ContainsKey(name) && arrayLocations[name] == MemorySpace.GROUP_SHARED;
         }
 
         public void AddRaceArrayOffset(string name, BitVector offset)
