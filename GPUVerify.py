@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python
 
 import getopt
 import os
@@ -256,7 +256,7 @@ class DefaultCmdLineOptions(object):
     self.stopAtOpt = False
     self.stopAtGbpl = False
     self.stopAtBpl = False
-    self.stopAtInv = False
+    self.stopAtCbpl = False
     self.time = False
     self.timeCSVLabel = None
     self.boogieMemout=0
@@ -451,7 +451,7 @@ def showHelpAndExit():
     --equality-abstraction  Make shared arrays nondeterministic, but consistent between
                             threads, at barriers
     --gen-smt2              Generate smt2 file
-    --keep-temps            Keep intermediate bc, gbpl and bpl files
+    --keep-temps            Keep intermediate bc, gbpl, bpl and cbpl files
     --math-int              Represent integer types using mathematical integers
                             instead of bit-vectors
     --no-annotations        Ignore all source-level annotations
@@ -469,8 +469,8 @@ def showHelpAndExit():
     --silent                Silent on success; only show errors/timing
     --stop-at-opt           Stop after LLVM optimization pass
     --stop-at-gbpl          Stop after generating gbpl
+    --stop-at-cbpl          Stop after generating an annotated bpl
     --stop-at-bpl           Stop after generating bpl
-    --stop-at-inv           Stop after generating an annotated with invariants bpl
     --time-as-csv=label     Print timing as CSV row with label
     --vcgen-timeout=X       Allow VCGen to run for X seconds.
     --vcgen-opt=...         Specify option to be passed to be passed to VC generation
@@ -549,15 +549,15 @@ def getSourceFiles(args):
       if CommandLineOptions.SL == SourceLanguage.OpenCL:
         raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to pass both .cl and .cu files simultaneously")
       CommandLineOptions.SL = SourceLanguage.CUDA
-    elif ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl", ".inv.bpl" ]:
+    elif ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
       CommandLineOptions.skip["clang"] = True
-      if ext in [        ".opt.bc", ".gbpl", ".bpl", ".inv.bpl" ]:
+      if ext in [        ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
         CommandLineOptions.skip["opt"] = True
-      if ext in [                   ".gbpl", ".bpl", ".inv.bpl" ]:
+      if ext in [                   ".gbpl", ".bpl", ".cbpl" ]:
         CommandLineOptions.skip["bugle"] = True
-      if ext in [                            ".bpl", ".inv.bpl" ]:
+      if ext in [                            ".bpl", ".cbpl" ]:
         CommandLineOptions.skip["vcgen"] = True
-      if ext in [                                    ".inv.bpl" ]:
+      if ext in [                                    ".cbpl" ]:
         CommandLineOptions.skip["cruncher"] = True
     else:
       raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "'" + a + "' has unknown file extension, supported file extensions are .cl (OpenCL) and .cu (CUDA)")
@@ -651,10 +651,10 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.stopAtOpt = True
     if o == "--stop-at-gbpl":
       CommandLineOptions.stopAtGbpl = True
+    if o == "--stop-at-cbpl":
+      CommandLineOptions.stopAtCbpl = True
     if o == "--stop-at-bpl":
       CommandLineOptions.stopAtBpl = True
-    if o == "--stop-at-inv":
-      CommandLineOptions.stopAtInv = True
     if o == "--time":
       CommandLineOptions.time = True
     if o == "--time-as-csv":
@@ -843,7 +843,7 @@ def _main(argv):
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
-              'stop-at-opt', 'stop-at-gbpl', 'stop-at-bpl', 'stop-at-inv',
+              'stop-at-opt', 'stop-at-gbpl', 'stop-at-cbpl', 'stop-at-bpl',
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
@@ -891,8 +891,8 @@ def _main(argv):
   bcFilename = filename + '.bc'
   optFilename = filename + '.opt.bc'
   gbplFilename = filename + '.gbpl'
+  cbplFilename = filename + '.cbpl'
   bplFilename = filename + '.bpl'
-  ibplFilename = filename + '.inv.bpl'
   locFilename = filename + '.loc'
   smt2Filename = filename + '.smt2'
   if not CommandLineOptions.keepTemps:
@@ -905,9 +905,9 @@ def _main(argv):
     cleanUpHandler.register(DeleteFile, bcFilename)
     if not CommandLineOptions.stopAtOpt: cleanUpHandler.register(DeleteFile, optFilename)
     if not CommandLineOptions.stopAtGbpl: cleanUpHandler.register(DeleteFile, gbplFilename)
+    if not CommandLineOptions.stopAtCbpl: cleanUpHandler.register(DeleteFile, cbplFilename)
     if not CommandLineOptions.stopAtBpl: cleanUpHandler.register(DeleteFile, bplFilename)
     if not CommandLineOptions.stopAtBpl: cleanUpHandler.register(DeleteFile, locFilename)
-    if not CommandLineOptions.stopAtInv: cleanUpHandler.register(DeleteFile, ibplFilename)
 
   CommandLineOptions.clangOptions.append("-o")
   CommandLineOptions.clangOptions.append(bcFilename)
@@ -1016,6 +1016,7 @@ def _main(argv):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
 
   if CommandLineOptions.generateSmt2:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverLog:" + smt2Filename ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverLog:" + smt2Filename ]
   if CommandLineOptions.debugging:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/debugGPUVerify" ]
@@ -1032,7 +1033,11 @@ def _main(argv):
   CommandLineOptions.gpuVerifyBoogieDriverOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/invInferConfigFile:" + os.path.dirname(os.path.abspath(__file__)) + os.sep + CommandLineOptions.invInferConfigFile ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ bplFilename ]
-  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
+  
+  if CommandLineOptions.inference and (not CommandLineOptions.mode == AnalysisMode.FINDBUGS):
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ cbplFilename ]
+  else:
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ bplFilename ]
 
   """ RUN CLANG """
   if not CommandLineOptions.skip["clang"]:
@@ -1090,7 +1095,7 @@ def _main(argv):
               ErrorCodes.BOOGIE_ERROR,
               **timeoutArguments)
 
-    if CommandLineOptions.stopAtInv: return 0
+    if CommandLineOptions.stopAtCbpl: return 0
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
   timeoutArguments={}
@@ -1190,7 +1195,19 @@ def main(argv):
       commands.
 
       This is the entry point that should be used if you want
-      to use this module as a library rather than a script.
+      to use this file as a module rather than as a script.
+
+      If verification fails in any way then a GPUVerifyException
+      will be raised. If verification was successful ErrorCodes.SUCCESS
+      will be returned.
+
+      Example:
+
+      import GPUVerify
+      try:
+        GPUVerify.main(['--local_size=32','--num_groups=2','your_kernel.cl'])
+      except GPUVerifyVerification as e:
+        # Handle error
   """
   def doCleanUp(timing, exitCode=ErrorCodes.SUCCESS):
     if timing:
@@ -1220,6 +1237,7 @@ def main(argv):
     raise
 
   doCleanUp(timing=True) # Do this outside try block so we don't call twice!
+  return ErrorCodes.SUCCESS
   
 if __name__ == '__main__':
   try:
