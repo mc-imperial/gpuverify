@@ -667,6 +667,9 @@ namespace DynamicAnalysis
                         case "/":
                             binary.evaluations.Add(lhs / rhs);
                             break;
+                        case "BV32_SREM":
+                            binary.evaluations.Add(lhs % rhs);
+                            break;
                         case "BV32_UREM":
                             {
                                 BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
@@ -674,6 +677,9 @@ namespace DynamicAnalysis
                                 binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
                                 break;
                             }
+                        case "BV32_SDIV":
+                            binary.evaluations.Add(lhs / rhs);
+                            break;
                         case "BV32_UDIV":
                             {
                                 BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
@@ -681,9 +687,6 @@ namespace DynamicAnalysis
                                 binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
                                 break;
                             }
-                        case "BV32_SDIV":
-                            binary.evaluations.Add(lhs / rhs);
-                            break;
                         case "BV32_ASHR":
                             binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
                             break;
@@ -1004,4 +1007,3 @@ namespace DynamicAnalysis
         }
     }
 }
-
