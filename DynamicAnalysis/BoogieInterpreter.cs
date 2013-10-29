@@ -35,7 +35,6 @@ namespace DynamicAnalysis
         private Tuple<int, int, int> groupID;
         private GPU gpu = new GPU();
         private Implementation impl;
-        private Block current = null;
         private bool assumesHold = true;
         private Random Random = new Random();
         private Memory Memory = new Memory();
@@ -265,11 +264,13 @@ namespace DynamicAnalysis
                         LabelToBlock[block.Label] = block;
                     }
                     InitialiseFormalParams(impl.InParams);
-                    current = impl.Blocks[0];
-                    while (current != null && assumesHold)
                     {
-                        InterpretBasicBlock();
-                        current = TransferControl();
+                        Block block = impl.Blocks[0];
+                        while (block != null && assumesHold)
+                        {
+                            InterpretBasicBlock(block);
+                            block = TransferControl(block);
+                        }
                     }
                 }
             }
@@ -347,11 +348,11 @@ namespace DynamicAnalysis
 			}
         }
 
-        private void InterpretBasicBlock()
+        private void InterpretBasicBlock (Block block)
         {
-            Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", current.Label), 1);
+            Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", block.Label), 1);
             // Execute all the statements
-            foreach (Cmd cmd in current.Cmds)
+            foreach (Cmd cmd in block.Cmds)
             {   
                 //Console.Write(cmd.ToString());
                 if (cmd is AssignCmd)
@@ -468,9 +469,9 @@ namespace DynamicAnalysis
             }
         }
         
-        private Block TransferControl()
+        private Block TransferControl (Block block)
         {
-            TransferCmd transfer = current.TransferCmd;
+            TransferCmd transfer = block.TransferCmd;
             if (transfer is GotoCmd)
             {
                 GotoCmd goto_ = transfer as GotoCmd;
