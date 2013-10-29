@@ -35,7 +35,6 @@ namespace DynamicAnalysis
         private Tuple<int, int, int> groupID;
         private GPU gpu = new GPU();
         private Implementation impl;
-        private bool assumesHold = true;
         private Random Random = new Random();
         private Memory Memory = new Memory();
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
@@ -63,7 +62,7 @@ namespace DynamicAnalysis
             if (width == 1)
                 return new BitVector(Random.Next(0, 1));
             int lowestVal = 1;
-            int highestVal = 16 ;
+            int highestVal = 1024;
             return new BitVector(Random.Next(lowestVal, highestVal+1));
         }
 
@@ -265,10 +264,11 @@ namespace DynamicAnalysis
                     }
                     InitialiseFormalParams(impl.InParams);
                     {
+                        bool assumesHold = true;
                         Block block = impl.Blocks[0];
                         while (block != null && assumesHold)
                         {
-                            InterpretBasicBlock(block);
+                            assumesHold = InterpretBasicBlock(block);
                             block = TransferControl(block);
                         }
                     }
@@ -348,7 +348,7 @@ namespace DynamicAnalysis
 			}
         }
 
-        private void InterpretBasicBlock (Block block)
+        private bool InterpretBasicBlock (Block block)
         {
             Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", block.Label), 1);
             // Execute all the statements
@@ -410,8 +410,6 @@ namespace DynamicAnalysis
                     string tag = QKeyValue.FindStringAttribute(assert.Attributes, "tag");
                     if (tag != null)
                     {   
-                        //Memory.Dump();  
-                        Console.Write(cmd.ToString());
                         ExprTree tree = GetExprTree(assert.Expr);
                         if (!AssertStatus.ContainsKey(assert))
                             AssertStatus[assert] = BitVector.True;
@@ -459,14 +457,14 @@ namespace DynamicAnalysis
                     EvaluateExprTree(tree);
                     if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                     {
-                        assumesHold = false;
                         Console.WriteLine("ASSUME FALSIFIED: " + assume.Expr.ToString());
-                        break;
+                        return false;
                     }
                 }
                 else
                     throw new UnhandledException("Unhandled command: " + cmd.ToString());
             }
+            return true;
         }
         
         private Block TransferControl (Block block)
@@ -526,17 +524,14 @@ namespace DynamicAnalysis
                                 binary.evaluations.Add(BitVector.False);
                             break;
                         case "==>":
-                            if (rhs.Equals(BitVector.True))
-                                binary.evaluations.Add(BitVector.True);
-                            else if (lhs.Equals(BitVector.False))
+                            if (rhs.Equals(BitVector.True) || lhs.Equals(BitVector.False))
                                 binary.evaluations.Add(BitVector.True);
                             else
                                 binary.evaluations.Add(BitVector.False);
                             break;
                         case "<==>":
-                            if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
-                                binary.evaluations.Add(BitVector.True);
-                            else if (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False))
+                            if ((lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True)) 
+                            || (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False)))
                                 binary.evaluations.Add(BitVector.True);
                             else
                                 binary.evaluations.Add(BitVector.False);
