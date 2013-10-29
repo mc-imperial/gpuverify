@@ -1211,7 +1211,7 @@ def main(argv):
   """
   def doCleanUp(timing, exitCode=ErrorCodes.SUCCESS):
     if timing:
-      # We must call this perform cleaning up globals
+      # We must call this before cleaning up globals
       # because it depends on them
       cleanUpHandler.register(handleTiming, exitCode)
 
