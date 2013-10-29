@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
+# vim: set shiftwidth=4 tabstop=4 expandtab softtabstop=4:
 import os
 import sys
 import argparse

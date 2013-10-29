@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 
 import getopt
 import os
