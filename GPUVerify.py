@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 
 import getopt
 import os
@@ -1211,13 +1212,14 @@ def main(argv):
   """
   def doCleanUp(timing, exitCode=ErrorCodes.SUCCESS):
     if timing:
-      # We must call this perform cleaning up globals
+      # We must call this before cleaning up globals
       # because it depends on them
       cleanUpHandler.register(handleTiming, exitCode)
 
     # Clean up globals so main() can be re-executed in
     # the context of an interactive python console
-    cleanUpHandler.register(_cleanUpGlobals)
+    if __name__ != '__main__':
+      cleanUpHandler.register(_cleanUpGlobals)
 
     # We should call this last.
     cleanUpHandler.register(killChildrenPosix)
@@ -1243,7 +1245,9 @@ if __name__ == '__main__':
   try:
     main(sys.argv[1:])
   except GPUVerifyException as e:
-    if e.getExitCode() != ErrorCodes.SUCCESS:
+    # We assume that globals are not cleaned up when running as a script so it 
+    # is safe to read CommandLineOptions
+    if e.getExitCode() != ErrorCodes.SUCCESS and CommandLineOptions.debugging:
       print(str(e))
     sys.exit(e.getExitCode())
 
