@@ -1217,7 +1217,8 @@ def main(argv):
 
     # Clean up globals so main() can be re-executed in
     # the context of an interactive python console
-    cleanUpHandler.register(_cleanUpGlobals)
+    if __name__ != '__main__':
+      cleanUpHandler.register(_cleanUpGlobals)
 
     # We should call this last.
     cleanUpHandler.register(killChildrenPosix)
@@ -1243,7 +1244,9 @@ if __name__ == '__main__':
   try:
     main(sys.argv[1:])
   except GPUVerifyException as e:
-    if e.getExitCode() != ErrorCodes.SUCCESS:
+    # We assume that globals are not cleaned up when running as a script so it 
+    # is safe to read CommandLineOptions
+    if e.getExitCode() != ErrorCodes.SUCCESS and CommandLineOptions.debugging:
       print(str(e))
     sys.exit(e.getExitCode())
 
