@@ -62,7 +62,7 @@ namespace DynamicAnalysis
             if (width == 1)
                 return new BitVector(Random.Next(0, 1));
             int lowestVal = 1;
-            int highestVal = 1024;
+            int highestVal = 1;
             return new BitVector(Random.Next(lowestVal, highestVal+1));
         }
 

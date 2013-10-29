@@ -362,7 +362,7 @@ namespace DynamicAnalysis
             {
                 if (a.Bits[i] == '1' && b.Bits[i] == '0')
                     bits[i] = '1';
-                else if (a.Bits[i] == '1' && b.Bits[i] == '0')
+                else if (a.Bits[i] == '0' && b.Bits[i] == '1')
                     bits[i] = '1';
                 else
                     bits[i] = '0';
