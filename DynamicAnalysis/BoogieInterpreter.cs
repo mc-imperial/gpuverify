@@ -408,7 +408,9 @@ namespace DynamicAnalysis
                     // Only check asserts which have attributes as these are the conjectured invariants
                     string tag = QKeyValue.FindStringAttribute(assert.Attributes, "tag");
                     if (tag != null)
-                    {
+                    {   
+                        //Memory.Dump();  
+                        Console.Write(cmd.ToString());
                         ExprTree tree = GetExprTree(assert.Expr);
                         if (!AssertStatus.ContainsKey(assert))
                             AssertStatus[assert] = BitVector.True;
