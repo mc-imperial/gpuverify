@@ -62,7 +62,7 @@ namespace DynamicAnalysis
             if (width == 1)
                 return new BitVector(Random.Next(0, 1));
             int lowestVal = 1;
-            int highestVal = 1;
+            int highestVal = 128;
             return new BitVector(Random.Next(lowestVal, highestVal+1));
         }
 
@@ -418,7 +418,7 @@ namespace DynamicAnalysis
                             EvaluateExprTree(tree);
                             if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                             {
-                                Console.Write("==========> Removing " + assert.ToString());
+                                Console.Write("==========> FALSE " + assert.ToString());
                                 AssertStatus[assert] = BitVector.False;
                                 Regex r = new Regex("_[a-z][0-9]+");
                                 MatchCollection matches = r.Matches(assert.ToString());
@@ -797,6 +797,7 @@ namespace DynamicAnalysis
                     }
                     else if (node is BVExtractNode<BitVector>)
                     {
+                        Console.Write(tree.expr.ToString());
                         BVExtractNode<BitVector> _node = node as BVExtractNode<BitVector>;
                         ExprNode<BitVector> child = (ExprNode<BitVector>) _node.GetChildren()[0];
                         if (child.uninitialised)
