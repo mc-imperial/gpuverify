@@ -234,6 +234,31 @@ namespace GPUVerify {
 
         NewCallCmd.Attributes = Call.Attributes;
 
+        if (NewCallCmd.callee.StartsWith("_LOG_ATOMIC"))
+        {
+          QKeyValue curr = NewCallCmd.Attributes;
+          if (curr.Key.StartsWith("arg"))
+            NewCallCmd.Attributes = new QKeyValue(Token.NoToken, curr.Key, new List<object>(new object[]{Dualise(curr.Params[0] as Expr,1)}), curr.Next);
+          for (curr = NewCallCmd.Attributes; curr.Next != null; curr = curr.Next)
+            if (curr.Next.Key.StartsWith("arg"))
+            {
+              curr.Next = new QKeyValue(Token.NoToken, curr.Next.Key, new List<object>(new object[]{Dualise(curr.Next.Params[0] as Expr,1)}), curr.Next.Next);
+              break;
+            }
+        }
+        else if (NewCallCmd.callee.StartsWith("_CHECK_ATOMIC"))
+        {
+          QKeyValue curr = NewCallCmd.Attributes;
+          if (curr.Key.StartsWith("arg"))
+            NewCallCmd.Attributes = new QKeyValue(Token.NoToken, curr.Key, new List<object>(new object[]{Dualise(curr.Params[0] as Expr, 2)}), curr.Next);
+          for (curr = NewCallCmd.Attributes; curr.Next != null; curr = curr.Next)
+            if (curr.Next.Key.StartsWith("arg"))
+            {
+              curr.Next = new QKeyValue(Token.NoToken, curr.Next.Key, new List<object>(new object[]{Dualise(curr.Next.Params[0] as Expr,2)}), curr.Next.Next);
+              break;
+            }
+        }
+
         cs.Add(NewCallCmd);
 
         if (Call.callee.Equals(verifier.BarrierProcedure.Name)) {

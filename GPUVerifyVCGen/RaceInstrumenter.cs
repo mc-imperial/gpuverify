@@ -486,7 +486,8 @@ namespace GPUVerify {
           if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
           {
             AddLogAndCheckCalls(result,new AccessRecord((call.Ins[0] as IdentifierExpr).Decl,call.Ins[1]),AccessType.ATOMIC,null);
-            (result[result.Count() - 1] as CallCmd).Attributes = new QKeyValue(Token.NoToken, "atomic_function", new List<object> (new object[] { QKeyValue.FindStringAttribute(call.Attributes, "atomic_function") }), (result[result.Count() - 1] as CallCmd).Attributes);
+            (result[result.Count() - 1] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // Magic numbers ahoy! -1 should be the check
+            (result[result.Count() - 3] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // And -3 should be the log
             result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr>(call.Outs.ToArray()))); // TODO: check this is right
             continue;
           }
@@ -519,7 +520,7 @@ namespace GPUVerify {
             }
 
             if (AccessSourceVariablesModifies.Count > 0) {
-              SourceLocationAttributes = call.Attributes;
+              SourceLocationAttributes = call.Attributes.Clone() as QKeyValue;
               TryWriteSourceLocToFile();
               CurrStmtNo++;
               foreach (var v in AccessSourceVariablesModifies) {
@@ -586,7 +587,7 @@ namespace GPUVerify {
       result.Add(captureStateAssume);
       CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
       checkAccessCallCmd.Proc = checkProcedure;
-      checkAccessCallCmd.Attributes = SourceLocationAttributes;
+      checkAccessCallCmd.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
       checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "state_id", new List<object>() { CheckState }, checkAccessCallCmd.Attributes);
       return checkAccessCallCmd;
     }
@@ -601,7 +602,7 @@ namespace GPUVerify {
       verifier.OnlyThread1.Add(logProcedure.Name);
       CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new List<IdentifierExpr>());
       logAccessCallCmd.Proc = logProcedure;
-      logAccessCallCmd.Attributes = SourceLocationAttributes;
+      logAccessCallCmd.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
       return logAccessCallCmd;
     }
 
