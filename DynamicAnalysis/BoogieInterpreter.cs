@@ -52,6 +52,7 @@ namespace DynamicAnalysis
             EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
             EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
             EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
+            Console.WriteLine(gpu.ToString());
             InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
             SummarizeKilledInvariants();
             Console.WriteLine("Dynamic analysis done");
@@ -60,10 +61,18 @@ namespace DynamicAnalysis
         private BitVector GetRandomBV(int width)
         {
             if (width == 1)
-                return new BitVector(Random.Next(0, 1));
-            int lowestVal = 1;
-            int highestVal = 128;
-            return new BitVector(Random.Next(lowestVal, highestVal+1));
+                return new BitVector(Random.Next(0, 2));
+            char[] bits = new char[width];
+            // Ensure the BV represents a non-negative integer
+            bits[0] = '0';
+            for (int i = 1; i < width; ++i)
+            {
+                if (Random.Next(0, 2) == 0)
+                    bits[i] = '0';
+                else
+                    bits[i] = '1'; 
+            }
+            return new BitVector(new string(bits));
         }
 
         private bool IsRaceArrayOffsetVariable(string name)
@@ -288,7 +297,7 @@ namespace DynamicAnalysis
             OpNode<BitVector> root = tree.Root() as OpNode<BitVector>;
             if (root != null)
             {          
-                if (root.op == "==" || root.op == "!" || root.op == "&&")
+                if (root.op == "==" || root.op == "!" || root.op == "&&" || root.op == "!=")
                 {
                     foreach (HashSet<Node> nodes in tree)
                     {	
@@ -309,6 +318,7 @@ namespace DynamicAnalysis
                             }
                             else if (node is BinaryNode<BitVector>)
                             {
+                                
                                 BinaryNode<BitVector> binary = node as BinaryNode<BitVector>;
                                 ScalarSymbolNode<BitVector> left = binary.GetChildren()[0] as ScalarSymbolNode<BitVector>;
                                 LiteralNode<BitVector> right = binary.GetChildren()[1] as LiteralNode<BitVector>;
@@ -797,7 +807,6 @@ namespace DynamicAnalysis
                     }
                     else if (node is BVExtractNode<BitVector>)
                     {
-                        Console.Write(tree.expr.ToString());
                         BVExtractNode<BitVector> _node = node as BVExtractNode<BitVector>;
                         ExprNode<BitVector> child = (ExprNode<BitVector>) _node.GetChildren()[0];
                         if (child.uninitialised)

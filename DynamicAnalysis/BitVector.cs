@@ -28,7 +28,7 @@ namespace DynamicAnalysis
                 SignExtend(width);
         }
         
-        private BitVector (string bits)
+        public BitVector (string bits)
         {
             Bits = bits;
         }
