@@ -67,7 +67,7 @@ namespace DynamicAnalysis
             bits[0] = '0';
             for (int i = 1; i < width; ++i)
             {
-                if (Random.Next(0, 2) == 0)
+                if (Random.NextDouble() > 0.25)
                     bits[i] = '0';
                 else
                     bits[i] = '1'; 
@@ -342,7 +342,9 @@ namespace DynamicAnalysis
                     if (v.TypedIdent.Type is BvType)
                     {
                         BvType bv = (BvType)v.TypedIdent.Type;
-                        Memory.Store(v.Name, GetRandomBV(bv.Bits));
+                        BitVector initialValue = GetRandomBV(bv.Bits);
+                        Memory.Store(v.Name, initialValue);
+                        Print.VerboseMessage("...assigning " + initialValue.ToString());
                     }
                     else if (v.TypedIdent.Type is BasicType)
                     {
@@ -652,6 +654,8 @@ namespace DynamicAnalysis
                             else
                                 binary.evaluations.Add(BitVector.False);
                             break;
+                        case "FEQ32":
+                        case "FEQ64":
                         case "FGE32":
                         case "FGE64":
                         case "FGT32":
