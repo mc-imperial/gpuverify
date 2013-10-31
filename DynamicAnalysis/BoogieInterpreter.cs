@@ -30,15 +30,15 @@ namespace DynamicAnalysis
 
     public class BoogieInterpreter
     {
-        private Program program;
+        private int instructionCounter = 0;
         private BitVector[] ThreadID1 = new BitVector[3];
         private BitVector[] ThreadID2 = new BitVector[3];
         private BitVector[] GroupID1 = new BitVector[3];
         private BitVector[] GroupID2 = new BitVector[3];
         private GPU gpu = new GPU();
-        private Implementation impl;
         private Random Random = new Random();
         private Memory Memory = new Memory();
+        private Dictionary<string, BitVector> FormalParameterValues = new Dictionary<string, BitVector>();
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
         private Dictionary<AssertCmd, BitVector> AssertStatus = new Dictionary<AssertCmd, BitVector>();
@@ -48,33 +48,20 @@ namespace DynamicAnalysis
         public BoogieInterpreter(Program program, Tuple<int, int, int> threadIDSpec, Tuple<int, int, int> groupIDSpec)
         {
             Console.WriteLine("Falsyifying invariants with dynamic analysis...");
-            this.program = program;
-            EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
-            EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
-            Console.WriteLine(gpu.ToString());
-            SetThreadIDs(threadIDSpec);
-            SetGroupIDs(groupIDSpec);
-            EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
-            InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
+            while (instructionCounter < 10000)
+            {
+                Memory.Clear();
+                EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
+                EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
+                Console.WriteLine(gpu.ToString());
+                SetThreadIDs(threadIDSpec);
+                SetGroupIDs(groupIDSpec);
+                
+                EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
+                InterpretKernels(program);
+            }
             SummarizeKilledInvariants();
             Console.WriteLine("Dynamic analysis done");
-        }
-
-        private BitVector GetRandomBV(int width)
-        {
-            if (width == 1)
-                return new BitVector(Random.Next(0, 2));
-            char[] bits = new char[width];
-            // Ensure the BV represents a non-negative integer
-            bits[0] = '0';
-            for (int i = 1; i < width; ++i)
-            {
-                if (Random.NextDouble() > 0.25)
-                    bits[i] = '0';
-                else
-                    bits[i] = '1'; 
-            }
-            return new BitVector(new string(bits));
         }
         
         private Tuple<BitVector, BitVector> GetID (int selectedValue, int dimensionUpperBound)
@@ -128,11 +115,6 @@ namespace DynamicAnalysis
             GroupID2[1] = dimY.Item2;
             GroupID1[2] = dimZ.Item1;
             GroupID2[2] = dimZ.Item2;    
-        }
-
-        private bool IsRaceArrayOffsetVariable(string name)
-        {
-            return Regex.IsMatch(name, "_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase);
         }
 
         private ExprTree GetExprTree(Expr expr)
@@ -209,7 +191,7 @@ namespace DynamicAnalysis
             {
                 if (decl.TypedIdent.Type is MapType)
                     Memory.AddGlobalArray(decl.Name);
-                if (IsRaceArrayOffsetVariable(decl.Name))
+                if (Regex.IsMatch(decl.Name, "_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase))
                 {
                     if (QKeyValue.FindBoolAttribute(decl.Attributes, "GLOBAL"))
                         Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GLOBAL);
@@ -282,19 +264,19 @@ namespace DynamicAnalysis
             }
         }
 
-        private void InterpretKernels(IEnumerable<Implementation> implementations)
+        private void InterpretKernels(Program program)
         {
+            IEnumerable<Implementation> implementations = program.TopLevelDeclarations.OfType<Implementation>().
+                                                            Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel"));
             try
             {
                 foreach (Implementation impl in implementations)
                 {
                     Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
-                    this.impl = impl;
                     foreach (Requires requires in impl.Proc.Requires)
                     {
                         EvaluateRequires(requires);
                     }
-                    Memory.Dump();
                     foreach (Block block in impl.Blocks)
                     {
                         LabelToBlock[block.Label] = block;
@@ -305,7 +287,7 @@ namespace DynamicAnalysis
                         Block block = impl.Blocks[0];
                         while (block != null && assumesHold)
                         {
-                            assumesHold = InterpretBasicBlock(block);
+                            assumesHold = InterpretBasicBlock(program, impl, block);
                             block = TransferControl(block);
                         }
                     }
@@ -349,7 +331,6 @@ namespace DynamicAnalysis
                                 BinaryNode<BitVector> binary = node as BinaryNode<BitVector>;
                                 if (binary.op == "==")
                                 {
-                                    Console.WriteLine(requires.Condition.ToString());
                                     LiteralNode<BitVector> right = binary.GetChildren()[1] as LiteralNode<BitVector>;
                                     if (right != null)
                                     {
@@ -377,7 +358,60 @@ namespace DynamicAnalysis
                 }
             }
         }
-
+        
+        private BitVector InitialiseFormalParameter (int width, BitVector previousValue = null)
+        {
+            if (width == 1)
+            {
+                if (previousValue != null && previousValue.Equals(BitVector.False))
+                    return BitVector.True;
+                else if (previousValue != null && previousValue.Equals(BitVector.True))
+                    return BitVector.False;
+                else if (Random.Next(0, 2) == 1)
+                    return BitVector.True;
+                else
+                    return BitVector.False;
+            }
+            else
+            {
+                char[] previousBits; 
+                
+                if (previousValue != null)
+                {
+                    previousBits = previousValue.Bits.ToCharArray();
+                }
+                else
+                {   
+                    previousBits = new char[width];
+                    for (int i = 0; i < width; ++i)
+                        previousBits[i] = '0';
+                }
+                char[] bits = new char[width];
+                // Ensure the BV represents a non-negative integer
+                bits[0] = '0';
+                // Ensure the BV is always an even integer
+                bits[width-1] = '0';
+                for (int i = 1; i < width - 1; ++i)
+                {
+                    if (previousValue != null)
+                    { 
+                        if (previousValue.Bits[i+1] == '1')
+                            bits[i] = '1';
+                        else
+                            bits[i] = '0';
+                    }
+                    else
+                    {
+                        if (i == width - 2)
+                            bits[i] = '1';
+                        else
+                            bits[i] = '0';
+                    }
+                } 
+                return new BitVector(new string(bits));
+            }
+        }
+        
         private void InitialiseFormalParams(List<Variable> formals)
         {
             foreach (Variable v in formals)
@@ -386,33 +420,49 @@ namespace DynamicAnalysis
                 if (!Memory.Contains(v.Name))
                 {
                     Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised", v.Name, v.TypedIdent.Type.ToString()));
+                    int width;
                     if (v.TypedIdent.Type is BvType)
                     {
                         BvType bv = (BvType)v.TypedIdent.Type;
-                        BitVector initialValue = GetRandomBV(bv.Bits);
-                        Memory.Store(v.Name, initialValue);
-                        Print.VerboseMessage("...assigning " + initialValue.ToString());
+                        width = bv.Bits;
                     }
                     else if (v.TypedIdent.Type is BasicType)
                     {
                         BasicType basic = (BasicType)v.TypedIdent.Type;
                         if (basic.IsInt)
-                            Memory.Store(v.Name, GetRandomBV(32));
+                            width = 32;
                         else
                             throw new UnhandledException(String.Format("Unhandled basic type '{0}'", basic.ToString()));
                     }
                     else
                         throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
-                }
+                    
+                    BitVector initialValue;
+                    if (!FormalParameterValues.ContainsKey(v.Name))
+                    {
+                        initialValue = InitialiseFormalParameter(width);
+                        FormalParameterValues[v.Name] = initialValue;
+                    }
+                    else
+                    {
+                        BitVector previousValue = FormalParameterValues[v.Name];
+                        initialValue = InitialiseFormalParameter(width, previousValue);
+                        FormalParameterValues[v.Name] = initialValue;
+                    }
+                    
+                    Memory.Store(v.Name, initialValue);
+                    Print.VerboseMessage("...assigning " + initialValue.ToString());
+                  }
 			}
         }
 
-        private bool InterpretBasicBlock (Block block)
+        private bool InterpretBasicBlock (Program program, Implementation impl, Block block)
         {
             Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", block.Label), 1);
             // Execute all the statements
             foreach (Cmd cmd in block.Cmds)
             {   
+                instructionCounter += 1;
                 //Console.Write(cmd.ToString());
                 if (cmd is AssignCmd)
                 {
@@ -507,7 +557,15 @@ namespace DynamicAnalysis
                         if (id.Type is BvType)
                         {
                             BvType bv = (BvType)id.Type;
-                            Memory.Store(id.Name, GetRandomBV(bv.Bits));
+                            char[] randomBits = new char[bv.Bits];
+                            for (int i = 0; i < bv.Bits; ++i)
+                            {
+                                if (Random.Next(0, 2) == 1)
+                                    randomBits[i] = '1';
+                                else
+                                    randomBits[i] = '0';
+                            }
+                            Memory.Store(id.Name, new BitVector(new  string(randomBits)));
                         }
                     }
                 }
@@ -816,7 +874,7 @@ namespace DynamicAnalysis
                     if (node is ScalarSymbolNode<BitVector>)
                     {
                         ScalarSymbolNode<BitVector> _node = node as ScalarSymbolNode<BitVector>;
-                        if (IsRaceArrayOffsetVariable(_node.symbol))
+                        if (Regex.IsMatch(_node.symbol, "_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase))
                         {							
                             foreach (BitVector offset in Memory.GetRaceArrayOffsets(_node.symbol))
                             {
