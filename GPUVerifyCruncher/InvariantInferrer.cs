@@ -107,8 +107,7 @@ namespace Microsoft.Boogie
             }
           }
 
-          if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased") ||
-              ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("dynamic-first")) {
+          if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("default")) {
             Task.WaitAll(unsoundTasks.ToArray());
           }
         }
@@ -124,7 +123,7 @@ namespace Microsoft.Boogie
           }
         }
 
-        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("phased") ||
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("default") ||
             ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInferenceScheduling.Equals("unsound-first")) {
           Task.WaitAll(unsoundTasks.ToArray());
         }

@@ -20,7 +20,7 @@ namespace GPUVerify
   public class GPUVerifyCruncherCommandLineOptions : GVCommandLineOptions
   {
     public string ConfigFile = "inference.cfg";
-    public string ParallelInferenceScheduling = "all-together";
+    public string ParallelInferenceScheduling = "default";
     public bool ParallelInference = false;
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;

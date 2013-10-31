@@ -251,7 +251,7 @@ class DefaultCmdLineOptions(object):
     self.stagedInference = False
     self.parallelInference = False
     self.dynamicAnalysis = False
-    self.scheduling = "all-together"
+    self.scheduling = "default"
     self.inferInfo = False
     self.debuggingHoudini = False
     self.stopAtOpt = False
@@ -493,14 +493,13 @@ def showHelpAndExit():
     --parallel-inference    Use multiple solver instances in parallel to accelerate invariant
                             inference (but this is not guaranteed)
     --dynamic-analysis      Use dynamic analysis to falsify invariants.
-    --scheduling=X          Choose a parallel scheduling strategy from the following: 'all-together',
-                            'unsound-first', 'dynamic-first' or 'phased'. The 'all-together' strategy
-                            executes all refutation engines together. The 'unsound-first' strategy
-                            executes any unsound engines (either static or dynamic) before the sound
-                            engines. The 'dynamic-first' strategy executes any dynamic engines before
-                            the static engines. The 'phased' strategy executes first any dynamic engines,
-                            then any unsound static engines and then the sound static engines. The default
-                            scheduling is 'all-together'.
+    --scheduling=X          Choose a parallel scheduling strategy from the following: 'default',
+                            'unsound-first' or 'brute-force'. The 'default' strategy executes
+                            first any dynamic engines, then any unsound static engines and then
+                            the sound static engines. The 'unsound-first' strategy executes any
+                            unsound engines (either static or dynamic) together before the sound
+                            engines. The 'brute-force' strategy executes all engines together but
+                            performance is highly non-deterministic.
     --infer-config-file=X.cfg       Specify a custom configuration file to be used
                             during invariant inference
     --infer-info            Prints information about the inference process.
