@@ -248,12 +248,14 @@ namespace DynamicAnalysis
 
         public static bool operator==(BitVector a, BitVector b)
         {
-            return a.Bits.Equals(b.Bits);
+            if (object.ReferenceEquals(a, null))
+                return object.ReferenceEquals(b, null);
+            return a.Equals(b);
         }
 
         public static bool operator!=(BitVector a, BitVector b)
         {
-            return !a.Bits.Equals(b.Bits);
+            return !(a == b);
         }
 
         public static bool operator<(BitVector a, BitVector b)
