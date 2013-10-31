@@ -146,51 +146,25 @@ namespace DynamicAnalysis
 
         public static BitVector operator+(BitVector a, BitVector b)
         {
-            int val;
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                val = checked(aData + bData);
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
+            int aData = Convert.ToInt32(a.Bits, 2);
+            int bData = Convert.ToInt32(b.Bits, 2);
+            int val = aData + bData;
             return new BitVector(val);
         }
 
         public static BitVector operator-(BitVector a, BitVector b)
         {
-            int val;
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                val = checked(aData - bData);
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
+            int aData = Convert.ToInt32(a.Bits, 2);
+            int bData = Convert.ToInt32(b.Bits, 2);
+            int val = aData - bData;
             return new BitVector(val);
         }
 
         public static BitVector operator*(BitVector a, BitVector b)
         {
-            int val;
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                val = checked(aData * bData);
-            }
-            catch (OverflowException)
-            {
-                Console.WriteLine(a.Bits);
-                Console.WriteLine(b.Bits);
-                throw;
-            }
+            int aData = Convert.ToInt32(a.Bits, 2);
+            int bData = Convert.ToInt32(b.Bits, 2);
+            int val = aData * bData;
             return new BitVector(val);
         }
 
@@ -228,33 +202,17 @@ namespace DynamicAnalysis
 
         public static BitVector operator&(BitVector a, BitVector b)
         {
-            int val;
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                val = checked(aData & bData);
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
+            int aData = Convert.ToInt32(a.Bits, 2);
+            int bData = Convert.ToInt32(b.Bits, 2);
+            int val = checked(aData & bData);
             return new BitVector(val);
         }
 
         public static BitVector operator|(BitVector a, BitVector b)
         {
-            int val;
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                val = checked(aData | bData);
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
+            int aData = Convert.ToInt32(a.Bits, 2);
+            int bData = Convert.ToInt32(b.Bits, 2);
+            int val = checked(aData | bData);
             return new BitVector(val);
         }
 

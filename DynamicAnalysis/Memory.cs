@@ -118,8 +118,10 @@ namespace DynamicAnalysis
         {
             if (!arrays.ContainsKey(name))
                 arrays[name] = new Dictionary<SubscriptExpr, BitVector>();
-            if (!SubscriptExpr.Matches(subscript, arrays[name].Keys.ToList()))
-                arrays[name][subscript] = val;
+            SubscriptExpr matchingSubscript = SubscriptExpr.Matches(subscript, arrays[name].Keys.ToList());
+            if (matchingSubscript != null)
+                arrays[name].Remove(matchingSubscript);
+            arrays[name][subscript] = val;
         }
 
         public BitVector GetValue(string name)
@@ -213,20 +215,20 @@ namespace DynamicAnalysis
                 return false;
             foreach (var pair in expr1.indices.Zip(expr2.indices))
             {
-                if (pair.Item1 != pair.Item2)
+                if (!pair.Item1.Equals(pair.Item2))
                     return false;
             }
             return true;
         }
 
-        public static bool Matches(SubscriptExpr expr, List<SubscriptExpr> exprs)
+        public static SubscriptExpr Matches(SubscriptExpr expr, List<SubscriptExpr> exprs)
         {
             foreach (SubscriptExpr expr2 in exprs)
             {
                 if (Matches(expr, expr2))
-                    return true;
+                    return expr2;
             }
-            return false;
+            return null;
         }
 
         public SubscriptExpr()

@@ -318,12 +318,31 @@ namespace DynamicAnalysis
                             }
                             else if (node is BinaryNode<BitVector>)
                             {
-                                
                                 BinaryNode<BitVector> binary = node as BinaryNode<BitVector>;
-                                ScalarSymbolNode<BitVector> left = binary.GetChildren()[0] as ScalarSymbolNode<BitVector>;
-                                LiteralNode<BitVector> right = binary.GetChildren()[1] as LiteralNode<BitVector>;
-                                if (left != null && right != null && binary.op == "==")
-                                    Memory.Store(left.symbol, right.GetUniqueElement());
+                                if (binary.op == "==")
+                                {
+                                    Console.WriteLine(requires.Condition.ToString());
+                                    LiteralNode<BitVector> right = binary.GetChildren()[1] as LiteralNode<BitVector>;
+                                    if (right != null)
+                                    {
+                                        ScalarSymbolNode<BitVector> left = binary.GetChildren()[0] as ScalarSymbolNode<BitVector>;    
+                                        MapSymbolNode<BitVector> left2 = binary.GetChildren()[0] as MapSymbolNode<BitVector>;
+                                        if (left != null)
+                                        {
+                                            Memory.Store(left.symbol, right.GetUniqueElement());
+                                        }
+                                        else if (left2 != null)
+                                        {
+                                            SubscriptExpr subscriptExpr = new SubscriptExpr();
+                                            foreach (ExprNode<BitVector> child in left2.GetChildren())
+                                            {
+                                                BitVector subscript = child.GetUniqueElement();
+                                                subscriptExpr.AddIndex(subscript);
+                                            }
+                                            Memory.Store(left2.basename, subscriptExpr, right.GetUniqueElement());
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -412,6 +431,8 @@ namespace DynamicAnalysis
                         LogRead(call);
                     else if (Regex.IsMatch(call.callee, "_LOG_WRITE_", RegexOptions.IgnoreCase))
                         LogWrite(call);
+                    else if (Regex.IsMatch(call.callee, "_LOG_ATOMIC_", RegexOptions.IgnoreCase))
+                        LogAtomic(call);
                     else if (Regex.IsMatch(call.callee, "bugle_barrier", RegexOptions.IgnoreCase))
                         Barrier(call);
                 }
@@ -1028,6 +1049,36 @@ namespace DynamicAnalysis
                 Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
                 string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
                 Memory.Store(accessTracker, BitVector.True);
+            }
+        }
+        
+        private void LogAtomic(CallCmd call)
+        {
+            Print.DebugMessage("In log atomic", 10);
+            int dollarIndex = call.callee.IndexOf('$');
+            Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
+            string arrayName = call.callee.Substring(dollarIndex);
+            // Evaluate the offset expression 
+            Expr offsetExpr = call.Ins[1];
+            ExprTree offsetTree = GetExprTree(offsetExpr);
+            EvaluateExprTree(offsetTree);
+            // Build the subscript expression
+            SubscriptExpr subscriptExpr = new SubscriptExpr();
+            subscriptExpr.AddIndex(offsetTree.evaluation);
+            // For now assume there is only one argument to the atomic function
+            Expr argExpr = QKeyValue.FindExprAttribute(call.Attributes, "arg1");
+            ExprTree argTree = GetExprTree(argExpr);
+            EvaluateExprTree(argTree);
+            string atomicFunction = QKeyValue.FindStringAttribute(call.Attributes, "atomic_function");
+            switch (atomicFunction)
+            {
+                case "__atomicAdd_unsigned_int":
+                    BitVector currentVal = Memory.GetValue(arrayName, subscriptExpr);
+                    BitVector updatedVal = currentVal + argTree.evaluation;
+                    Memory.Store(arrayName, subscriptExpr, updatedVal);
+                    break;
+                default:
+                    throw new UnhandledException("Unable to handle atomic function: " + atomicFunction);
             }
         }
         
