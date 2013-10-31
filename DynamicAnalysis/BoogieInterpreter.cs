@@ -31,8 +31,10 @@ namespace DynamicAnalysis
     public class BoogieInterpreter
     {
         private Program program;
-        private Tuple<int, int, int> threadID;
-        private Tuple<int, int, int> groupID;
+        private BitVector[] ThreadID1 = new BitVector[3];
+        private BitVector[] ThreadID2 = new BitVector[3];
+        private BitVector[] GroupID1 = new BitVector[3];
+        private BitVector[] GroupID2 = new BitVector[3];
         private GPU gpu = new GPU();
         private Implementation impl;
         private Random Random = new Random();
@@ -43,16 +45,16 @@ namespace DynamicAnalysis
         private HashSet<string> KilledAsserts = new HashSet<string>();
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         
-        public BoogieInterpreter(Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
+        public BoogieInterpreter(Program program, Tuple<int, int, int> threadIDSpec, Tuple<int, int, int> groupIDSpec)
         {
             Console.WriteLine("Falsyifying invariants with dynamic analysis...");
             this.program = program;
-            this.threadID = threadID;
-            this.groupID = groupID;
             EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
             EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
-            EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
             Console.WriteLine(gpu.ToString());
+            SetThreadIDs(threadIDSpec);
+            SetGroupIDs(groupIDSpec);
+            EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
             InterpretKernels(program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")));
             SummarizeKilledInvariants();
             Console.WriteLine("Dynamic analysis done");
@@ -73,6 +75,59 @@ namespace DynamicAnalysis
                     bits[i] = '1'; 
             }
             return new BitVector(new string(bits));
+        }
+        
+        private Tuple<BitVector, BitVector> GetID (int selectedValue, int dimensionUpperBound)
+        {
+            if (selectedValue > -1)
+            {
+                if (selectedValue == int.MaxValue)
+                {
+                    BitVector val1 = new BitVector(dimensionUpperBound);
+                    BitVector val2 = new BitVector(dimensionUpperBound);
+                    return Tuple.Create(val1, val2);
+                }
+                else
+                {
+                    BitVector val1 = new BitVector(selectedValue);
+                    BitVector val2 = new BitVector(selectedValue);
+                    return Tuple.Create(val1, val2);
+                }
+            }
+            else
+            {
+                BitVector val1 = new BitVector(Random.Next(0, dimensionUpperBound+1));
+                BitVector val2 = new BitVector(Random.Next(0, dimensionUpperBound+1));
+                return Tuple.Create(val1, val2);
+            }
+        }
+        
+        private void SetThreadIDs (Tuple<int, int, int> threadIDSpec)
+        {
+            Tuple<BitVector,BitVector> dimX = GetID(threadIDSpec.Item1, gpu.blockDim[DIMENSION.X] - 1);
+            Tuple<BitVector,BitVector> dimY = GetID(threadIDSpec.Item2, gpu.blockDim[DIMENSION.Y] - 1);
+            Tuple<BitVector,BitVector> dimZ = GetID(threadIDSpec.Item3, gpu.blockDim[DIMENSION.Z] - 1);
+            
+            ThreadID1[0] = dimX.Item1;
+            ThreadID2[0] = dimX.Item2;
+            ThreadID1[1] = dimY.Item1;
+            ThreadID2[1] = dimY.Item2;
+            ThreadID1[2] = dimZ.Item1;
+            ThreadID2[2] = dimZ.Item2;    
+        }
+        
+        private void SetGroupIDs (Tuple<int, int, int> groupIDSpec)
+        {
+            Tuple<BitVector,BitVector> dimX = GetID(groupIDSpec.Item1, gpu.gridDim[DIMENSION.X] - 1);
+            Tuple<BitVector,BitVector> dimY = GetID(groupIDSpec.Item2, gpu.gridDim[DIMENSION.Y] - 1);
+            Tuple<BitVector,BitVector> dimZ = GetID(groupIDSpec.Item3, gpu.gridDim[DIMENSION.Z] - 1);
+            
+            GroupID1[0] = dimX.Item1;
+            GroupID2[0] = dimX.Item2;
+            GroupID1[1] = dimY.Item1;
+            GroupID2[1] = dimY.Item2;
+            GroupID1[2] = dimZ.Item1;
+            GroupID2[2] = dimZ.Item2;    
         }
 
         private bool IsRaceArrayOffsetVariable(string name)
@@ -157,13 +212,9 @@ namespace DynamicAnalysis
                 if (IsRaceArrayOffsetVariable(decl.Name))
                 {
                     if (QKeyValue.FindBoolAttribute(decl.Attributes, "GLOBAL"))
-                    {
                         Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GLOBAL);
-                    }
                     else
-                    {
                         Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GROUP_SHARED);
-                    }
                 }
             }
         }
@@ -180,77 +231,53 @@ namespace DynamicAnalysis
                     else
                         Memory.Store(constant.Name, BitVector.False);
                 }
-                else if (Regex.IsMatch(constant.Name, "local_id_x", RegexOptions.IgnoreCase))
+                else if (constant.Name.Equals("local_id_x$1"))
                 {
-                    if (threadID.Item1 > -1)
-                    {
-                        if (threadID.Item1 == int.MaxValue)
-                            Memory.Store(constant.Name, new BitVector(gpu.blockDim[DIMENSION.X] - 1));
-                        else
-                            Memory.Store(constant.Name, new BitVector(threadID.Item1));
-                    }
-                    else
-                        Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.blockDim[DIMENSION.X] - 1)));
+                    Memory.Store(constant.Name, ThreadID1[0]);
                 }
-                else if (Regex.IsMatch(constant.Name, "local_id_y", RegexOptions.IgnoreCase))
+                else if (constant.Name.Equals("local_id_y$1"))
                 {
-                    if (threadID.Item2 > -1)
-                    {
-                        if (threadID.Item2 == int.MaxValue)
-                            Memory.Store(constant.Name, new BitVector(gpu.blockDim[DIMENSION.Y] - 1));
-                        else
-                            Memory.Store(constant.Name, new BitVector(threadID.Item2));
-                    }
-                    else
-                        Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.blockDim[DIMENSION.Y] - 1)));
+                    Memory.Store(constant.Name, ThreadID1[1]);
                 }
-                else if (Regex.IsMatch(constant.Name, "local_id_z", RegexOptions.IgnoreCase))
+                else if (constant.Name.Equals("local_id_z$1"))
                 {
-                    if (threadID.Item3 > -1)
-                    {
-                        if (threadID.Item3 == int.MaxValue)
-                            Memory.Store(constant.Name, new BitVector(gpu.blockDim[DIMENSION.Z] - 1));
-                        else
-                            Memory.Store(constant.Name, new BitVector(threadID.Item3));
-                    }
-                    else
-                        Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.blockDim[DIMENSION.Z] - 1)));
+                    Memory.Store(constant.Name, ThreadID1[2]);
                 }
-                else if (Regex.IsMatch(constant.Name, "group_id_x", RegexOptions.IgnoreCase))
+                else if (constant.Name.Equals("local_id_x$2"))
                 {
-                    if (groupID.Item1 > -1)
-                    {
-                        if (groupID.Item1 == int.MaxValue)
-                            Memory.Store(constant.Name, new BitVector(gpu.gridDim[DIMENSION.X] - 1));
-                        else
-                            Memory.Store(constant.Name, new BitVector(groupID.Item1));
-                    }
-                    else
-                        Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.gridDim[DIMENSION.X] - 1)));
+                    Memory.Store(constant.Name, ThreadID2[0]);
                 }
-                else if (Regex.IsMatch(constant.Name, "group_id_y", RegexOptions.IgnoreCase))
+                else if (constant.Name.Equals("local_id_y$2"))
                 {
-                    if (groupID.Item2 > -1)
-                    {
-                        if (groupID.Item2 == int.MaxValue)
-                            Memory.Store(constant.Name, new BitVector(gpu.gridDim[DIMENSION.Y] - 1));
-                        else
-                            Memory.Store(constant.Name, new BitVector(groupID.Item2));
-                    }
-                    else
-                        Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.gridDim[DIMENSION.Y] - 1)));
+                    Memory.Store(constant.Name, ThreadID2[1]);
                 }
-                else if (Regex.IsMatch(constant.Name, "group_id_z", RegexOptions.IgnoreCase))
+                else if (constant.Name.Equals("local_id_z$2"))
                 {
-                    if (groupID.Item3 > -1)
-                    {
-                        if (groupID.Item3 == int.MaxValue)
-                            Memory.Store(constant.Name, new BitVector(gpu.gridDim[DIMENSION.Z] - 1));
-                        else
-                            Memory.Store(constant.Name, new BitVector(groupID.Item3));
-                    }
-                    else
-                        Memory.Store(constant.Name, new BitVector(Random.Next(0, gpu.gridDim[DIMENSION.Z] - 1)));
+                    Memory.Store(constant.Name, ThreadID2[2]);
+                }
+                else if (constant.Name.Equals("group_id_x$1"))
+                {
+                    Memory.Store(constant.Name, GroupID1[0]);
+                }
+                else if (constant.Name.Equals("group_id_y$1"))
+                {
+                    Memory.Store(constant.Name, GroupID1[1]);
+                }
+                else if (constant.Name.Equals("group_id_z$1"))
+                {
+                    Memory.Store(constant.Name, GroupID1[2]);
+                }
+                else if (constant.Name.Equals("group_id_x$2"))
+                {
+                    Memory.Store(constant.Name, GroupID2[0]);
+                }
+                else if (constant.Name.Equals("group_id_y$2"))
+                {
+                    Memory.Store(constant.Name, GroupID2[1]);
+                }
+                else if (constant.Name.Equals("group_id_z$2"))
+                {
+                    Memory.Store(constant.Name, GroupID2[2]);
                 }
             }
         }
@@ -267,6 +294,7 @@ namespace DynamicAnalysis
                     {
                         EvaluateRequires(requires);
                     }
+                    Memory.Dump();
                     foreach (Block block in impl.Blocks)
                     {
                         LabelToBlock[block.Label] = block;
