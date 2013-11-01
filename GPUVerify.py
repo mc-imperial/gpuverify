@@ -1246,7 +1246,8 @@ if __name__ == '__main__':
   except GPUVerifyException as e:
     # We assume that globals are not cleaned up when running as a script so it 
     # is safe to read CommandLineOptions
-    if e.getExitCode() != ErrorCodes.SUCCESS and CommandLineOptions.debugging:
+    if (e.getExitCode() == ErrorCodes.COMMAND_LINE_ERROR or 
+        e.getExitCode() != ErrorCodes.SUCCESS and CommandLineOptions.debugging):
       print(str(e))
     sys.exit(e.getExitCode())
 
