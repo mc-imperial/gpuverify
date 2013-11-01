@@ -122,8 +122,6 @@ namespace DynamicAnalysis
             if (matchingSubscript != null)
                 arrays[name].Remove(matchingSubscript);
             arrays[name][subscript] = val;
-            
-            Console.WriteLine(name + "[" + subscript.ToString() + "] = " + val.ToString());
         }
 
         public BitVector GetValue(string name)

@@ -31,10 +31,10 @@ namespace DynamicAnalysis
     public class BoogieInterpreter
     {
         private int instructionCounter = 0;
-        private BitVector[] ThreadID1 = new BitVector[3];
-        private BitVector[] ThreadID2 = new BitVector[3];
-        private BitVector[] GroupID1 = new BitVector[3];
-        private BitVector[] GroupID2 = new BitVector[3];
+        private BitVector[] LocalID1 = new BitVector[3];
+        private BitVector[] LocalID2 = new BitVector[3];
+        private BitVector[] GlobalID1 = new BitVector[3];
+        private BitVector[] GlobalID2 = new BitVector[3];
         private GPU gpu = new GPU();
         private Random Random = new Random();
         private Memory Memory = new Memory();
@@ -44,24 +44,47 @@ namespace DynamicAnalysis
         private Dictionary<AssertCmd, BitVector> AssertStatus = new Dictionary<AssertCmd, BitVector>();
         private HashSet<string> KilledAsserts = new HashSet<string>();
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
+        private HashSet<Block> Covered = new HashSet<Block>();
         
-        public BoogieInterpreter(Program program, Tuple<int, int, int> threadIDSpec, Tuple<int, int, int> groupIDSpec)
+        public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
         {
+            Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();   
             Console.WriteLine("Falsyifying invariants with dynamic analysis...");
-            while (instructionCounter < 10000)
+            do
             {
                 Memory.Clear();
                 EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
                 EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
-                Console.WriteLine(gpu.ToString());
-                SetThreadIDs(threadIDSpec);
-                SetGroupIDs(groupIDSpec);
-                
-                EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());			
-                InterpretKernels(program);
-            }
+                Print.VerboseMessage(gpu.ToString());
+                SetLocalIDs(localIDSpecification);
+                SetGlobalIDs(globalIDSpecification);
+                Print.VerboseMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()));
+                Print.VerboseMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()));
+                Print.VerboseMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()));
+                Print.VerboseMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
+                EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());		
+                InterpretKernel(program, impl);
+            } while (instructionCounter < 10000 && !AllBlocksCovered(impl));
             SummarizeKilledInvariants();
             Console.WriteLine("Dynamic analysis done");
+        }
+               
+        private bool AllBlocksCovered (Implementation impl)
+        {
+            foreach (Block block in impl.Blocks)
+            {
+                if (!Covered.Contains(block))
+                    return false;
+            }
+            Console.WriteLine("All basic blocks covered");
+            return true;
+        }
+              
+        private void SummarizeKilledInvariants ()
+        {
+            Console.WriteLine("Dynamic analysis removed:");
+            foreach (string BoogieVariable in KilledAsserts)
+                Console.WriteLine(BoogieVariable);
         }
         
         private Tuple<BitVector, BitVector> GetID (int selectedValue, int dimensionUpperBound)
@@ -71,13 +94,21 @@ namespace DynamicAnalysis
                 if (selectedValue == int.MaxValue)
                 {
                     BitVector val1 = new BitVector(dimensionUpperBound);
-                    BitVector val2 = new BitVector(dimensionUpperBound);
+                    BitVector val2;
+                    if (dimensionUpperBound > 0)
+                        val2 = new BitVector(dimensionUpperBound - 1);
+                    else 
+                        val2 = new BitVector(dimensionUpperBound);
                     return Tuple.Create(val1, val2);
                 }
                 else
                 {
                     BitVector val1 = new BitVector(selectedValue);
-                    BitVector val2 = new BitVector(selectedValue);
+                    BitVector val2;
+                    if (selectedValue < dimensionUpperBound) 
+                        val2 = new BitVector(selectedValue + 1);
+                    else
+                        val2 = new BitVector(selectedValue);
                     return Tuple.Create(val1, val2);
                 }
             }
@@ -89,32 +120,32 @@ namespace DynamicAnalysis
             }
         }
         
-        private void SetThreadIDs (Tuple<int, int, int> threadIDSpec)
+        private void SetLocalIDs (Tuple<int, int, int> localIDSpecification)
         {
-            Tuple<BitVector,BitVector> dimX = GetID(threadIDSpec.Item1, gpu.blockDim[DIMENSION.X] - 1);
-            Tuple<BitVector,BitVector> dimY = GetID(threadIDSpec.Item2, gpu.blockDim[DIMENSION.Y] - 1);
-            Tuple<BitVector,BitVector> dimZ = GetID(threadIDSpec.Item3, gpu.blockDim[DIMENSION.Z] - 1);
+            Tuple<BitVector,BitVector> dimX = GetID(localIDSpecification.Item1, gpu.blockDim[DIMENSION.X] - 1);
+            Tuple<BitVector,BitVector> dimY = GetID(localIDSpecification.Item2, gpu.blockDim[DIMENSION.Y] - 1);
+            Tuple<BitVector,BitVector> dimZ = GetID(localIDSpecification.Item3, gpu.blockDim[DIMENSION.Z] - 1);
             
-            ThreadID1[0] = dimX.Item1;
-            ThreadID2[0] = dimX.Item2;
-            ThreadID1[1] = dimY.Item1;
-            ThreadID2[1] = dimY.Item2;
-            ThreadID1[2] = dimZ.Item1;
-            ThreadID2[2] = dimZ.Item2;    
+            LocalID1[0] = dimX.Item1;
+            LocalID2[0] = dimX.Item2;
+            LocalID1[1] = dimY.Item1;
+            LocalID2[1] = dimY.Item2;
+            LocalID1[2] = dimZ.Item1;
+            LocalID2[2] = dimZ.Item2;    
         }
         
-        private void SetGroupIDs (Tuple<int, int, int> groupIDSpec)
+        private void SetGlobalIDs (Tuple<int, int, int> globalIDSpecification)
         {
-            Tuple<BitVector,BitVector> dimX = GetID(groupIDSpec.Item1, gpu.gridDim[DIMENSION.X] - 1);
-            Tuple<BitVector,BitVector> dimY = GetID(groupIDSpec.Item2, gpu.gridDim[DIMENSION.Y] - 1);
-            Tuple<BitVector,BitVector> dimZ = GetID(groupIDSpec.Item3, gpu.gridDim[DIMENSION.Z] - 1);
+            Tuple<BitVector,BitVector> dimX = GetID(globalIDSpecification.Item1, gpu.gridDim[DIMENSION.X] - 1);
+            Tuple<BitVector,BitVector> dimY = GetID(globalIDSpecification.Item2, gpu.gridDim[DIMENSION.Y] - 1);
+            Tuple<BitVector,BitVector> dimZ = GetID(globalIDSpecification.Item3, gpu.gridDim[DIMENSION.Z] - 1);
             
-            GroupID1[0] = dimX.Item1;
-            GroupID2[0] = dimX.Item2;
-            GroupID1[1] = dimY.Item1;
-            GroupID2[1] = dimY.Item2;
-            GroupID1[2] = dimZ.Item1;
-            GroupID2[2] = dimZ.Item2;    
+            GlobalID1[0] = dimX.Item1;
+            GlobalID2[0] = dimX.Item2;
+            GlobalID1[1] = dimY.Item1;
+            GlobalID2[1] = dimY.Item2;
+            GlobalID1[2] = dimZ.Item1;
+            GlobalID2[2] = dimZ.Item2;    
         }
 
         private ExprTree GetExprTree(Expr expr)
@@ -215,81 +246,76 @@ namespace DynamicAnalysis
                 }
                 else if (constant.Name.Equals("local_id_x$1"))
                 {
-                    Memory.Store(constant.Name, ThreadID1[0]);
+                    Memory.Store(constant.Name, LocalID1[0]);
                 }
                 else if (constant.Name.Equals("local_id_y$1"))
                 {
-                    Memory.Store(constant.Name, ThreadID1[1]);
+                    Memory.Store(constant.Name, LocalID1[1]);
                 }
                 else if (constant.Name.Equals("local_id_z$1"))
                 {
-                    Memory.Store(constant.Name, ThreadID1[2]);
+                    Memory.Store(constant.Name, LocalID1[2]);
                 }
                 else if (constant.Name.Equals("local_id_x$2"))
                 {
-                    Memory.Store(constant.Name, ThreadID2[0]);
+                    Memory.Store(constant.Name, LocalID2[0]);
                 }
                 else if (constant.Name.Equals("local_id_y$2"))
                 {
-                    Memory.Store(constant.Name, ThreadID2[1]);
+                    Memory.Store(constant.Name, LocalID2[1]);
                 }
                 else if (constant.Name.Equals("local_id_z$2"))
                 {
-                    Memory.Store(constant.Name, ThreadID2[2]);
+                    Memory.Store(constant.Name, LocalID2[2]);
                 }
                 else if (constant.Name.Equals("group_id_x$1"))
                 {
-                    Memory.Store(constant.Name, GroupID1[0]);
+                    Memory.Store(constant.Name, GlobalID1[0]);
                 }
                 else if (constant.Name.Equals("group_id_y$1"))
                 {
-                    Memory.Store(constant.Name, GroupID1[1]);
+                    Memory.Store(constant.Name, GlobalID1[1]);
                 }
                 else if (constant.Name.Equals("group_id_z$1"))
                 {
-                    Memory.Store(constant.Name, GroupID1[2]);
+                    Memory.Store(constant.Name, GlobalID1[2]);
                 }
                 else if (constant.Name.Equals("group_id_x$2"))
                 {
-                    Memory.Store(constant.Name, GroupID2[0]);
+                    Memory.Store(constant.Name, GlobalID2[0]);
                 }
                 else if (constant.Name.Equals("group_id_y$2"))
                 {
-                    Memory.Store(constant.Name, GroupID2[1]);
+                    Memory.Store(constant.Name, GlobalID2[1]);
                 }
                 else if (constant.Name.Equals("group_id_z$2"))
                 {
-                    Memory.Store(constant.Name, GroupID2[2]);
+                    Memory.Store(constant.Name, GlobalID2[2]);
                 }
             }
         }
 
-        private void InterpretKernels(Program program)
+        private void InterpretKernel(Program program, Implementation impl)
         {
-            IEnumerable<Implementation> implementations = program.TopLevelDeclarations.OfType<Implementation>().
-                                                            Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel"));
+            Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
             try
             {
-                foreach (Implementation impl in implementations)
+                foreach (Requires requires in impl.Proc.Requires)
                 {
-                    Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
-                    foreach (Requires requires in impl.Proc.Requires)
+                    EvaluateRequires(requires);
+                }
+                foreach (Block block in impl.Blocks)
+                {
+                    LabelToBlock[block.Label] = block;
+                }
+                InitialiseFormalParams(impl.InParams);
+                {
+                    bool assumesHold = true;
+                    Block block = impl.Blocks[0];
+                    while (block != null && assumesHold)
                     {
-                        EvaluateRequires(requires);
-                    }
-                    foreach (Block block in impl.Blocks)
-                    {
-                        LabelToBlock[block.Label] = block;
-                    }
-                    InitialiseFormalParams(impl.InParams);
-                    {
-                        bool assumesHold = true;
-                        Block block = impl.Blocks[0];
-                        while (block != null && assumesHold)
-                        {
-                            assumesHold = InterpretBasicBlock(program, impl, block);
-                            block = TransferControl(block);
-                        }
+                        assumesHold = InterpretBasicBlock(program, impl, block);
+                        block = TransferControl(block);
                     }
                 }
             }
@@ -361,12 +387,16 @@ namespace DynamicAnalysis
         
         private BitVector InitialiseFormalParameter (int width, BitVector previousValue = null)
         {
+            // Boolean types have width 1
             if (width == 1)
             {
+                // If the previous value was set to false, flip
                 if (previousValue != null && previousValue.Equals(BitVector.False))
                     return BitVector.True;
+                // If the previous value was set to true, flip
                 else if (previousValue != null && previousValue.Equals(BitVector.True))
                     return BitVector.False;
+                // Otherwise choose randomly between true and false 
                 else if (Random.Next(0, 2) == 1)
                     return BitVector.True;
                 else
@@ -374,8 +404,7 @@ namespace DynamicAnalysis
             }
             else
             {
-                char[] previousBits; 
-                
+                char[] previousBits;
                 if (previousValue != null)
                 {
                     previousBits = previousValue.Bits.ToCharArray();
@@ -391,10 +420,13 @@ namespace DynamicAnalysis
                 bits[0] = '0';
                 // Ensure the BV is always an even integer
                 bits[width-1] = '0';
+                // The following code either doubles the previous value or it initialises the value to 2
+                // We choose 2 to start because it is likely loop bounds will always be greater than 1 
                 for (int i = 1; i < width - 1; ++i)
                 {
                     if (previousValue != null)
                     { 
+                        // If the next bit of the previous value is 1 then this bit of the new value should be 1
                         if (previousValue.Bits[i+1] == '1')
                             bits[i] = '1';
                         else
@@ -402,6 +434,7 @@ namespace DynamicAnalysis
                     }
                     else
                     {
+                        // Set the second-to-last bit to represent 2
                         if (i == width - 2)
                             bits[i] = '1';
                         else
@@ -459,6 +492,8 @@ namespace DynamicAnalysis
         private bool InterpretBasicBlock (Program program, Implementation impl, Block block)
         {
             Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", block.Label), 1);
+            // Record that this basic block has executed
+            Covered.Add(block);
             // Execute all the statements
             foreach (Cmd cmd in block.Cmds)
             {   
@@ -557,6 +592,7 @@ namespace DynamicAnalysis
                         if (id.Type is BvType)
                         {
                             BvType bv = (BvType)id.Type;
+                            // Generate a random bit string
                             char[] randomBits = new char[bv.Bits];
                             for (int i = 0; i < bv.Bits; ++i)
                             {
@@ -1166,15 +1202,6 @@ namespace DynamicAnalysis
                 default:
                     throw new UnhandledException("Unable to handle atomic function: " + atomicFunction);
             }
-        }
-        
-        private void SummarizeKilledInvariants ()
-        {
-            Console.WriteLine("Dynamic analysis removed:");
-            foreach (string BoogieVariable in KilledAsserts)
-            {
-                Console.WriteLine(BoogieVariable);
-            }   
         }
     }
 }
