@@ -24,8 +24,7 @@ namespace DynamicAnalysis
         public BitVector(int val, int width = 32)
         {
             Bits = Convert.ToString(val, 2);
-            if (width > 1)
-                SignExtend(width);
+            Pad(width, '0');
         }
         
         public BitVector (string bits)
@@ -51,16 +50,13 @@ namespace DynamicAnalysis
                 int val = Convert.ToInt32(bareStr);
                 Bits = Convert.ToString(val, 2);
             }
-            SignExtend(bv.Bits);
+            Pad(bv.Bits, '0');
         }
 
-        private void SignExtend (int width)
+        private void Pad (int width, char bit)
         {
             if (Bits.Length < width)
-            {
-                char sign = Bits[0];
-                Bits = Bits.PadLeft(width, '0');
-            }
+                Bits = Bits.PadLeft(width, bit);
         }
         
         private string HexToBinary(char hex)
@@ -357,6 +353,14 @@ namespace DynamicAnalysis
         {
             string bits = a.Bits;
             bits = bits.PadLeft(width, '0');
+            return new BitVector(bits);
+        }
+        
+        public static BitVector SignExtend (BitVector a, int width)
+        {
+            string bits = a.Bits;
+            char sign = bits[0];
+            bits = bits.PadLeft(width, sign);
             return new BitVector(bits);
         }
     }

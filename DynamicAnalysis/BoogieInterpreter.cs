@@ -64,7 +64,8 @@ namespace DynamicAnalysis
                 Print.VerboseMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
                 EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());		
                 InterpretKernel(program, impl);
-            } while (instructionCounter < 10000 && !AllBlocksCovered(impl));
+            } while (instructionCounter < 10000000 && !AllBlocksCovered(impl));
+            Console.WriteLine(instructionCounter.ToString());
             SummarizeKilledInvariants();
             Console.WriteLine("Dynamic analysis done");
         }
@@ -1023,6 +1024,12 @@ namespace DynamicAnalysis
                                 case "BV16_ZEXT32":
                                     BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
                                     _node.evaluations.Add(ZeroExtended);                          
+                                    break;
+                                case "BV1_SEXT32":
+                                case "BV8_SEXT32":
+                                case "BV16_SEXT32":
+                                    BitVector SignExtended = BitVector.SignExtend(child.GetUniqueElement(), 32);
+                                    _node.evaluations.Add(SignExtended);                          
                                     break;
                                 case "UI32_TO_FP32":
                                 case "SI32_TO_FP32":
