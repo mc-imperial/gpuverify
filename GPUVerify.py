@@ -138,9 +138,11 @@ Timing = []
 
 """ WindowsError is not defined on UNIX systems, this works around that """
 try:
-   WindowsError
+  WindowsError
 except NameError:
-   WindowsError = None
+  class WindowsError(Exception):
+    pass
+
 
 """ We support three analysis modes """
 class AnalysisMode(object):
