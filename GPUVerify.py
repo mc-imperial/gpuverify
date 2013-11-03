@@ -1241,13 +1241,19 @@ def main(argv):
   return ErrorCodes.SUCCESS
   
 if __name__ == '__main__':
+  """
+  Extry point for GPUVerify as a script
+  """
+
+  # These are the exception error codes that won't be printed if they are thrown
+  ignoredErrors = [ ErrorCodes.SUCCESS, ErrorCodes.BOOGIE_ERROR ]
+
   try:
     main(sys.argv[1:])
   except GPUVerifyException as e:
     # We assume that globals are not cleaned up when running as a script so it 
     # is safe to read CommandLineOptions
-    if (e.getExitCode() == ErrorCodes.COMMAND_LINE_ERROR or 
-        e.getExitCode() != ErrorCodes.SUCCESS and CommandLineOptions.debugging):
+    if (not (e.getExitCode() in ignoredErrors)) or CommandLineOptions.debugging:
       print(str(e))
     sys.exit(e.getExitCode())
 
