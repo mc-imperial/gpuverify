@@ -1256,7 +1256,12 @@ if __name__ == '__main__':
     # We assume that globals are not cleaned up when running as a script so it 
     # is safe to read CommandLineOptions
     if (not (e.getExitCode() in ignoredErrors)) or CommandLineOptions.debugging:
-      print(str(e))
+      if e.getExitCode() == ErrorCodes.COMMAND_LINE_ERROR:
+        # For command line errors only show the message and not internal details
+        print('GPUVerify: {0}'.format(e.msg))
+      else:
+        # Show all exception info for everything else not ignored
+        print(str(e))
     sys.exit(e.getExitCode())
 
   sys.exit(ErrorCodes.SUCCESS)
