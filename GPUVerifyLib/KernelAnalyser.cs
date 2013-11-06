@@ -65,9 +65,9 @@ namespace GPUVerify
         return PipelineOutcome.TypeCheckingError;
       }
 
-      LinearTypechecker linearTypechecker = new LinearTypechecker(program);
-      linearTypechecker.VisitProgram(program);
-      if (linearTypechecker.errorCount > 0) {
+      LinearTypeChecker linearTypeChecker = new LinearTypeChecker(program);
+      linearTypeChecker.VisitProgram(program);
+      if (linearTypeChecker.errorCount > 0) {
         Console.WriteLine("{0} type checking errors detected in {1}", errorCount, bplFileName);
         return PipelineOutcome.TypeCheckingError;
       }
@@ -99,7 +99,7 @@ namespace GPUVerify
         Microsoft.Boogie.BlockCoalescer.CoalesceBlocks(program);
       }
     }
-		
+
     public static void Inline(Program program)
     {
       Contract.Requires(program != null);
