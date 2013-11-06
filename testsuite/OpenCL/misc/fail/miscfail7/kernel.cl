@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--local_size=1024 --num_groups=1024
-//error: this assertion might not hold for thread 1 in group 1
+//error: this assertion might not hold for thread
 
 __kernel void foo()
 {
