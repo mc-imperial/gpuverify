@@ -1244,7 +1244,7 @@ def main(argv):
   
 if __name__ == '__main__':
   """
-  Extry point for GPUVerify as a script
+  Entry point for GPUVerify as a script
   """
 
   # These are the exception error codes that won't be printed if they are thrown
