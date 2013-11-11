@@ -5,5 +5,5 @@
 __kernel void foo()
 {
     __local float A[1024];
-    __invariant(__implies(__read(A), __read_offset(A) == 0));
+    __assert(__implies(__read(A), __read_offset(A) == 0));
 }
