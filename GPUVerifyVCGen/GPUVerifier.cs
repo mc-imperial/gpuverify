@@ -414,6 +414,8 @@ namespace GPUVerify
             File.Delete(GetSourceLocFileName()); 
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
+            CheckUserSuppliedLoopInvariants();
+
             if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
                 emitProgram(outputFilename + "_original");
@@ -545,6 +547,33 @@ namespace GPUVerify
 
             emitProgram(outputFilename);
 
+        }
+
+        private void CheckUserSuppliedLoopInvariants()
+        {
+          foreach(var impl in Program.Implementations()) {
+            var blockGraph = Program.ProcessLoops(impl);
+            foreach(var b in impl.Blocks) {
+              bool ValidPositionForInvariant = blockGraph.Headers.Contains(b);
+              foreach(var c in b.Cmds) {
+                var pc = c as PredicateCmd;
+                if(pc != null) {
+                  if(QKeyValue.FindBoolAttribute(pc.Attributes, "originated_from_invariant")
+                    && !ValidPositionForInvariant) {
+                    var SourceLoc = new SourceLocationInfo(pc.Attributes, pc.tok);
+
+                    Console.Write("\n" + SourceLoc.GetFile() + ":" + SourceLoc.GetLine() + ":" + SourceLoc.GetColumn() + ": ");
+                    Console.WriteLine("user-specified invariant does not appear at loop head.");
+                    Console.WriteLine("\nNote: a common cause of this is due to the use of short-circuit operations;");
+                    Console.WriteLine("      these should not be used in invariants.");
+                    Environment.Exit(1);
+                  }
+                } else {
+                  ValidPositionForInvariant = false;
+                }
+              }
+            }
+          }
         }
 
         private void OptimiseReads()
