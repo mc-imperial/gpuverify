@@ -507,14 +507,21 @@ def doComparison(oldTestList,oldTestName,newTestList,newTestName, canonicalPathP
                  "The above is number of tests in \"" + newTestName + "\" that aren't present in \"" + oldTestName + "\"")
 
     if changeIsWorse:
-      logging.info(oldTestName + " > " + newTestName)
-      return 1
+        if newTestCounter != 0 or missingTestCounter != 0: 
+            # If new tests have been added or some tests are missing
+            # and some tests have failed then the is not really 
+            # any ordering
+            logging.info(oldTestName + " != " + newTestName)
+        else:
+            logging.info(oldTestName + " > " + newTestName)
+        return 1
     elif changedTestCounter == 0 and missingTestCounter == 0 and newTestCounter == 0:
-      logging.info(oldTestName + " = " + newTestName)
-      return 0
+        logging.info(oldTestName + " = " + newTestName)
+        return 0
     else:
-      logging.info(oldTestName + " < " + newTestName)
-      return -1
+        # Adding tests is fine.
+        logging.info(oldTestName + " < " + newTestName)
+        return -1
 
 def summariseTests(tests):
     """
