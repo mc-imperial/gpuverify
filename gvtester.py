@@ -399,6 +399,20 @@ class dumpTestResultsAction(argparse.Action):
 class comparePickleFiles(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
         logging.getLogger().setLevel(level=getattr(logging, namespace.log_level.upper(), None)) # enable logging
+        
+        # Check pickle files exist
+        for pFile in [ values[0], values[1]]:
+            if not os.path.exists(pFile):
+                logging.error("'{0}' does not exist.".format(pFile))
+                sys.exit(GPUVerifyTesterErrorCodes.FILE_OPEN_ERROR)
+
+        # First argument should be older set of tests than second argument.
+        if os.path.getmtime(values[0]) > os.path.getmtime(values[1]):
+            logging.error( ("'{0}' is newer than '{1}'.\nYou probably specified the arguments the wrong way round." +
+                           "\nIf you really want to perform the comparision this way round run `touch {1}` first.").format(
+                            values[0], values[1]))
+            sys.exit(GPUVerifyTesterErrorCodes.GENERAL_ERROR)
+
         result = doComparison(openPickle(values[0]),values[0],openPickle(values[1]),values[1],namespace.canonical_path_prefix)
         if result in [-1, 0]: sys.exit(GPUVerifyTesterErrorCodes.SUCCESS)
         else: sys.exit(1)
