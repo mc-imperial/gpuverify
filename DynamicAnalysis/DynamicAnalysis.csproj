@@ -50,6 +50,9 @@
     <Reference Include="Houdini">
       <HintPath>..\BoogieBinaries\Houdini.dll</HintPath>
     </Reference>
+    <Reference Include="Graph">
+      <HintPath>..\BoogieBinaries\Graph.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Main.cs" />
