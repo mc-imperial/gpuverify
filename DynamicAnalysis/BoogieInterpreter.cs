@@ -15,6 +15,7 @@ using System.Diagnostics;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
 using Microsoft.Boogie;
+using Microsoft.Boogie.GraphUtil;
 using Microsoft.Basetypes;
 using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
 
@@ -23,14 +24,48 @@ namespace DynamicAnalysis
     class UnhandledException : Exception
     {
         public UnhandledException(string message)
-			: base(message)
+         : base(message)
         { 
         }
+    }
+    
+    internal static class RegularExpressions
+    {
+        public static Regex INVARIANT_VARIABLE = new Regex("_[a-z][0-9]+"); // Case sensitive 
+        public static Regex OFFSET_VARIABLE    = new Regex("_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase);
+        public static Regex LOG_READ           = new Regex("_LOG_READ_", RegexOptions.IgnoreCase);
+        public static Regex LOG_WRITE          = new Regex("_LOG_WRITE_", RegexOptions.IgnoreCase);
+        public static Regex LOG_ATOMIC         = new Regex("_LOG_ATOMIC_", RegexOptions.IgnoreCase);
+        public static Regex BUGLE_BARRIER      = new Regex("bugle_barrier", RegexOptions.IgnoreCase);
+        public static Regex BVSLE              = new Regex("BV[0-9]+_SLE", RegexOptions.IgnoreCase);
+        public static Regex BVSLT              = new Regex("BV[0-9]+_SLT", RegexOptions.IgnoreCase);
+        public static Regex BVSGE              = new Regex("BV[0-9]+_SGE", RegexOptions.IgnoreCase);
+        public static Regex BVSGT              = new Regex("BV[0-9]+_SGT", RegexOptions.IgnoreCase);
+        public static Regex BVULE              = new Regex("BV[0-9]+_ULE", RegexOptions.IgnoreCase);
+        public static Regex BVULT              = new Regex("BV[0-9]+_ULT", RegexOptions.IgnoreCase);
+        public static Regex BVUGE              = new Regex("BV[0-9]+_UGE", RegexOptions.IgnoreCase);
+        public static Regex BVUGT              = new Regex("BV[0-9]+_UGT", RegexOptions.IgnoreCase);
+        public static Regex BVASHR             = new Regex("BV[0-9]+_ASHR", RegexOptions.IgnoreCase);
+        public static Regex BVLSHR             = new Regex("BV[0-9]+_LSHR", RegexOptions.IgnoreCase);
+        public static Regex BVSHL              = new Regex("BV[0-9]+_SHL", RegexOptions.IgnoreCase);
+        public static Regex BVADD              = new Regex("BV[0-9]+_ADD", RegexOptions.IgnoreCase);
+        public static Regex BVSUB              = new Regex("BV[0-9]+_SUB", RegexOptions.IgnoreCase);
+        public static Regex BVMUL              = new Regex("BV[0-9]+_MUL", RegexOptions.IgnoreCase);
+        public static Regex BVAND              = new Regex("BV[0-9]+_AND", RegexOptions.IgnoreCase);
+        public static Regex BVXOR              = new Regex("BV[0-9]+_XOR", RegexOptions.IgnoreCase);
+        public static Regex BVSREM             = new Regex("BV[0-9]+_SREM", RegexOptions.IgnoreCase);
+        public static Regex BVUREM             = new Regex("BV[0-9]+_UREM", RegexOptions.IgnoreCase);
+        public static Regex BVSDIV             = new Regex("BV[0-9]+_SDIV", RegexOptions.IgnoreCase);
+        public static Regex BVUDIV             = new Regex("BV[0-9]+_UDIV", RegexOptions.IgnoreCase);
+        public static Regex BVZEXT             = new Regex("BV[0-9]+_ZEXT", RegexOptions.IgnoreCase);
+        public static Regex BVSEXT             = new Regex("BV[0-9]+_SEXT", RegexOptions.IgnoreCase);
+        public static Regex FPCAST             = new Regex("(U|S)I[0-9]+_TO_FP[0-9]+", RegexOptions.IgnoreCase);
     }
 
     public class BoogieInterpreter
     {
-        private int instructionCounter = 0;
+        private const int HeaderLimit = 10000;
+        private int HeaderCount = 0;
         private BitVector[] LocalID1 = new BitVector[3];
         private BitVector[] LocalID2 = new BitVector[3];
         private BitVector[] GlobalID1 = new BitVector[3];
@@ -46,26 +81,30 @@ namespace DynamicAnalysis
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         private HashSet<Block> Covered = new HashSet<Block>();
         
+       
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
         {
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();   
             Console.WriteLine("Falsyifying invariants with dynamic analysis...");
             do
             {
+                // Reset the memory in readiness for the next execution
                 Memory.Clear();
                 EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
                 EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
                 Print.VerboseMessage(gpu.ToString());
+                // Set the local thread IDs and group IDs
                 SetLocalIDs(localIDSpecification);
                 SetGlobalIDs(globalIDSpecification);
                 Print.VerboseMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()));
                 Print.VerboseMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()));
                 Print.VerboseMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()));
-                Print.VerboseMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
-                EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());		
+                Print.VerboseMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
+                EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
                 InterpretKernel(program, impl);
-            } while (instructionCounter < 10000000 && !AllBlocksCovered(impl));
-            Console.WriteLine(instructionCounter.ToString());
+            } while (FormalParameterValues.Count > 0 && !AllBlocksCovered(impl));
+            // ^^^^^^^^^^^^^^^^^ This means try to kill invariants while we have not exhausted a loop header limit AND there are formal parameter
+            // values we can actually manipulate AND not every basic block has been covered 
             SummarizeKilledInvariants();
             Console.WriteLine("Dynamic analysis done");
         }
@@ -77,15 +116,18 @@ namespace DynamicAnalysis
                 if (!Covered.Contains(block))
                     return false;
             }
-            Console.WriteLine("All basic blocks covered");
+            Print.VerboseMessage("All basic blocks covered");
             return true;
         }
               
         private void SummarizeKilledInvariants ()
         {
-            Console.WriteLine("Dynamic analysis removed:");
-            foreach (string BoogieVariable in KilledAsserts)
-                Console.WriteLine(BoogieVariable);
+            if (KilledAsserts.Count > 0)
+            {
+                Console.WriteLine("Dynamic analysis removed " + KilledAsserts.Count.ToString() + " invariants:");
+                foreach (string BoogieVariable in KilledAsserts)
+                    Console.WriteLine(BoogieVariable);
+            }
         }
         
         private Tuple<BitVector, BitVector> GetID (int selectedValue, int dimensionUpperBound)
@@ -126,7 +168,6 @@ namespace DynamicAnalysis
             Tuple<BitVector,BitVector> dimX = GetID(localIDSpecification.Item1, gpu.blockDim[DIMENSION.X] - 1);
             Tuple<BitVector,BitVector> dimY = GetID(localIDSpecification.Item2, gpu.blockDim[DIMENSION.Y] - 1);
             Tuple<BitVector,BitVector> dimZ = GetID(localIDSpecification.Item3, gpu.blockDim[DIMENSION.Z] - 1);
-            
             LocalID1[0] = dimX.Item1;
             LocalID2[0] = dimX.Item2;
             LocalID1[1] = dimY.Item1;
@@ -139,8 +180,7 @@ namespace DynamicAnalysis
         {
             Tuple<BitVector,BitVector> dimX = GetID(globalIDSpecification.Item1, gpu.gridDim[DIMENSION.X] - 1);
             Tuple<BitVector,BitVector> dimY = GetID(globalIDSpecification.Item2, gpu.gridDim[DIMENSION.Y] - 1);
-            Tuple<BitVector,BitVector> dimZ = GetID(globalIDSpecification.Item3, gpu.gridDim[DIMENSION.Z] - 1);
-            
+            Tuple<BitVector,BitVector> dimZ = GetID(globalIDSpecification.Item3, gpu.gridDim[DIMENSION.Z] - 1);            
             GlobalID1[0] = dimX.Item1;
             GlobalID2[0] = dimX.Item2;
             GlobalID1[1] = dimY.Item1;
@@ -223,7 +263,7 @@ namespace DynamicAnalysis
             {
                 if (decl.TypedIdent.Type is MapType)
                     Memory.AddGlobalArray(decl.Name);
-                if (Regex.IsMatch(decl.Name, "_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase))
+                if (RegularExpressions.OFFSET_VARIABLE.IsMatch(decl.Name))
                 {
                     if (QKeyValue.FindBoolAttribute(decl.Attributes, "GLOBAL"))
                         Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GLOBAL);
@@ -299,6 +339,7 @@ namespace DynamicAnalysis
         private void InterpretKernel(Program program, Implementation impl)
         {
             Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
+            IEnumerable<Block> headers = program.ProcessLoops(impl).Headers;
             try
             {
                 foreach (Requires requires in impl.Proc.Requires)
@@ -315,6 +356,8 @@ namespace DynamicAnalysis
                     Block block = impl.Blocks[0];
                     while (block != null && assumesHold)
                     {
+                        if (headers.Contains(block))
+                            HeaderCount++;
                         assumesHold = InterpretBasicBlock(program, impl, block);
                         block = TransferControl(block);
                     }
@@ -330,14 +373,14 @@ namespace DynamicAnalysis
         private void EvaluateRequires(Requires requires)
         {
             // The following code currently ignores requires which are implications
-            ExprTree tree = new ExprTree(requires.Condition);	
+            ExprTree tree = new ExprTree(requires.Condition);    
             OpNode<BitVector> root = tree.Root() as OpNode<BitVector>;
             if (root != null)
             {          
                 if (root.op == "==" || root.op == "!" || root.op == "&&" || root.op == "!=")
                 {
                     foreach (HashSet<Node> nodes in tree)
-                    {	
+                    {    
                         foreach (Node node in nodes)
                         {
                             if (node is ScalarSymbolNode<BitVector>)
@@ -421,7 +464,7 @@ namespace DynamicAnalysis
                 bits[0] = '0';
                 // Ensure the BV is always an even integer
                 bits[width-1] = '0';
-                // The following code either doubles the previous value or it initialises the value to 2
+                // The following code either doubles the previous value or it initialises the value to 2.
                 // We choose 2 to start because it is likely loop bounds will always be greater than 1 
                 for (int i = 1; i < width - 1; ++i)
                 {
@@ -487,7 +530,7 @@ namespace DynamicAnalysis
                     Memory.Store(v.Name, initialValue);
                     Print.VerboseMessage("...assigning " + initialValue.ToString());
                   }
-			}
+         }
         }
 
         private bool InterpretBasicBlock (Program program, Implementation impl, Block block)
@@ -498,7 +541,6 @@ namespace DynamicAnalysis
             // Execute all the statements
             foreach (Cmd cmd in block.Cmds)
             {   
-                instructionCounter += 1;
                 //Console.Write(cmd.ToString());
                 if (cmd is AssignCmd)
                 {
@@ -541,13 +583,13 @@ namespace DynamicAnalysis
                 else if (cmd is CallCmd)
                 {
                     CallCmd call = cmd as CallCmd;
-                    if (Regex.IsMatch(call.callee, "_LOG_READ_", RegexOptions.IgnoreCase))
+                    if (RegularExpressions.LOG_READ.IsMatch(call.callee))
                         LogRead(call);
-                    else if (Regex.IsMatch(call.callee, "_LOG_WRITE_", RegexOptions.IgnoreCase))
+                    else if (RegularExpressions.LOG_WRITE.IsMatch(call.callee))
                         LogWrite(call);
-                    else if (Regex.IsMatch(call.callee, "_LOG_ATOMIC_", RegexOptions.IgnoreCase))
+                    else if (RegularExpressions.LOG_ATOMIC.IsMatch(call.callee))
                         LogAtomic(call);
-                    else if (Regex.IsMatch(call.callee, "bugle_barrier", RegexOptions.IgnoreCase))
+                    else if (RegularExpressions.BUGLE_BARRIER.IsMatch(call.callee))
                         Barrier(call);
                 }
                 else if (cmd is AssertCmd)
@@ -566,9 +608,9 @@ namespace DynamicAnalysis
                             if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                             {
                                 Console.Write("==========> FALSE " + assert.ToString());
+                                Console.WriteLine("==========> Killed at header execution count " + HeaderCount.ToString());
                                 AssertStatus[assert] = BitVector.False;
-                                Regex r = new Regex("_[a-z][0-9]+");
-                                MatchCollection matches = r.Matches(assert.ToString());
+                                MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
                                 string BoogieVariable = null;
                                 foreach (Match match in matches)
                                 {
@@ -664,246 +706,290 @@ namespace DynamicAnalysis
             {
                 foreach (BitVector rhs in right.evaluations)
                 {
-                    switch (binary.op)
+                    if (binary.op.Equals("||"))
                     {
-                        case "||":
-                            if (lhs.Equals(BitVector.True) || rhs.Equals(BitVector.True))
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            
-                            break;
-                        case "&&":
-                            if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "==>":
-                            if (rhs.Equals(BitVector.True) || lhs.Equals(BitVector.False))
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "<==>":
-                            if ((lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True)) 
-                            || (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False)))
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "BV1_XOR":
-                        case "BV8_XOR":
-                        case "BV16_XOR":
-                        case "BV32_XOR":
-                            binary.evaluations.Add(lhs ^ rhs);
-                            break;
-                        case "<":
-                            if (lhs < rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "<=":
-                            if (lhs <= rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case ">":
-                            if (lhs > rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case ">=":
-                            if (lhs >= rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "==":
-                            if (lhs == rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "!=":
-                            if (lhs != rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "BV32_ULT":
-                            {
-                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                if (lhsUnsigned < rhsUnsigned)
-                                    binary.evaluations.Add(BitVector.True);
-                                else
-                                    binary.evaluations.Add(BitVector.False);
-                                break;
-                            }
-                        case "BV32_ULE":
-                            {
-                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
-                                if (lhsUnsigned <= rhsUnsigned)
-                                    binary.evaluations.Add(BitVector.True);
-                                else
-                                    binary.evaluations.Add(BitVector.False);
-                                break;
-                            }
-                        case "BV32_UGT":
-                            {
-                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                if (lhsUnsigned > rhsUnsigned)
-                                    binary.evaluations.Add(BitVector.True);
-                                else
-                                    binary.evaluations.Add(BitVector.False);
-                                break;
-                            }
-                        case "BV32_UGE":
-                            {
-                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                if (lhsUnsigned >= rhsUnsigned)
-                                    binary.evaluations.Add(BitVector.True);
-                                else
-                                    binary.evaluations.Add(BitVector.False);
-                                break;
-                            }
-                        case "BV32_SLT":
-                            if (lhs < rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "BV32_SLE":
-                            if (lhs <= rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "BV32_SGT":
-                            if (lhs > rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "BV32_SGE":
-                            if (lhs >= rhs)
-                                binary.evaluations.Add(BitVector.True);
-                            else
-                                binary.evaluations.Add(BitVector.False);
-                            break;
-                        case "FEQ32":
-                        case "FEQ64":
-                        case "FGE32":
-                        case "FGE64":
-                        case "FGT32":
-                        case "FGT64":
-                        case "FLE32":
-                        case "FLE64":
-                        case "FLT32":
-                        case "FLT64":
-                        case "FUNO32":
-                        case "FUNO64":
-                            {
-                                Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
-                                if (!FPInterpretations.ContainsKey(FPTriple))
-                                {
-                                    if (Random.Next(0, 2) == 0)
-                                        FPInterpretations[FPTriple] = BitVector.False;
-                                    else
-                                        FPInterpretations[FPTriple] = BitVector.True;
-                                }
-                                binary.evaluations.Add(FPInterpretations[FPTriple]);
-                                break;
-                            }
-                        case "+":
-                            binary.evaluations.Add(lhs + rhs);
-                            break;
-                        case "-":
-                            binary.evaluations.Add(lhs - rhs);
-                            break;
-                        case "*":
-                            binary.evaluations.Add(lhs * rhs);
-                            break;
-                        case "/":
-                            binary.evaluations.Add(lhs / rhs);
-                            break;
-                        case "BV32_SREM":
-                            binary.evaluations.Add(lhs % rhs);
-                            break;
-                        case "BV32_UREM":
-                            {
-                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
-                                break;
-                            }
-                        case "BV32_SDIV":
-                            binary.evaluations.Add(lhs / rhs);
-                            break;
-                        case "BV32_UDIV":
-                            {
-                                BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                                BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                                binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
-                                break;
-                            }
-                        case "BV32_ASHR":
-                            binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
-                            break;
-                        case "BV32_LSHR":
-                            binary.evaluations.Add(BitVector.LogicalShiftRight(lhs, rhs.ConvertToInt32()));
-                            break;
-                        case "BV32_SHL":
-                            binary.evaluations.Add(lhs << rhs.ConvertToInt32());
-                            break;
-                        case "BV32_ADD":
-                            binary.evaluations.Add(lhs + rhs);
-                            break;
-                        case "BV32_SUB":
-                            binary.evaluations.Add(lhs - rhs);
-                            break;
-                        case "BV32_MUL":
-                            binary.evaluations.Add(lhs * rhs);
-                            break;
-                        case "BV32_DIV":
-                            binary.evaluations.Add(lhs / rhs);
-                            break;
-                        case "BV32_AND":
-                            binary.evaluations.Add(lhs & rhs);
-                            break;
-                        case "FADD32":
-                        case "FADD64":
-                        case "FSUB32":
-                        case "FSUB64":
-                        case "FMUL32":
-                        case "FMUL64":
-                        case "FDIV32":
-                        case "FDIV64":
-                        case "FPOW32":
-                        case "FPOW64":
-                            {
-                                Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
-                                if (!FPInterpretations.ContainsKey(FPTriple))
-                                    FPInterpretations[FPTriple] = new BitVector(Random.Next());
-                                binary.evaluations.Add(FPInterpretations[FPTriple]);
-                                break;
-                            }
-                        default:
-                            throw new UnhandledException("Unhandled bv binary op: " + binary.op);
+                        if (lhs.Equals(BitVector.True) || rhs.Equals(BitVector.True))
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }        
+                    else if (binary.op.Equals("&&"))
+                    {
+                        if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
                     }
+                    else if (binary.op.Equals("==>"))
+                    {
+                        if (rhs.Equals(BitVector.True) || lhs.Equals(BitVector.False))
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals("<==>"))
+                    {
+                        if ((lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True)) 
+                            || (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False)))
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals("<"))
+                    {
+                        if (lhs < rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    } 
+                    else if (binary.op.Equals("<="))
+                    {
+                        if (lhs <= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }   
+                    else if (binary.op.Equals(">"))
+                    {
+                        if (lhs > rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(">="))
+                    {
+                        if (lhs >= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals("=="))
+                    {
+                        if (lhs == rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals("!="))
+                    {
+                        if (lhs != rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals("+"))
+                    {
+                        binary.evaluations.Add(lhs + rhs);
+                    }
+                    else if (binary.op.Equals("-"))
+                    {
+                        binary.evaluations.Add(lhs - rhs);
+                    }
+                    else if (binary.op.Equals("*"))
+                    {
+                        binary.evaluations.Add(lhs * rhs);
+                    }
+                    else if (binary.op.Equals("/"))
+                    {
+                        binary.evaluations.Add(lhs / rhs);
+                    }
+                    else if (binary.op.Equals("FEQ32") ||
+                             binary.op.Equals("FEQ64") ||
+                             binary.op.Equals("FGE32") ||
+                             binary.op.Equals("FGE64") ||
+                             binary.op.Equals("FGT32") ||
+                             binary.op.Equals("FGT64") ||
+                             binary.op.Equals("FLE32") ||
+                             binary.op.Equals("FLE64") ||
+                             binary.op.Equals("FLT32") ||
+                             binary.op.Equals("FLT64") ||
+                             binary.op.Equals("FUNO32") ||
+                             binary.op.Equals("FUNO64"))
+                    {
+                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
+                        if (!FPInterpretations.ContainsKey(FPTriple))
+                        {
+                            if (Random.Next(0, 2) == 0)
+                                FPInterpretations[FPTriple] = BitVector.False;
+                            else
+                                FPInterpretations[FPTriple] = BitVector.True;
+                        }
+                        binary.evaluations.Add(FPInterpretations[FPTriple]);
+                    }  
+                    else if (binary.op.Equals("FADD32") ||
+                             binary.op.Equals("FADD64") ||
+                             binary.op.Equals("FSUB32") ||
+                             binary.op.Equals("FSUB64") ||
+                             binary.op.Equals("FMUL32") ||
+                             binary.op.Equals("FMUL64") ||
+                             binary.op.Equals("FDIV32") ||
+                             binary.op.Equals("FDIV64") ||
+                             binary.op.Equals("FPOW32") ||
+                             binary.op.Equals("FPOW64"))
+                    {
+                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(lhs, rhs, binary.op);
+                        if (!FPInterpretations.ContainsKey(FPTriple))
+                            FPInterpretations[FPTriple] = new BitVector(Random.Next());
+                        binary.evaluations.Add(FPInterpretations[FPTriple]);
+                    }
+                    else if (RegularExpressions.BVSLT.IsMatch(binary.op))
+                    {
+                        if (lhs < rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVSLE.IsMatch(binary.op))
+                    {
+                        if (lhs <= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVSGT.IsMatch(binary.op))
+                    {
+                        if (lhs > rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVSGE.IsMatch(binary.op))
+                    {
+                        if (lhs >= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }  
+                    else if (RegularExpressions.BVULT.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned < rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVULE.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
+                        if (lhsUnsigned <= rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVUGT.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned > rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVUGE.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned >= rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVASHR.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
+                    else if (RegularExpressions.BVLSHR.IsMatch(binary.op))
+                        binary.evaluations.Add(BitVector.LogicalShiftRight(lhs, rhs.ConvertToInt32()));
+                    else if (RegularExpressions.BVSHL.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs << rhs.ConvertToInt32());
+                    else if (RegularExpressions.BVADD.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs + rhs);
+                    else if (RegularExpressions.BVSUB.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs - rhs);
+                    else if (RegularExpressions.BVMUL.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs * rhs);
+                    else if (RegularExpressions.BVAND.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs & rhs);
+                    else if (RegularExpressions.BVXOR.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs ^ rhs);
+                    else if (RegularExpressions.BVSREM.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs % rhs);
+                    else if (RegularExpressions.BVUREM.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
+                    }
+                    else if (RegularExpressions.BVSDIV.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs / rhs);
+                    else if (RegularExpressions.BVUDIV.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
+                    }
+                    else
+                        throw new UnhandledException("Unhandled bv binary op: " + binary.op);               
                 }
             }
-        }        
-
+        }    
+        
+        private void EvaluateUnaryNode(UnaryNode<BitVector> unary)
+        {
+            Print.DebugMessage("Evaluating unary bv node", 10);  
+            ExprNode<BitVector> child = (ExprNode<BitVector>) unary.GetChildren()[0];
+            if (child.uninitialised)
+                unary.uninitialised = true;
+            else
+            {
+                if (unary.op.Equals("!"))
+                {
+                    if (child.GetUniqueElement().Equals(BitVector.True))
+                        unary.evaluations.Add(BitVector.False);
+                    else
+                        unary.evaluations.Add(BitVector.True);
+                }
+                else if (unary.op.Equals("FABS32")  ||
+                         unary.op.Equals("FABS64")  ||
+                         unary.op.Equals("FCOS32")  ||
+                         unary.op.Equals("FCOS64")  ||
+                         unary.op.Equals("FEXP32")  ||
+                         unary.op.Equals("FEXP64")  ||
+                         unary.op.Equals("FLOG32")  ||
+                         unary.op.Equals("FLOG64")  ||
+                         unary.op.Equals("FPOW32")  ||
+                         unary.op.Equals("FPOW64")  ||
+                         unary.op.Equals("FSIN32")  ||
+                         unary.op.Equals("FSIN64")  ||
+                         unary.op.Equals("FSQRT32") ||
+                         unary.op.Equals("FSQRT64"))
+                {
+                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.GetUniqueElement(), BitVector.Zero, unary.op);
+                    if (!FPInterpretations.ContainsKey(FPTriple))
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next());
+                    unary.evaluations.Add(FPInterpretations[FPTriple]);
+                }
+                else if (RegularExpressions.BVZEXT.IsMatch(unary.op))
+                {
+                    BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
+                    unary.evaluations.Add(ZeroExtended);  
+                }
+                else if (RegularExpressions.BVSEXT.IsMatch(unary.op))
+                {
+                    BitVector SignExtended = BitVector.SignExtend(child.GetUniqueElement(), 32);
+                    unary.evaluations.Add(SignExtended);           
+                }
+                else if (RegularExpressions.FPCAST.IsMatch(unary.op))
+                {
+                    unary.evaluations.Add(child.GetUniqueElement());
+                }
+                else
+                    throw new UnhandledException("Unhandled bv unary op: " + unary.op);
+            }  
+        }
+        
         private void EvaluateExprTree(ExprTree tree)
-        {			
+        {            
             foreach (HashSet<Node> nodes in tree)
             {
                 foreach (Node node in nodes)
@@ -911,8 +997,8 @@ namespace DynamicAnalysis
                     if (node is ScalarSymbolNode<BitVector>)
                     {
                         ScalarSymbolNode<BitVector> _node = node as ScalarSymbolNode<BitVector>;
-                        if (Regex.IsMatch(_node.symbol, "_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase))
-                        {							
+                        if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
+                        {                            
                             foreach (BitVector offset in Memory.GetRaceArrayOffsets(_node.symbol))
                             {
                                 _node.evaluations.Add(offset);
@@ -985,62 +1071,9 @@ namespace DynamicAnalysis
                     else if (node is UnaryNode<BitVector>)
                     {
                         UnaryNode<BitVector> _node = node as UnaryNode<BitVector>;
-                        ExprNode<BitVector> child = (ExprNode<BitVector>)_node.GetChildren()[0];
-                        if (child.uninitialised)
-                            node.uninitialised = true;
-                        else
-                        {
-                            switch (_node.op)
-                            {
-                                case "!":
-                                    if (child.GetUniqueElement().Equals(BitVector.True))
-                                        _node.evaluations.Add(BitVector.False);
-                                    else
-                                        _node.evaluations.Add(BitVector.True);
-                                    break;
-                                case "FABS32":
-                                case "FABS64":
-                                case "FCOS32":
-                                case "FCOS64":
-                                case "FEXP32":
-                                case "FEXP64":
-                                case "FLOG32":
-                                case "FLOG64":
-                                case "FPOW32":
-                                case "FPOW64":
-                                case "FSIN32":
-                                case "FSIN64":
-                                case "FSQRT32":
-                                case "FSQRT64":
-                                    {
-                                        Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.GetUniqueElement(), BitVector.Zero, _node.op);
-                                        if (!FPInterpretations.ContainsKey(FPTriple))
-                                            FPInterpretations[FPTriple] = new BitVector(Random.Next());
-                                        _node.evaluations.Add(FPInterpretations[FPTriple]);
-                                        break;
-                                    }
-                                case "BV1_ZEXT32":
-                                case "BV8_ZEXT32":
-                                case "BV16_ZEXT32":
-                                    BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
-                                    _node.evaluations.Add(ZeroExtended);                          
-                                    break;
-                                case "BV1_SEXT32":
-                                case "BV8_SEXT32":
-                                case "BV16_SEXT32":
-                                    BitVector SignExtended = BitVector.SignExtend(child.GetUniqueElement(), 32);
-                                    _node.evaluations.Add(SignExtended);                          
-                                    break;
-                                case "UI32_TO_FP32":
-                                case "SI32_TO_FP32":
-                                case "UI32_TO_FP64":
-                                case "SI32_TO_FP64":
-                                    _node.evaluations.Add(child.GetUniqueElement());
-                                    break;
-                                default:
-                                    throw new UnhandledException("Unhandled bv unary op: " + _node.op);
-                            }
-                        }
+                        EvaluateUnaryNode(_node);
+                        if (_node.evaluations.Count == 0)
+                            _node.uninitialised = true;
                     }
                     else if (node is BinaryNode<BitVector>)
                     {
@@ -1119,23 +1152,23 @@ namespace DynamicAnalysis
                         switch (accessType)
                         {
                             case "_WRITE_OFFSET_":
-                                {
-                                    string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
-                                    Memory.Store(accessTracker, BitVector.False);
-                                    break;   
-                                }
+                            {
+                                string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
+                                Memory.Store(accessTracker, BitVector.False);
+                                break;   
+                            }
                             case "_READ_OFFSET_":
-                                {
-                                    string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
-                                    Memory.Store(accessTracker, BitVector.False);
-                                    break;
-                                } 
+                            {
+                                string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
+                                Memory.Store(accessTracker, BitVector.False);
+                                break;
+                            } 
                             case "_ATOMIC_OFFSET_":
-                                {
-                                    string accessTracker = "_ATOMIC_HAS_OCCURRED_" + arrayName; 
-                                    Memory.Store(accessTracker, BitVector.False);
-                                    break;
-                                }
+                            {
+                                string accessTracker = "_ATOMIC_HAS_OCCURRED_" + arrayName; 
+                                Memory.Store(accessTracker, BitVector.False);
+                                break;
+                            }
                         }
                     }
                     Memory.ClearRaceArrayOffset(name);

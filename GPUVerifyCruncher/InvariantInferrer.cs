@@ -146,7 +146,7 @@ namespace Microsoft.Boogie
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
           ((DynamicRefutationEngine) refutationEngines.
            FirstOrDefault( engine => engine is DynamicRefutationEngine )).
-            start(getFreshProgram(false, false), true);
+            start(getFreshProgram(false, false));
         }
 
         engineIdx = ((StaticRefutationEngine) refutationEngines.
