@@ -63,6 +63,8 @@ There are two main usage modes:
 * Verify mode (default)
 * Findbugs mode, specified via the ``--findbugs`` flag
 
+.. _verifymode:
+
 Verify mode
 -----------
 
@@ -89,6 +91,9 @@ procedures are present.  To verify multual recursive procedures, disable
 automatic inlining with the ``--no-inline`` flag.  Observe that this will
 increase the chance of *false positives* arising due to limitations of the
 tool's contract inference procedures.
+
+
+.. _findbugs:
 
 Findbugs mode
 -------------
@@ -234,4 +239,388 @@ all threads in a thread block will reach the same barrier::
 Command Line Options
 ====================
 
-.. todo:: Get these from GPUVerify and expand on them.
+In the description of command line options, we follow OpenCL terminology, not CUDA terminology.  We thus refer to work items and work groups, not threads and thread blocks, and to local memory, not shared memory.
+
+General options
+---------------
+
+-h, --help
+^^^^^^^^^^
+
+Display list of GPUVerify options.  Please report cases where
+GPUVerify claims to have an option not documented here, or if an
+option mentioned here is not listed by GPUVerify.
+
+-I <value>
+^^^^^^^^^^
+
+Add directory to include search path
+
+-D <value>
+^^^^^^^^^^
+
+Define symbol
+
+``--findbugs``
+^^^^^^^^^^^^^^
+
+Run tool in bug-finding mode, see :ref:`findbugs`.  In this mode, loop invariant inference
+is disabled, and a loop unwinding depth of 2 is used, unless this
+depth is over-ridden using ``--loop-unwind``.
+
+``--loop-unwind=``\X
+^^^^^^^^^^^^^^^^^^^^
+
+Run tool in *findbugs* mode (see :ref:`findbugs`) and explore only traces that pass through at most X loop heads.
+
+``--memout=``\X
+^^^^^^^^^^^^^^^
+
+Give Boogie, the verifier on which GPUVerify is built, a hard memory
+limit of X megabytes.  Specifying a memout of 0 disables the
+memout. The default is 0, i.e. no memory limit.
+
+``--no-benign``
+^^^^^^^^^^^^^^^
+
+By default, GPUVerify tries to tolerate certain kinds of (arguably)
+*benign* data races.  For example, if GPUVerify can figure out that in
+a write-write data race, both work items involved are guaranteed to write
+the same value to the memory location in question, it will not report
+the race.
+
+Sometimes we wish to turn off this tolerance, perhaps because we
+believe our kernel should be free from such races, or because we are
+feeling strict and want to take the (arguably correct) view that "all
+data races are evil with no exceptions".
+
+.. todo:: Add link to the paper with this title.
+
+Also, it may be the case (though we have not evaluated this
+systematically) that tolerating benign races carries some performance
+overhead in terms of verification time.
+
+To disable tolerance of benign races, specify ``--no-benign``.
+
+.. todo:: Maybe this option should be ``--no-benign-tolerance``.  Just ``--no-benign`` is perhaps a bit misleading: one might think it means "don't warn be about benign races"; actually, it means the opposite.
+
+``--only-divergence``
+^^^^^^^^^^^^^^^^^^^^^
+
+Disable race checking, and only check for barrier divergence.
+
+``--only-intra-group``
+^^^^^^^^^^^^^^^^^^^^^^
+
+Do not check for inter-work-group races.  In this mode, a kernel may be deemed correct even if it can exhibit races on global memory between work items in different work groups, as long as GPUVerify can prove that there are no data races (on global or local memory) between work items in the same work group.
+
+``--time``
+^^^^^^^^^^
+
+When GPUVerify finishes, print some statistics about how long it took.
+
+``--timeout=``\X
+^^^^^^^^^^^^^^^^
+
+Allow Boogie to run for X seconds before giving up.  Specifying 0 disables the timeout. The default is 300 seconds.
+
+``--verify``
+^^^^^^^^^^^^
+
+Run GPUVerify in *verify* mode (see :ref:`verifymode`).  This is the mode the tool uses by default.
+
+.. todo:: Perhaps this option should go?
+
+.. _verbose:
+
+``--verbose``
+^^^^^^^^^^^^^
+
+With this option, GPUVerify will print the various sub-commands that are issued during the analysis process.  Also, output produced by the tools which GPUVerify invokes will be displayed.  If you are debugging, and are issuing print statements in one of the GPUVerify components, you will need to use ``--verbose`` to be able to see the results of this printing.
+
+``--version``
+^^^^^^^^^^^^^
+
+Show version information.
+
+
+Advanced options
+----------------
+
+.. _adversarial-abstraction:
+
+``--adversarial-abstraction``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Completely abstract shared state, so that reads are nondeterministic.
+
+.. todo:: Give small example illustrating how drastic this can be.
+
+.. todo:: Justify why it can be useful (performance)
+
+See also :ref:`equality-abstraction`.
+
+``--array-equalities``
+^^^^^^^^^^^^^^^^^^^^^^
+
+During invariant inference, generate equality candidate invariants for array variables.  This is not done by default as it can be very expensive.
+
+``--asymmetric-asserts``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+When "dualising" an assertion, generate the assertion only for the first thread under consideration.  This is sound, because the thread is arbitrary, and can lead to faster verification, but can also yield false positives.
+
+.. todo: I [Ally] do not understand why this could lead to false positives.  Is it because a loop invariant only gets assumed for one of the threads?  Would it be OK to turn assert(phi) into: assert(phi$1); assume(phi$2)?  This might be sound and not suffer from the false positive issue.
+
+``--boogie-file=``\X\ ``.bpl``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Specify a supporting ``.bpl`` file to be used during verification.  This file is passed, unmodified, to Boogie when verification is performed.  This can be useful, for example, if you wish to declare an uninterpreted function and use it in your kernel, and then provide some axioms about the function for Boogie to use during reasoning.
+
+``--boogie-opt=``...
+^^^^^^^^^^^^^^^^^^^^
+
+Specify an option to be passed directly to Boogie.  For instance, if you want to see what Boogie is doing, you can use ``--boogie-opt=/trace``.  (In this case you also need to pass :ref:`verbose` to GPUVerify.)
+
+``--bugle-lang=[cl|cu]``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you run GPUVerify directly on an LLVM bitcode file, you'll need to tell Bugle whether the bitcode originated from an OpenCL or CUDA kernel.  This option lets you do so.
+
+``--bugle-opt=...``
+^^^^^^^^^^^^^^^^^^^
+
+Use this to pass a command-line option directly to Bugle, the component of GPUVerify that translates LLVM bitcode into Boogie.
+
+``--call-site-analysis``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turn on call site analysis.
+
+.. todo: I [Ally] do not know what this analysis is.
+
+``--clang-opt=...``
+^^^^^^^^^^^^^^^^^^^
+
+Use this option to pass a command-line option directly to Clang, the front-end used by GPUVerify.
+
+``--debug``
+^^^^^^^^^^^
+
+In "customer-facing" mode, GPUVerify suppresses exceptions, dumping them to a file and printing a standard "internal error" message.  This option turns off this suppression, to make it faster to debug GPUVerify.
+
+.. _equality-abstraction:
+
+``--equality-abstraction``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Make shared arrays nondeterministic, but consistent between work items, at barriers.
+
+.. todo: Give example of what this lets you do and where it is not enough.
+
+See also :ref:`adversarial-abstraction`.
+
+``--gen-smt2``
+^^^^^^^^^^^^^^
+
+.. todo: From here onwards I have pretty much just pasted from the -h option of GPUVerify.  Some of the options will need more explanation.
+
+Generate smt2 file
+
+``--keep-temps``
+^^^^^^^^^^^^^^^^
+
+Keep intermediate bc, gbpl, bpl and cbpl files
+
+``--math-int``
+^^^^^^^^^^^^^^
+
+Represent integer types using mathematical integers instead of bit-vectors
+
+``--no-annotations``
+^^^^^^^^^^^^^^^^^^^^
+
+Ignore all source-level annotations
+
+``--only-requires``
+^^^^^^^^^^^^^^^^^^^
+
+Ignore all source-level annotations except for requires
+
+``--no-barrier-access-checks``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turn off access checks for barrier invariants
+
+``--no-constant-write-checks``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turn off access checks for writes to constant space
+
+``--no-inline``
+^^^^^^^^^^^^^^^
+
+Turn off automatic inlining by Bugle
+
+``--no-loop-predicate-invariants``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turn off automatic generation of loop invariants related to predicates, which can be incorrect
+
+``--no-smart-predication``
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turn off smart predication
+
+``--no-source-loc-infer``
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turn off inference of source location information
+
+``--no-uniformity-analysis``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Turn off uniformity analysis
+
+``--only-log``
+^^^^^^^^^^^^^^
+
+Log accesses to arrays, but do not check for races. This can be useful for determining access pattern invariants
+
+``--silent``
+^^^^^^^^^^^^
+
+Silent on success; only show errors/timing
+
+``--stop-at-opt``
+^^^^^^^^^^^^^^^^^
+
+Stop after LLVM optimization pass
+
+``--stop-at-gbpl``
+^^^^^^^^^^^^^^^^^^
+
+Stop after generating gbpl
+
+``--stop-at-cbpl``
+^^^^^^^^^^^^^^^^^^
+
+Stop after generating an annotated bpl
+
+``--stop-at-bpl``
+^^^^^^^^^^^^^^^^^
+
+Stop after generating bpl
+
+``--time-as-csv=``\label
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Print timing as CSV row with label
+
+``--vcgen-timeout=``\X
+^^^^^^^^^^^^^^^^^^^^^^
+
+Allow VCGen to run for X seconds.
+
+``--vcgen-opt=...``
+^^^^^^^^^^^^^^^^^^^
+
+Specify option to be passed to be passed to VC generation engine
+
+``--warp-sync=``\X
+^^^^^^^^^^^^^^^^^^
+
+Synchronize threads within warps, sized X, defaulting to 32
+
+.. todo: Sounds like this is on by default, but it is not.  So what does "default" mean here?
+
+``--atomic=``\X
+^^^^^^^^^^^^^^^
+
+Check atomics as racy against reads (r), writes (w), both (rw), or none (none) (default is ``--atomic=rw``)
+
+.. todo: Should this go, now that OpenCL 2 suggests what the rules are?
+
+``--no-refined-atomics``
+^^^^^^^^^^^^^^^^^^^^^^^^
+Don't do abstraction refinement on the return values from atomics
+
+``--solver=``\X
+^^^^^^^^^^^^^^^
+
+Choose which SMT Theorem Prover to use in the backend.  Available options: 'Z3' or 'cvc4' (default is 'Z3')
+
+``--logic=X``
+^^^^^^^^^^^^^
+
+Define the logic to be used by the CVC4 SMT solver backend (default is QF_ALL_SUPPORTED)
+
+Invariant inference options
+---------------------------
+
+``--no-infer``
+^^^^^^^^^^^^^^
+
+Turn off invariant inference
+
+``--infer-timeout=``\X
+^^^^^^^^^^^^^^^^^^^^^^
+
+Allow GPUVerifyCruncher to run for X seconds.
+
+``--staged-inference``
+^^^^^^^^^^^^^^^^^^^^^^
+
+Perform invariant inference in stages; this can sometimes boost performance for complex kernels
+
+``--parallel-inference``
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use multiple solver instances in parallel to potentially accelerate invariant inference
+
+``--dynamic-analysis``
+^^^^^^^^^^^^^^^^^^^^^^
+
+Use dynamic analysis to falsify invariants.
+
+``--scheduling=``\X
+^^^^^^^^^^^^^^^^^^^
+
+Choose a parallel scheduling strategy from the following: 'default', 'unsound-first' or 'brute-force'. The 'default' strategy executes first any dynamic engines, then any unsound static engines and then the sound static engines. The 'unsound-first' strategy executes any unsound engines (either static or dynamic) together before the soundengines.  The 'brute-force' strategy executes all engines together but performance is highly non-deterministic.
+
+``--infer-config-file=``\X\ ``.cfg``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Specify a custom configuration file to be used during invariant inference
+
+``--infer-info``
+^^^^^^^^^^^^^^^^
+
+Prints information about the inference process.
+
+OpenCL-specific options
+-----------------------
+
+``--local_size=...``
+^^^^^^^^^^^^^^^^^^^^
+
+Specify whether work-group is 1D, 2D 3D and specify size for each dimension.  Use X, [X,Y] and [X,Y,Z] for a 1D, 2D and 3D work group, respectively.
+
+``--num_groups=...``
+^^^^^^^^^^^^^^^^^^^^
+
+Specify whether grid of work-groups is 1D, 2D or 3D and specify size for each dimension.  Use X, [X,Y] and [X,Y,Z] for a !D, 2D and 3D grid, respectively.
+
+CUDA-specific options
+---------------------
+
+``--blockDim=...``
+^^^^^^^^^^^^^^^^^^
+
+Specify whether thread block is 1D, 2D or 3D and specify size for each dimension.  Use X, [X,Y] and [X,Y,Z] for a 1D, 2D and 3D thread block, respectively.
+
+``--gridDim=...``
+^^^^^^^^^^^^^^^^^
+Specify whether grid of thread blocks is 1D, 2D or 3D and specify size for each dimension.  Use X, [X,Y] and [X,Y,Z] for a !D, 2D and 3D grid, respectively.
+
+
