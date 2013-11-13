@@ -93,23 +93,41 @@ namespace GPUVerify
       if(c == null || c.Proc != verifier.BarrierProcedure) {
         return false;
       }
-      if(verifier.uniformityAnalyser.IsUniform(verifier.BarrierProcedure.Name)) {
-        Debug.Assert(c.Ins.Count() == 2);
-        if(strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL) {
-          if(!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1))) {
-            return false;
-          }
-        } else if(strength == BarrierStrength.GLOBAL || strength == BarrierStrength.ALL) {
-          if(!c.Ins[1].Equals(verifier.IntRep.GetLiteral(1, 1))) {
-            return false;
-          }
-        } else {
-          // All cases should be covered by the above
-          Debug.Assert(false);
-        }
-        return true;
+
+      if(!verifier.uniformityAnalyser.IsUniform(verifier.BarrierProcedure.Name)) {
+        // We may be able to do better in this case, but for now we conservatively say no
+        return false;  
       }
-      throw new NotImplementedException();
+
+      if(BarrierHasNonUniformArgument()) {
+        // Also we may be able to do better in this case, but for now we conservatively say no
+        return false;
+      }
+      
+      Debug.Assert(c.Ins.Count() == 2);
+      if(strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL) {
+        if(!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1))) {
+          return false;
+        }
+      } else if(strength == BarrierStrength.GLOBAL || strength == BarrierStrength.ALL) {
+        if(!c.Ins[1].Equals(verifier.IntRep.GetLiteral(1, 1))) {
+          return false;
+        }
+      } else {
+        // All cases should be covered by the above
+        Debug.Assert(false);
+      }
+      return true;
+    }
+
+    private bool BarrierHasNonUniformArgument()
+    {
+      foreach(var v in verifier.BarrierProcedure.InParams) {
+        if(!verifier.uniformityAnalyser.IsUniform(verifier.BarrierProcedure.Name, GPUVerifier.StripThreadIdentifier(v.Name))) {
+          return true;
+        }
+      }
+      return false;
     }
 
     void ExtractCommandsIntoBlocks(Implementation impl, Func<Cmd, bool> Predicate) {
