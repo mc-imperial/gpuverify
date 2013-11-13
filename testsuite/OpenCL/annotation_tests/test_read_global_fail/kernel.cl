@@ -12,4 +12,6 @@ __kernel void foo(__global int* p, __global int* q) {
 
   __assert(!__read(q));
 
+  q[get_global_id(0)] = 42;
+  
 }

@@ -12,4 +12,5 @@ __kernel void foo(__local int* p, __local int* q) {
 
   __assert(!__read(q));
 
+  q[get_local_id(0)] = 42;
 }
