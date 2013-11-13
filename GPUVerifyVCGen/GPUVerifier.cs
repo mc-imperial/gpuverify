@@ -100,6 +100,9 @@ namespace GPUVerify
             this.IntRep = GPUVerifyVCGenCommandLineOptions.MathInt ?
                 (IntegerRepresentation)new MathIntegerRepresentation(this) :
                 (IntegerRepresentation)new BVIntegerRepresentation(this);
+
+            Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
+
             CheckWellFormedness();
 
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
@@ -377,7 +380,25 @@ namespace GPUVerify
             MaybeCreateAttributedConst(NUM_GROUPS_Y_STRING, ref _NUM_GROUPS_Y);
             MaybeCreateAttributedConst(NUM_GROUPS_Z_STRING, ref _NUM_GROUPS_Z);
 
+            if(GPUVerifyVCGenCommandLineOptions.OptimiseReads) {
+              ComputeReadOnlyArrays();
+            }
+
             return success;
+        }
+
+        private void ComputeReadOnlyArrays()
+        {
+          IEnumerable<Variable> WrittenArrays =
+           Program.TopLevelDeclarations.OfType<Procedure>()
+                  .Select(item => item.Modifies)
+                  .SelectMany(Item => Item)
+                  .Select(Item => Item.Decl)
+                  .Where(item => KernelArrayInfo.ContainsNonLocalArray(item));
+          foreach(var v in KernelArrayInfo.getAllNonLocalArrays().Where(
+            Item => !WrittenArrays.Contains(Item))) {
+            KernelArrayInfo.getReadOnlyNonLocalArrays().Add(v);
+          }
         }
 
         private void CheckSpecialConstantType(Constant C)
@@ -415,11 +436,6 @@ namespace GPUVerify
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
             CheckUserSuppliedLoopInvariants();
-
-            if (GPUVerifyVCGenCommandLineOptions.ShowStages)
-            {
-                emitProgram(outputFilename + "_original");
-            }
 
             if (!ProgramUsesBarrierInvariants()) {
                 GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks = false;
@@ -520,7 +536,9 @@ namespace GPUVerify
             // global variables
             Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
 
-            OptimiseReads();
+            if(GPUVerifyVCGenCommandLineOptions.OptimiseReads) {
+              OptimiseReads();
+            }
 
             GenerateStandardKernelContract();
 
@@ -578,14 +596,6 @@ namespace GPUVerify
 
         private void OptimiseReads()
         {
-          if (!GPUVerifyVCGenCommandLineOptions.OptimiseReads) {
-            return;
-          }
-
-          var writtenArrays = GetWrittenArrays();
-          RemoveReads(Program.Implementations().Select(Item => Item.Blocks).SelectMany(Item => Item),
-            KernelArrayInfo.getAllNonLocalArrays().Where(Item => !writtenArrays.Contains(Item)));
-
           var BarrierIntervalsAnalysis = new BarrierIntervalsAnalysis(this, BarrierStrength.GROUP_SHARED);
           BarrierIntervalsAnalysis.Compute();
           BarrierIntervalsAnalysis.RemoveRedundantReads();
@@ -610,21 +620,6 @@ namespace GPUVerify
             }
             b.Cmds = newCmds;
           }
-        }
-
-        private HashSet<Variable> GetWrittenArrays()
-        {
-          // Precondition: mod set analysis must have been performed
-          var result = new HashSet<Variable>();
-          foreach (var modifiedVariable in KernelProcedures.Keys.Select(Item => Item.Modifies).SelectMany(Item => Item))
-          {
-            Variable a;
-            if (TryGetArrayFromAccessHasOccurred(StripThreadIdentifier(modifiedVariable.Name), AccessType.WRITE, out a))
-            {
-              result.Add(a);
-            }
-          }
-          return result;
         }
 
         private void DoMayBePowerOfTwoAnalysis()

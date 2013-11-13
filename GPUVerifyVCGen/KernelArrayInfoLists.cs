@@ -23,6 +23,7 @@ namespace GPUVerify
         private List<Variable> GroupSharedVariables;
         private List<Variable> ConstantVariables;
         private List<Variable> PrivateVariables;
+        private List<Variable> ReadOnlyNonLocalVariables;
 
         public KernelArrayInfoLists()
         {
@@ -30,6 +31,7 @@ namespace GPUVerify
             GroupSharedVariables = new List<Variable>();
             ConstantVariables = new List<Variable>();
             PrivateVariables = new List<Variable>();
+            ReadOnlyNonLocalVariables = new List<Variable>();
         }
 
         public ICollection<Variable> getGlobalArrays()
@@ -58,6 +60,11 @@ namespace GPUVerify
             all.AddRange(GlobalVariables);
             all.AddRange(GroupSharedVariables);
             return all;
+        }
+
+        public ICollection<Variable> getReadOnlyNonLocalArrays()
+        {
+            return ReadOnlyNonLocalVariables;
         }
 
         public ICollection<Variable> getAllArrays()

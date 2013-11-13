@@ -538,7 +538,9 @@ namespace GPUVerify {
             rc.Visit(rhs);
           if (rc.accesses.Count > 0) {
             foreach (AccessRecord ar in rc.accesses) {
-              AddLogAndCheckCalls(result, ar, AccessType.READ, null);
+              if(!StateToCheck.getReadOnlyNonLocalArrays().Contains(ar.v)) {
+                AddLogAndCheckCalls(result, ar, AccessType.READ, null);
+              }
             }
           }
 

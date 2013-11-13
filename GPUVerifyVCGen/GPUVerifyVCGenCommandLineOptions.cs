@@ -47,7 +47,7 @@ namespace GPUVerify
     public static bool AtomicVsRead = true;
     public static bool AtomicVsWrite = true;
     public static bool RefinedAtomics = true;
-    public static bool OptimiseReads = false;
+    public static bool OptimiseReads = true;
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
 
@@ -231,9 +231,9 @@ namespace GPUVerify
           RefinedAtomics = false;
           break;
 
-          case "-optimiseReads":
-          case "/optimiseReads":
-          OptimiseReads = true;
+          case "-noOptimiseReads":
+          case "/noOptimiseReads":
+          OptimiseReads = false;
           break;
 
           case "-checkSingleNonInlinedImpl":
