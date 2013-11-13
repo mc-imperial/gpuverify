@@ -52,6 +52,7 @@ namespace DynamicAnalysis
         public static Regex BVSUB              = new Regex("BV[0-9]+_SUB", RegexOptions.IgnoreCase);
         public static Regex BVMUL              = new Regex("BV[0-9]+_MUL", RegexOptions.IgnoreCase);
         public static Regex BVAND              = new Regex("BV[0-9]+_AND", RegexOptions.IgnoreCase);
+        public static Regex BVOR               = new Regex("BV[0-9]+_OR", RegexOptions.IgnoreCase);
         public static Regex BVXOR              = new Regex("BV[0-9]+_XOR", RegexOptions.IgnoreCase);
         public static Regex BVSREM             = new Regex("BV[0-9]+_SREM", RegexOptions.IgnoreCase);
         public static Regex BVUREM             = new Regex("BV[0-9]+_UREM", RegexOptions.IgnoreCase);
@@ -910,6 +911,8 @@ namespace DynamicAnalysis
                         binary.evaluations.Add(lhs * rhs);
                     else if (RegularExpressions.BVAND.IsMatch(binary.op))
                         binary.evaluations.Add(lhs & rhs);
+                    else if (RegularExpressions.BVOR.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs | rhs);
                     else if (RegularExpressions.BVXOR.IsMatch(binary.op))
                         binary.evaluations.Add(lhs ^ rhs);
                     else if (RegularExpressions.BVSREM.IsMatch(binary.op))
