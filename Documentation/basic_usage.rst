@@ -377,6 +377,8 @@ When "dualising" an assertion, generate the assertion only for the first thread 
 
 Specify a supporting ``.bpl`` file to be used during verification.  This file is passed, unmodified, to Boogie when verification is performed.  This can be useful, for example, if you wish to declare an uninterpreted function and use it in your kernel, and then provide some axioms about the function for Boogie to use during reasoning.
 
+.. _boogie-opt:
+
 ``--boogie-opt=``...
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -426,6 +428,8 @@ See also :ref:`adversarial-abstraction`.
 .. todo: From here onwards I have pretty much just pasted from the -h option of GPUVerify.  Some of the options will need more explanation.
 
 Generate smt2 file
+
+.. _keep-temps:
 
 ``--keep-temps``
 ^^^^^^^^^^^^^^^^
@@ -506,6 +510,8 @@ Stop after generating gbpl
 ^^^^^^^^^^^^^^^^^^
 
 Stop after generating an annotated bpl
+
+.. _stop-at-bpl:
 
 ``--stop-at-bpl``
 ^^^^^^^^^^^^^^^^^
