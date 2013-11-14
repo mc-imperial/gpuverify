@@ -5,7 +5,7 @@
 #define tid get_local_id(0)
 #define N get_local_size(0)
 
-__kernel void foo(__local float* p, bool x) {
+__kernel void foo(__local float* p, int x) {
 
     int j;
     

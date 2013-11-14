@@ -243,7 +243,6 @@ namespace GPUVerify {
             if (curr.Next.Key.StartsWith("arg"))
             {
               curr.Next = new QKeyValue(Token.NoToken, curr.Next.Key, new List<object>(new object[]{Dualise(curr.Next.Params[0] as Expr,1)}), curr.Next.Next);
-              break;
             }
         }
         else if (NewCallCmd.callee.StartsWith("_CHECK_ATOMIC"))
@@ -255,7 +254,6 @@ namespace GPUVerify {
             if (curr.Next.Key.StartsWith("arg"))
             {
               curr.Next = new QKeyValue(Token.NoToken, curr.Next.Key, new List<object>(new object[]{Dualise(curr.Next.Params[0] as Expr,2)}), curr.Next.Next);
-              break;
             }
         }
 
