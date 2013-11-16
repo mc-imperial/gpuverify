@@ -203,18 +203,8 @@ namespace GPUVerify {
       GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
     }
 
-    private static uint GetOffsetInBytes(Variable OffsetVar, Model m, CallCmd FailingCall) {
-      string StateName = QKeyValue.FindStringAttribute(FailingCall.Attributes, "state_id");
-      Debug.Assert(StateName != null);
-      Model.CapturedState state = null;
-      foreach (var s in m.States) {
-        if (s.Name.Equals(StateName)) {
-          state = s;
-          break;
-        }
-      }
-      Debug.Assert(state != null);
-      var element = state.TryGet(OffsetVar.Name) as Model.Number;
+    private static uint GetOffsetInBytes(Variable OffsetVar, Model Model, CallCmd FailingCall) {
+      var element = GetState(Model, FailingCall.Attributes).TryGet(OffsetVar.Name) as Model.Number;
       uint elemOffset = Convert.ToUInt32(element.Numeral);
       Debug.Assert(OffsetVar.Attributes != null);
       uint elemWidth = (uint)QKeyValue.FindIntAttribute(OffsetVar.Attributes, "elem_width", int.MaxValue);
@@ -526,26 +516,15 @@ namespace GPUVerify {
     }
 
     static QKeyValue GetSourceLocInfo(CallCounterexample err, AccessType Access, Model ModelWithStates) {
-      string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
-      Debug.Assert(ArrayName != null);
-      string StateId = QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id");
-      Debug.Assert(StateId != null);
-
       if ((CommandLineOptions.Clo as GVCommandLineOptions).NoSourceLocInfer) {
         return CreateSourceLocQKV(0,0,GetFileName(),GetFilenamePathPrefix());
       }
 
-      Model.CapturedState CapturedState = null;
-      foreach (var s in ModelWithStates.States) {
-        if (s.Name.Equals(StateId)) {
-          CapturedState = s;
-          break;
-        }
-      }
-      Debug.Assert(CapturedState != null);
+      string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
+      Debug.Assert(ArrayName != null);
 
       string SourceVarName = "_" + Access + "_SOURCE_" + ArrayName + "$1";
-      int SourceValue = CapturedState.TryGet(SourceVarName).AsInt();
+      int SourceValue = GetState(ModelWithStates, err.FailingCall.Attributes).TryGet(SourceVarName).AsInt();
 
       try {
         // TODO: Make lines in .loc file be indexed from 1 for consistency.
@@ -564,6 +543,23 @@ namespace GPUVerify {
 
     public static void FixStateIds(Program Program) {
       new StateIdFixer().FixStateIds(Program);
+    }
+
+    private static Microsoft.Boogie.Model.CapturedState GetState(Model Model, QKeyValue Attributes)
+    {
+      string StateName = QKeyValue.FindStringAttribute(Attributes, "state_id");
+      Debug.Assert(StateName != null);
+      Model.CapturedState state = null;
+      foreach (var s in Model.States)
+      {
+        if (s.Name.Equals(StateName))
+        {
+          state = s;
+          break;
+        }
+      }
+      Debug.Assert(state != null);
+      return state;
     }
 
   }
