@@ -151,7 +151,7 @@ class ReducedStrengthAnalysis {
 
   public StrideConstraint GetStrideConstraint(string varName) {
     int id;
-    var strippedVarName = GPUVerifier.StripThreadIdentifier(varName, out id);
+    var strippedVarName = GVUtil.StripThreadIdentifier(varName, out id);
     if (!strideConstraintMap.ContainsKey(strippedVarName))
       return null;
 

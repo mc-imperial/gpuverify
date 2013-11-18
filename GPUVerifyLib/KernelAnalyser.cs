@@ -196,7 +196,7 @@ namespace GPUVerify
       }
     }
 
-    public static void ProcessOutcome(VC.VCGen.Outcome outcome, List<Counterexample> errors, string timeIndication,
+    public static void ProcessOutcome(Program program, string implName, VC.VCGen.Outcome outcome, List<Counterexample> errors, string timeIndication,
                                ref int errorCount, ref int verified, ref int inconclusives, ref int timeOuts, ref int outOfMemories)
     {
       switch (outcome) {
@@ -247,7 +247,7 @@ namespace GPUVerify
 
           foreach (Counterexample error in errors)
           {
-            GPUVerifyErrorReporter.ReportCounterexample(error);
+            GPUVerifyErrorReporter.ReportCounterexample(error, implName, program);
             errorCount++;
           }
           //}

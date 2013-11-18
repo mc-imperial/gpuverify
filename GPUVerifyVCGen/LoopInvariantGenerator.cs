@@ -220,7 +220,7 @@ namespace GPUVerify {
           HashSet<string> alreadySeenInThisAssignment = new HashSet<string>();
           foreach (var a in aCmd.Lhss) {
             if (a is SimpleAssignLhs) {
-              var v = GPUVerifier.StripThreadIdentifier(
+              var v = GVUtil.StripThreadIdentifier(
                 ((SimpleAssignLhs)a).AssignedVariable.Name);
               if (!alreadySeenInThisAssignment.Contains(v)) {
                 if (result.ContainsKey(v)) {
@@ -274,7 +274,7 @@ namespace GPUVerify {
 
               foreach (var v in LocalVars)
               {
-                string lv = GPUVerifier.StripThreadIdentifier(v.Name);
+                string lv = GVUtil.StripThreadIdentifier(v.Name);
                 if (alreadyConsidered.Contains(lv)) {
                   continue;
                 }
@@ -334,9 +334,9 @@ namespace GPUVerify {
       if(!(nary.Args[0] is IdentifierExpr && nary.Args[1] is IdentifierExpr)) {
         return false;
       }
-      return GPUVerifier.IsPredicate(GPUVerifier.StripThreadIdentifier(
+      return GPUVerifier.IsPredicate(GVUtil.StripThreadIdentifier(
                 ((IdentifierExpr)nary.Args[0]).Name)) &&
-             GPUVerifier.IsPredicate(GPUVerifier.StripThreadIdentifier(
+             GPUVerifier.IsPredicate(GVUtil.StripThreadIdentifier(
                 ((IdentifierExpr)nary.Args[1]).Name));
     }
 

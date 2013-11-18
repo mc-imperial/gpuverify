@@ -123,7 +123,7 @@ namespace GPUVerify
     private bool BarrierHasNonUniformArgument()
     {
       foreach(var v in verifier.BarrierProcedure.InParams) {
-        if(!verifier.uniformityAnalyser.IsUniform(verifier.BarrierProcedure.Name, GPUVerifier.StripThreadIdentifier(v.Name))) {
+        if(!verifier.uniformityAnalyser.IsUniform(verifier.BarrierProcedure.Name, GVUtil.StripThreadIdentifier(v.Name))) {
           return true;
         }
       }
@@ -238,7 +238,7 @@ namespace GPUVerify
       {
         // m is a variable modified by a call in the barrier interval
         Variable v;
-        if(verifier.TryGetArrayFromAccessHasOccurred(GPUVerifier.StripThreadIdentifier(m.Name), AccessType.WRITE, out v)) {
+        if(verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.WRITE, out v)) {
           if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
             result.Add(v);
           }

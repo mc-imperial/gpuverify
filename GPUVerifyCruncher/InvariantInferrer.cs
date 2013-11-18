@@ -164,8 +164,8 @@ namespace Microsoft.Boogie
         int timeOuts = 0;
         int outOfMemories = 0;
 
-        foreach (Houdini.VCGenOutcome x in outcome.implementationOutcomes.Values) {
-          KernelAnalyser.ProcessOutcome(x.outcome, x.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+        foreach (var implOutcome in outcome.implementationOutcomes) {
+          KernelAnalyser.ProcessOutcome(getFreshProgram(false, false), implOutcome.Key, implOutcome.Value.outcome, implOutcome.Value.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
         }
 
         GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);

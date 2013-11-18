@@ -160,8 +160,7 @@ namespace Microsoft.Boogie
             int poCount = vcgen.CumulativeAssertionCount - prevAssertionCount;
             timeIndication = string.Format("  [{0:F3} s, {1} proof obligation{2}]  ", elapsed.TotalSeconds, poCount, poCount == 1 ? "" : "s");
           }
-
-          KernelAnalyser.ProcessOutcome(outcome, errors, timeIndication, ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+          KernelAnalyser.ProcessOutcome(program, impl.Name, outcome, errors, timeIndication, ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
 
           if (outcome == VCGen.Outcome.Errors || CommandLineOptions.Clo.Trace) {
             Console.Out.Flush();

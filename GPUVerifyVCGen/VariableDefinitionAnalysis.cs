@@ -215,7 +215,7 @@ class VariableDefinitionAnalysis {
       if (GPUVerifier.IsConstantInCurrentRegion(expr))
         return expr;
       int id;
-      var varName = GPUVerifier.StripThreadIdentifier(expr.Decl.Name, out id);
+      var varName = GVUtil.StripThreadIdentifier(expr.Decl.Name, out id);
       VarDef def;
       if (!analysis.namedDefMap.TryGetValue(varName, out def)) {
         isSubstitutable = false;

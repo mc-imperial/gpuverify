@@ -33,7 +33,7 @@ namespace GPUVerify.InvariantGenerationRules
 
             foreach (Variable v in Impl.LocVars)
             {
-                string basicName = GPUVerifier.StripThreadIdentifier(v.Name);
+                string basicName = GVUtil.StripThreadIdentifier(v.Name);
                 if (verifier.uniformityAnalyser.IsUniform(Impl.Name, basicName))
                 {
                     if (verifier.mayBePowerOfTwoAnalyser.MayBePowerOfTwo(Impl.Name, basicName))

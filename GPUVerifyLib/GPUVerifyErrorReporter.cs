@@ -40,7 +40,8 @@ namespace GPUVerify {
       NoError
     };
 
-    internal static void ReportCounterexample(Counterexample error) {
+    internal static void ReportCounterexample(Counterexample error, string implName, Program program) {
+
       if (error is CallCounterexample) {
         CallCounterexample CallCex = (CallCounterexample)error;
         if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "barrier_divergence")) {
@@ -81,6 +82,39 @@ namespace GPUVerify {
           ReportFailingAssert(AssertCex);
         }
       }
+
+      Console.Error.WriteLine("Bitwise values of parameters of " + implName.TrimStart(new char[] { '$' }) + ":");
+      if (!error.ModelHasStatesAlready) {
+        error.PopulateModelWithStates();
+        error.ModelHasStatesAlready = true;
+      }
+
+      string thread1, thread2, group1, group2;
+      GetThreadsAndGroupsFromModel(error.Model, out thread1, out thread2, out group1, out group2, false);
+      foreach(var p in program.TopLevelDeclarations.OfType<Implementation>().
+          Where(item => item.Name.Equals(implName)).ToArray()[0].InParams) {
+
+        int id;
+        string stripped = GVUtil.StripThreadIdentifier(p.Name, out id).TrimStart(new char[] { '$' });
+        Console.Error.Write("  " + stripped + " = ");
+
+        var func = error.Model.TryGetFunc(p.Name);
+        if(func != null) {
+          var val = func.GetConstant();
+          if(val is Model.BitVector) {
+            Console.Error.Write(((Model.BitVector)val).Numeral);
+          } else if(val is Model.Uninterpreted) {
+            Console.Error.Write("<irrelevant>");
+          } else {
+            Console.Error.Write("<unknown>");
+          }
+        } else {
+          Console.Error.Write("<unknown>");
+        }
+        Console.Error.WriteLine(id == 1 ? " (thread " + thread1 + ", group " + group1 + ")" : 
+                               (id == 2 ? " (thread " + thread2 + ", group " + group2 + ")" : ""));
+      }
+      Console.WriteLine();
     }
 
     private static void ReportRace(CallCounterexample CallCex) {
@@ -296,6 +330,7 @@ namespace GPUVerify {
       ErrorWriteLine(sli.ToString(), messagePrefix + " for thread " +
                      (relevantThread == 1 ? thread1 : thread2) + " in group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
       GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      Console.Error.WriteLine();
     }
 
     private static void ReportFailingAssert(AssertCounterexample err) {

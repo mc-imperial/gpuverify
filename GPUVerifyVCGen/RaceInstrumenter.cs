@@ -1412,7 +1412,7 @@ namespace GPUVerify {
     }
 
     public override Variable VisitVariable(Variable node) {
-      if (GPUVerifier.StripThreadIdentifier(node.Name).Equals(name)) {
+      if (GVUtil.StripThreadIdentifier(node.Name).Equals(name)) {
         found = true;
       }
       return base.VisitVariable(node);

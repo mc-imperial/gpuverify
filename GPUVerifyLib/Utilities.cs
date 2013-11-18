@@ -306,5 +306,30 @@ namespace GPUVerify
         return copiedObject;
       } else throw new ArgumentException("Unknown type");
     }
+
+    public static string StripThreadIdentifier(string p, out int id)
+    {
+      if (p.EndsWith("$1") && !p.Equals("$1"))
+      {
+        id = 1;
+        return p.Substring(0, p.Length - 2);
+      }
+      if (p.EndsWith("$2") && !p.Equals("$2"))
+      {
+        id = 2;
+        return p.Substring(0, p.Length - 2);
+      }
+
+      id = 0;
+      return p;
+    }
+
+    public static string StripThreadIdentifier(string p)
+    {
+      int id;
+      return StripThreadIdentifier(p, out id);
+    }
+
+
   }
 }

@@ -702,7 +702,7 @@ namespace GPUVerify
             HashSet<string> names = new HashSet<String>();
             foreach (Variable v in Proc.OutParams)
             {
-                names.Add(StripThreadIdentifier(v.Name));
+                names.Add(GVUtil.StripThreadIdentifier(v.Name));
             }
 
             foreach (string name in names)
@@ -720,7 +720,7 @@ namespace GPUVerify
             HashSet<string> names = new HashSet<String>();
             foreach (Variable v in Proc.InParams)
             {
-                names.Add(StripThreadIdentifier(v.Name));
+                names.Add(GVUtil.StripThreadIdentifier(v.Name));
             }
 
             foreach (string name in names)
@@ -801,7 +801,7 @@ namespace GPUVerify
         {
             foreach(Variable v in variables)
             {
-                if(StripThreadIdentifier(v.Name) == name)
+                if(GVUtil.StripThreadIdentifier(v.Name) == name)
                 {
                     return true;
                 }
@@ -984,29 +984,6 @@ namespace GPUVerify
             return _GROUP_SIZE_Z != null;
         }
 
-        internal static string StripThreadIdentifier(string p, out int id)
-        {
-            if (p.EndsWith("$1") && !p.Equals("$1"))
-            {
-                id = 1;
-                return p.Substring(0, p.Length - 2);
-            }
-            if (p.EndsWith("$2") && !p.Equals("$2"))
-            {
-                id = 2;
-                return p.Substring(0, p.Length - 2);
-            }
-
-            id = 0;
-            return p;
-        }
-
-        internal static string StripThreadIdentifier(string p)
-        {
-            int id;
-            return StripThreadIdentifier(p, out id);
-        }
-
         private void GenerateStandardKernelContract()
         {
             RaceInstrumenter.AddKernelPrecondition();
@@ -1061,7 +1038,7 @@ namespace GPUVerify
                     int indexOfFirstNonUniformParameter;
                     for (indexOfFirstNonUniformParameter = 0; indexOfFirstNonUniformParameter < Proc.InParams.Count(); indexOfFirstNonUniformParameter++)
                     {
-                        if (!uniformityAnalyser.IsUniform(Proc.Name, StripThreadIdentifier(Proc.InParams[indexOfFirstNonUniformParameter].Name)))
+                        if (!uniformityAnalyser.IsUniform(Proc.Name, GVUtil.StripThreadIdentifier(Proc.InParams[indexOfFirstNonUniformParameter].Name)))
                         {
                             foundNonUniform = true;
                             break;
@@ -1309,7 +1286,7 @@ namespace GPUVerify
 
             foreach(Formal f in BarrierProcedure.InParams) {
               int Thread;
-              string name = StripThreadIdentifier(f.Name, out Thread);
+              string name = GVUtil.StripThreadIdentifier(f.Name, out Thread);
               if(name.Equals(BarrierProcedureLocalFenceArgName)) {
                 if (uniformityAnalyser.IsUniform(BarrierProcedure.Name, name)) {
                   LocalFence1 = MakeFenceExpr(f);
@@ -1853,7 +1830,7 @@ namespace GPUVerify
 
         public static bool IsDualisedGroupIdConstant(Variable variable)
         {
-            var name = StripThreadIdentifier(variable.Name);
+            var name = GVUtil.StripThreadIdentifier(variable.Name);
             return name.Equals(_GROUP_X.Name) || name.Equals(_GROUP_Y.Name) || name.Equals(_GROUP_Z.Name);
         }
 
@@ -1932,7 +1909,7 @@ namespace GPUVerify
                 return false;
 
             var varName = ((IdentifierExpr)e).Decl.Name;
-            return (StripThreadIdentifier(varName) == StripThreadIdentifier(c.Name));
+            return (GVUtil.StripThreadIdentifier(varName) == GVUtil.StripThreadIdentifier(c.Name));
         }
 
         public bool SubstIsGivenConstant(Implementation impl, Expr e, Constant c)
