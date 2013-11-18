@@ -558,6 +558,13 @@ namespace GPUVerify
 
             }
 
+            // TODO: we do this before adding warp syncs because warp syncs
+            // are added using structured commands, and the loop analysis involved
+            // in adding capture states to loop heads demands an unstructured
+            // representation.  It would be nicer to eliminate this ordering
+            // constraint.
+            AddCaptureStatesToLoopHeads();
+
             if (GPUVerifyVCGenCommandLineOptions.WarpSync)
             {
               AddWarpSyncs();
@@ -565,6 +572,22 @@ namespace GPUVerify
 
             emitProgram(outputFilename);
 
+        }
+
+        private void AddCaptureStatesToLoopHeads()
+        {
+          // Add the ability to get the state at the start of each
+          // loops head block,
+          int counter = 0;
+          foreach(var impl in Program.Implementations()) {
+            foreach(var b in Program.ProcessLoops(impl).Headers) {
+              List<Cmd> NewCmds = new List<Cmd>();
+              NewCmds.Add(new AssumeCmd(Token.NoToken, Expr.True, new QKeyValue(Token.NoToken, "captureState", new List<object> { "loop_head_state_" + counter }, null)));
+              NewCmds.AddRange(b.Cmds);
+              counter++;
+              b.Cmds = NewCmds;
+            }
+          }
         }
 
         private void CheckUserSuppliedLoopInvariants()
@@ -2202,7 +2225,6 @@ namespace GPUVerify
 
           Implementation method = new Implementation(Token.NoToken,"_WARP_SYNC",new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Variable>(), new StmtList(blocks,Token.NoToken));
           method.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
-
           Program.TopLevelDeclarations.Add(method);
         }
 

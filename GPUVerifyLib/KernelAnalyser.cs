@@ -247,7 +247,7 @@ namespace GPUVerify
 
           foreach (Counterexample error in errors)
           {
-            GPUVerifyErrorReporter.ReportCounterexample(error, implName, program);
+            new GPUVerifyErrorReporter(program, implName).ReportCounterexample(error);
             errorCount++;
           }
           //}

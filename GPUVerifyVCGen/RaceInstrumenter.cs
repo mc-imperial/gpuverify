@@ -583,10 +583,12 @@ namespace GPUVerify {
       string CheckState = "check_state_" + CheckStateCounter;
       CheckStateCounter++;
       AssumeCmd captureStateAssume = new AssumeCmd(Token.NoToken, Expr.True);
+      captureStateAssume.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
       captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
-        "captureState", new List<object>() { CheckState }, null);
+        "captureState", new List<object>() { CheckState }, captureStateAssume.Attributes);
       captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
         "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
+      
       result.Add(captureStateAssume);
       CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
       checkAccessCallCmd.Proc = checkProcedure;

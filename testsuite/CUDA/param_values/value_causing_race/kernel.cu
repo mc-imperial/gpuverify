@@ -1,7 +1,7 @@
 //xfail:BOOGIE_ERROR
 //--gridDim=1 --blockDim=512
-//write by thread 200
-//write by thread 15
+//Write by thread 200
+//Write by thread 15
 //x = 185
 
 __global__ void example(float * A, int x) {

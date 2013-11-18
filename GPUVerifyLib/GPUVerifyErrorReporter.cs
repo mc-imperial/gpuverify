@@ -40,12 +40,22 @@ namespace GPUVerify {
       NoError
     };
 
-    internal static void ReportCounterexample(Counterexample error, string implName, Program program) {
+
+    private Program program;
+    private Implementation impl;
+
+    internal GPUVerifyErrorReporter(Program program, string implName) {
+      this.program = program;
+      this.impl = program.Implementations().Where(Item => Item.Name.Equals(implName)).ToList()[0];
+    }
+    
+
+    internal void ReportCounterexample(Counterexample error) {
 
       int WindowWidth;
       try {
         WindowWidth = Console.WindowWidth;
-      } catch(IOException e) {
+      } catch(IOException) {
         WindowWidth = 20;
       }
 
@@ -94,13 +104,11 @@ namespace GPUVerify {
         }
       }
 
-      Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().
-          Where(item => item.Name.Equals(implName)).ToArray()[0];
       if(impl.InParams.Count() == 0) {
         return;
       }
 
-      Console.Error.WriteLine("Bitwise values of parameters of " + implName.TrimStart(new char[] { '$' }) + ":");
+      Console.Error.WriteLine("Bitwise values of parameters of " + impl.Name.TrimStart(new char[] { '$' }) + ":");
       if (!error.ModelHasStatesAlready) {
         error.PopulateModelWithStates();
         error.ModelHasStatesAlready = true;
@@ -133,7 +141,7 @@ namespace GPUVerify {
       Console.WriteLine();
     }
 
-    private static void ReportRace(CallCounterexample CallCex) {
+    private void ReportRace(CallCounterexample CallCex) {
 
       if (!CallCex.ModelHasStatesAlready) {
         CallCex.PopulateModelWithStates();
@@ -151,76 +159,71 @@ namespace GPUVerify {
 
       if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_read")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
-        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WR);
+        ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WR);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "read_write")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.READ, ModelWithStates);
-        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RW);
+        ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RW);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_write")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
-        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WW);
+        ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WW);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "atomic_read")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.ATOMIC, ModelWithStates);
-        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AR);
+        ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AR);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "atomic_write")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.ATOMIC, ModelWithStates);
-        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AW);
+        ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AW);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "read_atomic")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.READ, ModelWithStates);
-        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RA);
+        ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RA);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_atomic")) {
         CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
-        ReportRace(CallCex.FailingCall, CallCex.FailingRequires, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WA);
+        ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WA);
       }
     }
 
-    private static void ReportRace(CallCmd callNode, Requires reqNode, string thread1, string thread2, string group1, string group2, string arrName, uint byteOffset, RaceType raceType) {
-      Console.WriteLine("");
-      string locinfo1 = null, locinfo2 = null, raceName, access1, access2;
-
-      var CallSLI = new SourceLocationInfo(GetAttributes(callNode), callNode.tok);
-      var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), reqNode.tok);
-
+    private void ReportRace(CallCounterexample CallCex, string thread1, string thread2, string group1, string group2, string arrName, uint byteOffset, RaceType raceType) {
+      string raceName, access1, access2;
       switch (raceType) {
         case RaceType.RW:
         raceName = "read-write";
-        access1 = "read";
-        access2 = "write";
+        access1 = "Read";
+        access2 = "Write";
         break;
         case RaceType.WR:
         raceName = "write-read";
-        access1 = "write";
-        access2 = "read";
+        access1 = "Write";
+        access2 = "Read";
         break;
         case RaceType.WW:
         raceName = "write-write";
-        access1 = "write";
-        access2 = "write";
+        access1 = "Write";
+        access2 = "Write";
         break;
         case RaceType.AR:
         raceName = "atomic-read";
-        access1 = "atomic";
-        access2 = "read";
+        access1 = "Atomic";
+        access2 = "Read";
         break;
         case RaceType.AW:
         raceName = "atomic-write";
-        access1 = "atomic";
-        access2 = "write";
+        access1 = "Atomic";
+        access2 = "Write";
         break;
         case RaceType.RA:
         raceName = "read-atomic";
-        access1 = "read";
-        access2 = "atomic";
+        access1 = "Read";
+        access2 = "Atomic";
         break;
         case RaceType.WA:
         raceName = "write-atomic";
-        access1 = "write";
-        access2 = "atomic";
+        access1 = "Write";
+        access2 = "Atomic";
         break;
 
         default:
@@ -231,28 +234,129 @@ namespace GPUVerify {
         break;
       }
 
-      ErrorWriteLine(CallSLI.GetFile() + ":", "possible " + raceName + " race on ((char*)" + arrName + ")[" + byteOffset + "]:\n", ErrorMsgType.Error);
 
-      locinfo1 = CallSLI.ToString();
-      locinfo2 = RequiresSLI.ToString();
+      SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), CallCex.FailingCall.tok);
+      HashSet<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, arrName, access1);
 
-      AddPadding(ref locinfo1, ref locinfo2);
+      Console.Error.WriteLine();
+      ErrorWriteLine(SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + arrName + ")[" + byteOffset + "]:\n", ErrorMsgType.Error);
 
-      /* TODO:
-         Why is thread2 being printed with locinfo1, and thread1 being
-         printed with locinfo2? Check whether this is correct.
-       */
+      Console.Error.WriteLine(access2 + " by thread " + thread2 + " in group " + group2 + ", " + SourceInfoForSecondAccess);
+      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(SourceInfoForSecondAccess.FetchCodeLine() + "\n", 2));
 
-      ErrorWriteLine(locinfo1, access2 + " by thread " + thread2 + " in group " + group2, ErrorMsgType.NoError);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine() + "\n", 2));
+      Console.Error.Write(access1 + " by thread " + thread1 + " in group " + group1 + ", ");
+      if(PossibleSourcesForFirstAccess.Count() == 1) {
+        Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0]);
+        GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(PossibleSourcesForFirstAccess.ToList()[0].FetchCodeLine() + "\n", 2));
+      } else {
+        Console.Error.WriteLine("possible sources are:");
+        List<SourceLocationInfo> LocationsAsList = PossibleSourcesForFirstAccess.ToList();
+        LocationsAsList.Sort(new SourceLocationInfo.SourceLocationInfoComparison());
+        foreach(var sli in LocationsAsList) {
+          Console.Error.WriteLine(sli);
+          GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(sli.FetchCodeLine(), 2));
+        }
+        Console.WriteLine();
+      }
 
 
-      ErrorWriteLine(locinfo2, access1 + " by thread " + thread1 + " in group " + group1, ErrorMsgType.NoError);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
+      //ErrorWriteLine(locinfo2, access1 + " by thread " + thread1 + " in group " + group1, ErrorMsgType.NoError);
+      //GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
+    }
+
+    private HashSet<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string arrayName, string accessType)
+    {
+      string ACCESS_HAS_OCCURRED = "_" + accessType.ToUpper() + "_HAS_OCCURRED_$$" + arrayName + "$1";
+      string ACCESS_OFFSET = "_" + accessType.ToUpper() + "_OFFSET_$$" + arrayName + "$1";
+
+      Tuple<AssumeCmd, string> LastLogPosition = null;
+
+      foreach (var b in CallCex.Trace)
+      {
+        foreach (var c in b.Cmds.OfType<AssumeCmd>())
+        {
+          string StateName = QKeyValue.FindStringAttribute(c.Attributes, "captureState");
+          if (StateName == null)
+          {
+            continue;
+          }
+          Model.CapturedState state = GetStateFromModel(StateName, CallCex.Model);
+          Model.Boolean AHO_value = (Model.Boolean)state.TryGet(ACCESS_HAS_OCCURRED);
+          Model.BitVector AO_value = (Model.BitVector)state.TryGet(ACCESS_OFFSET);
+          if (!AHO_value.Value)
+          {
+            LastLogPosition = null;
+          }
+          else if (LastLogPosition == null || !AO_value.Numeral.Equals(LastLogPosition.Item2))
+          {
+            LastLogPosition = new Tuple<AssumeCmd, string>(c, AO_value.Numeral);
+          }
+        }
+      }
+
+      Debug.Assert(LastLogPosition != null);
+
+      HashSet<SourceLocationInfo> PossibleSources = new HashSet<SourceLocationInfo>();
+
+      if (QKeyValue.FindStringAttribute(LastLogPosition.Item1.Attributes, "captureState").Contains("loop_head_state"))
+      {
+
+        Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, false);
+        Implementation originalImplementation = originalProgram.Implementations().Where(Item => Item.Name.Equals(impl.Name)).ToList()[0];
+        var blockGraph = program.ProcessLoops(originalImplementation);
+        Block header = null;
+        foreach (var b in blockGraph.Headers)
+        {
+          foreach (var c in b.Cmds.OfType<AssumeCmd>())
+          {
+            var stateId = QKeyValue.FindStringAttribute(c.Attributes, "captureState");
+            if (stateId != null && stateId.Equals(QKeyValue.FindStringAttribute(LastLogPosition.Item1.Attributes, "captureState")))
+            {
+              header = b;
+              break;
+            }
+          }
+          if (header != null)
+          {
+            break;
+          }
+        }
+        Debug.Assert(header != null);
+        HashSet<Block> LoopNodes = new HashSet<Block>(
+          blockGraph.BackEdgeNodes(header).Select(Item => blockGraph.NaturalLoops(header, Item)).SelectMany(Item => Item)
+        );
+        foreach (var c in LoopNodes.Select(Item => Item.Cmds).SelectMany(Item => Item).OfType<CallCmd>())
+        {
+          if (c.callee.Equals("_CHECK_" + accessType.ToUpper() + "_$$" + arrayName))
+          {
+            PossibleSources.Add(new SourceLocationInfo(c.Attributes, c.tok));
+          }
+        }
+      }
+      else
+      {
+        PossibleSources.Add(new SourceLocationInfo(LastLogPosition.Item1.Attributes, LastLogPosition.Item1.tok));
+      }
+      return PossibleSources;
+    }
+
+    private static Model.CapturedState GetStateFromModel(string StateName, Model m)
+    {
+      Model.CapturedState state = null;
+      foreach (var s in m.States)
+      {
+        if (s.Name.Equals(StateName))
+        {
+          state = s;
+          break;
+        }
+      }
+      Debug.Assert(state != null);
+      return state;
     }
 
     private static uint GetOffsetInBytes(Variable OffsetVar, Model Model, CallCmd FailingCall) {
-      var element = GetState(Model, FailingCall.Attributes).TryGet(OffsetVar.Name) as Model.Number;
+      var element = GetStateFromModel(QKeyValue.FindStringAttribute(FailingCall.Attributes, "state_id"), Model).TryGet(OffsetVar.Name) as Model.Number;
       uint elemOffset = Convert.ToUInt32(element.Numeral);
       Debug.Assert(OffsetVar.Attributes != null);
       uint elemWidth = (uint)QKeyValue.FindIntAttribute(OffsetVar.Attributes, "elem_width", int.MaxValue);
@@ -512,19 +616,6 @@ namespace GPUVerify {
       return arrName.Substring("$$".Length);
     }
 
-    private static void AddPadding(ref string string1, ref string string2) {
-      if (string1.Length < string2.Length) {
-        for (int i = (string2.Length - string1.Length); i > 0; --i) {
-          string1 += " ";
-        }
-      }
-      else {
-        for (int i = (string1.Length - string2.Length); i > 0; --i) {
-          string2 += " ";
-        }
-      }
-    }
-
     private static string TrimLeadingSpaces(string s1, int noOfSpaces) {
       if (String.IsNullOrWhiteSpace(s1)) {
         return s1;
@@ -573,7 +664,7 @@ namespace GPUVerify {
       Debug.Assert(ArrayName != null);
 
       string SourceVarName = "_" + Access + "_SOURCE_" + ArrayName + "$1";
-      int SourceValue = GetState(ModelWithStates, err.FailingCall.Attributes).TryGet(SourceVarName).AsInt();
+      int SourceValue = GetStateFromModel(QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id"), ModelWithStates).TryGet(SourceVarName).AsInt();
 
       try {
         // TODO: Make lines in .loc file be indexed from 1 for consistency.
@@ -594,23 +685,6 @@ namespace GPUVerify {
       new StateIdFixer().FixStateIds(Program);
     }
 
-    private static Microsoft.Boogie.Model.CapturedState GetState(Model Model, QKeyValue Attributes)
-    {
-      string StateName = QKeyValue.FindStringAttribute(Attributes, "state_id");
-      Debug.Assert(StateName != null);
-      Model.CapturedState state = null;
-      foreach (var s in Model.States)
-      {
-        if (s.Name.Equals(StateName))
-        {
-          state = s;
-          break;
-        }
-      }
-      Debug.Assert(state != null);
-      return state;
-    }
-
   }
 
   class StateIdFixer {
@@ -621,6 +695,7 @@ namespace GPUVerify {
     // fixing things up.  It is not a particularly elegant solution.
 
     private int CheckStateCounter = 0;
+    private int LoopHeadStateCounter = 0;
 
     internal void FixStateIds(Program Program) {
 
@@ -637,28 +712,34 @@ namespace GPUVerify {
       for (int i = 0; i < b.Cmds.Count(); i++) {
         var a = b.Cmds[i] as AssumeCmd;
         if (a != null && (QKeyValue.FindStringAttribute(a.Attributes, "captureState") != null)) {
-          // It is necessary to clone the assume and call command, because after loop unrolling
-          // there is aliasing between blocks of different loop iterations
-          newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetCheckStateId(a.Attributes, "captureState")));
+          if(QKeyValue.FindStringAttribute(a.Attributes, "captureState").Contains("check_state")) {
+            // It is necessary to clone the assume and call command, because after loop unrolling
+            // there is aliasing between blocks of different loop iterations
+            newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetCheckStateId(a.Attributes, "captureState")));
 
-          #region Skip on to the next call, adding all intervening commands to the new command list
-          CallCmd c;
-          do {
-            i++;
-            Debug.Assert(i < b.Cmds.Count());
-            c = b.Cmds[i] as CallCmd;
-            if(c == null) {
-              newCmds.Add(b.Cmds[i]);
-            }
-          } while(c == null);
-          Debug.Assert(c != null);
-          #endregion
+            #region Skip on to the next call, adding all intervening commands to the new command list
+            CallCmd c;
+            do {
+              i++;
+              Debug.Assert(i < b.Cmds.Count());
+              c = b.Cmds[i] as CallCmd;
+              if(c == null) {
+                newCmds.Add(b.Cmds[i]);
+              }
+            } while(c == null);
+            Debug.Assert(c != null);
+            #endregion
 
-          Debug.Assert(QKeyValue.FindStringAttribute(c.Attributes, "state_id") != null);
-          var newCall = new CallCmd(Token.NoToken, c.callee, c.Ins, c.Outs, ResetCheckStateId(c.Attributes, "state_id"));
-          newCall.Proc = c.Proc;
-          newCmds.Add(newCall);
-          CheckStateCounter++;
+            Debug.Assert(QKeyValue.FindStringAttribute(c.Attributes, "state_id") != null);
+            var newCall = new CallCmd(Token.NoToken, c.callee, c.Ins, c.Outs, ResetCheckStateId(c.Attributes, "state_id"));
+            newCall.Proc = c.Proc;
+            newCmds.Add(newCall);
+            CheckStateCounter++;
+          } else {
+            Debug.Assert(QKeyValue.FindStringAttribute(a.Attributes, "captureState").Contains("loop_head_state"));
+            newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetLoopHeadStateId(a.Attributes)));
+            LoopHeadStateCounter++;
+          }
         }
         else {
           newCmds.Add(b.Cmds[i]);
@@ -677,6 +758,24 @@ namespace GPUVerify {
       while (Attributes != null) {
         if (Attributes.Key.Equals(Key)) {
           result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { "check_state_" + CheckStateCounter }, result);
+        }
+        else {
+          result = new QKeyValue(Token.NoToken, Attributes.Key, Attributes.Params, result);
+        }
+        Attributes = Attributes.Next;
+      }
+      return result;
+    }
+
+    private QKeyValue ResetLoopHeadStateId(QKeyValue Attributes) {
+      // Returns attributes identical to Attributes, but:
+      // - reversed (for ease of implementation; should not matter)
+      // - with the value for "captureState" replaced by "loop_head_state_X" where X is the counter field
+      Debug.Assert(QKeyValue.FindStringAttribute(Attributes, "captureState") != null);
+      QKeyValue result = null;
+      while (Attributes != null) {
+        if (Attributes.Key.Equals("captureState")) {
+          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { "loop_head_state_" + LoopHeadStateCounter }, result);
         }
         else {
           result = new QKeyValue(Token.NoToken, Attributes.Key, Attributes.Params, result);

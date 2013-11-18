@@ -1,8 +1,8 @@
 //xfail:BOOGIE_ERROR
 //--local_size=1024 --num_groups=64
 //kernel.cl: error: possible write-read race on \(\(char\*\)A\)\[[\d]+\]:[\s]
-//kernel.cl:17:16:[\s]read by thread [\d]+ in group [\d]+[\s]+temp = A\[tid - i\];
-//kernel.cl:20:9:[\s]+write by thread[\s]+[\d]+ in group [\d]+[\s]+A\[tid\] = A\[tid\] \+ temp;
+//Read by thread [\d]+ in group [\d]+.+kernel.cl:17:16:[\s]+temp = A\[tid - i\];
+//Write by thread[\s]+[\d]+ in group [\d]+.+kernel.cl:20:9:[\s]+A\[tid\] = A\[tid\] \+ temp;
 
 
 

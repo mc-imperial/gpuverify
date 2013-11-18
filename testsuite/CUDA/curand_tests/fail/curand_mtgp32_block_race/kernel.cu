@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--blockDim=256 --gridDim=2
-//kernel.cu:9:21: write by thread
+//Write by thread [\d]+ in group [\d]+, .+kernel\.cu:9:21:
 
 #include <cuda.h>
 

@@ -19,6 +19,39 @@ namespace GPUVerify {
 
   public class SourceLocationInfo {
 
+    public class SourceLocationInfoComparison : IComparer<SourceLocationInfo> {
+      public int Compare(SourceLocationInfo s1, SourceLocationInfo s2) {
+
+        int directories = s1.GetDirectory().CompareTo(s2.GetDirectory());
+        if(directories != 0) {
+          return directories;
+        }
+
+        int files = s1.GetFile().CompareTo(s2.GetFile());
+        if(files != 0) {
+          return files;
+        }
+
+        if(s1.GetLine() < s2.GetLine()) {
+          return -1;
+        }
+
+        if(s1.GetLine() > s2.GetLine()) {
+          return 1;
+        }
+
+        if(s1.GetColumn() < s2.GetColumn()) {
+          return -1;
+        }
+
+        if(s1.GetColumn() > s2.GetColumn()) {
+          return 1;
+        }
+
+        return 0;
+      }
+    }
+
     private string file;
     private string directory;
     private int line;
