@@ -351,9 +351,9 @@ def run(command,timeout=0):
     if __name__ != '__main__':
       # We don't want messages to go to stdout if being used as module
       popenargs['stdout']=subprocess.PIPE
-      popenargs['stderr']=subprocess.PIPE
-    else:
-      popenargs['stderr']=subprocess.STDOUT
+
+  # Redirect stderr to whatever stdout is redirected to
+  popenargs['stderr']=subprocess.STDOUT
 
   killer=None
   def cleanupKiller():
@@ -927,7 +927,7 @@ def _main(argv):
     lang = CommandLineOptions.bugleLanguage
     if not lang: # try to infer
       try:
-        proc = subprocess.Popen([ gvfindtools.llvmBinDir + "/llvm-nm", filename + ext ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        proc = subprocess.Popen([ gvfindtools.llvmBinDir + "/llvm-nm", filename + ext ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         stdout, stderr = proc.communicate()
         if "get_local_size" in stdout: lang = 'cl'
         if "blockDim" in stdout: lang = 'cu'
