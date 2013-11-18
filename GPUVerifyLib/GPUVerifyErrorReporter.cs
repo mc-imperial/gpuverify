@@ -42,7 +42,14 @@ namespace GPUVerify {
 
     internal static void ReportCounterexample(Counterexample error, string implName, Program program) {
 
-      for(int i = 0; i < Console.WindowWidth; i++) {
+      int WindowWidth;
+      try {
+        WindowWidth = Console.WindowWidth;
+      } catch(IOException e) {
+        WindowWidth = 20;
+      }
+
+      for(int i = 0; i < WindowWidth; i++) {
         Console.Error.Write("-");
       }
 
