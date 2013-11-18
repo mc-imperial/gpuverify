@@ -138,7 +138,7 @@ Replace as appropriate or setup an environment variable.::
     $ export ANTLR=${BUILD_ROOT}/CVC4/src/antlr-3.4/bin/antlr3
     $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/src/antlr-3.4 \
                   --prefix=${BUILD_ROOT}/CVC4/install \
-                  --enable-static-binary
+                  --disable-shared --enable-static
     $ make
     $ make install
 

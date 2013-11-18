@@ -7,6 +7,7 @@ import logging
 import shutil
 import re
 import datetime
+import subprocess
 
 import getversion
 
@@ -219,6 +220,23 @@ class CreateFileFromString(DeployTask):
     with open(self.destpath,'w') as f:
       f.write(self.string)
 
+class StripFile(DeployTask):
+  """
+      This class is intended to be used to strip binary files.
+  """
+  def __init__(self,path):
+    """
+        path  : The full path to the file to strip
+    """
+    self.path=path
+
+  def run(self):
+    if not os.path.isfile(self.path):
+      logging.error('File "' + self.path + '" does not exist')
+
+    logging.info('Stripping "' + self.path + '"')
+    subprocess.call(['strip', self.path])
+
 def main(argv):
   des=('Deploys GPUVerify to a directory by copying the necessary '
       'files from the development directory so that GPUVerify can '
@@ -322,6 +340,7 @@ def main(argv):
       FileCopy(gvfindtools.cvc4SrcDir, 'COPYING', licenseDest),
       MoveFile(licenseDest + os.sep + 'COPYING', licenseDest + os.sep + 'cvc4.txt'),
       FileCopy(gvfindtools.cvc4BinDir, 'cvc4.exe', gvfindtoolsdeploy.cvc4BinDir),
+      IfUsing('posix',StripFile(gvfindtoolsdeploy.cvc4BinDir + os.sep + 'cvc4.exe'))
     ])
 
   for action in deployActions:
