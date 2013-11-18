@@ -330,6 +330,21 @@ namespace GPUVerify
       return StripThreadIdentifier(p, out id);
     }
 
+    public static Program GetFreshProgram(List<string> fileNames, bool raceCheck, bool inline)
+    {
+      KernelAnalyser.PipelineOutcome oc;
+      Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
+      if (program == null) Environment.Exit(1);
+      oc = KernelAnalyser.ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
+      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) Environment.Exit(1);
+
+      if (!raceCheck) KernelAnalyser.DisableRaceChecking(program);
+      KernelAnalyser.EliminateDeadVariables(program);
+      if (inline) KernelAnalyser.Inline(program);
+
+      return program;
+    }
+
 
   }
 }

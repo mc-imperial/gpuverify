@@ -42,6 +42,10 @@ namespace GPUVerify {
 
     internal static void ReportCounterexample(Counterexample error, string implName, Program program) {
 
+      for(int i = 0; i < Console.WindowWidth; i++) {
+        Console.Error.Write("-");
+      }
+
       if (error is CallCounterexample) {
         CallCounterexample CallCex = (CallCounterexample)error;
         if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "barrier_divergence")) {
@@ -83,6 +87,12 @@ namespace GPUVerify {
         }
       }
 
+      Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().
+          Where(item => item.Name.Equals(implName)).ToArray()[0];
+      if(impl.InParams.Count() == 0) {
+        return;
+      }
+
       Console.Error.WriteLine("Bitwise values of parameters of " + implName.TrimStart(new char[] { '$' }) + ":");
       if (!error.ModelHasStatesAlready) {
         error.PopulateModelWithStates();
@@ -91,8 +101,7 @@ namespace GPUVerify {
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(error.Model, out thread1, out thread2, out group1, out group2, false);
-      foreach(var p in program.TopLevelDeclarations.OfType<Implementation>().
-          Where(item => item.Name.Equals(implName)).ToArray()[0].InParams) {
+      foreach(var p in impl.InParams) {
 
         int id;
         string stripped = GVUtil.StripThreadIdentifier(p.Name, out id).TrimStart(new char[] { '$' });
@@ -119,8 +128,6 @@ namespace GPUVerify {
 
     private static void ReportRace(CallCounterexample CallCex) {
 
-      string thread1, thread2, group1, group2, arrName;
-
       if (!CallCex.ModelHasStatesAlready) {
         CallCex.PopulateModelWithStates();
         CallCex.ModelHasStatesAlready = true;
@@ -129,10 +136,10 @@ namespace GPUVerify {
 
       uint byteOffset = GetOffsetInBytes(ExtractOffsetVar(CallCex), ModelWithStates, CallCex.FailingCall);
 
+      string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
 
-      arrName = GetArrayName(CallCex.FailingRequires);
-
+      string arrName = GetArrayName(CallCex.FailingRequires);
       Debug.Assert(arrName != null);
 
       if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_read")) {
@@ -606,7 +613,7 @@ namespace GPUVerify {
     // loop unrolling duplicates them.  This class is responsible for
     // fixing things up.  It is not a particularly elegant solution.
 
-    private int counter = 0;
+    private int CheckStateCounter = 0;
 
     internal void FixStateIds(Program Program) {
 
@@ -625,7 +632,7 @@ namespace GPUVerify {
         if (a != null && (QKeyValue.FindStringAttribute(a.Attributes, "captureState") != null)) {
           // It is necessary to clone the assume and call command, because after loop unrolling
           // there is aliasing between blocks of different loop iterations
-          newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetStateId(a.Attributes, "captureState")));
+          newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetCheckStateId(a.Attributes, "captureState")));
 
           #region Skip on to the next call, adding all intervening commands to the new command list
           CallCmd c;
@@ -641,10 +648,10 @@ namespace GPUVerify {
           #endregion
 
           Debug.Assert(QKeyValue.FindStringAttribute(c.Attributes, "state_id") != null);
-          var newCall = new CallCmd(Token.NoToken, c.callee, c.Ins, c.Outs, ResetStateId(c.Attributes, "state_id"));
+          var newCall = new CallCmd(Token.NoToken, c.callee, c.Ins, c.Outs, ResetCheckStateId(c.Attributes, "state_id"));
           newCall.Proc = c.Proc;
           newCmds.Add(newCall);
-          counter++;
+          CheckStateCounter++;
         }
         else {
           newCmds.Add(b.Cmds[i]);
@@ -654,7 +661,7 @@ namespace GPUVerify {
       return b;
     }
 
-    private QKeyValue ResetStateId(QKeyValue Attributes, string Key) {
+    private QKeyValue ResetCheckStateId(QKeyValue Attributes, string Key) {
       // Returns attributes identical to Attributes, but:
       // - reversed (for ease of implementation; should not matter)
       // - with the value for Key replaced by "check_state_X" where X is the counter field
@@ -662,7 +669,7 @@ namespace GPUVerify {
       QKeyValue result = null;
       while (Attributes != null) {
         if (Attributes.Key.Equals(Key)) {
-          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { "check_state_" + counter }, result);
+          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { "check_state_" + CheckStateCounter }, result);
         }
         else {
           result = new QKeyValue(Token.NoToken, Attributes.Key, Attributes.Params, result);

@@ -215,20 +215,7 @@ namespace Microsoft.Boogie
 
     private Program getFreshProgram(bool raceCheck, bool inline)
     {
-      KernelAnalyser.PipelineOutcome oc;
-      List<string> filesToProcess = new List<string>();
-      filesToProcess.Add(fileNames[fileNames.Count - 1]);
-
-      Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
-      if (program == null) Environment.Exit(1);
-      oc = KernelAnalyser.ResolveAndTypecheck(program, filesToProcess[0]);
-      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) Environment.Exit(1);
-
-      if (!raceCheck) KernelAnalyser.DisableRaceChecking(program);
-      KernelAnalyser.EliminateDeadVariables(program);
-      if (inline) KernelAnalyser.Inline(program);
-
-      return program;
+      return GVUtil.GetFreshProgram(fileNames, raceCheck, inline);
     }
 
     private void printOutcome(Houdini.HoudiniOutcome outcome)
