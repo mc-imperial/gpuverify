@@ -246,7 +246,6 @@ class DefaultCmdLineOptions(object):
     self.onlyLog = False
     self.noLoopPredicateInvariants = False
     self.noSmartPredication = False
-    self.noSourceLocInfer = False
     self.noUniformityAnalysis = False
     self.inference = True
     self.invInferConfigFile = "inference.cfg"
@@ -465,7 +464,6 @@ def showHelpAndExit():
     --no-loop-predicate-invariants  Turn off automatic generation of loop invariants
                             related to predicates, which can be incorrect
     --no-smart-predication  Turn off smart predication
-    --no-source-loc-infer   Turn off inference of source location information
     --no-uniformity-analysis  Turn off uniformity analysis
     --only-log              Log accesses to arrays, but do not check for races.  This
                             can be useful for determining access pattern invariants
@@ -626,8 +624,6 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.noLoopPredicateInvariants = True
     if o == "--no-smart-predication":
       CommandLineOptions.noSmartPredication = True
-    if o == "--no-source-loc-infer":
-      CommandLineOptions.noSourceLocInfer = True
     if o == "--no-uniformity-analysis":
       CommandLineOptions.noUniformityAnalysis = True
     if o == "--clang-opt":
@@ -841,7 +837,7 @@ def _main(argv):
               'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group',
               'only-log', 'adversarial-abstraction', 'equality-abstraction',
               'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
-              'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication', 'no-source-loc-infer',
+              'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication',
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
               'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
@@ -966,10 +962,6 @@ def _main(argv):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noLoopPredicateInvariants" ]
   if CommandLineOptions.noSmartPredication:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSmartPredication" ]
-  if CommandLineOptions.noSourceLocInfer:
-    CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSourceLocInfer" ]
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/noSourceLocInfer" ]
-    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/noSourceLocInfer" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
   if CommandLineOptions.asymmetricAsserts:

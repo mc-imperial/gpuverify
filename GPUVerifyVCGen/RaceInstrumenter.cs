@@ -29,10 +29,6 @@ namespace GPUVerify {
 
     private int CheckStateCounter = 0;
 
-    private Dictionary<string, List<int>> ReadAccessSourceLocations = new Dictionary<string, List<int>>();
-    private Dictionary<string, List<int>> WriteAccessSourceLocations = new Dictionary<string, List<int>>();
-    private Dictionary<string, List<int>> AtomicAccessSourceLocations = new Dictionary<string, List<int>>();
-
     public IKernelArrayInfo StateToCheck;
 
     private Dictionary<string, Procedure> RaceCheckingProcedures = new Dictionary<string, Procedure>();
@@ -102,14 +98,6 @@ namespace GPUVerify {
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.READ, offsetPredicatesRead);
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.WRITE, offsetPredicatesWrite);
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.ATOMIC, offsetPredicatesAtomic);
-        if (GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
-          AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.READ, new List<Expr>(
-            offsetPredicatesRead.Zip(CollectSourceLocPredicates(region, v, AccessType.READ), Expr.And)), true);
-          AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.WRITE, new List<Expr>(
-            offsetPredicatesWrite.Zip(CollectSourceLocPredicates(region, v, AccessType.WRITE), Expr.And)), true);
-          AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.ATOMIC, new List<Expr>(
-            offsetPredicatesAtomic.Zip(CollectSourceLocPredicates(region, v, AccessType.ATOMIC), Expr.And)), true);
-        }
       }
     }
 
@@ -131,22 +119,6 @@ namespace GPUVerify {
       }
     }
 
-    private List<Expr> CollectSourceLocPredicates(IRegion region, Variable v, AccessType Access) {
-      var sourceVar = verifier.FindOrCreateSourceVariable(v.Name, Access);
-      var sourceExpr = new IdentifierExpr(Token.NoToken, sourceVar);
-      var sourcePreds = new List<Expr>();
-
-      foreach (Cmd c in region.Cmds()) {
-        if (c is CallCmd) {
-          CallCmd call = c as CallCmd;
-          if (call.callee == "_LOG_" + Access + "_" + v.Name) {
-            sourcePreds.Add(Expr.Eq(sourceExpr, call.Ins[ParameterOffsetForSource(Access)]));
-          }
-        }
-      }
-
-      return sourcePreds;
-    }
     private List<Expr> CollectOffsetPredicates(Implementation impl, IRegion region, Variable v, AccessType Access) {
       var offsetVar = new VariableDualiser(1, null, null).VisitVariable(verifier.MakeOffsetVariable(v.Name, Access));
       var offsetExpr = new IdentifierExpr(Token.NoToken, offsetVar);
@@ -433,7 +405,6 @@ namespace GPUVerify {
     public void AddKernelPrecondition() {
       foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddRequiresNoPendingAccess(v);
-        AddRequiresSourceAccessZero(v);
       }
     }
 
@@ -494,43 +465,6 @@ namespace GPUVerify {
           }
         }
 
-        if (c is CallCmd) {
-          CallCmd call = c as CallCmd;
-          if (verifier.GetImplementation(call.callee) == null) {
-            // This procedure has no body, so if it can modify race checking
-            // variables then we must regard it's source location as a source
-            // location where an access occurs
-            Procedure proc = verifier.GetProcedure(call.callee);
-            HashSet<Variable> AccessSourceVariablesModifies = new HashSet<Variable>();
-            foreach (IdentifierExpr m in proc.Modifies) {
-              foreach (var v in verifier.KernelArrayInfo.getAllNonLocalArrays()) {
-                if(m.Name.Equals(GPUVerifier.MakeAccessHasOccurredVariableName(v.Name, AccessType.READ)) ||
-                   m.Name.Equals(GPUVerifier.MakeOffsetVariableName(v.Name, AccessType.READ))) {
-                     AddToAccessSourceLocations(AccessType.READ, v.Name);
-                     AccessSourceVariablesModifies.Add(verifier.MakeSourceVariable(v.Name, AccessType.READ));
-                } else if(m.Name.Equals(GPUVerifier.MakeAccessHasOccurredVariableName(v.Name, AccessType.WRITE)) ||
-                   m.Name.Equals(GPUVerifier.MakeOffsetVariableName(v.Name, AccessType.WRITE))) {
-                     AddToAccessSourceLocations(AccessType.WRITE, v.Name);
-                     AccessSourceVariablesModifies.Add(verifier.MakeSourceVariable(v.Name, AccessType.WRITE));
-                } else if(m.Name.Equals(GPUVerifier.MakeAccessHasOccurredVariableName(v.Name, AccessType.ATOMIC)) ||
-                   m.Name.Equals(GPUVerifier.MakeOffsetVariableName(v.Name, AccessType.ATOMIC))) {
-                     AddToAccessSourceLocations(AccessType.ATOMIC, v.Name);
-                     AccessSourceVariablesModifies.Add(verifier.MakeSourceVariable(v.Name, AccessType.ATOMIC));
-                }
-              }
-            }
-
-            if (AccessSourceVariablesModifies.Count > 0) {
-              SourceLocationAttributes = call.Attributes.Clone() as QKeyValue;
-              TryWriteSourceLocToFile();
-              CurrStmtNo++;
-              foreach (var v in AccessSourceVariablesModifies) {
-                proc.Modifies.Add(new IdentifierExpr(Token.NoToken, v));
-              }
-            }
-          }
-        }
-
         if (c is AssignCmd) {
           AssignCmd assign = c as AssignCmd;
 
@@ -569,8 +503,6 @@ namespace GPUVerify {
       if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
         result.Add(MakeCheckCall(result, ar, Access, Value));
       }
-      AddToAccessSourceLocations(Access, ar.v.Name);
-      TryWriteSourceLocToFile();
       CurrStmtNo++;
     }
 
@@ -640,23 +572,6 @@ namespace GPUVerify {
       CallCmd updateBenignFlagCallCmd = new CallCmd(Token.NoToken, updateBenignFlagProcedure.Name, inParamsUpdateBenignFlag, new List<IdentifierExpr>());
       updateBenignFlagCallCmd.Proc = updateBenignFlagProcedure;
       return updateBenignFlagCallCmd;
-    }
-
-
-    private void TryWriteSourceLocToFile() {
-      if (QKeyValue.FindStringAttribute(SourceLocationAttributes, "fname") != null) {
-        writeSourceLocToFile(SourceLocationAttributes, GPUVerifier.GetSourceLocFileName());
-      }
-    }
-
-    private void AddToAccessSourceLocations(AccessType Access, string Key) {
-      var SourceLocations = (Access == AccessType.WRITE ? WriteAccessSourceLocations : ( Access == AccessType.READ ? ReadAccessSourceLocations : AtomicAccessSourceLocations));
-      if(!SourceLocations.ContainsKey(Key)) {
-          SourceLocations.Add(Key, new List<int>());
-      }
-      if (!SourceLocations[Key].Contains(CurrStmtNo)) {
-        SourceLocations[Key].Add(CurrStmtNo);
-      }
     }
 
     private Procedure GetRaceCheckingProcedure(IToken tok, string name) {
@@ -846,13 +761,11 @@ namespace GPUVerify {
       Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
       Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, mt.Result);
       Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
-      Variable AccessSourceVariable = verifier.MakeSourceVariable(v.Name, Access);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
       Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
-      Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
 
       Debug.Assert(!(mt.Result is MapType));
 
@@ -884,9 +797,6 @@ namespace GPUVerify {
           Expr.Neq(new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter)),
             new IdentifierExpr(v.tok, VariableForThread(1, ValueOldParameter)))));
       }
-      simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessSourceVariable),
-          Condition,
-          new IdentifierExpr(v.tok, VariableForThread(1, SourceParameter))));
 
       bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));
 
@@ -1044,7 +954,6 @@ namespace GPUVerify {
     protected void AddLogRaceDeclarations(Variable v, AccessType Access) {
       verifier.FindOrCreateAccessHasOccurredVariable(v.Name, Access);
       verifier.FindOrCreateOffsetVariable(v.Name, Access);
-      verifier.FindOrCreateSourceVariable(v.Name, Access);
 
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         Debug.Assert(v.TypedIdent.Type is MapType);
@@ -1092,162 +1001,6 @@ namespace GPUVerify {
       }
     }
 
-    private void AddRequiresSourceAccessZero(Variable v)
-    {
-      if (GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
-        foreach (var Proc in verifier.KernelProcedures.Keys) {
-          foreach (var kind in AccessType.Types)
-            Proc.Requires.Add(new Requires(false, Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(v.Name, kind)),
-                                                                              verifier.Zero())));
-        }
-      }
-    }
-
-    public void AddSourceLocationLoopInvariants(Implementation impl, IRegion region)
-    {
-      if (!GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
-        return;
-      }
-
-      foreach (string key in AtomicAccessSourceLocations.Keys.Union(WriteAccessSourceLocations.Keys.Union(ReadAccessSourceLocations.Keys)))
-      {
-        region.AddInvariant(BuildNoAccessInvariant(key, AccessType.WRITE));
-        region.AddInvariant(BuildNoAccessInvariant(key, AccessType.READ));
-        region.AddInvariant(BuildNoAccessInvariant(key, AccessType.ATOMIC));
-
-        if (WriteAccessSourceLocations.ContainsKey(key))
-        {
-          region.AddInvariant(BuildPossibleSourceLocationsInvariant(key, AccessType.WRITE));
-        }
-        else
-        {
-          region.AddInvariant(BuildAccessOccurredFalseInvariant(key, AccessType.WRITE));
-        }
-
-        if (ReadAccessSourceLocations.ContainsKey(key))
-        {
-          region.AddInvariant(BuildPossibleSourceLocationsInvariant(key, AccessType.READ));
-        }
-        else
-        {
-          region.AddInvariant(BuildAccessOccurredFalseInvariant(key, AccessType.READ));
-        }
-
-        if (AtomicAccessSourceLocations.ContainsKey(key))
-        {
-          region.AddInvariant(BuildPossibleSourceLocationsInvariant(key, AccessType.ATOMIC));
-        }
-        else
-        {
-          region.AddInvariant(BuildAccessOccurredFalseInvariant(key, AccessType.ATOMIC));
-        }
-      }
-    }
-
-    public void AddStandardSourceVariablePreconditions()
-    {
-      if (!GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
-        return;
-      }
-
-      foreach (Declaration D in verifier.Program.TopLevelDeclarations.ToList())
-      {
-        if (!(D is Procedure))
-        {
-          continue;
-        }
-        Procedure Proc = D as Procedure;
-        if(verifier.ProcedureIsInlined(Proc)) {
-          continue;
-        }
-
-        foreach (string key in AtomicAccessSourceLocations.Keys.Union(WriteAccessSourceLocations.Keys.Union(ReadAccessSourceLocations.Keys)))
-        {
-          Proc.Requires.Add(new Requires(false, BuildNoAccessExpr(key, AccessType.WRITE)));
-          Proc.Requires.Add(new Requires(false, BuildNoAccessExpr(key, AccessType.READ)));
-          Proc.Requires.Add(new Requires(false, BuildNoAccessExpr(key, AccessType.ATOMIC)));
-
-          if (WriteAccessSourceLocations.ContainsKey(key))
-          {
-            Proc.Requires.Add(new Requires(false, BuildPossibleSourceLocationsExpr(key, AccessType.WRITE)));
-          }
-          else
-          {
-            Proc.Requires.Add(new Requires(false, BuildAccessOccurredFalseExpr(key, AccessType.WRITE)));
-          }
-
-          if (ReadAccessSourceLocations.ContainsKey(key))
-          {
-            Proc.Requires.Add(new Requires(false, BuildPossibleSourceLocationsExpr(key, AccessType.READ)));
-          }
-          else
-          {
-            Proc.Requires.Add(new Requires(false, BuildAccessOccurredFalseExpr(key, AccessType.READ)));
-          }
-
-          if (AtomicAccessSourceLocations.ContainsKey(key))
-          {
-            Proc.Requires.Add(new Requires(false, BuildPossibleSourceLocationsExpr(key, AccessType.ATOMIC)));
-          }
-          else
-          {
-            Proc.Requires.Add(new Requires(false, BuildAccessOccurredFalseExpr(key, AccessType.ATOMIC)));
-          }
-        }
-      }
-    }
-
-    public void AddStandardSourceVariablePostconditions()
-    {
-      if (!GPUVerifyVCGenCommandLineOptions.InferSourceLocation) {
-        return;
-      }
-
-      foreach (Declaration D in verifier.Program.TopLevelDeclarations.ToList())
-      {
-        if (!(D is Procedure)) {
-          continue;
-        }
-        Procedure Proc = D as Procedure;
-        if (verifier.ProcedureIsInlined(Proc)) {
-          continue;
-        }
-        foreach (string key in AtomicAccessSourceLocations.Keys.Union(WriteAccessSourceLocations.Keys.Union(ReadAccessSourceLocations.Keys)))
-        {
-          Proc.Ensures.Add(new Ensures(false, BuildNoAccessExpr(key, AccessType.WRITE)));
-          Proc.Ensures.Add(new Ensures(false, BuildNoAccessExpr(key, AccessType.READ)));
-          Proc.Ensures.Add(new Ensures(false, BuildNoAccessExpr(key, AccessType.ATOMIC)));
-
-          if (WriteAccessSourceLocations.ContainsKey(key))
-          {
-            Proc.Ensures.Add(new Ensures(false, BuildPossibleSourceLocationsExpr(key, AccessType.WRITE)));
-          }
-          else
-          {
-            Proc.Ensures.Add(new Ensures(false, BuildAccessOccurredFalseExpr(key, AccessType.WRITE)));
-          }
-
-          if (ReadAccessSourceLocations.ContainsKey(key))
-          {
-            Proc.Ensures.Add(new Ensures(false, BuildPossibleSourceLocationsExpr(key, AccessType.READ)));
-          }
-          else
-          {
-            Proc.Ensures.Add(new Ensures(false, BuildAccessOccurredFalseExpr(key, AccessType.READ)));
-          }
-
-          if (AtomicAccessSourceLocations.ContainsKey(key))
-          {
-            Proc.Ensures.Add(new Ensures(false, BuildPossibleSourceLocationsExpr(key, AccessType.ATOMIC)));
-          }
-          else
-          {
-            Proc.Ensures.Add(new Ensures(false, BuildAccessOccurredFalseExpr(key, AccessType.ATOMIC)));
-          }
-        }
-      }
-    }
-
     private Expr BuildAccessOccurredFalseExpr(string name, AccessType Access)
     {
       return Expr.Imp(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(name, Access)),
@@ -1259,41 +1012,6 @@ namespace GPUVerify {
       return new AssertCmd(Token.NoToken, BuildAccessOccurredFalseExpr(name, Access));
     }
 
-    private Expr BuildNoAccessExpr(string name, AccessType Access)
-    {
-      return Expr.Imp(Expr.Not(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(name, Access))),
-                                                   Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(name, Access)),
-                                                           verifier.IntRep.GetLiteral(0, 32)));
-    }
-
-    private AssertCmd BuildNoAccessInvariant(string name, AccessType Access)
-    {
-      return new AssertCmd(Token.NoToken, BuildNoAccessExpr(name, Access));
-    }
-
-    private Expr BuildPossibleSourceLocationsExpr(string name, AccessType Access)
-    {
-      return Expr.Imp(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(name, Access)),
-                                         BuildDisjunctionFromAccessSourceLocations(name, Access));
-    }
-
-    private AssertCmd BuildPossibleSourceLocationsInvariant(string name, AccessType Access)
-    {
-      return new AssertCmd(Token.NoToken, BuildPossibleSourceLocationsExpr(name, Access));
-    }
-
-    private Expr BuildDisjunctionFromAccessSourceLocations(string key, AccessType Access)
-    {
-      List<Expr> sourceLocExprs = new List<Expr>();
-      Dictionary<string, List<int>> AccessSourceLocations = (Access == AccessType.WRITE) ? WriteAccessSourceLocations : ((Access == AccessType.READ) ? ReadAccessSourceLocations : AtomicAccessSourceLocations);
-      foreach (int loc in AccessSourceLocations[key])
-      {
-        sourceLocExprs.Add(Expr.Eq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateSourceVariable(key, Access)),
-                                   verifier.IntRep.GetLiteral(loc, 32)));
-      }
-      return sourceLocExprs.Aggregate(Expr.Or);
-    }
-
     protected Expr NoAccessExpr(Variable v, AccessType Access, string OneOrTwo) {
       Variable AccessHasOccurred = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
       AccessHasOccurred.Name = AccessHasOccurred.Name + "$" + OneOrTwo;
@@ -1303,12 +1021,10 @@ namespace GPUVerify {
     }
 
 
-    protected void AddOffsetsSatisfyPredicatesCandidateInvariant(IRegion region, Variable v, AccessType Access, List<Expr> preds,
-            bool SourceLocVersion = false) {
+    protected void AddOffsetsSatisfyPredicatesCandidateInvariant(IRegion region, Variable v, AccessType Access, List<Expr> preds) {
       if (preds.Count != 0) {
         Expr expr = AccessedOffsetsSatisfyPredicatesExpr(v, preds, Access, 1);
-        verifier.AddCandidateInvariant(region, expr, "accessed offsets satisfy predicates"
-          + (SourceLocVersion ? " (source)" : ""), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+        verifier.AddCandidateInvariant(region, expr, "accessed offsets satisfy predicates", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
       }
     }
 
@@ -1380,15 +1096,6 @@ namespace GPUVerify {
               AccessHasOccurred(v, Access, Thread),
               Expr.And(CTimesGlobalIdLeqAccessedOffset, AccessedOffsetLtCTimesGlobalIdPlusC));
       return implication;
-    }
-
-    private void writeSourceLocToFile(QKeyValue kv, string path) {
-      TextWriter tw = new StreamWriter(path, true);
-      tw.Write("\n" + QKeyValue.FindIntAttribute(SourceLocationAttributes, "line", -1)
-                    + "#" + QKeyValue.FindIntAttribute(SourceLocationAttributes, "col", -1)
-                    + "#" + QKeyValue.FindStringAttribute(SourceLocationAttributes, "fname")
-                    + "#" + QKeyValue.FindStringAttribute(SourceLocationAttributes, "dir"));
-      tw.Close();
     }
 
     protected void AddAccessedOffsetIsThreadLocalIdCandidateRequires(Procedure Proc, Variable v, AccessType Access, int Thread) {

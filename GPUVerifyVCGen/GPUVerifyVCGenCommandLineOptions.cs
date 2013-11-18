@@ -36,7 +36,6 @@ namespace GPUVerify
     public static bool ShowArrayControlFlowAnalysis = false;
     public static bool SmartPredication = true;
     public static bool OnlyIntraGroupRaceChecking = false;
-    public static bool InferSourceLocation = true;
     public static bool NoBenign = false;
     public static bool AsymmetricAsserts = false;
     public static bool OnlyLog = false;
@@ -149,11 +148,6 @@ namespace GPUVerify
           case "-onlyIntraGroupRaceChecking":
           case "/onlyIntraGroupRaceChecking":
           OnlyIntraGroupRaceChecking = true;
-          break;
-
-          case "-noSourceLocInfer":
-          case "/noSourceLocInfer":
-          InferSourceLocation = false;
           break;
 
           case "-noBenign":
@@ -299,9 +293,6 @@ namespace GPUVerify
   Invariant inference
   -------------------
   /noInfer                      : turn off automatic invariant inference
-  /noSourceLocInfer             : turn off inference of accurate source
-                                    location information for error reporting,
-                                    which can slow down verification
   /noLoopPredicateInvariants    : turn off automatic generation of invariants
                                     about loop predicates.  Occasionally they
                                     can be wrong, hindering verification

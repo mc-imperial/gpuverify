@@ -158,31 +158,24 @@ namespace GPUVerify {
       Debug.Assert(arrName != null);
 
       if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_read")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
         ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WR);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "read_write")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.READ, ModelWithStates);
         ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RW);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_write")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
         ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WW);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "atomic_read")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.ATOMIC, ModelWithStates);
         ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AR);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "atomic_write")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.ATOMIC, ModelWithStates);
         ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.AW);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "read_atomic")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.READ, ModelWithStates);
         ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.RA);
       }
       else if (QKeyValue.FindBoolAttribute(CallCex.FailingRequires.Attributes, "write_atomic")) {
-        CallCex.FailingRequires.Attributes = GetSourceLocInfo(CallCex, AccessType.WRITE, ModelWithStates);
         ReportRace(CallCex, thread1, thread2, group1, group2, arrName, byteOffset, RaceType.WA);
       }
     }
@@ -653,32 +646,6 @@ namespace GPUVerify {
       QKeyValue colkv = new QKeyValue(Token.NoToken, "col", new List<object>(new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(col)) }), fnamekv);
       QKeyValue linekv = new QKeyValue(Token.NoToken, "line", new List<object>(new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(line)) }), colkv);
       return linekv;
-    }
-
-    static QKeyValue GetSourceLocInfo(CallCounterexample err, AccessType Access, Model ModelWithStates) {
-      if ((CommandLineOptions.Clo as GVCommandLineOptions).NoSourceLocInfer) {
-        return CreateSourceLocQKV(0,0,GetFileName(),GetFilenamePathPrefix());
-      }
-
-      string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
-      Debug.Assert(ArrayName != null);
-
-      string SourceVarName = "_" + Access + "_SOURCE_" + ArrayName + "$1";
-      int SourceValue = GetStateFromModel(QKeyValue.FindStringAttribute(err.FailingCall.Attributes, "state_id"), ModelWithStates).TryGet(SourceVarName).AsInt();
-
-      try {
-        // TODO: Make lines in .loc file be indexed from 1 for consistency.
-        string fileLine = SourceLocationInfo.FetchCodeLine(GetSourceLocFileName(), SourceValue + 1);
-        string[] slocTokens = Regex.Split(fileLine, "#");
-        return CreateSourceLocQKV(
-          System.Convert.ToInt32(slocTokens[0]),
-          System.Convert.ToInt32(slocTokens[1]),
-          slocTokens[2],
-          slocTokens[3]);
-      }
-      catch (Exception) {
-        return null;
-      }
     }
 
     public static void FixStateIds(Program Program) {

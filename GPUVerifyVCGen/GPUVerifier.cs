@@ -416,10 +416,6 @@ namespace GPUVerify
                   UniformityMatters ? uniformityAnalyser : null);
         }
 
-        internal static string GetSourceLocFileName() {
-          return GetFilenamePathPrefix() + GetFileName() + ".loc";
-        }
-
         private static string GetFileName() {
           return Path.GetFileNameWithoutExtension(GPUVerifyVCGenCommandLineOptions.inputFiles[0]);
         }
@@ -432,7 +428,6 @@ namespace GPUVerify
 
         internal void doit()
         {
-            File.Delete(GetSourceLocFileName()); 
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
             CheckUserSuppliedLoopInvariants();
@@ -1015,9 +1010,6 @@ namespace GPUVerify
             GeneratePreconditionsForDimension("Y");
             GeneratePreconditionsForDimension("Z");
 
-            RaceInstrumenter.AddStandardSourceVariablePreconditions();
-            RaceInstrumenter.AddStandardSourceVariablePostconditions();
-
             foreach (Declaration D in Program.TopLevelDeclarations)
             {
                 if (!(D is Procedure))
@@ -1081,20 +1073,6 @@ namespace GPUVerify
                     }
                 }
 
-            }
-
-            foreach (Declaration D in Program.TopLevelDeclarations)
-            {
-              if (!(D is Implementation))
-              {
-                continue;
-              }
-              Implementation Impl = D as Implementation;
-
-              foreach (IRegion subregion in RootRegion(Impl).SubRegions())
-              {
-                RaceInstrumenter.AddSourceLocationLoopInvariants(Impl, subregion);
-              }
             }
 
         }
@@ -1530,17 +1508,6 @@ namespace GPUVerify
             IntRep.GetIntType(32)));
         }
 
-        internal static string MakeSourceVariableName(string Name, AccessType Access)
-        {
-          return "_" + Access + "_SOURCE_" + Name;
-        }
-
-        internal GlobalVariable MakeSourceVariable(string name, AccessType Access)
-        {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeSourceVariableName(name, Access),
-            IntRep.GetIntType(32)));
-        }
-
         internal static string MakeValueVariableName(string Name, AccessType Access) {
           return "_" + Access + "_VALUE_" + Name;
         }
@@ -1610,21 +1577,6 @@ namespace GPUVerify
 
             Program.TopLevelDeclarations.Add(result);
             return result;
-        }
-
-        internal GlobalVariable FindOrCreateSourceVariable(string varName, AccessType Access) {
-          string name = MakeSourceVariableName(varName, Access) + "$1";
-          foreach (Declaration D in Program.TopLevelDeclarations) {
-            if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name)) {
-              return D as GlobalVariable;
-            }
-          }
-
-          GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-              MakeSourceVariable(varName, Access)) as GlobalVariable;
-
-          Program.TopLevelDeclarations.Add(result);
-          return result;
         }
 
         internal GlobalVariable FindOrCreateValueVariable(string varName, AccessType Access,
