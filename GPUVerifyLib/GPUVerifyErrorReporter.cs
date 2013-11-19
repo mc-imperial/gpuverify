@@ -251,10 +251,6 @@ namespace GPUVerify {
         }
         Console.WriteLine();
       }
-
-
-      //ErrorWriteLine(locinfo2, access1 + " by thread " + thread1 + " in group " + group1, ErrorMsgType.NoError);
-      //GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine() + "\n", 2));
     }
 
     private HashSet<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string arrayName, string accessType)
@@ -274,6 +270,12 @@ namespace GPUVerify {
             continue;
           }
           Model.CapturedState state = GetStateFromModel(StateName, CallCex.Model);
+          if(state.TryGet(ACCESS_HAS_OCCURRED) is Model.Uninterpreted) {
+            // This value has nothing to do with the reported error, so do not
+            // analyse it further.
+            continue;
+          }
+
           Model.Boolean AHO_value = (Model.Boolean)state.TryGet(ACCESS_HAS_OCCURRED);
           Model.BitVector AO_value = (Model.BitVector)state.TryGet(ACCESS_OFFSET);
           if (!AHO_value.Value)
@@ -289,11 +291,10 @@ namespace GPUVerify {
 
       Debug.Assert(LastLogPosition != null);
 
-      HashSet<SourceLocationInfo> PossibleSources = new HashSet<SourceLocationInfo>();
+      var LastStateName = QKeyValue.FindStringAttribute(LastLogPosition.Item1.Attributes, "captureState");
 
-      if (QKeyValue.FindStringAttribute(LastLogPosition.Item1.Attributes, "captureState").Contains("loop_head_state"))
+      if (LastStateName.Contains("loop_head_state"))
       {
-
         Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, false);
         Implementation originalImplementation = originalProgram.Implementations().Where(Item => Item.Name.Equals(impl.Name)).ToList()[0];
         var blockGraph = program.ProcessLoops(originalImplementation);
@@ -318,17 +319,53 @@ namespace GPUVerify {
         HashSet<Block> LoopNodes = new HashSet<Block>(
           blockGraph.BackEdgeNodes(header).Select(Item => blockGraph.NaturalLoops(header, Item)).SelectMany(Item => Item)
         );
-        foreach (var c in LoopNodes.Select(Item => Item.Cmds).SelectMany(Item => Item).OfType<CallCmd>())
-        {
-          if (c.callee.Equals("_CHECK_" + accessType.ToUpper() + "_$$" + arrayName))
-          {
-            PossibleSources.Add(new SourceLocationInfo(c.Attributes, c.tok));
+        return GetSourceLocationsFromBlocks(arrayName, accessType, LoopNodes);
+      }
+      else if(LastStateName.Contains("call_return_state")  ) {
+        Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, false);
+        var CallGraph = Program.BuildCallGraph(originalProgram);
+        HashSet<Implementation> PossiblyInvokedProcedures = new HashSet<Implementation>();
+        string CalleeName = QKeyValue.FindStringAttribute(LastLogPosition.Item1.Attributes, "procedureName");
+        Debug.Assert(CalleeName != null);
+        PossiblyInvokedProcedures.Add(originalProgram.Implementations().Where(Item => Item.Name.Equals(CalleeName)).ToList()[0]);
+        bool changed = true;
+        while(changed) {
+          changed = false;
+          foreach(var impl in PossiblyInvokedProcedures.ToList()) {
+            foreach(var succ in CallGraph.Successors(impl)) {
+              Console.WriteLine(succ.Name);
+              if(!PossiblyInvokedProcedures.Contains(succ)) {
+                changed = true;
+                PossiblyInvokedProcedures.Add(succ);
+              }
+            }
           }
         }
+        Console.WriteLine("Procedures possibly invoked from call to " + CalleeName + " are:");
+        foreach(var impl in PossiblyInvokedProcedures) {
+          Console.WriteLine("  " + impl.Name);
+        }
+
+        return GetSourceLocationsFromBlocks(arrayName, accessType, 
+          new HashSet<Block>(PossiblyInvokedProcedures.Select(Item => Item.Blocks).
+          SelectMany(Item => Item)));
+      } else {
+        Debug.Assert(LastStateName.Contains("check_state"));
+        return new HashSet<SourceLocationInfo> { 
+          new SourceLocationInfo(LastLogPosition.Item1.Attributes, LastLogPosition.Item1.tok)
+        };
       }
-      else
+    }
+
+    private static HashSet<SourceLocationInfo> GetSourceLocationsFromBlocks(string arrayName, string accessType, HashSet<Block> LoopNodes)
+    {
+      HashSet<SourceLocationInfo> PossibleSources = new HashSet<SourceLocationInfo>();
+      foreach (var c in LoopNodes.Select(Item => Item.Cmds).SelectMany(Item => Item).OfType<CallCmd>())
       {
-        PossibleSources.Add(new SourceLocationInfo(LastLogPosition.Item1.Attributes, LastLogPosition.Item1.tok));
+        if (c.callee.Equals("_CHECK_" + accessType.ToUpper() + "_$$" + arrayName))
+        {
+          PossibleSources.Add(new SourceLocationInfo(c.Attributes, c.tok));
+        }
       }
       return PossibleSources;
     }

@@ -558,7 +558,7 @@ namespace GPUVerify
             // in adding capture states to loop heads demands an unstructured
             // representation.  It would be nicer to eliminate this ordering
             // constraint.
-            AddCaptureStatesToLoopHeads();
+            AddCaptureStates();
 
             if (GPUVerifyVCGenCommandLineOptions.WarpSync)
             {
@@ -569,6 +569,32 @@ namespace GPUVerify
 
         }
 
+        private void AddCaptureStates()
+        {
+          AddCaptureStatesToLoopHeads();
+          AddCaptureStatesAfterProcedureCalls();
+        }
+
+        private void AddCaptureStatesAfterProcedureCalls()
+        {
+          int counter = 0;
+          foreach(var b in Program.Blocks()) {
+            List<Cmd> NewCmds = new List<Cmd>();
+            foreach(var c in b.Cmds) {
+              NewCmds.Add(c);
+              var call = c as CallCmd;
+              if(call != null && !ProcedureIsInlined(call.Proc) &&
+                Program.TopLevelDeclarations.OfType<Implementation>().Where(Item => Item.Name == call.callee).Count() > 0) {
+                NewCmds.Add(new AssumeCmd(Token.NoToken, Expr.True,
+                  new QKeyValue(Token.NoToken, "captureState", new List<object> { "call_return_state_" + counter },
+                    new QKeyValue(Token.NoToken, "procedureName", new List<object> { call.callee }, null))));
+                counter++;
+              }
+            }
+            b.Cmds = NewCmds;
+          }
+        }
+
         private void AddCaptureStatesToLoopHeads()
         {
           // Add the ability to get the state at the start of each
@@ -577,7 +603,8 @@ namespace GPUVerify
           foreach(var impl in Program.Implementations()) {
             foreach(var b in Program.ProcessLoops(impl).Headers) {
               List<Cmd> NewCmds = new List<Cmd>();
-              NewCmds.Add(new AssumeCmd(Token.NoToken, Expr.True, new QKeyValue(Token.NoToken, "captureState", new List<object> { "loop_head_state_" + counter }, null)));
+              NewCmds.Add(new AssumeCmd(Token.NoToken, Expr.True, 
+                new QKeyValue(Token.NoToken, "captureState", new List<object> { "loop_head_state_" + counter }, null)));
               NewCmds.AddRange(b.Cmds);
               counter++;
               b.Cmds = NewCmds;
