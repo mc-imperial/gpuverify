@@ -583,12 +583,10 @@ namespace GPUVerify
             foreach(var c in b.Cmds) {
               NewCmds.Add(c);
               var call = c as CallCmd;
-              if(call != null && !ProcedureIsInlined(call.Proc) &&
-                Program.TopLevelDeclarations.OfType<Implementation>().Where(Item => Item.Name == call.callee).Count() > 0) {
+              if(call != null && !ProcedureIsInlined(call.Proc)) {
                 NewCmds.Add(new AssumeCmd(Token.NoToken, Expr.True,
                   new QKeyValue(Token.NoToken, "captureState", new List<object> { "call_return_state_" + counter },
                     new QKeyValue(Token.NoToken, "procedureName", new List<object> { call.callee }, null))));
-                counter++;
               }
             }
             b.Cmds = NewCmds;

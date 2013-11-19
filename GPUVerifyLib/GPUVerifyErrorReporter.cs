@@ -229,7 +229,8 @@ namespace GPUVerify {
 
 
       SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), CallCex.FailingCall.tok);
-      HashSet<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, arrName, access1);
+      IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, arrName, access1,
+        QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "state_id"));
 
       Console.Error.WriteLine();
       ErrorWriteLine(SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + arrName + ")[" + byteOffset + "]:\n", ErrorMsgType.Error);
@@ -241,6 +242,8 @@ namespace GPUVerify {
       if(PossibleSourcesForFirstAccess.Count() == 1) {
         Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0]);
         GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(PossibleSourcesForFirstAccess.ToList()[0].FetchCodeLine() + "\n", 2));
+      } else if(PossibleSourcesForFirstAccess.Count() == 0) {
+        Console.Error.WriteLine("from external source location\n");
       } else {
         Console.Error.WriteLine("possible sources are:");
         List<SourceLocationInfo> LocationsAsList = PossibleSourcesForFirstAccess.ToList();
@@ -253,7 +256,7 @@ namespace GPUVerify {
       }
     }
 
-    private HashSet<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string arrayName, string accessType)
+    private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string arrayName, string accessType, string finalState)
     {
       string ACCESS_HAS_OCCURRED = "_" + accessType.ToUpper() + "_HAS_OCCURRED_$$" + arrayName + "$1";
       string ACCESS_OFFSET = "_" + accessType.ToUpper() + "_OFFSET_$$" + arrayName + "$1";
@@ -262,16 +265,16 @@ namespace GPUVerify {
 
       foreach (var b in CallCex.Trace)
       {
-        foreach (var c in b.Cmds.OfType<AssumeCmd>())
-        {
+        bool finished = false;
+        foreach (var c in b.Cmds.OfType<AssumeCmd>()) {
           string StateName = QKeyValue.FindStringAttribute(c.Attributes, "captureState");
           if (StateName == null)
           {
             continue;
           }
           Model.CapturedState state = GetStateFromModel(StateName, CallCex.Model);
-          if(state.TryGet(ACCESS_HAS_OCCURRED) is Model.Uninterpreted) {
-            // This value has nothing to do with the reported error, so do not
+          if(state == null || state.TryGet(ACCESS_HAS_OCCURRED) is Model.Uninterpreted) {
+            // Either the state was not recorded, or the state has nothing to do with the reported error, so do not
             // analyse it further.
             continue;
           }
@@ -286,6 +289,13 @@ namespace GPUVerify {
           {
             LastLogPosition = new Tuple<AssumeCmd, string>(c, AO_value.Numeral);
           }
+          if(StateName.Equals(finalState)) {
+            finished = true;
+          }
+          break;
+        }
+        if(finished) {
+          break;
         }
       }
 
@@ -319,36 +329,11 @@ namespace GPUVerify {
         HashSet<Block> LoopNodes = new HashSet<Block>(
           blockGraph.BackEdgeNodes(header).Select(Item => blockGraph.NaturalLoops(header, Item)).SelectMany(Item => Item)
         );
-        return GetSourceLocationsFromBlocks(arrayName, accessType, LoopNodes);
+        return GetSourceLocationsFromBlocks("_CHECK_" + accessType.ToUpper() + "_$$" + arrayName, LoopNodes);
       }
       else if(LastStateName.Contains("call_return_state")  ) {
-        Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, false);
-        var CallGraph = Program.BuildCallGraph(originalProgram);
-        HashSet<Implementation> PossiblyInvokedProcedures = new HashSet<Implementation>();
-        string CalleeName = QKeyValue.FindStringAttribute(LastLogPosition.Item1.Attributes, "procedureName");
-        Debug.Assert(CalleeName != null);
-        PossiblyInvokedProcedures.Add(originalProgram.Implementations().Where(Item => Item.Name.Equals(CalleeName)).ToList()[0]);
-        bool changed = true;
-        while(changed) {
-          changed = false;
-          foreach(var impl in PossiblyInvokedProcedures.ToList()) {
-            foreach(var succ in CallGraph.Successors(impl)) {
-              Console.WriteLine(succ.Name);
-              if(!PossiblyInvokedProcedures.Contains(succ)) {
-                changed = true;
-                PossiblyInvokedProcedures.Add(succ);
-              }
-            }
-          }
-        }
-        Console.WriteLine("Procedures possibly invoked from call to " + CalleeName + " are:");
-        foreach(var impl in PossiblyInvokedProcedures) {
-          Console.WriteLine("  " + impl.Name);
-        }
-
-        return GetSourceLocationsFromBlocks(arrayName, accessType, 
-          new HashSet<Block>(PossiblyInvokedProcedures.Select(Item => Item.Blocks).
-          SelectMany(Item => Item)));
+        return GetSourceLocationsFromCall("_CHECK_" + accessType.ToUpper() + "_$$" + arrayName, 
+          QKeyValue.FindStringAttribute(LastLogPosition.Item1.Attributes, "procedureName"));
       } else {
         Debug.Assert(LastStateName.Contains("check_state"));
         return new HashSet<SourceLocationInfo> { 
@@ -357,14 +342,28 @@ namespace GPUVerify {
       }
     }
 
-    private static HashSet<SourceLocationInfo> GetSourceLocationsFromBlocks(string arrayName, string accessType, HashSet<Block> LoopNodes)
+    private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromCall(string CheckProcedureName, string CalleeName)
+    {
+      Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, false);
+      var Bodies =  originalProgram.Implementations().Where(Item => Item.Name.Equals(CalleeName)).ToList();
+      if(Bodies.Count == 0) {
+        return new HashSet<SourceLocationInfo>();
+      }
+      return GetSourceLocationsFromBlocks(CheckProcedureName, Bodies[0].Blocks);
+    }
+
+    private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromBlocks(string CheckProcedureName, IEnumerable<Block> Blocks)
     {
       HashSet<SourceLocationInfo> PossibleSources = new HashSet<SourceLocationInfo>();
-      foreach (var c in LoopNodes.Select(Item => Item.Cmds).SelectMany(Item => Item).OfType<CallCmd>())
+      foreach (var c in Blocks.Select(Item => Item.Cmds).SelectMany(Item => Item).OfType<CallCmd>())
       {
-        if (c.callee.Equals("_CHECK_" + accessType.ToUpper() + "_$$" + arrayName))
+        if (c.callee.Equals(CheckProcedureName))
         {
           PossibleSources.Add(new SourceLocationInfo(c.Attributes, c.tok));
+        } else {
+          foreach(var sl in GetSourceLocationsFromCall(CheckProcedureName, c.callee)) {
+            PossibleSources.Add(sl);
+          }
         }
       }
       return PossibleSources;
@@ -381,7 +380,6 @@ namespace GPUVerify {
           break;
         }
       }
-      Debug.Assert(state != null);
       return state;
     }
 
@@ -700,6 +698,7 @@ namespace GPUVerify {
 
     private int CheckStateCounter = 0;
     private int LoopHeadStateCounter = 0;
+    private int CallReturnStateCounter = 0;
 
     internal void FixStateIds(Program Program) {
 
@@ -716,7 +715,8 @@ namespace GPUVerify {
       for (int i = 0; i < b.Cmds.Count(); i++) {
         var a = b.Cmds[i] as AssumeCmd;
         if (a != null && (QKeyValue.FindStringAttribute(a.Attributes, "captureState") != null)) {
-          if(QKeyValue.FindStringAttribute(a.Attributes, "captureState").Contains("check_state")) {
+          string StateName = QKeyValue.FindStringAttribute(a.Attributes, "captureState");
+          if(StateName.Contains("check_state")) {
             // It is necessary to clone the assume and call command, because after loop unrolling
             // there is aliasing between blocks of different loop iterations
             newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetCheckStateId(a.Attributes, "captureState")));
@@ -739,9 +739,12 @@ namespace GPUVerify {
             newCall.Proc = c.Proc;
             newCmds.Add(newCall);
             CheckStateCounter++;
+          } else if(StateName.Contains("call_return_state")) {
+            newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetStateId(a.Attributes, "call_return_state_", CallReturnStateCounter)));
+            CallReturnStateCounter++;
           } else {
-            Debug.Assert(QKeyValue.FindStringAttribute(a.Attributes, "captureState").Contains("loop_head_state"));
-            newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetLoopHeadStateId(a.Attributes)));
+            Debug.Assert(StateName.Contains("loop_head_state"));
+            newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetStateId(a.Attributes, "loop_head_state_", LoopHeadStateCounter)));
             LoopHeadStateCounter++;
           }
         }
@@ -754,6 +757,7 @@ namespace GPUVerify {
     }
 
     private QKeyValue ResetCheckStateId(QKeyValue Attributes, string Key) {
+      // This demands special treatment.
       // Returns attributes identical to Attributes, but:
       // - reversed (for ease of implementation; should not matter)
       // - with the value for Key replaced by "check_state_X" where X is the counter field
@@ -771,15 +775,15 @@ namespace GPUVerify {
       return result;
     }
 
-    private QKeyValue ResetLoopHeadStateId(QKeyValue Attributes) {
+    private QKeyValue ResetStateId(QKeyValue Attributes, string prefix, int counter) {
       // Returns attributes identical to Attributes, but:
       // - reversed (for ease of implementation; should not matter)
-      // - with the value for "captureState" replaced by "loop_head_state_X" where X is the counter field
+      // - with the value for "captureState" replaced by prefix_counter
       Debug.Assert(QKeyValue.FindStringAttribute(Attributes, "captureState") != null);
       QKeyValue result = null;
       while (Attributes != null) {
         if (Attributes.Key.Equals("captureState")) {
-          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { "loop_head_state_" + LoopHeadStateCounter }, result);
+          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { prefix + counter }, result);
         }
         else {
           result = new QKeyValue(Token.NoToken, Attributes.Key, Attributes.Params, result);
