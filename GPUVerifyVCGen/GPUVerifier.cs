@@ -1599,97 +1599,7 @@ namespace GPUVerify
 
         private void MakeKernelDualised()
         {
-            List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
-
-            // This loop really does have to be a "for(i ...)" loop.  The reason is
-            // that dualisation may add additional functions to the program, which
-            // get put into the program's top level declarations.
-            for(int i = 0; i < Program.TopLevelDeclarations.Count(); i++)
-            {
-                Declaration d = Program.TopLevelDeclarations[i];
-
-                if (d is Axiom) {
-
-                  VariableDualiser vd1 = new VariableDualiser(1, null, null);
-                  VariableDualiser vd2 = new VariableDualiser(2, null, null);
-                  Axiom NewAxiom1 = vd1.VisitAxiom(d.Clone() as Axiom);
-                  Axiom NewAxiom2 = vd2.VisitAxiom(d.Clone() as Axiom);
-                  NewTopLevelDeclarations.Add(NewAxiom1);
-
-                  // Test whether dualisation had any effect by seeing whether the new
-                  // axioms are syntactically indistinguishable.  If they are, then there
-                  // is no point adding the second axiom.
-                  if(!NewAxiom1.ToString().Equals(NewAxiom2.ToString())) {
-                    NewTopLevelDeclarations.Add(NewAxiom2);
-                  }
-                  continue;
-                }
-
-                if (d is Procedure)
-                {
-
-                    new KernelDualiser(this).DualiseProcedure(d as Procedure);
-
-                    NewTopLevelDeclarations.Add(d as Procedure);
-
-                    continue;
-
-                }
-
-                if (d is Implementation)
-                {
-
-                    new KernelDualiser(this).DualiseImplementation(d as Implementation);
-
-                    NewTopLevelDeclarations.Add(d as Implementation);
-
-                    continue;
-
-                }
-
-                if (d is Variable && ((d as Variable).IsMutable || 
-                    IsThreadLocalIdConstant(d as Variable) || 
-                    (IsGroupIdConstant(d as Variable) && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking))) {
-                  var v = d as Variable;
-
-                  if (v.Name.Contains("_NOT_ACCESSED_")) {
-                    NewTopLevelDeclarations.Add(v);
-                    continue;
-                  }
-
-                  if (KernelArrayInfo.getGlobalArrays().Contains(v)) {
-                    NewTopLevelDeclarations.Add(v);
-                    continue;
-                  }
-
-                  if (KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
-                    if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
-                      Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
-                          v.Name, new MapType(Token.NoToken, new List<TypeVariable>(), 
-                          new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.Bool },
-                          v.TypedIdent.Type)));
-                      newV.Attributes = v.Attributes;
-                      NewTopLevelDeclarations.Add(newV);
-                    } else {
-                      NewTopLevelDeclarations.Add(v);
-                    }
-                    continue;
-                  }
-
-                  NewTopLevelDeclarations.Add(new VariableDualiser(1, null, null).VisitVariable((Variable)v.Clone()));
-                  if (!QKeyValue.FindBoolAttribute(v.Attributes, "race_checking")) {
-                    NewTopLevelDeclarations.Add(new VariableDualiser(2, null, null).VisitVariable((Variable)v.Clone()));
-                  }
-
-                  continue;
-                }
-
-                NewTopLevelDeclarations.Add(d);
-
-            }
-
-            Program.TopLevelDeclarations = NewTopLevelDeclarations;
-
+          new KernelDualiser(this).DualiseKernel();
         }
 
         private void MakeKernelPredicated()
@@ -1767,41 +1677,20 @@ namespace GPUVerify
 
         internal Implementation GetImplementation(string procedureName)
         {
-            foreach (Declaration D in Program.TopLevelDeclarations)
-            {
-                if (D is Implementation && ((D as Implementation).Name == procedureName))
-                {
-                    return D as Implementation;
-                }
-            }
-            return null;
+          var Relevant = Program.Implementations().Where(Item => Item.Name == procedureName);
+          return Relevant.Count() == 0 ? null : Relevant.ToList()[0];
         }
 
         internal Procedure GetProcedure(string procedureName) {
-          foreach (Declaration D in Program.TopLevelDeclarations) {
-            if (D is Procedure && ((D as Procedure).Name == procedureName)) {
-              return D as Procedure;
-            }
-          }
-          Debug.Assert(false);
-          return null;
+          var Relevant = Program.TopLevelDeclarations.OfType<Procedure>().Where(Item => Item.Name == procedureName);
+          Debug.Assert(Relevant.Count() > 0);
+          return Relevant.ToList()[0];
         }
-
 
         internal bool ContainsBarrierCall(IRegion loop)
         {
-            foreach (Cmd c in loop.Cmds())
-            {
-                if (c is CallCmd && ((c as CallCmd).Proc == BarrierProcedure))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+          return loop.Cmds().OfType<CallCmd>().Where(Item => Item.Proc == BarrierProcedure).Count() > 0;
         }
-
-
 
         internal bool ArrayModelledAdversarially(Variable v)
         {
