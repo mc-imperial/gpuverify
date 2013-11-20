@@ -132,20 +132,11 @@ namespace GPUVerify
 
             if (GPUVerifyVCGenCommandLineOptions.EqualityAbstraction)
             {
-              var impls = Program.TopLevelDeclarations.Where(d => d is Implementation).Select(d => d as Implementation);
-              var blocks = impls.SelectMany(impl => impl.Blocks);
-              foreach (Block b in blocks)
-              {
-                foreach (Cmd c in b.Cmds)
-                {
-                  if (c is CallCmd)
-                  {
-                    CallCmd call = c as CallCmd;
-                    if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
-                    {
-                      Console.WriteLine("GPUVerify: error: --equality-abstraction cannot be used with atomics.");
-                      Environment.Exit(1);
-                    }
+              foreach (var b in Program.Blocks()) {
+                foreach (var c in b.Cmds.OfType<CallCmd>()) {
+                  if (QKeyValue.FindBoolAttribute(c.Attributes,"atomic")) {
+                    Console.WriteLine("GPUVerify: error: --equality-abstraction cannot be used with atomics.");
+                    Environment.Exit(1);
                   }
                 }
               }
@@ -153,9 +144,8 @@ namespace GPUVerify
 
             if (GPUVerifyVCGenCommandLineOptions.CheckSingleNonInlinedImpl)
             {
-              var NonInlinedImpls = Program.TopLevelDeclarations.Where(
-                  d => d is Implementation &&
-                  QKeyValue.FindIntAttribute((d as Implementation).Attributes, "inline", -1) == -1);
+              var NonInlinedImpls = Program.Implementations().Where(
+                Item => QKeyValue.FindIntAttribute((Item as Implementation).Attributes, "inline", -1) == -1);
               if (NonInlinedImpls.Count() != 1)
               {
                   Console.WriteLine("GPUVerify: warning: Found {0} non-inlined implementations.", NonInlinedImpls.Count());
@@ -287,7 +277,7 @@ namespace GPUVerify
                 first.line, first.col - 1);
         }
 
-        private bool setConstAttributeField(Constant constInProgram, string attr, ref Constant constFieldRef)
+        private bool SetConstAttributeField(Constant constInProgram, string attr, ref Constant constFieldRef)
         {
             if (QKeyValue.FindBoolAttribute(constInProgram.Attributes, attr))
             {
@@ -344,21 +334,21 @@ namespace GPUVerify
                 {
                     Constant C = D as Constant;
 
-                    success &= setConstAttributeField(C, LOCAL_ID_X_STRING, ref _X);
-                    success &= setConstAttributeField(C, LOCAL_ID_Y_STRING, ref _Y);
-                    success &= setConstAttributeField(C, LOCAL_ID_Z_STRING, ref _Z);
+                    success &= SetConstAttributeField(C, LOCAL_ID_X_STRING, ref _X);
+                    success &= SetConstAttributeField(C, LOCAL_ID_Y_STRING, ref _Y);
+                    success &= SetConstAttributeField(C, LOCAL_ID_Z_STRING, ref _Z);
 
-                    success &= setConstAttributeField(C, GROUP_SIZE_X_STRING, ref _GROUP_SIZE_X);
-                    success &= setConstAttributeField(C, GROUP_SIZE_Y_STRING, ref _GROUP_SIZE_Y);
-                    success &= setConstAttributeField(C, GROUP_SIZE_Z_STRING, ref _GROUP_SIZE_Z);
+                    success &= SetConstAttributeField(C, GROUP_SIZE_X_STRING, ref _GROUP_SIZE_X);
+                    success &= SetConstAttributeField(C, GROUP_SIZE_Y_STRING, ref _GROUP_SIZE_Y);
+                    success &= SetConstAttributeField(C, GROUP_SIZE_Z_STRING, ref _GROUP_SIZE_Z);
 
-                    success &= setConstAttributeField(C, GROUP_ID_X_STRING, ref _GROUP_X);
-                    success &= setConstAttributeField(C, GROUP_ID_Y_STRING, ref _GROUP_Y);
-                    success &= setConstAttributeField(C, GROUP_ID_Z_STRING, ref _GROUP_Z);
+                    success &= SetConstAttributeField(C, GROUP_ID_X_STRING, ref _GROUP_X);
+                    success &= SetConstAttributeField(C, GROUP_ID_Y_STRING, ref _GROUP_Y);
+                    success &= SetConstAttributeField(C, GROUP_ID_Z_STRING, ref _GROUP_Z);
 
-                    success &= setConstAttributeField(C, NUM_GROUPS_X_STRING, ref _NUM_GROUPS_X);
-                    success &= setConstAttributeField(C, NUM_GROUPS_Y_STRING, ref _NUM_GROUPS_Y);
-                    success &= setConstAttributeField(C, NUM_GROUPS_Z_STRING, ref _NUM_GROUPS_Z);
+                    success &= SetConstAttributeField(C, NUM_GROUPS_X_STRING, ref _NUM_GROUPS_X);
+                    success &= SetConstAttributeField(C, NUM_GROUPS_Y_STRING, ref _NUM_GROUPS_Y);
+                    success &= SetConstAttributeField(C, NUM_GROUPS_Z_STRING, ref _NUM_GROUPS_Z);
 
 
                 }
@@ -416,16 +406,6 @@ namespace GPUVerify
                   UniformityMatters ? uniformityAnalyser : null);
         }
 
-        private static string GetFileName() {
-          return Path.GetFileNameWithoutExtension(GPUVerifyVCGenCommandLineOptions.inputFiles[0]);
-        }
-
-        private static string GetFilenamePathPrefix() {
-          string directoryName = Path.GetDirectoryName(GPUVerifyVCGenCommandLineOptions.inputFiles[0]);
-          return ((!String.IsNullOrEmpty(directoryName) && directoryName != ".") ? (directoryName + Path.DirectorySeparatorChar) : "");
-        }
-
-
         internal void doit()
         {
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
@@ -467,7 +447,7 @@ namespace GPUVerify
                 }
 
                 if (GPUVerifyVCGenCommandLineOptions.ShowStages) {
-                  emitProgram(outputFilename + "_pre_inference");
+                  EmitProgram(outputFilename + "_pre_inference");
                 }
 
             }
@@ -485,42 +465,42 @@ namespace GPUVerify
 
             if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
-                emitProgram(outputFilename + "_instrumented");
+                EmitProgram(outputFilename + "_instrumented");
             }
 
             AbstractSharedState();
 
             if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
-                emitProgram(outputFilename + "_abstracted");
+                EmitProgram(outputFilename + "_abstracted");
             }
 
             MergeBlocksIntoPredecessors();
 
             if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
-                emitProgram(outputFilename + "_merged_pre_predication");
+                EmitProgram(outputFilename + "_merged_pre_predication");
             }
 
             MakeKernelPredicated();
 
             if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
-                emitProgram(outputFilename + "_predicated");
+                EmitProgram(outputFilename + "_predicated");
             }
 
             MergeBlocksIntoPredecessors(false);
 
             if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
-                emitProgram(outputFilename + "_merged_post_predication");
+                EmitProgram(outputFilename + "_merged_post_predication");
             }
 
             MakeKernelDualised();
 
             if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
-                emitProgram(outputFilename + "_dualised");
+                EmitProgram(outputFilename + "_dualised");
             }
 
             RaceInstrumenter.AddRaceCheckingDeclarations();
@@ -539,7 +519,7 @@ namespace GPUVerify
 
             if (GPUVerifyVCGenCommandLineOptions.ShowStages)
             {
-                emitProgram(outputFilename + "_ready_to_verify");
+                EmitProgram(outputFilename + "_ready_to_verify");
             }
 
             if (GPUVerifyVCGenCommandLineOptions.Inference)
@@ -565,7 +545,7 @@ namespace GPUVerify
               AddWarpSyncs();
             }
 
-            emitProgram(outputFilename);
+            EmitProgram(outputFilename);
 
         }
 
@@ -719,7 +699,7 @@ namespace GPUVerify
                 .ToDictionary(i => i, i => ReducedStrengthAnalysis.Analyse(this, i));
         }
 
-        private void emitProgram(string filename)
+        private void EmitProgram(string filename)
         {
           GVUtil.IO.EmitProgram(Program, filename);
         }
@@ -891,52 +871,6 @@ namespace GPUVerify
           return (lv.Length >= 2 && lv.Substring(0,2).Equals("_P")) ||
                   (lv.Length > 3 && lv.Substring(0,3).Equals("_LC")) ||
                   (lv.Length > 5 && lv.Substring(0,5).Equals("_temp"));
-        }
-
-        internal bool ProgramIsOK(Declaration d)
-        {
-            Debug.Assert(d is Procedure || d is Implementation);
-            TokenTextWriter writer = new TokenTextWriter("temp_out.bpl");
-            List<Declaration> RealDecls = Program.TopLevelDeclarations;
-            List<Declaration> TempDecls = new List<Declaration>();
-            foreach (Declaration d2 in RealDecls)
-            {
-                if (d is Procedure)
-                {
-                    if ((d == d2) || !(d2 is Implementation || d2 is Procedure))
-                    {
-                        TempDecls.Add(d2);
-                    }
-                }
-                else if (d is Implementation)
-                {
-                    if ((d == d2) || !(d2 is Implementation))
-                    {
-                        TempDecls.Add(d2);
-                    }
-                }
-            }
-            Program.TopLevelDeclarations = TempDecls;
-            Program.Emit(writer);
-            writer.Close();
-            Program.TopLevelDeclarations = RealDecls;
-            Program temp_program = GPUVerify.ParseBoogieProgram(new List<string>(new string[] { "temp_out.bpl" }), false);
-
-            if (temp_program == null)
-            {
-                return false;
-            }
-
-            if (temp_program.Resolve() != 0)
-            {
-                return false;
-            }
-
-            if (temp_program.Typecheck() != 0)
-            {
-                return false;
-            }
-            return true;
         }
 
         public static Microsoft.Boogie.Type GetTypeOfIdX()
@@ -1507,14 +1441,7 @@ namespace GPUVerify
 
         internal static bool ModifiesSetContains(List<IdentifierExpr> Modifies, IdentifierExpr v)
         {
-            foreach (IdentifierExpr ie in Modifies)
-            {
-                if (ie.Name.Equals(v.Name))
-                {
-                    return true;
-                }
-            }
-            return false;
+          return Modifies.Where(Item => Item.Name.Equals(v.Name)).Count() > 0;
         }
 
         private void AbstractSharedState()
@@ -1672,7 +1599,6 @@ namespace GPUVerify
 
         private void MakeKernelDualised()
         {
-
             List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
 
             // This loop really does have to be a "for(i ...)" loop.  The reason is
