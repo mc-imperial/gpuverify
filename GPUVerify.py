@@ -18,7 +18,7 @@ class GPUVerifyException(Exception):
     for using sys.exit()
   """
 
-  def __init__(self, code, msg=None, stdout=None, stderr=None):
+  def __init__(self, code, msg=None):
     """
       code : Should be a member of the ErrorCodes class
       msg  : An optional string
@@ -27,9 +27,7 @@ class GPUVerifyException(Exception):
     """
     self.code = code
     self.msg = msg
-    self.stdout= stdout
-    self.stderr = stderr
-  
+
   def getExitCode(self):
     return self.code
 
@@ -46,16 +44,10 @@ class GPUVerifyException(Exception):
     if codeString == None:
       codeString = 'UNKNOWN'
 
-    retStr = 'GPUVerify: {} error ({}):'.format(codeString, self.code)
+    retStr = 'GPUVerify: {} error ({})'.format(codeString, self.code)
 
     if self.msg:
-      retStr = retStr + ' ' + self.msg
-
-    if self.stdout:
-      retStr = retStr + '\n\nStandard output:\n' + str(self.stdout.decode())
-
-    if self.stderr:
-      retStr = retStr + '\n\nStandard error:\n' + str(self.stderr.decode())
+      retStr = retStr + ': ' + self.msg
 
     return retStr
 
@@ -67,10 +59,9 @@ class ErrorCodes(object):
   BUGLE_ERROR = 4
   GPUVERIFYVCGEN_ERROR = 5
   BOOGIE_ERROR = 6
-  BOOGIE_TIMEOUT = 7
+  TIMEOUT = 7
   CTRL_C = 8
-  GPUVERIFYVCGEN_TIMEOUT = 9
-  CONFIGURATION_ERROR = 10
+  CONFIGURATION_ERROR = 9
 
 # Try to import the paths need for GPUVerify's tools
 try:
@@ -78,13 +69,13 @@ try:
   # Initialise the paths (only needed for deployment version of gvfindtools.py)
   gvfindtools.init(sys.path[0])
 except ImportError:
-  raise GPUVerifyException('Cannot find \'gvfindtools.py\'.'
-                           ' Did you forget to create it from a template?',
-                           ErrorCodes.CONFIGURATION_ERROR)
+  raise GPUVerifyException(ErrorCodes.CONFIGURATION_ERROR,
+                           'Cannot find \'gvfindtools.py\'.'
+                           ' Did you forget to create it from a template?')
 
 class BatchCaller(object):
   """
-  This class allows functions to be registered (similar to atexit )
+  This class allows functions to be registered (similar to atexit)
   and later called using the call() method
   """
 
@@ -119,8 +110,8 @@ class BatchCaller(object):
 
     for call in self.calls:
       if self.verbose:
-        print("Clean up handler Calling " + str(call.function.__name__) + '(' + 
-              str(call.nargs) + ', ' + str(call.kargs) + ')' )
+        print("Clean up handler Calling " + str(call.function.__name__) + '(' + \
+              str(call.nargs) + ', ' + str(call.kargs) + ')')
       call.function(*(call.nargs), **(call.kargs))
 
   def clear(self):
@@ -262,9 +253,7 @@ class DefaultCmdLineOptions(object):
     self.time = False
     self.timeCSVLabel = None
     self.boogieMemout=0
-    self.vcgenTimeout=0
-    self.cruncherTimeout=300
-    self.boogieTimeout=300
+    self.componentTimeout=300
     self.keepTemps = False
     self.mathInt = False
     self.asymmetricAsserts = False
@@ -354,6 +343,9 @@ def run(command,timeout=0):
   # Redirect stderr to whatever stdout is redirected to
   popenargs['stderr']=subprocess.STDOUT
 
+  # Redirect stdin, othewise terminal text becomes unreadable after timeout
+  popenargs['stdin']=subprocess.PIPE
+
   killer=None
   def cleanupKiller():
     if killer!=None:
@@ -374,29 +366,34 @@ def run(command,timeout=0):
     #Need to kill the timer if it exists else exit() will block until the timer finishes
     cleanupKiller()
 
-  return stdout, stderr, proc.returncode
+  # We do not return stderr, as it was redirected to stdout
+  return stdout, proc.returncode
 
-def RunTool(ToolName, Command, ErrorCode,timeout=0,timeoutErrorCode=None):
+def RunTool(ToolName, Command, ErrorCode, timeout=0):
   """ Run a tool.
       If the timeout is set to 0 then there will be no timeout.
-      If the timeout is > 0 then timeoutErrorCode MUST be set!
   """
   Verbose("Running " + ToolName)
   try:
     start = timeit.default_timer()
-    stdout, stderr, returnCode = run(Command, timeout)
+    stdout, returnCode = run(Command, timeout)
     end = timeit.default_timer()
   except Timeout:
     if CommandLineOptions.time:
       Timing.append((ToolName, timeout))
-    raise GPUVerifyException( timeoutErrorCode, ToolName + " timed out.  Use --timeout=N with N > " + str(timeout) + " to increase timeout, or --timeout=0 to disable timeout.")
+    raise GPUVerifyException(ErrorCodes.TIMEOUT, ToolName + " timed out. " + \
+                             "Use --timeout=N with N > " + str(timeout)    + \
+                             " to increase timeout, or --timeout=0 to "    + \
+                             "disable timeout.")
   except (OSError,WindowsError) as e:
-    raise GPUVerifyException(ErrorCode, "While invoking " + ToolName + ": " + str(e) + "\nWith command line args:\n" + pprint.pformat(Command))
+    raise GPUVerifyException(ErrorCode, "While invoking " + ToolName       + \
+                             ": " + str(e) + "\nWith command line args:\n" + \
+                             pprint.pformat(Command))
 
   if CommandLineOptions.time:
     Timing.append((ToolName, end-start))
   if returnCode != ErrorCodes.SUCCESS:
-    raise GPUVerifyException(ErrorCode,"", stdout, stderr)
+    raise GPUVerifyException(ErrorCode, stdout)
 
 def showVersionAndExit():
   """ This will check if using gpuverify from development directory.
@@ -411,7 +408,7 @@ def showVersionAndExit():
 def showHelpAndExit():
   stringReplacements = {
     'boogieMemout': CommandLineOptions.boogieMemout,
-    'boogieTimeout': CommandLineOptions.boogieTimeout
+    'componentTimeout': CommandLineOptions.componentTimeout
   }
 
   print("""OVERVIEW: GPUVerify driver
@@ -430,8 +427,8 @@ def showHelpAndExit():
     --only-divergence       Only check for barrier divergence, not for races
     --only-intra-group      Do not check for inter-group races
     --time                  Show timing information
-    --timeout=X             Allow Boogie to run for X seconds before giving up.
-                            A timeout of 0 disables the timeout. The default is {boogieTimeout} seconds.
+    --timeout=X             Allow each component to run for X seconds before giving up.
+                            A timeout of 0 disables the timeout. The default is {componentTimeout} seconds.
     --verify                Run tool in verification mode
     --verbose               Show commands to run and use verbose output
     --version               Show version information.
@@ -473,7 +470,6 @@ def showHelpAndExit():
     --stop-at-cbpl          Stop after generating an annotated bpl
     --stop-at-bpl           Stop after generating bpl
     --time-as-csv=label     Print timing as CSV row with label
-    --vcgen-timeout=X       Allow VCGen to run for X seconds.
     --vcgen-opt=...         Specify option to be passed to be passed to VC generation
                             engine
     --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32
@@ -487,7 +483,6 @@ def showHelpAndExit():
 
   INVARIANT INFERENCE OPTIONS:
     --no-infer              Turn off invariant inference
-    --infer-timeout=X       Allow GPUVerifyCruncher to run for X seconds.
     --staged-inference      Perform invariant inference in stages; this can boost
                             performance for complex kernels (but this is not guaranteed)
     --parallel-inference    Use multiple solver instances in parallel to accelerate invariant
@@ -538,16 +533,16 @@ def Verbose(msg):
 
 def getSourceFiles(args):
   if len(args) == 0:
-    raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "no .cl or .cu files supplied")
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "no .cl or .cu files supplied")
   for a in args:
     filename, ext = SplitFilenameExt(a)
     if ext == ".cl":
       if CommandLineOptions.SL == SourceLanguage.CUDA:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to pass both .cl and .cu files simultaneously")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to pass both .cl and .cu files simultaneously")
       CommandLineOptions.SL = SourceLanguage.OpenCL
     elif ext == ".cu":
       if CommandLineOptions.SL == SourceLanguage.OpenCL:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to pass both .cl and .cu files simultaneously")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to pass both .cl and .cu files simultaneously")
       CommandLineOptions.SL = SourceLanguage.CUDA
     elif ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
       CommandLineOptions.skip["clang"] = True
@@ -560,7 +555,7 @@ def getSourceFiles(args):
       if ext in [                                    ".cbpl" ]:
         CommandLineOptions.skip["cruncher"] = True
     else:
-      raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "'" + a + "' has unknown file extension, supported file extensions are .cl (OpenCL) and .cu (CUDA)")
+      raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "'" + a + "' has unknown file extension, supported file extensions are .cl (OpenCL) and .cu (CUDA)")
     CommandLineOptions.sourceFiles.append(a)
 
 def showHelpIfRequested(opts):
@@ -674,30 +669,30 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.mode = AnalysisMode.FINDBUGS
       try:
         if int(a) < 0:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --loop-unwind")
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --loop-unwind")
         CommandLineOptions.loopUnwindDepth = int(a)
       except ValueError:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --loop-unwind")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --loop-unwind")
     if o == "--memout":
       try:
         CommandLineOptions.boogieMemout = int(a)
         if CommandLineOptions.boogieMemout < 0:
           raise ValueError
       except ValueError as e:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "Invalid memout \"" + a + "\"")
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "Invalid memout \"" + a + "\"")
     if o == "--adversarial-abstraction":
       if CommandLineOptions.equalityAbstraction:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to specify both adversarial and equality abstractions")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to specify both adversarial and equality abstractions")
       CommandLineOptions.adversarialAbstraction = True
     if o == "--equality-abstraction":
       if CommandLineOptions.adversarialAbstraction:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to specify both adversarial and equality abstractions")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to specify both adversarial and equality abstractions")
       CommandLineOptions.equalityAbstraction = True
     if o == "--warp-sync":
       CommandLineOptions.warpSync = True
       try:
         if int(a) < 0 :
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --warp-sync")
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --warp-sync")
         CommandLineOptions.warpSize = int(a)
       except ValueError:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --warp-sync")
@@ -705,122 +700,108 @@ def processGeneralOptions(opts, args):
       if a.lower() in ("r","w","rw","none"):
         CommandLineOptions.atomic = a.lower()
       else:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --atomic must be 'r','w','rw', or 'none'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --atomic must be 'r','w','rw', or 'none'")
     if o == "--solver":
       if a.lower() in ("z3","cvc4"):
         CommandLineOptions.solver = a.lower()
       else:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --solver must be 'Z3' or 'CVC4'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --solver must be 'Z3' or 'CVC4'")
     if o == "--scheduling":
       if a.lower() in ("all-together","unsound-first","dynamic-first","phased"):
         CommandLineOptions.scheduling = a.lower()
       else:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --scheduling must be 'all-together', 'unsound-first', 'dynamic-first' or'phased'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --scheduling must be 'all-together', 'unsound-first', 'dynamic-first' or'phased'")
     if o == "--logic":
       if a.upper() in ("ALL_SUPPORTED","QF_ALL_SUPPORTED"):
         CommandLineOptions.logic = a.upper()
       else:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --logic must be 'ALL_SUPPORTED' or 'QF_ALL_SUPPORTED'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --logic must be 'ALL_SUPPORTED' or 'QF_ALL_SUPPORTED'")
     if o == "--bugle-lang":
       if a.lower() in ("cl", "cu"):
         CommandLineOptions.bugleLanguage = a.lower()
       else:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --bugle-lang must be 'cl' or 'cu'")
-    if o == "--vcgen-timeout":
-      try:
-        CommandLineOptions.vcgenTimeout = int(a)
-        if CommandLineOptions.vcgenTimeout < 0:
-          raise ValueError
-      except ValueError as e:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "Invalid VCGen timeout \"" + a + "\"")
-    if o == "--infer-timeout":
-      try:
-        CommandLineOptions.cruncherTimeout = int(a)
-        if CommandLineOptions.cruncherTimeout < 0:
-          raise ValueError
-      except ValueError as e:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "Invalid Cruncher timeout \"" + a + "\"")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --bugle-lang must be 'cl' or 'cu'")
     if o == "--timeout":
       try:
-        CommandLineOptions.boogieTimeout = int(a)
-        if CommandLineOptions.boogieTimeout < 0:
+        CommandLineOptions.componentTimeout = int(a)
+        if CommandLineOptions.componentTimeout < 0:
           raise ValueError
       except ValueError as e:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "Invalid timeout \"" + a + "\"")
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "Invalid timeout \"" + a + "\"")
     if o == "--boogie-file":
       filename, ext = SplitFilenameExt(a)
       if ext != ".bpl":
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "'" + a + "' specified via --boogie-file should have extension .bpl")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "'" + a + "' specified via --boogie-file should have extension .bpl")
       CommandLineOptions.gpuVerifyCruncherOptions += [ a ]
     if o == "--infer-config-file":
       filename, ext = SplitFilenameExt(a)
       if ext != ".cfg":
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "'" + a + "' specified via --infer-config-file should have extension .cfg")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "'" + a + "' specified via --infer-config-file should have extension .cfg")
       CommandLineOptions.invInferConfigFile = a
 
 def processOpenCLOptions(opts, args):
   for o, a in opts:
     if o == "--local_size":
       if CommandLineOptions.groupSize != []:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to define local_size multiple times")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define local_size multiple times")
       try:
         CommandLineOptions.groupSize = processVector(a)
       except ValueError:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --local_size must be a (vector of) positive integer(s), found '" + a + "'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --local_size must be a (vector of) positive integer(s), found '" + a + "'")
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "values specified for local_size dimensions must be positive")
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for local_size dimensions must be positive")
     if o == "--num_groups":
       if CommandLineOptions.numGroups != []:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to define num_groups multiple times")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define num_groups multiple times")
       try:
         CommandLineOptions.numGroups = processVector(a)
       except ValueError:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --num_groups must be a (vector of) positive integer(s), found '" + a + "'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --num_groups must be a (vector of) positive integer(s), found '" + a + "'")
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "values specified for num_groups dimensions must be positive")
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for num_groups dimensions must be positive")
 
   if CommandLineOptions.groupSize == []:
-    raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "work group size must be specified via --local_size=...")
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "work group size must be specified via --local_size=...")
   if CommandLineOptions.numGroups == []:
-    raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "number of work groups must be specified via --num_groups=...")
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "number of work groups must be specified via --num_groups=...")
 
 def processCUDAOptions(opts, args):
   for o, a in opts:
     if o == "--blockDim":
       if CommandLineOptions.groupSize != []:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to define blockDim multiple times")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define blockDim multiple times")
       try:
         CommandLineOptions.groupSize = processVector(a)
       except ValueError:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --blockDim must be a (vector of) positive integer(s), found '" + a + "'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --blockDim must be a (vector of) positive integer(s), found '" + a + "'")
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] <= 0:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "values specified for blockDim must be positive")
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for blockDim must be positive")
     if o == "--gridDim":
       if CommandLineOptions.numGroups != []:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "illegal to define gridDim multiple times")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define gridDim multiple times")
       try:
         CommandLineOptions.numGroups = processVector(a)
       except ValueError:
-        raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "argument to --gridDim must be a (vector of) positive integer(s), found '" + a + "'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --gridDim must be a (vector of) positive integer(s), found '" + a + "'")
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
-          raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "values specified for gridDim must be positive")
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for gridDim must be positive")
 
   if CommandLineOptions.groupSize == []:
-    raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "thread block size must be specified via --blockDim=...")
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "thread block size must be specified via --blockDim=...")
   if CommandLineOptions.numGroups == []:
-    raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "grid size must be specified via --gridDim=...")
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "grid size must be specified via --gridDim=...")
 
 def _main(argv):
   """
@@ -839,19 +820,19 @@ def _main(argv):
               'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
               'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication',
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
-              'vcgen-opt=', 'vcgen-timeout=', 'boogie-opt=', 'bugle-opt=',
+              'vcgen-opt=', 'boogie-opt=', 'bugle-opt=',
               'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-cbpl', 'stop-at-bpl',
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
-              'infer-timeout=', 'staged-inference', 'parallel-inference',
+              'staged-inference', 'parallel-inference',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic='
              ])
   except getopt.GetoptError as getoptError:
-    raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, getoptError.msg + ".  Try --help for list of options")
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, getoptError.msg + ".  Try --help for list of options")
 
   showHelpIfRequested(opts)
   showVersionIfRequested(opts)
@@ -929,7 +910,7 @@ def _main(argv):
         if "blockDim" in stdout: lang = 'cu'
       except: pass
     if not lang:
-      raise GPUVerifyException( ErrorCodes.COMMAND_LINE_ERROR, "must specify --bugle-lang=[cl|cu] when given a bitcode .bc file")
+      raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "must specify --bugle-lang=[cl|cu] when given a bitcode .bc file")
     assert lang in [ "cl", "cu" ]
     CommandLineOptions.bugleOptions += [ "-l", lang, "-o", gbplFilename, optFilename ]
 
@@ -1040,14 +1021,16 @@ def _main(argv):
              CommandLineOptions.clangOptions +
              [("-I" + str(o)) for o in CommandLineOptions.includes] +
              [("-D" + str(o)) for o in CommandLineOptions.defines],
-             ErrorCodes.CLANG_ERROR)
+             ErrorCodes.CLANG_ERROR,
+             CommandLineOptions.componentTimeout)
 
   """ RUN OPT """
   if not CommandLineOptions.skip["opt"]:
     RunTool("opt",
             [gvfindtools.llvmBinDir + "/opt"] +
             CommandLineOptions.optOptions,
-            ErrorCodes.OPT_ERROR)
+            ErrorCodes.OPT_ERROR,
+            CommandLineOptions.componentTimeout)
 
   if CommandLineOptions.stopAtOpt: return 0
 
@@ -1056,53 +1039,41 @@ def _main(argv):
     RunTool("bugle",
             [gvfindtools.bugleBinDir + "/bugle"] +
             CommandLineOptions.bugleOptions,
-            ErrorCodes.BUGLE_ERROR)
+            ErrorCodes.BUGLE_ERROR,
+            CommandLineOptions.componentTimeout)
 
   if CommandLineOptions.stopAtGbpl: return 0
 
   """ RUN GPUVERIFYVCGEN """
-  timeoutArguments={}
-  if CommandLineOptions.vcgenTimeout > 0:
-    timeoutArguments['timeout']= CommandLineOptions.vcgenTimeout
-    timeoutArguments['timeoutErrorCode']=ErrorCodes.GPUVERIFYVCGEN_TIMEOUT
   if not CommandLineOptions.skip["vcgen"]:
     RunTool("gpuverifyvcgen",
             (["mono"] if os.name == "posix" else []) +
             [gvfindtools.gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
             CommandLineOptions.gpuVerifyVCGenOptions,
             ErrorCodes.GPUVERIFYVCGEN_ERROR,
-            **timeoutArguments)
+            CommandLineOptions.componentTimeout)
 
   if CommandLineOptions.stopAtBpl: return 0
 
   if CommandLineOptions.inference and (not CommandLineOptions.mode == AnalysisMode.FINDBUGS):
     """ RUN GPUVERIFYCRUNCHER """
-    timeoutArguments={}
-    if CommandLineOptions.cruncherTimeout > 0:
-      timeoutArguments['timeout']= CommandLineOptions.cruncherTimeout
-      timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
     if not CommandLineOptions.skip["cruncher"]:
       RunTool("gpuverifycruncher",
               (["mono"] if os.name == "posix" else []) +
               [gvfindtools.gpuVerifyCruncherBinDir + os.sep + "GPUVerifyCruncher.exe"] +
               CommandLineOptions.gpuVerifyCruncherOptions,
               ErrorCodes.BOOGIE_ERROR,
-              **timeoutArguments)
+              CommandLineOptions.componentTimeout)
 
     if CommandLineOptions.stopAtCbpl: return 0
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
-  timeoutArguments={}
-  if CommandLineOptions.boogieTimeout > 0:
-    timeoutArguments['timeout']= CommandLineOptions.boogieTimeout
-    timeoutArguments['timeoutErrorCode']=ErrorCodes.BOOGIE_TIMEOUT
-
   RunTool("gpuverifyboogiedriver",
           (["mono"] if os.name == "posix" else []) +
           [gvfindtools.gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver.exe"] +
           CommandLineOptions.gpuVerifyBoogieDriverOptions,
           ErrorCodes.BOOGIE_ERROR,
-          **timeoutArguments)
+          CommandLineOptions.componentTimeout)
 
   """ SUCCESS - REPORT STATUS """
   if CommandLineOptions.silent:
@@ -1216,24 +1187,22 @@ def main(argv):
 
     # We should call this last.
     cleanUpHandler.register(killChildrenPosix)
-
     cleanUpHandler.call()
-
     cleanUpHandler.clear() # Clean up for next use
 
   try:
     _main(argv)
   except GPUVerifyException as e:
-    doCleanUp(timing=True, exitCode=e.getExitCode() )
+    doCleanUp(timing=True, exitCode=e.getExitCode())
     raise
   except Exception:
     # Something went very wrong
-    doCleanUp(timing=False, exitCode=0 ) # It doesn't matter what the exitCode is
+    doCleanUp(timing=False, exitCode=0) # It doesn't matter what the exitCode is
     raise
 
   doCleanUp(timing=True) # Do this outside try block so we don't call twice!
   return ErrorCodes.SUCCESS
-  
+
 if __name__ == '__main__':
   """
   Entry point for GPUVerify as a script
