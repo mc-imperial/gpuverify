@@ -1995,6 +1995,15 @@ namespace GPUVerify
           List<BigBlock> thenblocks = new List<BigBlock>();
           thenblocks.Add(new BigBlock(Token.NoToken, "reset_warps", then, null, null));
 
+          if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGlobalArrays())) {
+            var GlobalArrays = KernelArrayInfo.getGlobalArrays();
+            var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ?
+              GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
+              Enumerable.Empty<Variable>();
+            var HavocVars = GlobalArrays.Concat(NoAccessVars).ToList();
+            thenblocks.AddRange(MakeHavocBlocks(HavocVars));
+          }
+
           Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
 
           Expr[] tids = (new int[] {1,2}).Select(x =>
