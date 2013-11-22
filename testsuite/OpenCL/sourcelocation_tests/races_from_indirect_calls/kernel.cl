@@ -35,6 +35,6 @@ int foo(__local int* p) {
 }
 
 __kernel void baz(__local int* p) {
-    int x = foo(p);
-    p[tid + 1] = x + tid;
+    foo(p);
+    p[tid + 1] = tid;
 }
