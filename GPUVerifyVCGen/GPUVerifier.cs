@@ -1649,6 +1649,9 @@ namespace GPUVerify
 
         internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId)
         {
+            if (GPUVerifyVCGenCommandLineOptions.DoNotGenerateCandidates.Contains(tag)) {
+                return; // candidate *not* generated
+            }
             region.AddInvariant(Program.CreateCandidateInvariant(e, tag, StageId));
         }
 

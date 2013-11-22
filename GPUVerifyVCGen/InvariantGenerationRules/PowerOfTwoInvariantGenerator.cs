@@ -40,19 +40,19 @@ namespace GPUVerify.InvariantGenerationRules
                     {
                         if (verifier.ContainsNamedVariable(modset, basicName))
                         {
-                            verifier.AddCandidateInvariant(region, MakePowerOfTwoExpr(v), "pow2 disjunction", InferenceStages.BASIC_CANDIDATE_STAGE);
+                            verifier.AddCandidateInvariant(region, MakePowerOfTwoExpr(v), "pow2Disj", InferenceStages.BASIC_CANDIDATE_STAGE);
                             for (int i = (1 << 15); i > 0; i >>= 1)
                             {
                                 verifier.AddCandidateInvariant(region,
                                     verifier.IntRep.MakeSlt(
                                     new IdentifierExpr(v.tok, v),
                                     verifier.IntRep.GetLiteral(i, 32)),
-                                    "pow2 less than " + i, InferenceStages.BASIC_CANDIDATE_STAGE);
+                                    "pow2Lt", InferenceStages.BASIC_CANDIDATE_STAGE);
                             }
                             verifier.AddCandidateInvariant(region,
                                 Expr.Neq(new IdentifierExpr(v.tok, v),
                                 verifier.IntRep.GetLiteral(0, 32)),
-                                "pow2 not zero", InferenceStages.BASIC_CANDIDATE_STAGE);
+                                "pow2Zero", InferenceStages.BASIC_CANDIDATE_STAGE);
                         }
                     }
                 }
@@ -68,12 +68,12 @@ namespace GPUVerify.InvariantGenerationRules
                 for (int i = (1 << 15); i > 0; i >>= 1)
                 {
                     var mulInv = Expr.Eq(verifier.IntRep.MakeMul(new IdentifierExpr(inc.tok, inc), new IdentifierExpr(dec.tok, dec)), verifier.IntRep.GetLiteral(i, 32));
-                    verifier.AddCandidateInvariant(region, mulInv, "relational pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
+                    verifier.AddCandidateInvariant(region, mulInv, "relationalPow2", InferenceStages.BASIC_CANDIDATE_STAGE);
                     var disjInv = Expr.Or(
                       Expr.And(Expr.Eq(new IdentifierExpr(dec.tok, dec), verifier.IntRep.GetLiteral(0, 32)),
                                Expr.Eq(new IdentifierExpr(inc.tok, inc), verifier.IntRep.GetLiteral(2*i, 32))),
                       mulInv);
-                    verifier.AddCandidateInvariant(region, disjInv, "relational pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
+                    verifier.AddCandidateInvariant(region, disjInv, "relationalPow2", InferenceStages.BASIC_CANDIDATE_STAGE);
                 }
             }
         }

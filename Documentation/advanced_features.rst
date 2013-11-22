@@ -163,16 +163,13 @@ For example, if you try this on::
 then in the ``.bpl`` file you will see something like::
 
   $1:
-    assert {:tag "accessed offsets satisfy predicates (source)"} _b8 ==> _WRITE_HAS_OCCURRED_$$B$1 ==> BV32_AND(BV32_SUB(BV32_MUL(1bv32, 256bv32), 1bv32), _WRITE_OFFSET_$$B$1) == BV32_AND(BV32_SUB(BV32_MUL(1bv32, 256bv32), 1bv32), BV32_ADD(BV32_MUL(0bv32, 256bv32), BV32_ADD(BV32_MUL(group_size_x, group_id_x$1), local_id_x$1))) && _WRITE_SOURCE_$$B$1 == 2bv32;
-    assert {:tag "accessed offsets satisfy predicates"} _b7 ==> _WRITE_HAS_OCCURRED_$$B$1 ==> BV32_AND(BV32_SUB(BV32_MUL(1bv32, 256bv32), 1bv32), _WRITE_OFFSET_$$B$1) == BV32_AND(BV32_SUB(BV32_MUL(1bv32, 256bv32), 1bv32), BV32_ADD(BV32_MUL(0bv32, 256bv32), BV32_ADD(BV32_MUL(group_size_x, group_id_x$1), local_id_x$1)));
-    assert {:tag "access upper bound"} _b6 ==> _WRITE_HAS_OCCURRED_$$B$1 ==> BV32_SLT(_WRITE_OFFSET_$$B$1, BV32_ADD(BV32_MUL(group_size_x, BV32_ADD(group_id_x$1, 1bv32)), local_id_x$1));
-    assert {:tag "access lower bound"} _b5 ==> _WRITE_HAS_OCCURRED_$$B$1 ==> BV32_SLE(BV32_ADD(BV32_MUL(group_size_x, group_id_x$1), local_id_x$1), _WRITE_OFFSET_$$B$1);
-    assert {:tag "accessed offsets satisfy predicates (source)"} _b4 ==> _WRITE_HAS_OCCURRED_$$A$1 ==> BV32_AND(BV32_SUB(BV32_MUL(1bv32, 256bv32), 1bv32), _WRITE_OFFSET_$$A$1) == BV32_AND(BV32_SUB(BV32_MUL(1bv32, 256bv32), 1bv32), BV32_ADD(BV32_MUL(0bv32, 256bv32), BV32_ADD(BV32_MUL(group_size_x, group_id_x$1), local_id_x$1))) && _WRITE_SOURCE_$$A$1 == 1bv32;
-    assert {:tag "accessed offsets satisfy predicates"} _b3 ==> _WRITE_HAS_OCCURRED_$$A$1 ==> BV32_AND(BV32_SUB(BV32_MUL(1bv32, 256bv32), 1bv32), _WRITE_OFFSET_$$A$1) == BV32_AND(BV32_SUB(BV32_MUL(1bv32, 256bv32), 1bv32), BV32_ADD(BV32_MUL(0bv32, 256bv32), BV32_ADD(BV32_MUL(group_size_x, group_id_x$1), local_id_x$1)));
-    assert {:tag "access upper bound"} _b2 ==> _WRITE_HAS_OCCURRED_$$A$1 ==> BV32_SLT(_WRITE_OFFSET_$$A$1, BV32_ADD(BV32_MUL(group_size_x, BV32_ADD(group_id_x$1, 1bv32)), local_id_x$1));
-    assert {:tag "access lower bound"} _b1 ==> _WRITE_HAS_OCCURRED_$$A$1 ==> BV32_SLE(BV32_ADD(BV32_MUL(group_size_x, group_id_x$1), local_id_x$1), _WRITE_OFFSET_$$A$1);
-    assert {:tag "guard variable $i.0 is nonneg"} {:thread 1} p0$1 ==> _b0 ==> BV32_SLE(0bv32, $i.0$1);
-    assert {:tag "guard variable $i.0 is nonneg"} {:thread 2} p0$2 ==> _b0 ==> BV32_SLE(0bv32, $i.0$2);
+    assert {:tag "accessedOffsetsSatisfyPredicates"} _b2 ==> _WRITE_HAS_OCCURRED_$$A ==> BV32_AND(BV32_SUB(256bv32, 1bv32), _WRITE_OFFSET_$$A) == BV32_AND(BV32_SUB(256bv32, 1bv32), BV32_ADD(BV32_MUL(group_size_x, group_id_x$1), local_id_x$1));
+    assert {:tag "guardNonNeg"} {:thread 1} p0$1 ==> _b1 ==> BV32_SLE(0bv32, $i.0$1);
+    assert {:tag "guardNonNeg"} {:thread 2} p0$2 ==> _b1 ==> BV32_SLE(0bv32, $i.0$2);
+    assert {:tag "loopCounterIsStrided"} {:thread 1} p0$1 ==> _b0 ==> BV32_AND(BV32_SUB(256bv32, 1bv32), $i.0$1) == BV32_AND(BV32_SUB(256bv32, 1bv32), BV32_ADD(BV32_MUL(group_size_x, group_id_x$1), local_id_x$1));
+    assert {:tag "loopCounterIsStrided"} {:thread 2} p0$2 ==> _b0 ==> BV32_AND(BV32_SUB(256bv32, 1bv32), $i.0$2) == BV32_AND(BV32_SUB(256bv32, 1bv32), BV32_ADD(BV32_MUL(group_size_x, group_id_x$2), local_id_x$2));
+    assert {:tag "user"} {:originated_from_invariant} {:line 12} {:col 7} {:fname "kernel.cl"} {:dir "/Users/nafe/work/autobuild/mac/gpuverify/testsuite/OpenCL/test_mod_invariants/global_direct"} {:thread 1} p0$1 ==> _c0 ==> (if $i.0$1 == v0$1 then 1bv1 else 0bv1) != 0bv1;
+    assert {:tag "user"} {:originated_from_invariant} {:line 12} {:col 7} {:fname "kernel.cl"} {:dir "/Users/nafe/work/autobuild/mac/gpuverify/testsuite/OpenCL/test_mod_invariants/global_direct"} {:thread 2} p0$2 ==> _c0 ==> (if $i.0$2 == v0$2 then 1bv1 else 0bv1) != 0bv1;
 
 (Of course, the exact form and number of invariants generated may change, as it is sensitive to the test case in question and the current state of the candidate generation engine.)
 

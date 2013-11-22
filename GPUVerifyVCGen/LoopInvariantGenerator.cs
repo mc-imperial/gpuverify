@@ -102,7 +102,7 @@ namespace GPUVerify {
                       List<Expr> args = new List<Expr>();
                       args.Add(sub);
                       var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv32), args));
-                      verifier.AddCandidateInvariant(region, inv, "guard minus initial is uniform", InferenceStages.BASIC_CANDIDATE_STAGE);
+                      verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform", InferenceStages.BASIC_CANDIDATE_STAGE);
                     }
                 }
             }
@@ -144,7 +144,7 @@ namespace GPUVerify {
         {
             int BVWidth = (v.TypedIdent.Type as BvType).Bits;
             var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetLiteral(0,BVWidth), new IdentifierExpr(v.tok, v));
-            verifier.AddCandidateInvariant(region, inv, "guard variable " + v + " is nonneg", InferenceStages.BASIC_CANDIDATE_STAGE);
+            verifier.AddCandidateInvariant(region, inv, "guardNonNeg", InferenceStages.BASIC_CANDIDATE_STAGE);
         }
     }
 
@@ -165,7 +165,7 @@ namespace GPUVerify {
         var lcPred = sc.MaybeBuildPredicate(verifier, lcExpr);
 
         if (lcPred != null) {
-          verifier.AddCandidateInvariant(region, lcPred, "variable " + lc + " is strided", InferenceStages.BASIC_CANDIDATE_STAGE);
+          verifier.AddCandidateInvariant(region, lcPred, "loopCounterIsStrided", InferenceStages.BASIC_CANDIDATE_STAGE);
         }
       }
     }
@@ -207,7 +207,7 @@ namespace GPUVerify {
           Expr.Eq(
               new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable)),
               new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable))
-      )), "predicated equality", InferenceStages.BASIC_CANDIDATE_STAGE);
+      )), "predicatedEquality", InferenceStages.BASIC_CANDIDATE_STAGE);
     }
 
     private Dictionary<string, int> GetAssignmentCounts(Implementation impl) {
@@ -264,9 +264,9 @@ namespace GPUVerify {
                   new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$2", Microsoft.Boogie.Type.Int)))
               );
 
-              verifier.AddCandidateInvariant(region, uniformEnabledPredicate, "loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
+              verifier.AddCandidateInvariant(region, uniformEnabledPredicate, "loopPredicateEquality", InferenceStages.BASIC_CANDIDATE_STAGE);
 
-              verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), uniformEnabledPredicate), "same group loop predicate equality", InferenceStages.BASIC_CANDIDATE_STAGE);
+              verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), uniformEnabledPredicate), "loopPredicateEquality", InferenceStages.BASIC_CANDIDATE_STAGE);
 
               Dictionary<string, int> assignmentCounts = GetAssignmentCounts(Impl);
 
