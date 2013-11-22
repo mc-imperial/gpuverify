@@ -25,7 +25,6 @@ __kernel void foo()
     A[tidY][tidX] = B[get_local_id(1)][tidX] + 2;
 
     B[tidY][get_local_id(0)]++;
-
   }
   
 

@@ -1404,7 +1404,6 @@ namespace GPUVerify
         }
 
         private bool SomeArrayModelledNonAdversarially(ICollection<Variable> variables) {
-          Debug.Assert(variables.Count > 0);
           foreach (Variable v in variables) {
             if (!ArrayModelledAdversarially(v)) {
               return true;
@@ -1497,72 +1496,50 @@ namespace GPUVerify
 
         internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, AccessType Access)
         {
-            string name = MakeAccessHasOccurredVariableName(varName, Access) + "$1";
-            foreach(Declaration D in Program.TopLevelDeclarations)
-            {
-                if(D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
-                {
-                    return D as GlobalVariable;
-                }
+            foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
+              if(g.Name.Equals(MakeAccessHasOccurredVariableName(varName, Access))) {
+                return g;
+              }
             }
-
-            GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-                MakeAccessHasOccurredVariable(varName, Access)) as GlobalVariable;
-
+            GlobalVariable result = MakeAccessHasOccurredVariable(varName, Access);
             Program.TopLevelDeclarations.Add(result);
             return result;
         }
 
         internal GlobalVariable FindOrCreateOffsetVariable(string varName, AccessType Access)
         {
-            string name = MakeOffsetVariableName(varName, Access) + "$1";
-            foreach (Declaration D in Program.TopLevelDeclarations)
-            {
-                if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
-                {
-                    return D as GlobalVariable;
-                }
+            foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
+              if(g.Name.Equals(MakeOffsetVariableName(varName, Access))) {
+                return g;
+              }
             }
-
-            GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-                MakeOffsetVariable(varName, Access)) as GlobalVariable;
-
+            GlobalVariable result = MakeOffsetVariable(varName, Access);
             Program.TopLevelDeclarations.Add(result);
             return result;
         }
 
         internal GlobalVariable FindOrCreateValueVariable(string varName, AccessType Access,
               Microsoft.Boogie.Type Type) {
-          string name = MakeValueVariableName(varName, Access) + "$1";
-          foreach (Declaration D in Program.TopLevelDeclarations) {
-            if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name)) {
-              return D as GlobalVariable;
+          foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
+            if(g.Name.Equals(MakeValueVariableName(varName, Access))) {
+              return g;
             }
           }
-
-          GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-              MakeValueVariable(varName, Access, Type)) as GlobalVariable;
-
+          GlobalVariable result = MakeValueVariable(varName, Access, Type);
           Program.TopLevelDeclarations.Add(result);
           return result;
         }
 
         internal GlobalVariable FindOrCreateBenignFlagVariable(string varName)
         {
-            string name = MakeBenignFlagVariableName(varName) + "$1";
-            foreach (Declaration D in Program.TopLevelDeclarations)
-            {
-                if (D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
-                {
-                    return D as GlobalVariable;
-                }
+          foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
+            if(g.Name.Equals(MakeBenignFlagVariableName(varName))) {
+              return g;
             }
-
-            GlobalVariable result = new VariableDualiser(1, null, null).VisitVariable(
-                MakeBenignFlagVariable(varName)) as GlobalVariable;
-
-            Program.TopLevelDeclarations.Add(result);
-            return result;
+          }
+          GlobalVariable result = MakeBenignFlagVariable(varName);
+          Program.TopLevelDeclarations.Add(result);
+          return result;
         }
 
 

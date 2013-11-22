@@ -29,6 +29,11 @@ namespace GPUVerify
         private HashSet<Variable> quantifiedVars;
 
         private bool SkipDualiseVariable(Variable node) {
+          var AEF = new AsymmetricExpressionFinder();
+          AEF.Visit(node);
+          if(AEF.foundAsymmetricExpr()) {
+            return true;
+          }
           if (node.Name.Contains("_NOT_ACCESSED_")) return true;
           if (quantifiedVars.Contains(node)) return true;
           return false;

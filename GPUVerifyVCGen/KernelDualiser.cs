@@ -479,7 +479,7 @@ namespace GPUVerify {
       impl.LocVars = NewLocalVars;
     }
 
-    private bool ContainsAsymmetricExpression(Expr expr) {
+    private static bool ContainsAsymmetricExpression(Expr expr) {
       AsymmetricExpressionFinder finder = new AsymmetricExpressionFinder();
       finder.VisitExpr(expr);
       return finder.foundAsymmetricExpr();

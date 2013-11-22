@@ -270,8 +270,8 @@ namespace GPUVerify {
 
     private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string ArrayName, string AccessType, string RaceyState)
     {
-      string ACCESS_HAS_OCCURRED = "_" + AccessType.ToUpper() + "_HAS_OCCURRED_$$" + ArrayName + "$1";
-      string ACCESS_OFFSET = "_" + AccessType.ToUpper() + "_OFFSET_$$" + ArrayName + "$1";
+      string ACCESS_HAS_OCCURRED = "_" + AccessType.ToUpper() + "_HAS_OCCURRED_$$" + ArrayName;
+      string ACCESS_OFFSET = "_" + AccessType.ToUpper() + "_OFFSET_$$" + ArrayName;
 
       AssumeCmd ConflictingAction = DetermineConflictingAction(CallCex, RaceyState, ACCESS_HAS_OCCURRED, ACCESS_OFFSET);
 
@@ -436,7 +436,7 @@ namespace GPUVerify {
         Access = AccessType.ATOMIC;
       }
 
-      string OffsetVarName = "_" + Access + "_OFFSET_" + ArrayName + "$1";
+      string OffsetVarName = "_" + Access + "_OFFSET_" + ArrayName;
 
       var VFV = new VariableFinderVisitor(OffsetVarName);
       VFV.Visit(err.FailingRequires.Condition);

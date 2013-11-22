@@ -25,8 +25,6 @@ namespace GPUVerify {
 
     private QKeyValue SourceLocationAttributes = null;
 
-    private int CurrStmtNo = 1;
-
     private int CheckStateCounter = 0;
 
     public IKernelArrayInfo StateToCheck;
@@ -66,16 +64,16 @@ namespace GPUVerify {
 
     private void AddNoAccessCandidateRequires(Procedure Proc, Variable v) {
       foreach (var kind in AccessType.Types)
-        AddNoAccessCandidateRequires(Proc, v, kind, "1");
+        AddNoAccessCandidateRequires(Proc, v, kind);
     }
 
     private void AddNoAccessCandidateEnsures(Procedure Proc, Variable v) {
       foreach (var kind in AccessType.Types)
-        AddNoAccessCandidateEnsures(Proc, v, kind, "1");
+        AddNoAccessCandidateEnsures(Proc, v, kind);
     }
 
     private void AddNoAccessCandidateInvariant(IRegion region, Variable v, AccessType Access) {
-      Expr candidate = NoAccessExpr(v, Access, "1");
+      Expr candidate = NoAccessExpr(v, Access);
       verifier.AddCandidateInvariant(region, candidate, "no " + Access.ToString().ToLower(), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
     }
 
@@ -120,7 +118,7 @@ namespace GPUVerify {
     }
 
     private List<Expr> CollectOffsetPredicates(Implementation impl, IRegion region, Variable v, AccessType Access) {
-      var offsetVar = new VariableDualiser(1, null, null).VisitVariable(verifier.MakeOffsetVariable(v.Name, Access));
+      var offsetVar = verifier.MakeOffsetVariable(v.Name, Access);
       var offsetExpr = new IdentifierExpr(Token.NoToken, offsetVar);
       var offsetPreds = new List<Expr>();
 
@@ -187,8 +185,8 @@ namespace GPUVerify {
         substs.Add(groupId, groupIdPlusOne);
         Substitution s = Substituter.SubstitutionFromHashtable(substs);
         Expr upperBound = Substituter.Apply(s, lowerBound);
-        var lowerBoundInv = Expr.Imp(AccessHasOccurred(v, Access, 1), verifier.IntRep.MakeSle(lowerBound, OffsetXExpr(v, Access, 1)));
-        var upperBoundInv = Expr.Imp(AccessHasOccurred(v, Access, 1), verifier.IntRep.MakeSlt(            OffsetXExpr(v, Access, 1), upperBound));
+        var lowerBoundInv = Expr.Imp(GPUVerifier.MakeAccessHasOccurredExpr(v.Name, Access), verifier.IntRep.MakeSle(lowerBound, OffsetXExpr(v, Access, 1)));
+        var upperBoundInv = Expr.Imp(GPUVerifier.MakeAccessHasOccurredExpr(v.Name, Access), verifier.IntRep.MakeSlt(            OffsetXExpr(v, Access, 1), upperBound));
         verifier.AddCandidateInvariant(region, lowerBoundInv, "access lower bound", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
         verifier.AddCandidateInvariant(region, upperBoundInv, "access upper bound", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
       }
@@ -394,12 +392,12 @@ namespace GPUVerify {
 
     private void AddReadOrWrittenOffsetIsThreadIdCandidateRequires(Procedure Proc, Variable v) {
       foreach (var kind in AccessType.Types)
-        AddAccessedOffsetIsThreadLocalIdCandidateRequires(Proc, v, kind, 1);
+        AddAccessedOffsetIsThreadLocalIdCandidateRequires(Proc, v, kind);
     }
 
     private void AddReadOrWrittenOffsetIsThreadIdCandidateEnsures(Procedure Proc, Variable v) {
       foreach (var kind in AccessType.Types)
-        AddAccessedOffsetIsThreadLocalIdCandidateEnsures(Proc, v, kind, 1);
+        AddAccessedOffsetIsThreadLocalIdCandidateEnsures(Proc, v, kind);
     }
 
     public void AddKernelPrecondition() {
@@ -503,7 +501,6 @@ namespace GPUVerify {
       if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
         result.Add(MakeCheckCall(result, ar, Access, Value));
       }
-      CurrStmtNo++;
     }
 
     private CallCmd MakeCheckCall(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
@@ -534,7 +531,6 @@ namespace GPUVerify {
       inParamsLog.Add(ar.Index);
       MaybeAddValueParameter(inParamsLog, ar, Value, Access);
       MaybeAddValueOldParameter(inParamsLog, ar, Access);
-      inParamsLog.Add(verifier.IntRep.GetLiteral(CurrStmtNo, 32));
       Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
       verifier.OnlyThread1.Add(logProcedure.Name);
       CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new List<IdentifierExpr>());
@@ -591,8 +587,7 @@ namespace GPUVerify {
       {
         Expr ResetAssumeGuard = Expr.Imp(ResetCondition,
           Expr.Not(new IdentifierExpr(Token.NoToken,
-            new VariableDualiser(1, null, null).VisitVariable(
-              GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind)))));
+            GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind))));
 
         if (verifier.KernelArrayInfo.getGlobalArrays().Contains(v))
           ResetAssumeGuard = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), ResetAssumeGuard);
@@ -616,15 +611,14 @@ namespace GPUVerify {
       Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
       Debug.Assert(!(mt.Result is MapType));
 
-      inParams.Add(VariableForThread(1, PredicateParameter));
-      inParams.Add(VariableForThread(1, OffsetParameter));
+      inParams.Add(PredicateParameter);
+      inParams.Add(OffsetParameter);
       if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
-        inParams.Add(VariableForThread(1, ValueParameter));
+        inParams.Add(ValueParameter);
       }
       if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-        inParams.Add(VariableForThread(1, ValueOldParameter));
+        inParams.Add(ValueOldParameter);
       }
-      inParams.Add(VariableForThread(1, SourceParameter));
 
       string LogProcedureName = "_LOG_" + Access + "_" + v.Name;
 
@@ -648,8 +642,8 @@ namespace GPUVerify {
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Debug.Assert(!(mt.Result is MapType));
 
-      inParams.Add(VariableForThread(2, PredicateParameter));
-      inParams.Add(VariableForThread(2, OffsetParameter));
+      inParams.Add(PredicateParameter);
+      inParams.Add(OffsetParameter);
 
       string UpdateBenignFlagProcedureName = "_UPDATE_WRITE_READ_BENIGN_FLAG_" + v.Name;
 
@@ -675,10 +669,10 @@ namespace GPUVerify {
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
 
-      inParams.Add(VariableForThread(2, PredicateParameter));
-      inParams.Add(VariableForThread(2, OffsetParameter));
+      inParams.Add(PredicateParameter);
+      inParams.Add(OffsetParameter);
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
-        inParams.Add(VariableForThread(2, ValueParameter));
+        inParams.Add(ValueParameter);
       }
 
       string CheckProcedureName = "_CHECK_" + Access + "_" + v.Name;
@@ -704,12 +698,12 @@ namespace GPUVerify {
       }
     }
 
-    private void AddNoAccessCandidateRequires(Procedure Proc, Variable v, AccessType Access, string OneOrTwo) {
-      verifier.AddCandidateRequires(Proc, NoAccessExpr(v, Access, OneOrTwo), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+    private void AddNoAccessCandidateRequires(Procedure Proc, Variable v, AccessType Access) {
+      verifier.AddCandidateRequires(Proc, NoAccessExpr(v, Access), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
     }
 
-    private void AddNoAccessCandidateEnsures(Procedure Proc, Variable v, AccessType Access, string OneOrTwo) {
-      verifier.AddCandidateEnsures(Proc, NoAccessExpr(v, Access, OneOrTwo), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+    private void AddNoAccessCandidateEnsures(Procedure Proc, Variable v, AccessType Access) {
+      verifier.AddCandidateEnsures(Proc, NoAccessExpr(v, Access), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
     }
 
     private HashSet<Expr> GetOffsetsAccessed(IRegion region, Variable v, AccessType Access) {
@@ -779,23 +773,23 @@ namespace GPUVerify {
 
       simpleCmds.Add(new HavocCmd(v.tok, new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
 
-      Expr Condition = Expr.And(new IdentifierExpr(v.tok, VariableForThread(1, PredicateParameter)), new IdentifierExpr(v.tok, TrackVariable));
+      Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter), new IdentifierExpr(v.tok, TrackVariable));
 
-      simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessHasOccurredVariable),
+      simpleCmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable,
           Condition, Expr.True));
-      simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessOffsetVariable),
+      simpleCmds.Add(MakeConditionalAssignment(AccessOffsetVariable,
           Condition,
-          new IdentifierExpr(v.tok, VariableForThread(1, OffsetParameter))));
+          new IdentifierExpr(v.tok, OffsetParameter)));
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
-        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessValueVariable),
+        simpleCmds.Add(MakeConditionalAssignment(AccessValueVariable,
           Condition,
-          new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter))));
+          new IdentifierExpr(v.tok, ValueParameter)));
       }
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessBenignFlagVariable),
+        simpleCmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
           Condition,
-          Expr.Neq(new IdentifierExpr(v.tok, VariableForThread(1, ValueParameter)),
-            new IdentifierExpr(v.tok, VariableForThread(1, ValueOldParameter)))));
+          Expr.Neq(new IdentifierExpr(v.tok, ValueParameter),
+            new IdentifierExpr(v.tok, ValueOldParameter))));
       }
 
       bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));
@@ -829,12 +823,12 @@ namespace GPUVerify {
       List<BigBlock> bigblocks = new List<BigBlock>();
       List<Cmd> simpleCmds = new List<Cmd>();
 
-      Expr Condition = Expr.And(new IdentifierExpr(v.tok, VariableForThread(2, PredicateParameter)),
-                         Expr.And(new IdentifierExpr(v.tok, VariableForThread(1, AccessHasOccurredVariable)),
-                           Expr.Eq(new IdentifierExpr(v.tok, VariableForThread(1, AccessOffsetVariable)),
-                             new IdentifierExpr(v.tok, VariableForThread(2, OffsetParameter)))));
+      Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter),
+                         Expr.And(new IdentifierExpr(v.tok, AccessHasOccurredVariable),
+                           Expr.Eq(new IdentifierExpr(v.tok, AccessOffsetVariable),
+                             new IdentifierExpr(v.tok, OffsetParameter))));
 
-        simpleCmds.Add(MakeConditionalAssignment(VariableForThread(1, AccessBenignFlagVariable),
+        simpleCmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
             Condition, Expr.False));
 
         bigblocks.Add(new BigBlock(v.tok, "_UPDATE_BENIGN_FLAG", simpleCmds, null, null));
@@ -866,7 +860,7 @@ namespace GPUVerify {
         Expr NoBenignTest = null;
 
         if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
-          NoBenignTest = new IdentifierExpr(Token.NoToken, VariableForThread(1, WriteReadBenignFlagVariable));
+          NoBenignTest = new IdentifierExpr(Token.NoToken, WriteReadBenignFlagVariable);
         }
 
         AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, NoBenignTest, AccessType.WRITE, "write_read");
@@ -882,8 +876,8 @@ namespace GPUVerify {
 
         if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           WriteNoBenignTest = Expr.Neq(
-              new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result))),
-              new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter)));
+              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result)),
+              new IdentifierExpr(Token.NoToken, ValueParameter));
         }
 
         AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, WriteNoBenignTest, AccessType.WRITE, "write_write");
@@ -892,8 +886,8 @@ namespace GPUVerify {
 
         if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           ReadNoBenignTest = Expr.Neq(
-              new IdentifierExpr(Token.NoToken, VariableForThread(1, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result))),
-              new IdentifierExpr(Token.NoToken, VariableForThread(2, ValueParameter)));
+              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result)),
+              new IdentifierExpr(Token.NoToken, ValueParameter));
         }
 
         AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, ReadNoBenignTest, AccessType.READ, "read_write");
@@ -920,10 +914,10 @@ namespace GPUVerify {
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
       Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
 
-      Expr AccessGuard = new IdentifierExpr(Token.NoToken, VariableForThread(2, PredicateParameter));
-      AccessGuard = Expr.And(AccessGuard, new IdentifierExpr(Token.NoToken, VariableForThread(1, AccessHasOccurredVariable)));
-      AccessGuard = Expr.And(AccessGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, VariableForThread(1, AccessOffsetVariable)),
-                                new IdentifierExpr(Token.NoToken, VariableForThread(2, OffsetParameter))));
+      Expr AccessGuard = new IdentifierExpr(Token.NoToken, PredicateParameter);
+      AccessGuard = Expr.And(AccessGuard, new IdentifierExpr(Token.NoToken, AccessHasOccurredVariable));
+      AccessGuard = Expr.And(AccessGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
+                                new IdentifierExpr(Token.NoToken, OffsetParameter)));
 
       if (NoBenignTest != null) {
         AccessGuard = Expr.And(AccessGuard, NoBenignTest);
@@ -941,14 +935,6 @@ namespace GPUVerify {
       NoAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), NoAccessRaceRequires.Attributes);
       NoAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "array", new List<object>() { v.Name }, NoAccessRaceRequires.Attributes);
       CheckAccessProcedure.Requires.Add(NoAccessRaceRequires);
-    }
-
-    private Variable VariableForThread(int thread, Variable v) {
-      return new VariableDualiser(thread, null, null).VisitVariable(v.Clone() as Variable);
-    }
-
-    private Expr ExprForThread(int thread, Expr e) {
-      return new VariableDualiser(thread, null, null).VisitExpr(e.Clone() as Expr);
     }
 
     protected void AddLogRaceDeclarations(Variable v, AccessType Access) {
@@ -992,9 +978,9 @@ namespace GPUVerify {
     }
 
     protected void AddRequiresNoPendingAccess(Variable v) {
-      IdentifierExpr ReadAccessOccurred1 = new IdentifierExpr(v.tok, new VariableDualiser(1, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.READ)));
-      IdentifierExpr WriteAccessOccurred1 = new IdentifierExpr(v.tok, new VariableDualiser(1, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE)));
-      IdentifierExpr AtomicAccessOccurred1 = new IdentifierExpr(v.tok, new VariableDualiser(1, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.ATOMIC)));
+      IdentifierExpr ReadAccessOccurred1 = new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.READ));
+      IdentifierExpr WriteAccessOccurred1 = new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE));
+      IdentifierExpr AtomicAccessOccurred1 = new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.ATOMIC));
 
       foreach (var Proc in verifier.KernelProcedures.Keys) {
         Proc.Requires.Add(new Requires(false,Expr.And(Expr.And(Expr.Not(ReadAccessOccurred1), Expr.Not(WriteAccessOccurred1)),Expr.Not(AtomicAccessOccurred1))));
@@ -1012,10 +998,8 @@ namespace GPUVerify {
       return new AssertCmd(Token.NoToken, BuildAccessOccurredFalseExpr(name, Access));
     }
 
-    protected Expr NoAccessExpr(Variable v, AccessType Access, string OneOrTwo) {
+    protected Expr NoAccessExpr(Variable v, AccessType Access) {
       Variable AccessHasOccurred = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      AccessHasOccurred.Name = AccessHasOccurred.Name + "$" + OneOrTwo;
-      AccessHasOccurred.TypedIdent.Name = AccessHasOccurred.TypedIdent.Name + "$" + OneOrTwo;
       Expr expr = Expr.Not(new IdentifierExpr(v.tok, AccessHasOccurred));
       return expr;
     }
@@ -1023,22 +1007,22 @@ namespace GPUVerify {
 
     protected void AddOffsetsSatisfyPredicatesCandidateInvariant(IRegion region, Variable v, AccessType Access, List<Expr> preds) {
       if (preds.Count != 0) {
-        Expr expr = AccessedOffsetsSatisfyPredicatesExpr(v, preds, Access, 1);
+        Expr expr = AccessedOffsetsSatisfyPredicatesExpr(v, preds, Access);
         verifier.AddCandidateInvariant(region, expr, "accessed offsets satisfy predicates", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
       }
     }
 
-    private Expr AccessedOffsetsSatisfyPredicatesExpr(Variable v, IEnumerable<Expr> offsets, AccessType Access, int Thread) {
+    private Expr AccessedOffsetsSatisfyPredicatesExpr(Variable v, IEnumerable<Expr> offsets, AccessType Access) {
       return Expr.Imp(
-              new IdentifierExpr(Token.NoToken, new VariableDualiser(Thread, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access))),
+              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access)),
               offsets.Aggregate(Expr.Or));
     }
 
-    private Expr AccessedOffsetIsThreadLocalIdExpr(Variable v, AccessType Access, int Thread) {
+    private Expr AccessedOffsetIsThreadLocalIdExpr(Variable v, AccessType Access) {
       return Expr.Imp(
-                new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access))),
-                Expr.Eq(new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(verifier.MakeOffsetVariable(v.Name, Access))), 
-                  new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", Thread))));
+                new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access)),
+                Expr.Eq(new IdentifierExpr(v.tok, verifier.MakeOffsetVariable(v.Name, Access)), 
+                  new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", 1))));
     }
 
     private Expr GlobalIdExpr(string dimension, int Thread) {
@@ -1046,29 +1030,25 @@ namespace GPUVerify {
     }
 
     protected void AddAccessedOffsetInRangeCTimesLocalIdToCTimesLocalIdPlusC(IRegion region, Variable v, Expr constant, AccessType Access) {
-      Expr expr = MakeCTimesLocalIdRangeExpression(v, constant, Access, 1);
+      Expr expr = MakeCTimesLocalIdRangeExpression(v, constant, Access);
       verifier.AddCandidateInvariant(region,
           expr, "accessed offset in range [ C*local_id, (C+1)*local_id )", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
     }
 
-    private Expr MakeCTimesLocalIdRangeExpression(Variable v, Expr constant, AccessType Access, int Thread) {
+    private Expr MakeCTimesLocalIdRangeExpression(Variable v, Expr constant, AccessType Access) {
       Expr CTimesLocalId = verifier.IntRep.MakeMul(constant.Clone() as Expr,
-          new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", Thread)));
+          new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", 1)));
 
       Expr CTimesLocalIdPlusC = verifier.IntRep.MakeAdd(verifier.IntRep.MakeMul(constant.Clone() as Expr,
-          new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", Thread))), constant.Clone() as Expr);
+          new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", 1))), constant.Clone() as Expr);
 
-      Expr CTimesLocalIdLeqAccessedOffset = verifier.IntRep.MakeSle(CTimesLocalId, OffsetXExpr(v, Access, Thread));
+      Expr CTimesLocalIdLeqAccessedOffset = verifier.IntRep.MakeSle(CTimesLocalId, OffsetXExpr(v, Access, 1));
 
-      Expr AccessedOffsetLtCTimesLocalIdPlusC = verifier.IntRep.MakeSlt(OffsetXExpr(v, Access, Thread), CTimesLocalIdPlusC);
+      Expr AccessedOffsetLtCTimesLocalIdPlusC = verifier.IntRep.MakeSlt(OffsetXExpr(v, Access, 1), CTimesLocalIdPlusC);
 
       return Expr.Imp(
-              AccessHasOccurred(v, Access, Thread),
+              GPUVerifier.MakeAccessHasOccurredExpr(v.Name, Access),
               Expr.And(CTimesLocalIdLeqAccessedOffset, AccessedOffsetLtCTimesLocalIdPlusC));
-    }
-
-    private IdentifierExpr AccessHasOccurred(Variable v, AccessType Access, int Thread) {
-      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access)));
     }
 
     private IdentifierExpr OffsetXExpr(Variable v, AccessType Access, int Thread) {
@@ -1076,34 +1056,34 @@ namespace GPUVerify {
     }
 
     protected void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, AccessType Access) {
-      Expr expr = MakeCTimesGloalIdRangeExpr(v, constant, Access, 1);
+      Expr expr = MakeCTimesGloalIdRangeExpr(v, constant, Access);
       verifier.AddCandidateInvariant(region,
           expr, "accessed offset in range [ C*global_id, (C+1)*global_id )", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
     }
 
-    private Expr MakeCTimesGloalIdRangeExpr(Variable v, Expr constant, AccessType Access, int Thread) {
+    private Expr MakeCTimesGloalIdRangeExpr(Variable v, Expr constant, AccessType Access) {
       Expr CTimesGlobalId = verifier.IntRep.MakeMul(constant.Clone() as Expr,
-          GlobalIdExpr("X", Thread));
+          GlobalIdExpr("X", 1));
 
       Expr CTimesGlobalIdPlusC = verifier.IntRep.MakeAdd(verifier.IntRep.MakeMul(constant.Clone() as Expr,
-          GlobalIdExpr("X", Thread)), constant.Clone() as Expr);
+          GlobalIdExpr("X", 1)), constant.Clone() as Expr);
 
-      Expr CTimesGlobalIdLeqAccessedOffset = verifier.IntRep.MakeSle(CTimesGlobalId, OffsetXExpr(v, Access, Thread));
+      Expr CTimesGlobalIdLeqAccessedOffset = verifier.IntRep.MakeSle(CTimesGlobalId, OffsetXExpr(v, Access, 1));
 
-      Expr AccessedOffsetLtCTimesGlobalIdPlusC = verifier.IntRep.MakeSlt(OffsetXExpr(v, Access, Thread), CTimesGlobalIdPlusC);
+      Expr AccessedOffsetLtCTimesGlobalIdPlusC = verifier.IntRep.MakeSlt(OffsetXExpr(v, Access, 1), CTimesGlobalIdPlusC);
 
       Expr implication = Expr.Imp(
-              AccessHasOccurred(v, Access, Thread),
+              GPUVerifier.MakeAccessHasOccurredExpr(v.Name, Access),
               Expr.And(CTimesGlobalIdLeqAccessedOffset, AccessedOffsetLtCTimesGlobalIdPlusC));
       return implication;
     }
 
-    protected void AddAccessedOffsetIsThreadLocalIdCandidateRequires(Procedure Proc, Variable v, AccessType Access, int Thread) {
-      verifier.AddCandidateRequires(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access, Thread), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+    protected void AddAccessedOffsetIsThreadLocalIdCandidateRequires(Procedure Proc, Variable v, AccessType Access) {
+      verifier.AddCandidateRequires(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
     }
 
-    protected void AddAccessedOffsetIsThreadLocalIdCandidateEnsures(Procedure Proc, Variable v, AccessType Access, int Thread) {
-      verifier.AddCandidateEnsures(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access, Thread), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+    protected void AddAccessedOffsetIsThreadLocalIdCandidateEnsures(Procedure Proc, Variable v, AccessType Access) {
+      verifier.AddCandidateEnsures(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
     }
 
 

@@ -25,20 +25,21 @@ namespace GPUVerify
             return found;
         }
 
+        static HashSet<string> AsymmetricNamePrefixes = new HashSet<string> {
+          "_READ_HAS_OCCURRED", "_READ_OFFSET", "_READ_VALUE",
+          "_WRITE_HAS_OCCURRED", "_WRITE_OFFSET", "_WRITE_VALUE",
+          "_ATOMIC_HAS_OCCURRED", "_ATOMIC_OFFSET",
+          "_WRITE_READ_BENIGN_FLAG"
+        };
+
         public override Variable VisitVariable(Variable node)
         {
-            if (node.TypedIdent.Name.Contains("_READ_HAS_OCCURRED") ||
-                node.TypedIdent.Name.Contains("_READ_OFFSET") ||
-                node.TypedIdent.Name.Contains("_READ_SOURCE") ||
-                node.TypedIdent.Name.Contains("_READ_VALUE") ||
-                node.TypedIdent.Name.Contains("_WRITE_HAS_OCCURRED") ||
-                node.TypedIdent.Name.Contains("_WRITE_OFFSET") ||
-                node.TypedIdent.Name.Contains("_WRITE_SOURCE") ||
-                node.TypedIdent.Name.Contains("_WRITE_VALUE"))
-            {
+          foreach(var prefix in AsymmetricNamePrefixes) {
+            if(node.TypedIdent.Name.StartsWith(prefix)) {
                 found = true;
             }
-            return node;
+          }
+          return node;
         }
 
     }
