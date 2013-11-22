@@ -346,16 +346,33 @@ namespace GPUVerify {
 
           Expr variable = QKeyValue.FindExprAttribute(ass.Attributes, "variable");
           Expr offset = QKeyValue.FindExprAttribute(ass.Attributes, "offset");
+          Expr arrayref = QKeyValue.FindExprAttribute(ass.Attributes, "arrayref");
 
-          Expr dual_offsets = Expr.Eq(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr),
-              new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr));
+          List<Expr> offsets = (new int[]{1,2}).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr)).ToList();
+          List<Expr> vars = (new int[]{1,2}).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr)).ToList();
 
-          Expr dual_vars = Expr.Neq(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr),
-              new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr));
+          foreach (int i in (new int[]{0,1})) {
+            AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Not(new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
+              new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
+                new List<Expr>(new Expr[] { arrayref, offsets[i] })), 
+                vars[i] }))));
 
-          AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Imp(dual_offsets, dual_vars));
-          newAss.Attributes = ass.Attributes;
-          cs.Add(newAss);
+            cs.Add(newAss);
+
+            AssignCmd assign = new AssignCmd(c.tok, 
+              new List<AssignLhs>(new AssignLhs[]{new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, new SimpleAssignLhs(Token.NoToken, arrayref as IdentifierExpr),
+                new List<Expr>(new Expr[] { offsets[i] })), new List<Expr>(new Expr[]{vars[i]}))}),
+              new List<Expr>(new Expr[]{Expr.True}));
+
+            cs.Add(assign);
+
+          }  
+
+          //havoc v1, v2
+          //assume !used[offset][v1]
+          //used[offset][v1] := true
+          //assume !used[offset][v2]
+          //used[offset][v2] := true
 
         }
         else {
@@ -555,6 +572,11 @@ namespace GPUVerify {
               var v = d as Variable;
 
               if (v.Name.Contains("_NOT_ACCESSED_")) {
+                NewTopLevelDeclarations.Add(v);
+                continue;
+              }
+              if (QKeyValue.FindBoolAttribute(v.Attributes, "atomic_usedmap"))
+              {
                 NewTopLevelDeclarations.Add(v);
                 continue;
               }
