@@ -113,6 +113,13 @@ namespace GPUVerify
         {
           if (node.Fun is MapSelect) {
             Debug.Assert((node.Fun as MapSelect).Arity == 1);
+            if(node.Args[0] is NAryExpr) {
+              var inner = node.Args[0] as NAryExpr;
+              Debug.Assert(inner.Fun is MapSelect);
+              Debug.Assert(inner.Args[0] is IdentifierExpr);
+              Debug.Assert(QKeyValue.FindBoolAttribute(((IdentifierExpr)inner.Args[0]).Decl.Attributes, "atomic_usedmap"));
+              return base.VisitNAryExpr(node);
+            }
             Debug.Assert(node.Args[0] is IdentifierExpr);
             var v = (node.Args[0] as IdentifierExpr).Decl;
             if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {

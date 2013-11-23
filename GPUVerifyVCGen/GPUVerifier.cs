@@ -1880,11 +1880,7 @@ namespace GPUVerify
             if (pair.Value.Count == 1 && monotonics.Any(x => pair.Value.ToArray()[0].StartsWith(x)) && (!args_used.ContainsKey(pair.Key) || (args_used[pair.Key].Count == 1 &&
                   args_used[pair.Key].All(arg => (arg is LiteralExpr) && ((arg as LiteralExpr).Val is BvConst) && ((arg as LiteralExpr).Val as BvConst).Value != BigNum.FromInt(0)))))
             {
-              Microsoft.Boogie.Type mapType = new MapType(Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type>(new Microsoft.Boogie.Type[] {Microsoft.Boogie.Type.GetBvType(32)}),
-                            new MapType(Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type>(new Microsoft.Boogie.Type[] {Microsoft.Boogie.Type.GetBvType(32)}), Microsoft.Boogie.Type.Bool));
-              GlobalVariable usedMap = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_used_" + pair.Key.Name, mapType));
-              usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(new object [] {}), null);
-              Program.TopLevelDeclarations.Add(usedMap);
+              GlobalVariable usedMap = FindOrCreateUsedMap(pair.Key.Name);
               foreach (Block b in blocks)
               {
                 List<Cmd> result = new List<Cmd>();
@@ -1910,7 +1906,7 @@ namespace GPUVerify
                         assume.Attributes = new QKeyValue(Token.NoToken, "atomic_refinement", new List<object>(new object [] {}), null);
                         assume.Attributes = new QKeyValue(Token.NoToken, "variable", new List<object>(new object[] {variables}), assume.Attributes);
                         assume.Attributes = new QKeyValue(Token.NoToken, "offset", new List<object>(new object[] {offset}), assume.Attributes);
-                        assume.Attributes = new QKeyValue(Token.NoToken, "arrayref", new List<object>(new object[] {Expr.Ident("_used_" + pair.Key.Name,mapType)}), assume.Attributes);
+                        assume.Attributes = new QKeyValue(Token.NoToken, "arrayref", new List<object>(new object[] {Expr.Ident(usedMap.Name, usedMap.TypedIdent.Type)}), assume.Attributes);
                         result.Add(assume);
                         variables = null;
                       }
@@ -1921,6 +1917,23 @@ namespace GPUVerify
               }
             }
           }
+        }
+
+        private GlobalVariable FindOrCreateUsedMap(string arrayName)
+        {
+          string name = "_USED_" + arrayName;
+
+          var CandidateVariables = Program.TopLevelDeclarations.OfType<GlobalVariable>().Where(Item => Item.Name.Equals(name));
+          if(CandidateVariables.Count() > 0) {
+            return CandidateVariables.ToList()[0];
+          }
+
+          Microsoft.Boogie.Type mapType = new MapType(Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type>(new Microsoft.Boogie.Type[] { Microsoft.Boogie.Type.GetBvType(32) }),
+                        new MapType(Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type>(new Microsoft.Boogie.Type[] { Microsoft.Boogie.Type.GetBvType(32) }), Microsoft.Boogie.Type.Bool));
+          GlobalVariable usedMap = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, name, mapType));
+          usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(new object [] {}), null);
+          Program.TopLevelDeclarations.Add(usedMap);
+          return usedMap;
         }
 
         private void AddWarpSyncs()

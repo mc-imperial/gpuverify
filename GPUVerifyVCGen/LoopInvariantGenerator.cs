@@ -360,7 +360,10 @@ namespace GPUVerify {
         List<Variable> vars = new List<Variable>();
         c.AddAssignedVariables(vars);
         foreach (Variable v in vars) {
-          result.Add(v);
+          // TODO: remove temporary workaround for atomic refinement
+          if(v != null) {
+            result.Add(v);
+          }
         }
       }
 

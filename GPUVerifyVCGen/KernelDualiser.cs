@@ -346,7 +346,7 @@ namespace GPUVerify {
 
           Expr variable = QKeyValue.FindExprAttribute(ass.Attributes, "variable");
           Expr offset = QKeyValue.FindExprAttribute(ass.Attributes, "offset");
-          Expr arrayref = QKeyValue.FindExprAttribute(ass.Attributes, "arrayref");
+          IdentifierExpr arrayref = QKeyValue.FindExprAttribute(ass.Attributes, "arrayref") as IdentifierExpr;
 
           List<Expr> offsets = (new int[]{1,2}).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr)).ToList();
           List<Expr> vars = (new int[]{1,2}).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr)).ToList();
@@ -359,9 +359,10 @@ namespace GPUVerify {
 
             cs.Add(newAss);
 
+            var lhs = new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, new SimpleAssignLhs(Token.NoToken, arrayref),
+                new List<Expr>(new Expr[] { offsets[i] })), new List<Expr>(new Expr[]{vars[i]}));
             AssignCmd assign = new AssignCmd(c.tok, 
-              new List<AssignLhs>(new AssignLhs[]{new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, new SimpleAssignLhs(Token.NoToken, arrayref as IdentifierExpr),
-                new List<Expr>(new Expr[] { offsets[i] })), new List<Expr>(new Expr[]{vars[i]}))}),
+              new List<AssignLhs>(new AssignLhs[]{ lhs }),
               new List<Expr>(new Expr[]{Expr.True}));
 
             cs.Add(assign);
