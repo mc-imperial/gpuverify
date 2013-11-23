@@ -1649,6 +1649,9 @@ namespace GPUVerify
 
         internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId)
         {
+            if (GPUVerifyVCGenCommandLineOptions.DoNotGenerateCandidates.Contains(tag)) {
+                return; // candidate *not* generated
+            }
             region.AddInvariant(Program.CreateCandidateInvariant(e, tag, StageId));
         }
 
@@ -1948,13 +1951,8 @@ namespace GPUVerify
             }
           }
 
-          // Add the WarpSync prototype
-          Procedure proto = new Procedure(Token.NoToken,"_WARP_SYNC",new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
-          proto.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
-          Program.TopLevelDeclarations.Add(proto);
-          ResContext.AddProcedure(proto);
-          // And method
-          GenerateWarpSync();
+          // Make the corresponding methods
+          GenerateWarpSyncs();
         }
 
         private Block AddWarpSyncs(Block b)
@@ -1968,7 +1966,18 @@ namespace GPUVerify
               CallCmd call = c as CallCmd;
               if (call.callee.StartsWith("_CHECK_"))
               {
-                result.Add(new CallCmd(Token.NoToken,"_WARP_SYNC",new List<Expr>(),new List<IdentifierExpr>()));
+                string array,kind;
+                if (call.callee.StartsWith("_CHECK_ATOMIC")) {
+                  kind = "ATOMIC";
+                  array = call.callee.Substring(14); // "_CHECK_ATOMIC_" is 15 characters
+                } else if (call.callee.StartsWith("_CHECK_READ")) {
+                  kind = "READ";
+                  array = call.callee.Substring(12); // "_CHECK_READ_" is 15 characters
+                } else {// if (call.callee.StartsWith("_CHECK_WRITE")) {
+                  kind = "WRITE";
+                  array = call.callee.Substring(13); // "_CHECK_WRITE_" is 15 characters
+                }
+                result.Add(new CallCmd(Token.NoToken,"_WARP_SYNC_" + array + "_" + kind,new List<Expr>(),new List<IdentifierExpr>()));
               }
             }
           }
@@ -1976,53 +1985,52 @@ namespace GPUVerify
           return b;
         }
 
-        private void GenerateWarpSync()
+        private void GenerateWarpSyncs()
         {
-          List<Cmd> then = new List<Cmd>();
           foreach (Variable v in KernelArrayInfo.getAllNonLocalArrays())
           {
             foreach (var kind in AccessType.Types)
             {
+              string name = "_WARP_SYNC_" + v.Name + "_" + kind;
+              // Generate Prototype
+              Procedure proto = new Procedure(Token.NoToken, name, new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
+              AddInlineAttribute(proto);
+              Program.TopLevelDeclarations.Add(proto);
+              ResContext.AddProcedure(proto);
+
+              // And Implementation
+              List<Cmd> then = new List<Cmd>();
               Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,kind);
               then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
+              List<BigBlock> thenblocks = new List<BigBlock>();
+              thenblocks.Add(new BigBlock(Token.NoToken, "reset_warps", then, null, null));
+
+              if (kind == AccessType.WRITE && SomeArrayModelledNonAdversarially(KernelArrayInfo.getGlobalArrays())) {
+                thenblocks.AddRange(MakeHavocBlocks(new Variable[] {v}));
+              }
+
+              Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
+
+              Expr[] tids = (new int[] {1,2}).Select(x =>
+                  IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",x)),IntRep.MakeAdd(
+                  IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",x)),Expr.Ident(GetGroupSize("X"))),
+                  IntRep.MakeMul(Expr.Ident(MakeThreadId("Z",x)),IntRep.MakeMul(Expr.Ident(GetGroupSize("X")),Expr.Ident(GetGroupSize("Y"))))))).ToArray();
+
+              // sides = {lhs,rhs};
+              Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
+
+              Expr condition = Expr.And(ThreadsInSameGroup(),Expr.Eq(sides[0],sides[1]));
+
+              IfCmd ifcmd = new IfCmd (Token.NoToken, condition, new StmtList (thenblocks,Token.NoToken), /* another IfCmd for elsif */ null, /* then branch */ null);
+
+              List<BigBlock> blocks = new List<BigBlock>();
+              blocks.Add(new BigBlock(Token.NoToken,"entry", new List<Cmd>(),ifcmd ,null));
+
+              Implementation method = new Implementation(Token.NoToken, name, new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Variable>(), new StmtList(blocks,Token.NoToken));
+              AddInlineAttribute(method);
+              Program.TopLevelDeclarations.Add(method);
             }
           }
-
-          List<BigBlock> thenblocks = new List<BigBlock>();
-          thenblocks.Add(new BigBlock(Token.NoToken, "reset_warps", then, null, null));
-
-          if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGlobalArrays())) {
-            var GlobalArrays = KernelArrayInfo.getGlobalArrays();
-            var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ?
-              GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
-              Enumerable.Empty<Variable>();
-            var HavocVars = GlobalArrays.Concat(NoAccessVars).ToList();
-            thenblocks.AddRange(MakeHavocBlocks(HavocVars));
-          }
-
-          Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
-
-          Expr[] tids = (new int[] {1,2}).Select(x =>
-              IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",x)),IntRep.MakeAdd(
-              IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",x)),Expr.Ident(GetGroupSize("X"))),
-              IntRep.MakeMul(Expr.Ident(MakeThreadId("Z",x)),IntRep.MakeMul(Expr.Ident(GetGroupSize("X")),Expr.Ident(GetGroupSize("Y"))))))).ToArray();
-
-          // sides = {lhs,rhs};
-          Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
-
-          Expr condition = Expr.Eq(sides[0],sides[1]);
-          if (!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
-            Expr group_guard = (new string[] {"X","Y","Z"}).Select(d => (Expr) Expr.Eq(Expr.Ident(MakeGroupId(d,1)),Expr.Ident(MakeGroupId(d,2)))).Aggregate(Expr.And);
-            condition = Expr.And(condition,group_guard);
-          }
-          IfCmd ifcmd = new IfCmd (Token.NoToken, condition, new StmtList (thenblocks,Token.NoToken), /* another IfCmd for elsif */ null, /* then branch */ null);
-
-          List<BigBlock> blocks = new List<BigBlock>();
-          blocks.Add(new BigBlock(Token.NoToken,"entry", new List<Cmd>(),ifcmd ,null));
-
-          Implementation method = new Implementation(Token.NoToken,"_WARP_SYNC",new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Variable>(), new StmtList(blocks,Token.NoToken));
-          method.AddAttribute("inline", new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(1))});
-          Program.TopLevelDeclarations.Add(method);
         }
 
         internal bool TryGetArrayFromPrefixedString(string s, string prefix, out Variable v) {

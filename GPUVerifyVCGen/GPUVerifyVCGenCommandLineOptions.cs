@@ -49,6 +49,7 @@ namespace GPUVerify
     public static bool OptimiseReads = true;
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
+    public static List<string> DoNotGenerateCandidates = new List<string>();
 
     public static int Parse(string[] args)
     {
@@ -238,6 +239,11 @@ namespace GPUVerify
           case "-callSiteAnalysis":
           case "/callSiteAnalysis":
           DoCallSiteAnalysis = true;
+          break;
+
+          case "-noCandidate":
+          case "/noCandidate":
+          DoNotGenerateCandidates.Add(afterColon);
           break;
 
           default:
