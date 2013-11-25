@@ -339,8 +339,8 @@ namespace GPUVerify {
             continue;
           }
 
-          Model.Boolean AHO_value = (Model.Boolean)state.TryGet(ACCESS_HAS_OCCURRED);
-          Model.BitVector AO_value = (Model.BitVector)state.TryGet(ACCESS_OFFSET);
+          Model.Boolean AHO_value = state.TryGet(ACCESS_HAS_OCCURRED) as Model.Boolean;
+          Model.BitVector AO_value = state.TryGet(ACCESS_OFFSET) as Model.BitVector;
           if (!AHO_value.Value)
           {
             LastLogAssume = null;
