@@ -16,7 +16,8 @@ __global__ void foo(int* q, int* r) {
 
   __shared__ int A[10];
 
-  __shared__ int* p = A;
+  __shared__ int* p;
+  p = A;
 
   bar(p);//[threadIdx.x] = 0;
 
