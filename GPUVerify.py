@@ -340,6 +340,9 @@ def run(command,timeout=0):
       # We don't want messages to go to stdout if being used as module
       popenargs['stdout']=subprocess.PIPE
 
+  if CommandLineOptions.silent:
+      popenargs['stdout']=subprocess.PIPE
+
   # Redirect stderr to whatever stdout is redirected to
   popenargs['stderr']=subprocess.STDOUT
 
