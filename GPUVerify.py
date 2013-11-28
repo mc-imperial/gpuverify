@@ -197,8 +197,12 @@ clangOpenCLDefines = [ "cl_khr_fp64",
                      ]
 
 clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
-                       "-include", "cuda.h"
+                     "-include", "cuda.h"
                    ]
+
+if os.name == "nt":
+  clangCUDAOptions += ["-Xclang", "-cxx-abi", "-Xclang", "microsoft"]
+
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
