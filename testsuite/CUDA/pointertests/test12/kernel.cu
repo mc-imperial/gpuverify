@@ -3,8 +3,6 @@
 
 #include "cuda.h"
 
-__shared__ int gA = 100;
-
 int gB = 200;
 
 __device__ int* bar(int* p) {
