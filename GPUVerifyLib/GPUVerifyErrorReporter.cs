@@ -180,7 +180,8 @@ namespace GPUVerify {
 
       uint RaceyOffset = GetOffsetInBytes(ExtractOffsetVar(CallCex), CallCex.Model, CallCex.FailingCall);
 
-      ErrorWriteLine("\n" + SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + RaceyArrayName + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
+      ErrorWriteLine("\n" + SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
+        DemangleName(RaceyArrayName) + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
@@ -661,6 +662,14 @@ namespace GPUVerify {
       new StateIdFixer().FixStateIds(Program);
     }
 
+    private static void DemanglerOutputDataReceived(object sender, DataReceivedEventArgs e) {
+
+    }
+
+    private static string DemangleName(string name) {
+      return name;
+    }
+
   }
 
   class StateIdFixer {
@@ -766,6 +775,7 @@ namespace GPUVerify {
       }
       return result;
     }
+
 
   }
 
