@@ -125,7 +125,7 @@ namespace GPUVerify {
         return;
       }
 
-      Console.Error.WriteLine("Bitwise values of parameters of " + impl.Name.TrimStart(new char[] { '$' }) + ":");
+      Console.Error.WriteLine("Bitwise values of parameters of '" + DemangleName(impl.Name) + "':");
       PopulateModelWithStatesIfNecessary(error);
 
       string thread1, thread2, group1, group2;
@@ -181,7 +181,7 @@ namespace GPUVerify {
       uint RaceyOffset = GetOffsetInBytes(ExtractOffsetVar(CallCex), CallCex.Model, CallCex.FailingCall);
 
       ErrorWriteLine("\n" + SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
-        DemangleName(RaceyArrayName) + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
+        RaceyArrayName + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
@@ -667,6 +667,25 @@ namespace GPUVerify {
     }
 
     private static string DemangleName(string name) {
+      name = name.TrimStart(new char[] { '$' });
+      var gvClo = CommandLineOptions.Clo as GVCommandLineOptions;
+      if(gvClo.SourceLanguage == SourceLanguage.CUDA && gvClo.DemanglerPath != null) {
+        try {
+          name = name.Replace('~','@');
+          Process demangler = new Process();
+          demangler.StartInfo = new ProcessStartInfo(gvClo.DemanglerPath, "-l cu " + name);
+          demangler.StartInfo.UseShellExecute = false;
+          demangler.StartInfo.RedirectStandardOutput = true;
+          string demangled = "";
+          demangler.OutputDataReceived += (sender, args) => demangled += args.Data;
+          demangler.Start();
+          demangler.BeginOutputReadLine();
+          demangler.WaitForExit();
+          return demangled;
+        } catch(Exception) {
+          return name;
+        }
+      }
       return name;
     }
 

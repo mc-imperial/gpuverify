@@ -779,6 +779,8 @@ def processOpenCLOptions(opts, args):
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "number of work groups must be specified via --num_groups=...")
 
 def processCUDAOptions(opts, args):
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/sourceLanguage:cu", "/demanglerPath:" + gvfindtools.bugleBinDir + os.sep + "bugle-demangle" ];
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/sourceLanguage:cu", "/demanglerPath:" + gvfindtools.bugleBinDir + os.sep + "bugle-demangle" ];
   for o, a in opts:
     if o == "--blockDim":
       if CommandLineOptions.groupSize != []:
