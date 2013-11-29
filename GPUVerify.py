@@ -197,8 +197,12 @@ clangOpenCLDefines = [ "cl_khr_fp64",
                      ]
 
 clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
-                       "-include", "cuda.h"
+                     "-include", "cuda.h"
                    ]
+
+if os.name == "nt":
+  clangCUDAOptions += ["-Xclang", "-cxx-abi", "-Xclang", "microsoft"]
+
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
@@ -338,6 +342,9 @@ def run(command,timeout=0):
     popenargs['bufsize']=0
     if __name__ != '__main__':
       # We don't want messages to go to stdout if being used as module
+      popenargs['stdout']=subprocess.PIPE
+
+  if CommandLineOptions.silent:
       popenargs['stdout']=subprocess.PIPE
 
   # Redirect stderr to whatever stdout is redirected to
