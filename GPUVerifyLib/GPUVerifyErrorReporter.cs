@@ -125,7 +125,7 @@ namespace GPUVerify {
         return;
       }
 
-      Console.Error.WriteLine("Bitwise values of parameters of '" + DemangleName(impl.Name) + "':");
+      Console.Error.WriteLine("Bitwise values of parameters of '" + DemangleName(impl.Name.TrimStart(new char[] { '$' })) + "':");
       PopulateModelWithStatesIfNecessary(error);
 
       string thread1, thread2, group1, group2;
@@ -157,8 +157,8 @@ namespace GPUVerify {
         {
           Console.Error.Write("<unknown>");
         }
-        Console.Error.WriteLine(id == 1 ? " (thread " + thread1 + ", group " + group1 + ")" :
-                               (id == 2 ? " (thread " + thread2 + ", group " + group2 + ")" : ""));
+        Console.Error.WriteLine(id == 1 ? " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")" :
+                               (id == 2 ? " (" + SpecificNameForThread() + " " + thread2 + ", " + SpecificNameForGroup() + " " + group2 + ")" : ""));
       }
       Console.WriteLine();
     }
@@ -181,15 +181,15 @@ namespace GPUVerify {
       uint RaceyOffset = GetOffsetInBytes(ExtractOffsetVar(CallCex), CallCex.Model, CallCex.FailingCall);
 
       ErrorWriteLine("\n" + SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
-        RaceyArrayName + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
+        CleanUpArrayName(DemangleName(RaceyArrayName)) + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
 
-      Console.Error.WriteLine(access2 + " by thread " + thread2 + " in group " + group2 + ", " + SourceInfoForSecondAccess);
+      Console.Error.WriteLine(access2 + " by " + SpecificNameForThread() + " " + thread2 + " in " + SpecificNameForGroup() + " " + group2 + ", " + SourceInfoForSecondAccess);
       GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(SourceInfoForSecondAccess.FetchCodeLine() + "\n", 2));
 
-      Console.Error.Write(access1 + " by thread " + thread1 + " in group " + group1 + ", ");
+      Console.Error.Write(access1 + " by " + SpecificNameForThread() + " " + thread1 + " in " + SpecificNameForGroup() + " " + group1 + ", ");
       if(PossibleSourcesForFirstAccess.Count() == 1) {
         Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0]);
         GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(PossibleSourcesForFirstAccess.ToList()[0].FetchCodeLine() + "\n", 2));
@@ -205,6 +205,30 @@ namespace GPUVerify {
         }
         Console.WriteLine();
       }
+    }
+
+    private string CleanUpArrayName(string name)
+    {
+      // The purpose of this method is to take a demangled array name
+      // and turn it into a more readable form.
+      // The issue motivating this is that in CUDA, __shared__ arrays
+      // declared in functions get mangled to include the enclosing
+      // function.  The demangled name contains the whole of the
+      // function signature, which is not easy to read.
+
+      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.OpenCL) {
+        return name;
+      }
+
+      // Check to see whether the name includes a function open parenthesis
+      if(!(name.Contains("(") && name.Contains(":"))) {
+        return name;
+      }
+
+      var ComponentBeforeOpenParenSplitOnSpace = name.Split(new char[] { '(' })[0].Split( new char[] { ' ' });
+      var FunctionName = ComponentBeforeOpenParenSplitOnSpace.Last();
+      var ArrayName = name.Split(new char [] { ':' }).Last();
+      return FunctionName + "::" + ArrayName;
     }
 
     private static void PopulateModelWithStatesIfNecessary(Counterexample Cex)
@@ -473,8 +497,8 @@ namespace GPUVerify {
       int relevantThread = QKeyValue.FindIntAttribute(GetAttributes(failingAssert), "thread", -1);
       Debug.Assert(relevantThread == 1 || relevantThread == 2);
 
-      ErrorWriteLine(sli.ToString(), messagePrefix + " for thread " +
-                     (relevantThread == 1 ? thread1 : thread2) + " in group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
+      ErrorWriteLine(sli.ToString(), messagePrefix + " for " + SpecificNameForThread() + " " +
+                     (relevantThread == 1 ? thread1 : thread2) + " in " + SpecificNameForGroup() + " " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
       GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
       Console.Error.WriteLine();
     }
@@ -662,12 +686,23 @@ namespace GPUVerify {
       new StateIdFixer().FixStateIds(Program);
     }
 
-    private static void DemanglerOutputDataReceived(object sender, DataReceivedEventArgs e) {
+    private static string SpecificNameForGroup() {
+      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
+        return "block";
+      } else {
+        return "work group";
+      }
+    }
 
+    private static string SpecificNameForThread() {
+      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
+        return "thread";
+      } else {
+        return "work item";
+      }
     }
 
     private static string DemangleName(string name) {
-      name = name.TrimStart(new char[] { '$' });
       var gvClo = CommandLineOptions.Clo as GVCommandLineOptions;
       if(gvClo.SourceLanguage == SourceLanguage.CUDA && gvClo.DemanglerPath != null) {
         try {

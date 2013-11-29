@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--local_size=128 --num_groups=128
-//kernel.cl:13:[\d]+:[\s]+error:[\s]+this assertion might not hold for thread [\d]+ in group [\d]+[\s]+__assert\(!__write\(p\)\);
+//kernel.cl:13:[\d]+:[\s]+error:[\s]+this assertion might not hold for work item [\d]+ in work group [\d]+[\s]+__assert\(!__write\(p\)\);
 
 
 
