@@ -344,36 +344,37 @@ namespace GPUVerify {
         }
         else if (QKeyValue.FindBoolAttribute(ass.Attributes, "atomic_refinement")) {
 
+          // Generate the following:
+          // havoc v$1, v$2;
+          // assume !_USED[offset$1][v$1];
+          // _USED[offset$1][v$1] := true;
+          // assume !_USED[offset$2][v$2];
+          // _USED[offset$2][v$2] := true;
+
           Expr variable = QKeyValue.FindExprAttribute(ass.Attributes, "variable");
           Expr offset = QKeyValue.FindExprAttribute(ass.Attributes, "offset");
-          IdentifierExpr arrayref = QKeyValue.FindExprAttribute(ass.Attributes, "arrayref") as IdentifierExpr;
+          IdentifierExpr arrayref = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateUsedMap(QKeyValue.FindStringAttribute(ass.Attributes, "arrayref")));
 
-          List<Expr> offsets = (new int[]{1,2}).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr)).ToList();
-          List<Expr> vars = (new int[]{1,2}).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr)).ToList();
+          List<Expr> offsets = (new int[] { 1, 2 }).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr)).ToList();
+          List<Expr> vars = (new int[] { 1, 2 }).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr)).ToList();
 
-          foreach (int i in (new int[]{0,1})) {
+          foreach (int i in (new int[] { 0, 1 })) {
             AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Not(new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-              new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
-                new List<Expr>(new Expr[] { arrayref, offsets[i] })), 
-                vars[i] }))));
+              new List<Expr> { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
+                new List<Expr> { arrayref, offsets[i] }), 
+                vars[i] })));
 
             cs.Add(newAss);
 
             var lhs = new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, new SimpleAssignLhs(Token.NoToken, arrayref),
-                new List<Expr>(new Expr[] { offsets[i] })), new List<Expr>(new Expr[]{vars[i]}));
+                new List<Expr> { offsets[i] }), new List<Expr> { vars[i] });
             AssignCmd assign = new AssignCmd(c.tok, 
-              new List<AssignLhs>(new AssignLhs[]{ lhs }),
-              new List<Expr>(new Expr[]{Expr.True}));
+              new List<AssignLhs> { lhs },
+              new List<Expr> {Expr.True});
 
             cs.Add(assign);
 
           }  
-
-          //havoc v1, v2
-          //assume !used[offset][v1]
-          //used[offset][v1] := true
-          //assume !used[offset][v2]
-          //used[offset][v2] := true
 
         }
         else {
