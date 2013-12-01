@@ -608,7 +608,6 @@ namespace GPUVerify {
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
       Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
-      Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
       Debug.Assert(!(mt.Result is MapType));
 
       inParams.Add(PredicateParameter);
