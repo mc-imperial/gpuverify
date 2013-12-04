@@ -65,13 +65,6 @@ namespace GPUVerify
         return PipelineOutcome.TypeCheckingError;
       }
 
-      LinearTypeChecker linearTypeChecker = new LinearTypeChecker(program);
-      linearTypeChecker.VisitProgram(program);
-      if (linearTypeChecker.errorCount > 0) {
-        Console.WriteLine("{0} type checking errors detected in {1}", errorCount, bplFileName);
-        return PipelineOutcome.TypeCheckingError;
-      }
-
       if (CommandLineOptions.Clo.PrintFile != null && CommandLineOptions.Clo.PrintDesugarings) {
         // if PrintDesugaring option is engaged, print the file here, after resolution and type checking
         GVUtil.IO.PrintBplFile(CommandLineOptions.Clo.PrintFile, program, true);
