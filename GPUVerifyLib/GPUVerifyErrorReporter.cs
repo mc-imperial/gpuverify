@@ -178,7 +178,7 @@ namespace GPUVerify {
         QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "state_id"));
       SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), CallCex.FailingCall.tok);
 
-      uint RaceyOffset = GetOffsetInBytes(ExtractOffsetVar(CallCex), CallCex.Model, CallCex.FailingCall);
+      uint RaceyOffset = GetOffsetInBytes(CallCex);
 
       ErrorWriteLine("\n" + SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
         CleanUpArrayName(DemangleName(RaceyArrayName)) + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
@@ -433,39 +433,45 @@ namespace GPUVerify {
       return state;
     }
 
-    private static uint GetOffsetInBytes(Variable OffsetVar, Model Model, CallCmd FailingCall) {
-      var element = GetStateFromModel(QKeyValue.FindStringAttribute(FailingCall.Attributes, "state_id"), Model).TryGet(OffsetVar.Name) as Model.Number;
-      uint elemOffset = Convert.ToUInt32(element.Numeral);
-      Debug.Assert(OffsetVar.Attributes != null);
-      uint elemWidth = (uint)QKeyValue.FindIntAttribute(OffsetVar.Attributes, "elem_width", int.MaxValue);
-      Debug.Assert(elemWidth != int.MaxValue);
-      return (elemOffset * elemWidth) / 8;
+    private static uint GetOffsetInBytes(CallCounterexample Cex) {
+      uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
+      Debug.Assert(ElemWidth != int.MaxValue);
+      var element = GetStateFromModel(QKeyValue.FindStringAttribute(Cex.FailingCall.Attributes, "state_id"),
+        Cex.Model).TryGet(ExtractOffsetVar(Cex).Name) as Model.Number;
+      return (Convert.ToUInt32(element.Numeral) * ElemWidth) / 8;
+    }
+
+    private static Variable ExtractAccessHasOccurredVar(CallCounterexample err) {
+      var VFV = new VariableFinderVisitor("_" + GetAccessType(err) + "_HAS_OCCURRED_" + QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
+      VFV.Visit(err.FailingRequires.Condition);
+      return VFV.GetVariable();
     }
 
     private static Variable ExtractOffsetVar(CallCounterexample err) {
-      // The offset variable name can be exactly reconstructed from the attributes of the requires clause
-      string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
-      AccessType Access;
-      if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
-          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read") ||
-          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic")) {
-        Access = AccessType.WRITE;
-      }
-      else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write") ||
-               QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic")) {
-        Access = AccessType.READ;
-      }
-      else {
-        Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read") ||
-                     QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
-        Access = AccessType.ATOMIC;
-      }
-
-      string OffsetVarName = "_" + Access + "_OFFSET_" + ArrayName;
-
-      var VFV = new VariableFinderVisitor(OffsetVarName);
+      var VFV = new VariableFinderVisitor("_" + GetAccessType(err) + "_OFFSET_" + QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
       VFV.Visit(err.FailingRequires.Condition);
       return VFV.GetVariable();
+    }
+
+    private static AccessType GetAccessType(CallCounterexample err)
+    {
+      if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
+          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read") ||
+          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic"))
+      {
+        return AccessType.WRITE;
+      }
+      else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write") ||
+               QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic"))
+      {
+        return AccessType.READ;
+      }
+      else
+      {
+        Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read") ||
+                     QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
+        return AccessType.ATOMIC;
+      }
     }
 
     static QKeyValue GetAttributes(Absy a) {
