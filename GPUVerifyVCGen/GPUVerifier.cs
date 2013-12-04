@@ -115,7 +115,11 @@ namespace GPUVerify
             }
             if (!GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
+              if(GPUVerifyVCGenCommandLineOptions.WatchdogRaceChecking) {
+                this.RaceInstrumenter = new WatchdogRaceInstrumenter();
+              } else {
                 this.RaceInstrumenter = new RaceInstrumenter(this);
+              }
             } else {
                 this.RaceInstrumenter = new NullRaceInstrumenter();
             }

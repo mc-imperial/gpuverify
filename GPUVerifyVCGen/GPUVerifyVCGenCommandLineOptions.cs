@@ -49,6 +49,7 @@ namespace GPUVerify
     public static bool OptimiseReads = true;
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
+    public static bool WatchdogRaceChecking = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
 
     public static int Parse(string[] args)
@@ -244,6 +245,11 @@ namespace GPUVerify
           case "-noCandidate":
           case "/noCandidate":
           DoNotGenerateCandidates.Add(afterColon);
+          break;
+
+          case "-watchdogRaceChecking":
+          case "/watchdogRaceChecking":
+          WatchdogRaceChecking = true;
           break;
 
           default:
