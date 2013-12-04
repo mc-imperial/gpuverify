@@ -717,7 +717,8 @@ namespace GPUVerify {
           demangler.BeginOutputReadLine();
           demangler.WaitForExit();
           return demangled;
-        } catch(Exception) {
+        } catch(Exception e) {
+          Console.Error.WriteLine("warning: name demangling failed with: " + e.Message);
           return name;
         }
       }
