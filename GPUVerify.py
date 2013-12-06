@@ -271,6 +271,7 @@ class DefaultCmdLineOptions(object):
     self.atomic = "rw"
     self.noRefinedAtomics = False
     self.solver = "z3"
+    self.raceInstrumenter = "standard"
     self.logic = "QF_ALL_SUPPORTED"
     self.skip = { "clang": False,
              "opt": False,
@@ -483,6 +484,8 @@ def showHelpAndExit():
     --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none)
                             (default is --atomic=rw)
     --no-refined-atomics    Don't do abstraction refinement on the return values from atomics
+    --race-instrumenter=X   Choose which method of race instrumentation to use.  Options are:
+                            'standard', 'watchdog-single', 'watchdog-multiple'.  Default is 'standard'
     --solver=X              Choose which SMT Theorem Prover to use in the backend.
                             Available options: 'Z3' or 'cvc4' (default is 'Z3')
     --logic=X               Define the logic to be used by the CVC4 SMT solver backend
@@ -713,6 +716,11 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.solver = a.lower()
       else:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --solver must be 'Z3' or 'CVC4'")
+    if o == "--race-instrumenter":
+      if a.lower() in ("standard","watchdog-single","watchdog-multiple"):
+        CommandLineOptions.raceInstrumenter = a.lower()
+      else:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --race-instrumenter must be one of 'standard', 'watchdog-single' or 'watchdog-multiple'")
     if o == "--scheduling":
       if a.lower() in ("all-together","unsound-first","dynamic-first","phased"):
         CommandLineOptions.scheduling = a.lower()
@@ -838,7 +846,7 @@ def _main(argv):
               'staged-inference', 'parallel-inference',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
-              'solver=', 'logic='
+              'solver=', 'logic=', 'race-instrumenter='
              ])
   except getopt.GetoptError as getoptError:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, getoptError.msg + ".  Try --help for list of options")
@@ -1017,6 +1025,17 @@ def _main(argv):
   CommandLineOptions.gpuVerifyBoogieDriverOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/invInferConfigFile:" + os.path.dirname(os.path.abspath(__file__)) + os.sep + CommandLineOptions.invInferConfigFile ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ bplFilename ]
+
+  if CommandLineOptions.raceInstrumenter == "watchdog-single":
+    CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-single" ]
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/watchdogRaceChecking:SINGLE" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/watchdogRaceChecking:SINGLE" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/watchdogRaceChecking:SINGLE" ]
+  if CommandLineOptions.raceInstrumenter == "watchdog-multiple":
+    CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-multiple" ]
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
   
   if CommandLineOptions.inference and (not CommandLineOptions.mode == AnalysisMode.FINDBUGS):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ cbplFilename ]

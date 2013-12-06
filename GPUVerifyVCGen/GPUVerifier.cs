@@ -1448,16 +1448,6 @@ namespace GPUVerify
           new AdversarialAbstraction(this).Abstract();
         }
 
-        internal Variable MakeOffsetVariable(string Name, AccessType Access)
-        {
-          var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeOffsetVariableName(Name, Access),
-              IntRep.GetIntType(32));
-          if(GPUVerifyVCGenCommandLineOptions.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
-            return new GlobalVariable(Token.NoToken, Ident);
-          }
-          return new Constant(Token.NoToken, Ident);
-        }
-
         internal static string MakeValueVariableName(string Name, AccessType Access) {
           return "_" + Access + "_VALUE_" + Name;
         }
@@ -1507,12 +1497,12 @@ namespace GPUVerify
 
         internal Variable FindOrCreateOffsetVariable(string varName, AccessType Access)
         {
-            foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
+            foreach(var g in Program.TopLevelDeclarations.OfType<Variable>()) {
               if(g.Name.Equals(RaceInstrumentationUtil.MakeOffsetVariableName(varName, Access))) {
                 return g;
               }
             }
-            Variable result = MakeOffsetVariable(varName, Access);
+            Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, Access, IntRep.GetIntType(32));
             Program.TopLevelDeclarations.Add(result);
             return result;
         }
