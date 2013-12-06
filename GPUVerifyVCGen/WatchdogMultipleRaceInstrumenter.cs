@@ -17,10 +17,5 @@ namespace GPUVerify
       throw new NotImplementedException();
     }
 
-
-    protected override void AddCheckAccessProcedure(Variable v, AccessType Access) {
-      throw new NotImplementedException();
-    }
-
   }
 }

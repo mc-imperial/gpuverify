@@ -784,7 +784,72 @@ namespace GPUVerify {
         verifier.Program.TopLevelDeclarations.Add(UpdateBenignFlagImplementation);
     }
 
-    abstract protected void AddCheckAccessProcedure(Variable v, AccessType Access);
+    protected void AddCheckAccessProcedure(Variable v, AccessType Access) {
+      Procedure CheckAccessProcedure = MakeCheckAccessProcedureHeader(v, Access);
+
+      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
+
+      Debug.Assert(v.TypedIdent.Type is MapType);
+      MapType mt = v.TypedIdent.Type as MapType;
+      Debug.Assert(mt.Arguments.Count == 1);
+      Debug.Assert(!(mt.Result is MapType));
+
+      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
+
+      if (Access == AccessType.READ) {
+        Variable WriteReadBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
+
+        Expr NoBenignTest = null;
+
+        if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
+          NoBenignTest = new IdentifierExpr(Token.NoToken, WriteReadBenignFlagVariable);
+        }
+
+        AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, NoBenignTest, AccessType.WRITE, "write_read");
+
+        if (GPUVerifyVCGenCommandLineOptions.AtomicVsRead) {
+          AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, null, AccessType.ATOMIC, "atomic_read");
+        }
+      }
+      else if (Access == AccessType.WRITE) {
+        Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
+
+        Expr WriteNoBenignTest = null;
+
+        if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
+          WriteNoBenignTest = Expr.Neq(
+              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result)),
+              new IdentifierExpr(Token.NoToken, ValueParameter));
+        }
+
+        AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, WriteNoBenignTest, AccessType.WRITE, "write_write");
+
+        Expr ReadNoBenignTest = null;
+
+        if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
+          ReadNoBenignTest = Expr.Neq(
+              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result)),
+              new IdentifierExpr(Token.NoToken, ValueParameter));
+        }
+
+        AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, ReadNoBenignTest, AccessType.READ, "read_write");
+
+        if (GPUVerifyVCGenCommandLineOptions.AtomicVsWrite) {
+          AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, null, AccessType.ATOMIC, "atomic_write");
+        }
+      }
+      else if (Access == AccessType.ATOMIC) {
+        if (GPUVerifyVCGenCommandLineOptions.AtomicVsWrite) {
+          AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, null, AccessType.WRITE, "write_atomic");
+        }
+
+        if (GPUVerifyVCGenCommandLineOptions.AtomicVsRead) {
+          AddCheckAccessCheck(v, CheckAccessProcedure, PredicateParameter, OffsetParameter, null, AccessType.READ, "read_atomic");
+        }
+      }
+
+      verifier.Program.TopLevelDeclarations.Add(CheckAccessProcedure);
+    }
 
     protected void AddCheckAccessCheck(Variable v, Procedure CheckAccessProcedure, Variable PredicateParameter, Variable OffsetParameter, Expr NoBenignTest, AccessType Access, String attribute) {
       // Check atomic by thread 2 does not conflict with read by thread 1
