@@ -17,6 +17,11 @@ using System.Diagnostics;
 
 namespace GPUVerify
 {
+
+  public enum RaceCheckingMethod {
+    STANDARD, WATCHDOG_SINGLE, WATCHDOG_MULTIPLE
+  }
+
   public class GPUVerifyVCGenCommandLineOptions
   {
     public static List<string> inputFiles = new List<string>();
@@ -49,7 +54,7 @@ namespace GPUVerify
     public static bool OptimiseReads = true;
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
-    public static bool WatchdogRaceChecking = false;
+    public static RaceCheckingMethod RaceCheckingMethod = RaceCheckingMethod.STANDARD;
     public static List<string> DoNotGenerateCandidates = new List<string>();
 
     public static int Parse(string[] args)
@@ -249,7 +254,16 @@ namespace GPUVerify
 
           case "-watchdogRaceChecking":
           case "/watchdogRaceChecking":
-          WatchdogRaceChecking = true;
+          if (!hasColonArgument || (afterColon != "SINGLE" && afterColon != "MULTIPLE"))
+          {
+            Console.WriteLine("Error: one of 'SINGLE' or 'MULTIPLE' expected after " + beforeColon + " argument");
+            Environment.Exit(1);
+          }
+          if(afterColon == "SINGLE") {
+            RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
+          } else {
+            RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
+          }
           break;
 
           default:

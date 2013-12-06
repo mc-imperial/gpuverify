@@ -113,15 +113,11 @@ namespace GPUVerify
             if (GPUVerifyVCGenCommandLineOptions.ConstantWriteChecks) {
                 this.ConstantWriteInstrumenter = new ConstantWriteInstrumenter(this);
             }
-            if (!GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
+            if (GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
-              if(GPUVerifyVCGenCommandLineOptions.WatchdogRaceChecking) {
-                this.RaceInstrumenter = new WatchdogRaceInstrumenter();
-              } else {
-                this.RaceInstrumenter = new RaceInstrumenter(this);
-              }
+              this.RaceInstrumenter = new NullRaceInstrumenter();
             } else {
-                this.RaceInstrumenter = new NullRaceInstrumenter();
+              this.RaceInstrumenter = new RaceInstrumenter(this);
             }
         }
 
@@ -1452,15 +1448,14 @@ namespace GPUVerify
           new AdversarialAbstraction(this).Abstract();
         }
 
-        internal static string MakeOffsetVariableName(string Name, AccessType Access)
+        internal Variable MakeOffsetVariable(string Name, AccessType Access)
         {
-            return "_" + Access + "_OFFSET_" + Name;
-        }
-
-        internal GlobalVariable MakeOffsetVariable(string Name, AccessType Access)
-        {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access),
-            IntRep.GetIntType(32)));
+          var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeOffsetVariableName(Name, Access),
+              IntRep.GetIntType(32));
+          if(GPUVerifyVCGenCommandLineOptions.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
+            return new GlobalVariable(Token.NoToken, Ident);
+          }
+          return new Constant(Token.NoToken, Ident);
         }
 
         internal static string MakeValueVariableName(string Name, AccessType Access) {
@@ -1501,7 +1496,7 @@ namespace GPUVerify
         internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, AccessType Access)
         {
             foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
-              if(g.Name.Equals(MakeAccessHasOccurredVariableName(varName, Access))) {
+              if(g.Name.Equals(RaceInstrumentationUtil.MakeHasOccurredVariableName(varName, Access))) {
                 return g;
               }
             }
@@ -1510,14 +1505,14 @@ namespace GPUVerify
             return result;
         }
 
-        internal GlobalVariable FindOrCreateOffsetVariable(string varName, AccessType Access)
+        internal Variable FindOrCreateOffsetVariable(string varName, AccessType Access)
         {
             foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
-              if(g.Name.Equals(MakeOffsetVariableName(varName, Access))) {
+              if(g.Name.Equals(RaceInstrumentationUtil.MakeOffsetVariableName(varName, Access))) {
                 return g;
               }
             }
-            GlobalVariable result = MakeOffsetVariable(varName, Access);
+            Variable result = MakeOffsetVariable(varName, Access);
             Program.TopLevelDeclarations.Add(result);
             return result;
         }
@@ -1560,12 +1555,7 @@ namespace GPUVerify
 
         internal static GlobalVariable MakeAccessHasOccurredVariable(string varName, AccessType Access)
         {
-            return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeAccessHasOccurredVariableName(varName, Access), Microsoft.Boogie.Type.Bool));
-        }
-
-        internal static string MakeAccessHasOccurredVariableName(string varName, AccessType Access)
-        {
-            return "_" + Access + "_HAS_OCCURRED_" + varName;
+            return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeHasOccurredVariableName(varName, Access), Microsoft.Boogie.Type.Bool));
         }
 
         internal static IdentifierExpr MakeAccessHasOccurredExpr(string varName, AccessType Access)

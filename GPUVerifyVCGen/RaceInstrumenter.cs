@@ -55,7 +55,7 @@ namespace GPUVerify {
         foreach (var kind in AccessType.Types)
         {
           if (verifier.ContainsNamedVariable(
-              LoopInvariantGenerator.GetModifiedVariables(region), GPUVerifier.MakeAccessHasOccurredVariableName(v.Name, kind))) {
+              LoopInvariantGenerator.GetModifiedVariables(region), RaceInstrumentationUtil.MakeHasOccurredVariableName(v.Name, kind))) {
             AddNoAccessCandidateInvariant(region, v, kind);
           }
         }

@@ -71,6 +71,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="RaceInstrumentationUtil.cs" />
     <Compile Include="SourceLocationInfo.cs" />
     <Compile Include="GPUVerifyErrorReporter.cs" />
     <Compile Include="AccessType.cs" />
