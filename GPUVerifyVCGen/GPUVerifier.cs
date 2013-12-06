@@ -117,7 +117,14 @@ namespace GPUVerify
             {
               this.RaceInstrumenter = new NullRaceInstrumenter();
             } else {
-              this.RaceInstrumenter = new RaceInstrumenter(this);
+              if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
+                this.RaceInstrumenter = new StandardRaceInstrumenter(this);
+              } else if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE) {
+                this.RaceInstrumenter = new WatchdogSingleRaceInstrumenter(this);
+              } else {
+                Debug.Assert(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE);
+                this.RaceInstrumenter = new WatchdogMultipleRaceInstrumenter(this);
+              }
             }
         }
 
