@@ -901,9 +901,9 @@ def _main(argv):
     cleanUpHandler.register(DeleteFile, bcFilename)
     if not CommandLineOptions.stopAtOpt: cleanUpHandler.register(DeleteFile, optFilename)
     if not CommandLineOptions.stopAtGbpl: cleanUpHandler.register(DeleteFile, gbplFilename)
+    if not CommandLineOptions.stopAtGbpl: cleanUpHandler.register(DeleteFile, locFilename)
     if not CommandLineOptions.stopAtCbpl: cleanUpHandler.register(DeleteFile, cbplFilename)
     if not CommandLineOptions.stopAtBpl: cleanUpHandler.register(DeleteFile, bplFilename)
-    if not CommandLineOptions.stopAtBpl: cleanUpHandler.register(DeleteFile, locFilename)
 
   CommandLineOptions.clangOptions.append("-o")
   CommandLineOptions.clangOptions.append(bcFilename)
@@ -912,7 +912,7 @@ def _main(argv):
   CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
   if ext in [ ".cl", ".cu" ]:
-    CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
+    CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
     if CommandLineOptions.mathInt:
       CommandLineOptions.bugleOptions += [ "-i", "math" ]
     if not CommandLineOptions.noInline:
