@@ -490,6 +490,7 @@ def showHelpAndExit():
 
   INVARIANT INFERENCE OPTIONS:
     --no-infer              Turn off invariant inference
+    --omit-infer=X          Do not generate invariants tagged 'X'
     --staged-inference      Perform invariant inference in stages; this can boost
                             performance for complex kernels (but this is not guaranteed)
     --parallel-inference    Use multiple solver instances in parallel to accelerate invariant
@@ -668,6 +669,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.noRefinedAtomics = True
     if o == "--call-site-analysis":
       CommandLineOptions.callSiteAnalysis = True
+    if o in ("--omit-infer"):
+      CommandLineOptions.gpuVerifyVCGenOptions.append('/noCandidate:' + a)
 
   # All options whose processing can result in an error go in this loop.
   # See also the comment above the previous loop.
@@ -838,7 +841,7 @@ def _main(argv):
               'staged-inference', 'parallel-inference',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
-              'solver=', 'logic='
+              'solver=', 'logic=', 'omit-infer=',
              ])
   except getopt.GetoptError as getoptError:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, getoptError.msg + ".  Try --help for list of options")
