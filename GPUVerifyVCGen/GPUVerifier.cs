@@ -119,11 +119,11 @@ namespace GPUVerify
             } else {
               if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
                 this.RaceInstrumenter = new StandardRaceInstrumenter(this);
-              } else if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE) {
-                this.RaceInstrumenter = new WatchdogSingleRaceInstrumenter(this);
               } else {
-                Debug.Assert(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE);
-                this.RaceInstrumenter = new WatchdogMultipleRaceInstrumenter(this);
+                Debug.Assert(
+                  RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE ||
+                  RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE);
+                this.RaceInstrumenter = new WatchdogRaceInstrumenter(this);
               }
             }
         }
@@ -1363,6 +1363,16 @@ namespace GPUVerify
                       ThreadsInSameGroup_BothEnabled_AtLeastOneGlobalFence,
                       new StmtList(MakeHavocBlocks(HavocVars), Token.NoToken), null, null), null));
                 }
+            }
+
+            if(RaceInstrumentationUtil.RaceCheckingMethod != RaceCheckingMethod.STANDARD) {
+              bigblocks.Add(new BigBlock(Token.NoToken, null, new List<Cmd> {
+                new HavocCmd(Token.NoToken, new List<IdentifierExpr> {
+                  new IdentifierExpr(Token.NoToken, new GlobalVariable(Token.NoToken,
+                    new TypedIdent(Token.NoToken, "_TRACKING", Microsoft.Boogie.Type.Bool)))
+                })
+              }, null, null));
+
             }
 
             StmtList statements = new StmtList(bigblocks, BarrierProcedure.tok);

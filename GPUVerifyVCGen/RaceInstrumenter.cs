@@ -739,7 +739,7 @@ namespace GPUVerify {
       return result;
     }
 
-    public void AddRaceCheckingDeclarations() {
+    public virtual void AddRaceCheckingDeclarations() {
       foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddRaceCheckingDecsAndProcsForVar(v);
       }

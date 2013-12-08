@@ -7,9 +7,9 @@ using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-  class WatchdogSingleRaceInstrumenter : RaceInstrumenter
+  class WatchdogRaceInstrumenter : RaceInstrumenter
   {
-    internal WatchdogSingleRaceInstrumenter(GPUVerifier verifier) : base(verifier) {
+    internal WatchdogRaceInstrumenter(GPUVerifier verifier) : base(verifier) {
 
     }
 
@@ -32,12 +32,11 @@ namespace GPUVerify
 
       Debug.Assert(!(mt.Result is MapType));
 
-      // TODO: adapt to include "tracking races" variable, reset at barriers
-
       Block b = new Block(Token.NoToken, "log_access_entry", new List<Cmd>(), new ReturnCmd(Token.NoToken));
 
-      Expr Condition = Expr.And(new IdentifierExpr(Token.NoToken, PredicateParameter), Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
-                                         new IdentifierExpr(Token.NoToken, OffsetParameter)));
+      Expr Condition = Expr.And(new IdentifierExpr(Token.NoToken, PredicateParameter),
+        Expr.And(new IdentifierExpr(Token.NoToken, MakeTrackingVariable()), Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
+                                         new IdentifierExpr(Token.NoToken, OffsetParameter))));
 
       b.Cmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable, Condition, Expr.True));
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
@@ -63,6 +62,17 @@ namespace GPUVerify
 
       verifier.Program.TopLevelDeclarations.Add(LogAccessProcedure);
       verifier.Program.TopLevelDeclarations.Add(LogAccessImplementation);
+    }
+
+    public override void AddRaceCheckingDeclarations() {
+      base.AddRaceCheckingDeclarations();
+      verifier.Program.TopLevelDeclarations.Add(MakeTrackingVariable());
+    }
+
+    private static GlobalVariable MakeTrackingVariable()
+    {
+      return new GlobalVariable(
+              Token.NoToken, new TypedIdent(Token.NoToken, "_TRACKING", Microsoft.Boogie.Type.Bool));
     }
 
   }

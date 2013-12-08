@@ -365,7 +365,11 @@ namespace GPUVerify {
           }
 
           Model.Boolean AHO_value = state.TryGet(AccessHasOccurred) as Model.Boolean;
-          Model.BitVector AO_value = state.TryGet(AccessOffset) as Model.BitVector;
+          Model.BitVector AO_value = 
+            (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+            ? state.TryGet(AccessOffset)
+            : CallCex.Model.TryGetFunc(AccessOffset).GetConstant()) as Model.BitVector;
+
           if (!AHO_value.Value)
           {
             LastLogAssume = null;
@@ -436,8 +440,11 @@ namespace GPUVerify {
     private static uint GetOffsetInBytes(CallCounterexample Cex) {
       uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
       Debug.Assert(ElemWidth != int.MaxValue);
-      var element = GetStateFromModel(QKeyValue.FindStringAttribute(Cex.FailingCall.Attributes, "state_id"),
-        Cex.Model).TryGet(ExtractOffsetVar(Cex).Name) as Model.Number;
+      var element =
+        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+        ? GetStateFromModel(QKeyValue.FindStringAttribute(Cex.FailingCall.Attributes, "state_id"),
+           Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
+        : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
       return (Convert.ToUInt32(element.Numeral) * ElemWidth) / 8;
     }
 

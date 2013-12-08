@@ -193,8 +193,7 @@
     <Compile Include="VariableDualiser.cs" />
     <Compile Include="VariablesOccurringInExpressionVisitor.cs" />
     <Compile Include="VariableDefinitionAnalysis.cs" />
-    <Compile Include="WatchdogMultipleRaceInstrumenter.cs" />
-    <Compile Include="WatchdogSingleRaceInstrumenter.cs" />
+    <Compile Include="WatchdogRaceInstrumenter.cs" />
     <Compile Include="WriteCollector.cs" />
     <Compile Include="ConstantWriteCollector.cs" />
   </ItemGroup>
