@@ -7,11 +7,10 @@ using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-  class WatchdogRaceInstrumenter : RaceInstrumenter
+  class StandardRaceInstrumenter : RaceInstrumenter
   {
-    internal WatchdogRaceInstrumenter(GPUVerifier verifier) : base(verifier) {
 
-    }
+    internal StandardRaceInstrumenter(GPUVerifier verifier) : base(verifier) { }
 
     protected override void AddLogAccessProcedure(Variable v, AccessType Access) {
       Procedure LogAccessProcedure = MakeLogAccessProcedureHeader(v, Access);
@@ -32,47 +31,44 @@ namespace GPUVerify
 
       Debug.Assert(!(mt.Result is MapType));
 
-      Block b = new Block(Token.NoToken, "log_access_entry", new List<Cmd>(), new ReturnCmd(Token.NoToken));
+      List<Variable> locals = new List<Variable>();
+      Variable TrackVariable = new LocalVariable(v.tok, new TypedIdent(v.tok, "track", Microsoft.Boogie.Type.Bool));
+      locals.Add(TrackVariable);
 
-      Expr Condition = Expr.And(new IdentifierExpr(Token.NoToken, PredicateParameter),
-        Expr.And(new IdentifierExpr(Token.NoToken, MakeTrackingVariable()), Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
-                                         new IdentifierExpr(Token.NoToken, OffsetParameter))));
+      List<BigBlock> bigblocks = new List<BigBlock>();
 
-      b.Cmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable, Condition, Expr.True));
+      List<Cmd> simpleCmds = new List<Cmd>();
+
+      simpleCmds.Add(new HavocCmd(v.tok, new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
+
+      Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter), new IdentifierExpr(v.tok, TrackVariable));
+
+      simpleCmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable,
+          Condition, Expr.True));
+      simpleCmds.Add(MakeConditionalAssignment(AccessOffsetVariable,
+          Condition,
+          new IdentifierExpr(v.tok, OffsetParameter)));
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
-        b.Cmds.Add(MakeConditionalAssignment(AccessValueVariable,
+        simpleCmds.Add(MakeConditionalAssignment(AccessValueVariable,
           Condition,
           new IdentifierExpr(v.tok, ValueParameter)));
       }
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-        b.Cmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
+        simpleCmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
           Condition,
           Expr.Neq(new IdentifierExpr(v.tok, ValueParameter),
             new IdentifierExpr(v.tok, ValueOldParameter))));
       }
 
-      Implementation LogAccessImplementation = 
-        new Implementation(Token.NoToken, "_LOG_" + Access + "_" + v.Name,
-          new List<TypeVariable>(),
-          LogAccessProcedure.InParams, new List<Variable>(), new List<Variable>(),
-          new List<Block> { b} );
+      bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));
+
+      Implementation LogAccessImplementation = new Implementation(v.tok, "_LOG_" + Access + "_" + v.Name, new List<TypeVariable>(), LogAccessProcedure.InParams, new List<Variable>(), locals, new StmtList(bigblocks, v.tok));
       GPUVerifier.AddInlineAttribute(LogAccessImplementation);
 
       LogAccessImplementation.Proc = LogAccessProcedure;
 
       verifier.Program.TopLevelDeclarations.Add(LogAccessProcedure);
       verifier.Program.TopLevelDeclarations.Add(LogAccessImplementation);
-    }
-
-    public override void AddRaceCheckingDeclarations() {
-      base.AddRaceCheckingDeclarations();
-      verifier.Program.TopLevelDeclarations.Add(MakeTrackingVariable());
-    }
-
-    private static GlobalVariable MakeTrackingVariable()
-    {
-      return new GlobalVariable(
-              Token.NoToken, new TypedIdent(Token.NoToken, "_TRACKING", Microsoft.Boogie.Type.Bool));
     }
 
   }

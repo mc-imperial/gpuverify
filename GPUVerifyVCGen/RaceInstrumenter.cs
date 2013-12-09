@@ -20,7 +20,7 @@ using Microsoft.Basetypes;
 
 namespace GPUVerify {
 
-  class RaceInstrumenter : IRaceInstrumenter {
+  abstract class RaceInstrumenter : IRaceInstrumenter {
     protected GPUVerifier verifier;
 
     private QKeyValue SourceLocationAttributes = null;
@@ -55,7 +55,7 @@ namespace GPUVerify {
         foreach (var kind in AccessType.Types)
         {
           if (verifier.ContainsNamedVariable(
-              LoopInvariantGenerator.GetModifiedVariables(region), GPUVerifier.MakeAccessHasOccurredVariableName(v.Name, kind))) {
+              LoopInvariantGenerator.GetModifiedVariables(region), RaceInstrumentationUtil.MakeHasOccurredVariableName(v.Name, kind))) {
             AddNoAccessCandidateInvariant(region, v, kind);
           }
         }
@@ -118,7 +118,7 @@ namespace GPUVerify {
     }
 
     private List<Expr> CollectOffsetPredicates(Implementation impl, IRegion region, Variable v, AccessType Access) {
-      var offsetVar = verifier.MakeOffsetVariable(v.Name, Access);
+      var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32));
       var offsetExpr = new IdentifierExpr(Token.NoToken, offsetVar);
       var offsetPreds = new List<Expr>();
 
@@ -415,6 +415,8 @@ namespace GPUVerify {
       }
 
     }
+
+    protected abstract void AddLogAccessProcedure(Variable v, AccessType Access);
 
     private void AddRaceCheckingDecsAndProcsForVar(Variable v) {
       foreach (var kind in AccessType.Types)
@@ -737,69 +739,10 @@ namespace GPUVerify {
       return result;
     }
 
-    public void AddRaceCheckingDeclarations() {
+    public virtual void AddRaceCheckingDeclarations() {
       foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddRaceCheckingDecsAndProcsForVar(v);
       }
-    }
-
-    protected void AddLogAccessProcedure(Variable v, AccessType Access) {
-      Procedure LogAccessProcedure = MakeLogAccessProcedureHeader(v, Access);
-
-      Debug.Assert(v.TypedIdent.Type is MapType);
-      MapType mt = v.TypedIdent.Type as MapType;
-      Debug.Assert(mt.Arguments.Count == 1);
-
-      Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
-      Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, mt.Result);
-      Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
-
-      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
-      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
-      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
-      Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
-
-      Debug.Assert(!(mt.Result is MapType));
-
-      List<Variable> locals = new List<Variable>();
-      Variable TrackVariable = new LocalVariable(v.tok, new TypedIdent(v.tok, "track", Microsoft.Boogie.Type.Bool));
-      locals.Add(TrackVariable);
-
-      List<BigBlock> bigblocks = new List<BigBlock>();
-
-      List<Cmd> simpleCmds = new List<Cmd>();
-
-      simpleCmds.Add(new HavocCmd(v.tok, new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
-
-      Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter), new IdentifierExpr(v.tok, TrackVariable));
-
-      simpleCmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable,
-          Condition, Expr.True));
-      simpleCmds.Add(MakeConditionalAssignment(AccessOffsetVariable,
-          Condition,
-          new IdentifierExpr(v.tok, OffsetParameter)));
-      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
-        simpleCmds.Add(MakeConditionalAssignment(AccessValueVariable,
-          Condition,
-          new IdentifierExpr(v.tok, ValueParameter)));
-      }
-      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-        simpleCmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
-          Condition,
-          Expr.Neq(new IdentifierExpr(v.tok, ValueParameter),
-            new IdentifierExpr(v.tok, ValueOldParameter))));
-      }
-
-      bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));
-
-      Implementation LogAccessImplementation = new Implementation(v.tok, "_LOG_" + Access + "_" + v.Name, new List<TypeVariable>(), LogAccessProcedure.InParams, new List<Variable>(), locals, new StmtList(bigblocks, v.tok));
-      GPUVerifier.AddInlineAttribute(LogAccessImplementation);
-
-      LogAccessImplementation.Proc = LogAccessProcedure;
-
-      verifier.Program.TopLevelDeclarations.Add(LogAccessProcedure);
-      verifier.Program.TopLevelDeclarations.Add(LogAccessImplementation);
     }
 
     protected void AddUpdateBenignFlagProcedure(Variable v) {
@@ -810,7 +753,7 @@ namespace GPUVerify {
       Debug.Assert(mt.Arguments.Count == 1);
 
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
-      Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, AccessType.WRITE);
+      Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, AccessType.WRITE, verifier.IntRep.GetIntType(32));
       Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
@@ -911,7 +854,7 @@ namespace GPUVerify {
     protected void AddCheckAccessCheck(Variable v, Procedure CheckAccessProcedure, Variable PredicateParameter, Variable OffsetParameter, Expr NoBenignTest, AccessType Access, String attribute) {
       // Check atomic by thread 2 does not conflict with read by thread 1
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
+      Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32));
 
       Expr AccessGuard = new IdentifierExpr(Token.NoToken, PredicateParameter);
       AccessGuard = Expr.And(AccessGuard, new IdentifierExpr(Token.NoToken, AccessHasOccurredVariable));
@@ -956,7 +899,7 @@ namespace GPUVerify {
     }
 
 
-    private static AssignCmd MakeConditionalAssignment(Variable lhs, Expr condition, Expr rhs) {
+    protected static AssignCmd MakeConditionalAssignment(Variable lhs, Expr condition, Expr rhs) {
       List<AssignLhs> lhss = new List<AssignLhs>();
       List<Expr> rhss = new List<Expr>();
       lhss.Add(new SimpleAssignLhs(lhs.tok, new IdentifierExpr(lhs.tok, lhs)));
@@ -1020,7 +963,7 @@ namespace GPUVerify {
     private Expr AccessedOffsetIsThreadLocalIdExpr(Variable v, AccessType Access) {
       return Expr.Imp(
                 new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access)),
-                Expr.Eq(new IdentifierExpr(v.tok, verifier.MakeOffsetVariable(v.Name, Access)), 
+                Expr.Eq(new IdentifierExpr(v.tok, RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32))), 
                   new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", 1))));
     }
 
@@ -1051,7 +994,7 @@ namespace GPUVerify {
     }
 
     private IdentifierExpr OffsetXExpr(Variable v, AccessType Access, int Thread) {
-      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(verifier.MakeOffsetVariable(v.Name, Access)));
+      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32))));
     }
 
     protected void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, AccessType Access) {

@@ -174,7 +174,7 @@ namespace GPUVerify {
       string RaceyArrayName = GetArrayName(CallCex.FailingRequires);
       Debug.Assert(RaceyArrayName != null);
 
-      IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, RaceyArrayName, access1,
+      IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, RaceyArrayName, AccessType.Create(access1),
         QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "state_id"));
       SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), CallCex.FailingCall.tok);
 
@@ -293,12 +293,12 @@ namespace GPUVerify {
       }
     }
 
-    private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string ArrayName, string AccessType, string RaceyState)
+    private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string ArrayName, AccessType AccessType, string RaceyState)
     {
-      string ACCESS_HAS_OCCURRED = "_" + AccessType.ToUpper() + "_HAS_OCCURRED_$$" + ArrayName;
-      string ACCESS_OFFSET = "_" + AccessType.ToUpper() + "_OFFSET_$$" + ArrayName;
+      string AccessHasOccurred = RaceInstrumentationUtil.MakeHasOccurredVariableName("$$" + ArrayName, AccessType);
+      string AccessOffset = RaceInstrumentationUtil.MakeOffsetVariableName("$$" + ArrayName, AccessType);
 
-      AssumeCmd ConflictingAction = DetermineConflictingAction(CallCex, RaceyState, ACCESS_HAS_OCCURRED, ACCESS_OFFSET);
+      AssumeCmd ConflictingAction = DetermineConflictingAction(CallCex, RaceyState, AccessHasOccurred, AccessOffset);
 
       var ConflictingState = QKeyValue.FindStringAttribute(ConflictingAction.Attributes, "captureState");
 
@@ -328,10 +328,10 @@ namespace GPUVerify {
         HashSet<Block> LoopNodes = new HashSet<Block>(
           blockGraph.BackEdgeNodes(header).Select(Item => blockGraph.NaturalLoops(header, Item)).SelectMany(Item => Item)
         );
-        return GetSourceLocationsFromBlocks("_CHECK_" + AccessType.ToUpper() + "_$$" + ArrayName, LoopNodes);
+        return GetSourceLocationsFromBlocks("_CHECK_" + AccessType + "_$$" + ArrayName, LoopNodes);
       }
       else if(ConflictingState.Contains("call_return_state")  ) {
-        return GetSourceLocationsFromCall("_CHECK_" + AccessType.ToUpper() + "_$$" + ArrayName, 
+        return GetSourceLocationsFromCall("_CHECK_" + AccessType + "_$$" + ArrayName, 
           QKeyValue.FindStringAttribute(ConflictingAction.Attributes, "procedureName"));
       } else {
         Debug.Assert(ConflictingState.Contains("check_state"));
@@ -341,7 +341,7 @@ namespace GPUVerify {
       }
     }
 
-    private static AssumeCmd DetermineConflictingAction(CallCounterexample CallCex, string RaceyState, string ACCESS_HAS_OCCURRED, string ACCESS_OFFSET)
+    private static AssumeCmd DetermineConflictingAction(CallCounterexample CallCex, string RaceyState, string AccessHasOccurred, string AccessOffset)
     {
       AssumeCmd LastLogAssume = null;
       string LastOffsetValue = null;
@@ -357,15 +357,19 @@ namespace GPUVerify {
             continue;
           }
           Model.CapturedState state = GetStateFromModel(StateName, CallCex.Model);
-          if (state == null || state.TryGet(ACCESS_HAS_OCCURRED) is Model.Uninterpreted)
+          if (state == null || state.TryGet(AccessHasOccurred) is Model.Uninterpreted)
           {
             // Either the state was not recorded, or the state has nothing to do with the reported error, so do not
             // analyse it further.
             continue;
           }
 
-          Model.Boolean AHO_value = state.TryGet(ACCESS_HAS_OCCURRED) as Model.Boolean;
-          Model.BitVector AO_value = state.TryGet(ACCESS_OFFSET) as Model.BitVector;
+          Model.Boolean AHO_value = state.TryGet(AccessHasOccurred) as Model.Boolean;
+          Model.BitVector AO_value = 
+            (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+            ? state.TryGet(AccessOffset)
+            : CallCex.Model.TryGetFunc(AccessOffset).GetConstant()) as Model.BitVector;
+
           if (!AHO_value.Value)
           {
             LastLogAssume = null;
@@ -436,19 +440,24 @@ namespace GPUVerify {
     private static uint GetOffsetInBytes(CallCounterexample Cex) {
       uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
       Debug.Assert(ElemWidth != int.MaxValue);
-      var element = GetStateFromModel(QKeyValue.FindStringAttribute(Cex.FailingCall.Attributes, "state_id"),
-        Cex.Model).TryGet(ExtractOffsetVar(Cex).Name) as Model.Number;
+      var element =
+        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+        ? GetStateFromModel(QKeyValue.FindStringAttribute(Cex.FailingCall.Attributes, "state_id"),
+           Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
+        : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
       return (Convert.ToUInt32(element.Numeral) * ElemWidth) / 8;
     }
 
     private static Variable ExtractAccessHasOccurredVar(CallCounterexample err) {
-      var VFV = new VariableFinderVisitor("_" + GetAccessType(err) + "_HAS_OCCURRED_" + QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
+      var VFV = new VariableFinderVisitor(
+        RaceInstrumentationUtil.MakeHasOccurredVariableName(QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"), GetAccessType(err)));
       VFV.Visit(err.FailingRequires.Condition);
       return VFV.GetVariable();
     }
 
     private static Variable ExtractOffsetVar(CallCounterexample err) {
-      var VFV = new VariableFinderVisitor("_" + GetAccessType(err) + "_OFFSET_" + QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"));
+      var VFV = new VariableFinderVisitor(
+        RaceInstrumentationUtil.MakeOffsetVariableName(QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"), GetAccessType(err)));
       VFV.Visit(err.FailingRequires.Condition);
       return VFV.GetVariable();
     }

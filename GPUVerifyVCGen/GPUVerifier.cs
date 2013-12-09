@@ -113,15 +113,18 @@ namespace GPUVerify
             if (GPUVerifyVCGenCommandLineOptions.ConstantWriteChecks) {
                 this.ConstantWriteInstrumenter = new ConstantWriteInstrumenter(this);
             }
-            if (!GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
+            if (GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
-              if(GPUVerifyVCGenCommandLineOptions.WatchdogRaceChecking) {
-                this.RaceInstrumenter = new WatchdogRaceInstrumenter();
-              } else {
-                this.RaceInstrumenter = new RaceInstrumenter(this);
-              }
+              this.RaceInstrumenter = new NullRaceInstrumenter();
             } else {
-                this.RaceInstrumenter = new NullRaceInstrumenter();
+              if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
+                this.RaceInstrumenter = new StandardRaceInstrumenter(this);
+              } else {
+                Debug.Assert(
+                  RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE ||
+                  RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE);
+                this.RaceInstrumenter = new WatchdogRaceInstrumenter(this);
+              }
             }
         }
 
@@ -1362,6 +1365,16 @@ namespace GPUVerify
                 }
             }
 
+            if(RaceInstrumentationUtil.RaceCheckingMethod != RaceCheckingMethod.STANDARD) {
+              bigblocks.Add(new BigBlock(Token.NoToken, null, new List<Cmd> {
+                new HavocCmd(Token.NoToken, new List<IdentifierExpr> {
+                  new IdentifierExpr(Token.NoToken, new GlobalVariable(Token.NoToken,
+                    new TypedIdent(Token.NoToken, "_TRACKING", Microsoft.Boogie.Type.Bool)))
+                })
+              }, null, null));
+
+            }
+
             StmtList statements = new StmtList(bigblocks, BarrierProcedure.tok);
             Implementation BarrierImplementation = 
                 new Implementation(BarrierProcedure.tok, BarrierProcedure.Name, new List<TypeVariable>(), 
@@ -1452,17 +1465,6 @@ namespace GPUVerify
           new AdversarialAbstraction(this).Abstract();
         }
 
-        internal static string MakeOffsetVariableName(string Name, AccessType Access)
-        {
-            return "_" + Access + "_OFFSET_" + Name;
-        }
-
-        internal GlobalVariable MakeOffsetVariable(string Name, AccessType Access)
-        {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access),
-            IntRep.GetIntType(32)));
-        }
-
         internal static string MakeValueVariableName(string Name, AccessType Access) {
           return "_" + Access + "_VALUE_" + Name;
         }
@@ -1501,7 +1503,7 @@ namespace GPUVerify
         internal GlobalVariable FindOrCreateAccessHasOccurredVariable(string varName, AccessType Access)
         {
             foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
-              if(g.Name.Equals(MakeAccessHasOccurredVariableName(varName, Access))) {
+              if(g.Name.Equals(RaceInstrumentationUtil.MakeHasOccurredVariableName(varName, Access))) {
                 return g;
               }
             }
@@ -1510,14 +1512,14 @@ namespace GPUVerify
             return result;
         }
 
-        internal GlobalVariable FindOrCreateOffsetVariable(string varName, AccessType Access)
+        internal Variable FindOrCreateOffsetVariable(string varName, AccessType Access)
         {
-            foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
-              if(g.Name.Equals(MakeOffsetVariableName(varName, Access))) {
+            foreach(var g in Program.TopLevelDeclarations.OfType<Variable>()) {
+              if(g.Name.Equals(RaceInstrumentationUtil.MakeOffsetVariableName(varName, Access))) {
                 return g;
               }
             }
-            GlobalVariable result = MakeOffsetVariable(varName, Access);
+            Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, Access, IntRep.GetIntType(32));
             Program.TopLevelDeclarations.Add(result);
             return result;
         }
@@ -1560,12 +1562,7 @@ namespace GPUVerify
 
         internal static GlobalVariable MakeAccessHasOccurredVariable(string varName, AccessType Access)
         {
-            return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeAccessHasOccurredVariableName(varName, Access), Microsoft.Boogie.Type.Bool));
-        }
-
-        internal static string MakeAccessHasOccurredVariableName(string varName, AccessType Access)
-        {
-            return "_" + Access + "_HAS_OCCURRED_" + varName;
+            return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeHasOccurredVariableName(varName, Access), Microsoft.Boogie.Type.Bool));
         }
 
         internal static IdentifierExpr MakeAccessHasOccurredExpr(string varName, AccessType Access)

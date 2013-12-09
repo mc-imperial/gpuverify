@@ -26,6 +26,7 @@ namespace GPUVerify
         }
 
         static HashSet<string> AsymmetricNamePrefixes = new HashSet<string> {
+          "_WATCHED_OFFSET",
           "_READ_HAS_OCCURRED", "_READ_OFFSET", "_READ_VALUE",
           "_WRITE_HAS_OCCURRED", "_WRITE_OFFSET", "_WRITE_VALUE",
           "_ATOMIC_HAS_OCCURRED", "_ATOMIC_OFFSET",

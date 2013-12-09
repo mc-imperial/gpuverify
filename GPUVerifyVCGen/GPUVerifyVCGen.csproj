@@ -168,6 +168,7 @@
     <Compile Include="CallSiteAnalyser.cs" />
     <Compile Include="IntegerRepresentation.cs" />
     <Compile Include="IntraProceduralLiveVariableAnalysis.cs" />
+    <Compile Include="StandardRaceInstrumenter.cs" />
     <Compile Include="StrideConstraint.cs" />
     <Compile Include="UnaryBarrierInvariantDescriptor.cs" />
     <Compile Include="UnstructuredRegion.cs" />
