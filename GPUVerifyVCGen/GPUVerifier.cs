@@ -1465,15 +1465,6 @@ namespace GPUVerify
           new AdversarialAbstraction(this).Abstract();
         }
 
-        internal static string MakeValueVariableName(string Name, AccessType Access) {
-          return "_" + Access + "_VALUE_" + Name;
-        }
-
-        internal static GlobalVariable MakeValueVariable(string name, AccessType Access, Microsoft.Boogie.Type Type) {
-          return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeValueVariableName(name, Access),
-            Type));
-        }
-
         internal static string MakeBenignFlagVariableName(string Name) {
           return "_WRITE_READ_BENIGN_FLAG_" + Name;
         }
@@ -1524,14 +1515,14 @@ namespace GPUVerify
             return result;
         }
 
-        internal GlobalVariable FindOrCreateValueVariable(string varName, AccessType Access,
+        internal Variable FindOrCreateValueVariable(string varName, AccessType Access,
               Microsoft.Boogie.Type Type) {
-          foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
-            if(g.Name.Equals(MakeValueVariableName(varName, Access))) {
+          foreach(var g in Program.TopLevelDeclarations.OfType<Variable>()) {
+            if(g.Name.Equals(RaceInstrumentationUtil.MakeValueVariableName(varName, Access))) {
               return g;
             }
           }
-          GlobalVariable result = MakeValueVariable(varName, Access, Type);
+          Variable result = RaceInstrumentationUtil.MakeValueVariable(varName, Access, Type);
           Program.TopLevelDeclarations.Add(result);
           return result;
         }

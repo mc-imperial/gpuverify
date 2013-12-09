@@ -22,7 +22,7 @@ namespace GPUVerify
 
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
       Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32));
-      Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, mt.Result);
+      Variable AccessValueVariable = RaceInstrumentationUtil.MakeValueVariable(v.Name, Access, mt.Result);
       Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
@@ -32,30 +32,29 @@ namespace GPUVerify
 
       Debug.Assert(!(mt.Result is MapType));
 
-      Block b = new Block(Token.NoToken, "log_access_entry", new List<Cmd>(), new ReturnCmd(Token.NoToken));
+      Block LoggingCommands = new Block(Token.NoToken, "log_access_entry", new List<Cmd>(), new ReturnCmd(Token.NoToken));
 
-      Expr Condition = Expr.And(new IdentifierExpr(Token.NoToken, PredicateParameter),
-        Expr.And(new IdentifierExpr(Token.NoToken, MakeTrackingVariable()), Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
-                                         new IdentifierExpr(Token.NoToken, OffsetParameter))));
-
-      b.Cmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable, Condition, Expr.True));
-      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
-        b.Cmds.Add(MakeConditionalAssignment(AccessValueVariable,
-          Condition,
-          new IdentifierExpr(v.tok, ValueParameter)));
+      Expr Condition = Expr.And(new IdentifierExpr(Token.NoToken, MakeTrackingVariable()), Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
+                                         new IdentifierExpr(Token.NoToken, OffsetParameter)));
+      if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+        Condition = Expr.And(Condition, Expr.Eq(new IdentifierExpr(Token.NoToken, AccessValueVariable), new IdentifierExpr(Token.NoToken, ValueParameter)));
       }
+
+      Condition = Expr.And(new IdentifierExpr(Token.NoToken, PredicateParameter), Condition);
+
+      LoggingCommands.Cmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable, Condition, Expr.True));
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-        b.Cmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
+        LoggingCommands.Cmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
           Condition,
-          Expr.Neq(new IdentifierExpr(v.tok, ValueParameter),
-            new IdentifierExpr(v.tok, ValueOldParameter))));
+          Expr.Neq(new IdentifierExpr(Token.NoToken, ValueParameter),
+            new IdentifierExpr(Token.NoToken, ValueOldParameter))));
       }
 
       Implementation LogAccessImplementation = 
         new Implementation(Token.NoToken, "_LOG_" + Access + "_" + v.Name,
           new List<TypeVariable>(),
           LogAccessProcedure.InParams, new List<Variable>(), new List<Variable>(),
-          new List<Block> { b} );
+          new List<Block> { LoggingCommands } );
       GPUVerifier.AddInlineAttribute(LogAccessImplementation);
 
       LogAccessImplementation.Proc = LogAccessProcedure;

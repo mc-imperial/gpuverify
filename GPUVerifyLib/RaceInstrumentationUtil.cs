@@ -42,5 +42,21 @@ namespace GPUVerify
       return new Constant(Token.NoToken, Ident, false);
     }
 
+    public static string MakeValueVariableName(string Name, AccessType Access) {
+      if(RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
+        return "_" + Access + "_VALUE_" + Name;
+      }
+      return "_WATCHED_VALUE_" + Name;
+    }
+
+    public static Variable MakeValueVariable(string Name, AccessType Access, Microsoft.Boogie.Type Type) {
+      var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeValueVariableName(Name, Access),
+          Type);
+      if(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
+        return new GlobalVariable(Token.NoToken, Ident);
+      }
+      return new Constant(Token.NoToken, Ident, false);
+    }
+
   }
 }

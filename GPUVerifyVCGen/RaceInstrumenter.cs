@@ -818,7 +818,7 @@ namespace GPUVerify {
 
         if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           WriteNoBenignTest = Expr.Neq(
-              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result)),
+              new IdentifierExpr(Token.NoToken, RaceInstrumentationUtil.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result)),
               new IdentifierExpr(Token.NoToken, ValueParameter));
         }
 
@@ -828,7 +828,7 @@ namespace GPUVerify {
 
         if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           ReadNoBenignTest = Expr.Neq(
-              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result)),
+              new IdentifierExpr(Token.NoToken, RaceInstrumentationUtil.MakeValueVariable(v.Name, AccessType.READ, mt.Result)),
               new IdentifierExpr(Token.NoToken, ValueParameter));
         }
 
