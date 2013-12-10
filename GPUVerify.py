@@ -916,10 +916,6 @@ def _main(argv):
 
   if ext in [ ".cl", ".cu" ]:
     CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
-    if CommandLineOptions.mathInt:
-      CommandLineOptions.bugleOptions += [ "-i", "math" ]
-    if not CommandLineOptions.noInline:
-      CommandLineOptions.bugleOptions += [ "-inline" ]
   elif not CommandLineOptions.skip['bugle']:
     lang = CommandLineOptions.bugleLanguage
     if not lang: # try to infer
@@ -933,6 +929,11 @@ def _main(argv):
       raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "must specify --bugle-lang=[cl|cu] when given a bitcode .bc file")
     assert lang in [ "cl", "cu" ]
     CommandLineOptions.bugleOptions += [ "-l", lang, "-o", gbplFilename, optFilename ]
+
+  if CommandLineOptions.mathInt:
+    CommandLineOptions.bugleOptions += [ "-i", "math" ]
+  if not CommandLineOptions.noInline:
+    CommandLineOptions.bugleOptions += [ "-inline" ]
 
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/atomics:" + CommandLineOptions.atomic ]
   if CommandLineOptions.warpSync:
