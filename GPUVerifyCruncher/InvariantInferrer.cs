@@ -40,6 +40,8 @@ namespace Microsoft.Boogie
       this.engineIdx = 0;
       int idCounter = 0;
 
+      addConfigurationOptions();
+
       // Find the static refutation engines
       Dictionary<string, string> staticEngines = config.getRefutationEngines().
         Where(kvp => kvp.Key.Contains("StaticEngine")).
@@ -230,6 +232,21 @@ namespace Microsoft.Boogie
 
       Console.WriteLine("Number of true assignments = " + numTrueAssigns);
       Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+    }
+
+    // makes sure that configuration options are universally available
+    // independently of the backend solver
+    private void addConfigurationOptions()
+    {
+      if (CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4")) {
+        if (CommandLineOptions.Clo.ProverOptions.Contains("OPTIMIZE_FOR_BV=true")) {
+          CommandLineOptions.Clo.Z3Options.Add("RELEVANCY=0");
+          CommandLineOptions.Clo.Z3Options.Add("SOLVER=true");
+        }
+      }
+      else {
+        CommandLineOptions.Clo.ProverOptions.Add("LOGIC=QF_ALL_SUPPORTED");
+      }
     }
 
     /// <summary>
