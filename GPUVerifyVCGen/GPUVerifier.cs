@@ -608,7 +608,7 @@ namespace GPUVerify
                 if(pc != null) {
                   if(QKeyValue.FindBoolAttribute(pc.Attributes, "originated_from_invariant")
                     && !ValidPositionForInvariant) {
-                    var SourceLoc = new SourceLocationInfo(pc.Attributes, pc.tok);
+                    var SourceLoc = new SourceLocationInfo(pc.Attributes, GPUVerifyVCGenCommandLineOptions.inputFiles[0], pc.tok);
 
                     Console.Write("\n" + SourceLoc.GetFile() + ":" + SourceLoc.GetLine() + ":" + SourceLoc.GetColumn() + ": ");
                     Console.WriteLine("user-specified invariant does not appear at loop head.");
@@ -1587,9 +1587,6 @@ namespace GPUVerify
         private int Check()
         {
             BarrierProcedure = FindOrCreateBarrierProcedure();
-            BarrierProcedureLocalFenceArgName = BarrierProcedure.InParams[0].Name;
-            BarrierProcedureGlobalFenceArgName = BarrierProcedure.InParams[1].Name;
-            KernelProcedures = GetKernelProcedures();
 
             if (ErrorCount > 0)
             {
@@ -1614,6 +1611,13 @@ namespace GPUVerify
             {
                 Error(BarrierProcedure, "Barrier procedure must not return any results");
             }
+
+            if(BarrierProcedure.InParams.Count() == 2) {
+              BarrierProcedureLocalFenceArgName = BarrierProcedure.InParams[0].Name;
+              BarrierProcedureGlobalFenceArgName = BarrierProcedure.InParams[1].Name;
+            }
+
+            KernelProcedures = GetKernelProcedures();
 
             if (!FindNonLocalVariables())
             {

@@ -176,7 +176,7 @@ namespace GPUVerify {
 
       IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, RaceyArrayName, AccessType.Create(access1),
         QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "state_id"));
-      SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), CallCex.FailingCall.tok);
+      SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), GetSourceFileName(), CallCex.FailingCall.tok);
 
       uint RaceyOffset = GetOffsetInBytes(CallCex);
 
@@ -205,6 +205,11 @@ namespace GPUVerify {
         }
         Console.WriteLine();
       }
+    }
+
+    private static string GetSourceFileName()
+    {
+      return CommandLineOptions.Clo.Files[CommandLineOptions.Clo.Files.Count() - 1];
     }
 
     private string CleanUpArrayName(string name)
@@ -336,7 +341,7 @@ namespace GPUVerify {
       } else {
         Debug.Assert(ConflictingState.Contains("check_state"));
         return new HashSet<SourceLocationInfo> { 
-          new SourceLocationInfo(ConflictingAction.Attributes, ConflictingAction.tok)
+          new SourceLocationInfo(ConflictingAction.Attributes, GetSourceFileName(), ConflictingAction.tok)
         };
       }
     }
@@ -413,7 +418,7 @@ namespace GPUVerify {
       {
         if (c.callee.Equals(CheckProcedureName))
         {
-          PossibleSources.Add(new SourceLocationInfo(c.Attributes, c.tok));
+          PossibleSources.Add(new SourceLocationInfo(c.Attributes, GetSourceFileName(), c.tok));
         } else {
           foreach(var sl in GetSourceLocationsFromCall(CheckProcedureName, c.callee)) {
             PossibleSources.Add(sl);
@@ -507,7 +512,7 @@ namespace GPUVerify {
       AssertCmd failingAssert = err.FailingAssert;
 
       Console.WriteLine("");
-      var sli = new SourceLocationInfo(GetAttributes(failingAssert), failingAssert.tok);
+      var sli = new SourceLocationInfo(GetAttributes(failingAssert), GetSourceFileName(), failingAssert.tok);
 
       int relevantThread = QKeyValue.FindIntAttribute(GetAttributes(failingAssert), "thread", -1);
       Debug.Assert(relevantThread == 1 || relevantThread == 2);
@@ -548,22 +553,22 @@ namespace GPUVerify {
 
     private static void ReportEnsuresFailure(Absy node) {
       Console.WriteLine();
-      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
+      var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
       ErrorWriteLine(sli.ToString(), "postcondition might not hold on all return paths", ErrorMsgType.Error);
       GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportBarrierDivergence(Absy node) {
       Console.WriteLine();
-      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
+      var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
       ErrorWriteLine(sli.ToString(), "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
       GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
     }
 
     private static void ReportRequiresFailure(Absy callNode, Absy reqNode) {
       Console.WriteLine();
-      var CallSLI = new SourceLocationInfo(GetAttributes(callNode), callNode.tok);
-      var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), reqNode.tok);
+      var CallSLI = new SourceLocationInfo(GetAttributes(callNode), GetSourceFileName(), callNode.tok);
+      var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), GetSourceFileName(), reqNode.tok);
 
       ErrorWriteLine(CallSLI.ToString(), "a precondition for this call might not hold", ErrorMsgType.Error);
       GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine(), 2));

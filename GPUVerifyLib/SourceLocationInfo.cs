@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
+using System.Diagnostics;
 using Microsoft.Boogie;
 
 namespace GPUVerify {
@@ -52,27 +53,36 @@ namespace GPUVerify {
       }
     }
 
-    private string file;
-    private string directory;
     private int line;
     private int column;
+    private string file;
+    private string directory;
 
-    public SourceLocationInfo(QKeyValue attributes, IToken fallBackToken) {
+    public SourceLocationInfo(QKeyValue attributes, string sourceFileName, IToken fallBackToken) {
       try {
-        file = QKeyValue.FindStringAttribute(attributes, "fname");
-        directory = QKeyValue.FindStringAttribute(attributes, "dir");
-        line = QKeyValue.FindIntAttribute(attributes, "line", -1);
-        column = QKeyValue.FindIntAttribute(attributes, "col", -1);
-
-        if(file == null || directory == null || line == -1 || column == -1) {
-          throw new Exception();
+        var sourceLocFileName = 
+          Path.GetFileNameWithoutExtension(sourceFileName) + ".loc";
+        using (StreamReader sr = new StreamReader(sourceLocFileName)) {
+          int number = QKeyValue.FindIntAttribute(attributes, "sourceloc_num", -1);
+          if(number == -1) {
+            throw new Exception();
+          }
+          var info = sr.ReadLine().Split(new char[] { '\x1D' })[number];
+          var chain = info.Split(new char[] { '\x1E' });
+          Debug.Assert(chain[chain.Count() - 1] == "");
+          var last = chain[chain.Count() - 2];
+          var sourceInfo = last.Split(new char[] { '\x1F' });
+          this.line = Convert.ToInt32(sourceInfo[0]);
+          this.column = Convert.ToInt32(sourceInfo[1]);
+          this.file = sourceInfo[2];
+          this.directory = sourceInfo[3];
         }
-
-      } catch(Exception) {
-        file = fallBackToken.filename;
-        directory = "";
-        line = fallBackToken.line;
-        column = fallBackToken.col;
+      } catch (Exception) {
+        // Don't warn, just fall back to Boogie token
+        this.file = fallBackToken.filename;
+        this.directory = "";
+        this.line = fallBackToken.line;
+        this.column = fallBackToken.col;
       }
     }
 
