@@ -610,7 +610,7 @@ namespace GPUVerify
                     && !ValidPositionForInvariant) {
                     var SourceLoc = new SourceLocationInfo(pc.Attributes, GPUVerifyVCGenCommandLineOptions.inputFiles[0], pc.tok);
 
-                    Console.Write("\n" + SourceLoc.GetFile() + ":" + SourceLoc.GetLine() + ":" + SourceLoc.GetColumn() + ": ");
+                    Console.Write("\n" + SourceLoc.Top() + ": ");
                     Console.WriteLine("user-specified invariant does not appear at loop head.");
                     Console.WriteLine("\nNote: a common cause of this is due to the use of short-circuit operations;");
                     Console.WriteLine("      these should not be used in invariants.");

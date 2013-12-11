@@ -180,19 +180,19 @@ namespace GPUVerify {
 
       uint RaceyOffset = GetOffsetInBytes(CallCex);
 
-      ErrorWriteLine("\n" + SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
+      ErrorWriteLine("\n" + SourceInfoForSecondAccess.Top().GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
         CleanUpArrayName(DemangleName(RaceyArrayName)) + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
 
-      Console.Error.WriteLine(access2 + " by " + SpecificNameForThread() + " " + thread2 + " in " + SpecificNameForGroup() + " " + group2 + ", " + SourceInfoForSecondAccess);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(SourceInfoForSecondAccess.FetchCodeLine() + "\n", 2));
+      Console.Error.WriteLine(access2 + " by " + SpecificNameForThread() + " " + thread2 + " in " + SpecificNameForGroup() + " " + group2 + ", " + SourceInfoForSecondAccess.Top() + ":");
+      SourceInfoForSecondAccess.PrintStackTrace();
 
       Console.Error.Write(access1 + " by " + SpecificNameForThread() + " " + thread1 + " in " + SpecificNameForGroup() + " " + group1 + ", ");
       if(PossibleSourcesForFirstAccess.Count() == 1) {
-        Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0]);
-        GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(PossibleSourcesForFirstAccess.ToList()[0].FetchCodeLine() + "\n", 2));
+        Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0].Top() + ":");
+        PossibleSourcesForFirstAccess.ToList()[0].PrintStackTrace();
       } else if(PossibleSourcesForFirstAccess.Count() == 0) {
         Console.Error.WriteLine("from external source location\n");
       } else {
@@ -200,8 +200,8 @@ namespace GPUVerify {
         List<SourceLocationInfo> LocationsAsList = PossibleSourcesForFirstAccess.ToList();
         LocationsAsList.Sort(new SourceLocationInfo.SourceLocationInfoComparison());
         foreach(var sli in LocationsAsList) {
-          Console.Error.WriteLine(sli);
-          GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(sli.FetchCodeLine(), 2));
+          Console.Error.WriteLine(sli.Top() + ":");
+          sli.PrintStackTrace();
         }
         Console.WriteLine();
       }
@@ -517,9 +517,9 @@ namespace GPUVerify {
       int relevantThread = QKeyValue.FindIntAttribute(GetAttributes(failingAssert), "thread", -1);
       Debug.Assert(relevantThread == 1 || relevantThread == 2);
 
-      ErrorWriteLine(sli.ToString(), messagePrefix + " for " + SpecificNameForThread() + " " +
+      ErrorWriteLine(sli.Top() + ":", messagePrefix + " for " + SpecificNameForThread() + " " +
                      (relevantThread == 1 ? thread1 : thread2) + " in " + SpecificNameForGroup() + " " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      sli.PrintStackTrace();
       Console.Error.WriteLine();
     }
 
@@ -554,15 +554,15 @@ namespace GPUVerify {
     private static void ReportEnsuresFailure(Absy node) {
       Console.WriteLine();
       var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
-      ErrorWriteLine(sli.ToString(), "postcondition might not hold on all return paths", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      ErrorWriteLine(sli.Top() + ":", "postcondition might not hold on all return paths", ErrorMsgType.Error);
+      sli.PrintStackTrace();
     }
 
     private static void ReportBarrierDivergence(Absy node) {
       Console.WriteLine();
       var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
-      ErrorWriteLine(sli.ToString(), "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      ErrorWriteLine(sli.Top() + ":", "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
+      sli.PrintStackTrace();
     }
 
     private static void ReportRequiresFailure(Absy callNode, Absy reqNode) {
@@ -570,11 +570,11 @@ namespace GPUVerify {
       var CallSLI = new SourceLocationInfo(GetAttributes(callNode), GetSourceFileName(), callNode.tok);
       var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), GetSourceFileName(), reqNode.tok);
 
-      ErrorWriteLine(CallSLI.ToString(), "a precondition for this call might not hold", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine(), 2));
+      ErrorWriteLine(CallSLI.Top() + ":", "a precondition for this call might not hold", ErrorMsgType.Error);
+      CallSLI.PrintStackTrace();
 
-      ErrorWriteLine(RequiresSLI.ToString(), "this is the precondition that might not hold", ErrorMsgType.Note);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine(), 2));
+      ErrorWriteLine(RequiresSLI.Top() + ":", "this is the precondition that might not hold", ErrorMsgType.Note);
+      RequiresSLI.PrintStackTrace();
     }
 
     private static void GetThreadsAndGroupsFromModel(Model model, out string thread1, out string thread2, out string group1, out string group2, bool withSpaces) {
@@ -686,20 +686,6 @@ namespace GPUVerify {
       Debug.Assert(arrName != null);
       Debug.Assert(arrName.StartsWith("$$"));
       return arrName.Substring("$$".Length);
-    }
-
-    private static string TrimLeadingSpaces(string s1, int noOfSpaces) {
-      if (String.IsNullOrWhiteSpace(s1)) {
-        return s1;
-      }
-
-      int index;
-      for (index = 0; (index + 1) < s1.Length && Char.IsWhiteSpace(s1[index]); ++index) ;
-      string returnString = s1.Substring(index);
-      for (int i = noOfSpaces; i > 0; --i) {
-        returnString = " " + returnString;
-      }
-      return returnString;
     }
 
     public static void FixStateIds(Program Program) {
