@@ -40,19 +40,18 @@ namespace GPUVerify.InvariantGenerationRules
                     {
                         if (verifier.ContainsNamedVariable(modset, basicName))
                         {
-                            verifier.AddCandidateInvariant(region, MakePowerOfTwoExpr(v), "pow2Disj", InferenceStages.BASIC_CANDIDATE_STAGE);
-                            for (int i = (1 << 15); i > 0; i >>= 1)
-                            {
-                                verifier.AddCandidateInvariant(region,
-                                    verifier.IntRep.MakeSlt(
-                                    new IdentifierExpr(v.tok, v),
-                                    verifier.IntRep.GetLiteral(i, 32)),
-                                    "pow2Lt", InferenceStages.BASIC_CANDIDATE_STAGE);
-                            }
+                            var bitwiseInv = Expr.Or(
+                                Expr.Eq(new IdentifierExpr(v.tok,v), verifier.IntRep.GetLiteral(0,32)),
+                                Expr.Eq(verifier.IntRep.MakeAnd(
+                                    new IdentifierExpr(v.tok,v),
+                                    verifier.IntRep.MakeSub(new IdentifierExpr(v.tok,v), verifier.IntRep.GetLiteral(1,32))
+                                    ), verifier.IntRep.GetLiteral(0,32)));
+                            verifier.AddCandidateInvariant(region, bitwiseInv, "pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
+
                             verifier.AddCandidateInvariant(region,
                                 Expr.Neq(new IdentifierExpr(v.tok, v),
                                 verifier.IntRep.GetLiteral(0, 32)),
-                                "pow2Zero", InferenceStages.BASIC_CANDIDATE_STAGE);
+                                "pow2NotZero", InferenceStages.BASIC_CANDIDATE_STAGE);
                         }
                     }
                 }
@@ -76,20 +75,6 @@ namespace GPUVerify.InvariantGenerationRules
                     verifier.AddCandidateInvariant(region, disjInv, "relationalPow2", InferenceStages.BASIC_CANDIDATE_STAGE);
                 }
             }
-        }
-
-        private Expr MakePowerOfTwoExpr(Variable v)
-        {
-            Expr result = null;
-            for (int i = 1 << 15; i > 0; i >>= 1)
-            {
-                Expr eq = Expr.Eq(new IdentifierExpr(v.tok, v),
-                  verifier.IntRep.GetLiteral(i, 32));
-                result = (result == null ? eq : Expr.Or(eq, result));
-            }
-
-            return Expr.Or(Expr.Eq(new IdentifierExpr(v.tok, v),
-              verifier.IntRep.GetLiteral(0, 32)), result);
         }
 
     }
