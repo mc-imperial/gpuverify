@@ -193,7 +193,8 @@ clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
 clangOpenCLIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangOpenCLDefines = [ "cl_khr_fp64",
                        "cl_clang_storage_class_specifiers",
-                       "__OPENCL_VERSION__"
+                       "__OPENCL_VERSION__",
+                       "__OPENCL_32__"
                      ]
 
 clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
@@ -204,7 +205,7 @@ if os.name == "nt":
   clangCUDAOptions += ["-Xclang", "-cxx-abi", "-Xclang", "microsoft"]
 
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
-clangCUDADefines = [ "__CUDA_ARCH__" ]
+clangCUDADefines = [ "__CUDA_ARCH__",  "__CUDA_32__" ]
 
 """ Options for the tool """
 class DefaultCmdLineOptions(object):
