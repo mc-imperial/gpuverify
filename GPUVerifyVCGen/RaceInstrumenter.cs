@@ -180,7 +180,7 @@ namespace GPUVerify {
         // and upper bound for the access. i.e.,
         //   constant <= access <= constant[group-id+1/group-id]
         Variable groupId = groupIds.Single();
-        Expr groupIdPlusOne = verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), verifier.IntRep.GetLiteral(1,32));
+        Expr groupIdPlusOne = verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), verifier.IntRep.GetLiteral(1, verifier.size_t_bits));
         Dictionary<Variable, Expr> substs = new Dictionary<Variable, Expr>();
         substs.Add(groupId, groupIdPlusOne);
         Substitution s = Substituter.SubstitutionFromHashtable(substs);
@@ -759,7 +759,7 @@ namespace GPUVerify {
       Debug.Assert(mt.Arguments.Count == 1);
 
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
-      Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, AccessType.WRITE, verifier.IntRep.GetIntType(32));
+      Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, AccessType.WRITE, verifier.IntRep.GetIntType(verifier.size_t_bits));
       Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
@@ -860,7 +860,7 @@ namespace GPUVerify {
     protected void AddCheckAccessCheck(Variable v, Procedure CheckAccessProcedure, Variable PredicateParameter, Variable OffsetParameter, Expr NoBenignTest, AccessType Access, String attribute) {
       // Check atomic by thread 2 does not conflict with read by thread 1
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32));
+      Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
 
       Expr AccessGuard = new IdentifierExpr(Token.NoToken, PredicateParameter);
       AccessGuard = Expr.And(AccessGuard, new IdentifierExpr(Token.NoToken, AccessHasOccurredVariable));
@@ -969,7 +969,7 @@ namespace GPUVerify {
     private Expr AccessedOffsetIsThreadLocalIdExpr(Variable v, AccessType Access) {
       return Expr.Imp(
                 new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access)),
-                Expr.Eq(new IdentifierExpr(v.tok, RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32))), 
+                Expr.Eq(new IdentifierExpr(v.tok, RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits))), 
                   new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", 1))));
     }
 
@@ -1000,7 +1000,7 @@ namespace GPUVerify {
     }
 
     private IdentifierExpr OffsetXExpr(Variable v, AccessType Access, int Thread) {
-      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32))));
+      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits))));
     }
 
     protected void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, AccessType Access) {

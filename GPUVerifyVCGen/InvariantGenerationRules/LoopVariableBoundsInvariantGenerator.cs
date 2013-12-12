@@ -57,7 +57,9 @@ namespace GPUVerify.InvariantGenerationRules
 
         private bool IsBVType(Microsoft.Boogie.Type type)
         {
-            return type.Equals(Microsoft.Boogie.Type.GetBvType(32))
+            // TODO: can this be made more general?
+            return type.Equals(Microsoft.Boogie.Type.GetBvType(64))
+                || type.Equals(Microsoft.Boogie.Type.GetBvType(32))
                 || type.Equals(Microsoft.Boogie.Type.GetBvType(16))
                 || type.Equals(Microsoft.Boogie.Type.GetBvType(8));
         }

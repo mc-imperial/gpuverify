@@ -227,9 +227,9 @@ namespace GPUVerify
             p = new Procedure(Token.NoToken, "barrier_invariant_instantiation", new List<TypeVariable>(),
                               new List<Variable>(new Variable[] {
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1",
-                                      IntRep.GetIntType(32)), true),
+                                      IntRep.GetIntType(size_t_bits)), true),
                                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2",
-                                      IntRep.GetIntType(32)), true)
+                                      IntRep.GetIntType(size_t_bits)), true)
                               }),
                               new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(),
                               new List<Ensures>(),
@@ -1513,7 +1513,7 @@ namespace GPUVerify
                 return g;
               }
             }
-            Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, Access, IntRep.GetIntType(32));
+            Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, Access, IntRep.GetIntType(size_t_bits));
             Program.TopLevelDeclarations.Add(result);
             return result;
         }
@@ -1562,11 +1562,6 @@ namespace GPUVerify
         internal static IdentifierExpr MakeAccessHasOccurredExpr(string varName, AccessType Access)
         {
             return new IdentifierExpr(Token.NoToken, MakeAccessHasOccurredVariable(varName, Access));
-        }
-
-        internal static bool IsIntOrBv32(Microsoft.Boogie.Type type)
-        {
-            return type.Equals(Microsoft.Boogie.Type.Int) || type.Equals(Microsoft.Boogie.Type.GetBvType(32));
         }
 
         private void MakeKernelDualised()
@@ -1932,10 +1927,10 @@ namespace GPUVerify
           Microsoft.Boogie.Type mapType = new MapType(
             Token.NoToken,
             new List<TypeVariable>(), 
-            new List<Microsoft.Boogie.Type> { IntRep.GetIntType(32) },
+            new List<Microsoft.Boogie.Type> { IntRep.GetIntType(size_t_bits) },
             new MapType(Token.NoToken,
                         new List<TypeVariable>(),
-                        new List<Microsoft.Boogie.Type> { IntRep.GetIntType(32) },
+                        new List<Microsoft.Boogie.Type> { IntRep.GetIntType(size_t_bits) },
                         Microsoft.Boogie.Type.Bool));
           GlobalVariable usedMap = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, name, mapType));
           usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(new object [] {}), null);
@@ -2013,7 +2008,7 @@ namespace GPUVerify
                 thenblocks.AddRange(MakeHavocBlocks(new Variable[] {v}));
               }
 
-              Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
+              Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv" + size_t_bits, new BvType(size_t_bits));
 
               Expr[] tids = (new int[] {1,2}).Select(x =>
                   IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",x)),IntRep.MakeAdd(
