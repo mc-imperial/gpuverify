@@ -135,7 +135,8 @@ namespace GPUVerify
     }
 
     public Expr MakeModPow2(Expr lhs, Expr rhs) {
-      return MakeAnd(MakeSub(rhs, GetLiteral(1, 32)), lhs);
+      var BVType = rhs.Type as BvType;
+      return MakeAnd(MakeSub(rhs, GetLiteral(1, BVType.Bits)), lhs);
     }
 
     public bool IsAdd(Expr e, out Expr lhs, out Expr rhs) {

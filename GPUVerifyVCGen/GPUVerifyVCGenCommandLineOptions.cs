@@ -51,6 +51,7 @@ namespace GPUVerify
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
+    public static int size_t_bits = 32;
 
     public static int Parse(string[] args)
     {
@@ -259,6 +260,16 @@ namespace GPUVerify
           } else {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
           }
+          break;
+
+          case "-sizeTBits":
+          case "/sizeTBits":
+          if (!hasColonArgument)
+          {
+            Console.WriteLine("Error: sizeTBits requires an integer argument");
+            Environment.Exit(1);
+          }
+          size_t_bits = Convert.ToInt32(afterColon);
           break;
 
           default:

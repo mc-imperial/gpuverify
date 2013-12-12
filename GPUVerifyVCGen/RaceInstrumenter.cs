@@ -118,7 +118,7 @@ namespace GPUVerify {
     }
 
     private List<Expr> CollectOffsetPredicates(Implementation impl, IRegion region, Variable v, AccessType Access) {
-      var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(32));
+      var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
       var offsetExpr = new IdentifierExpr(Token.NoToken, offsetVar);
       var offsetPreds = new List<Expr>();
 

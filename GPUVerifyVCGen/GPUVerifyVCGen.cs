@@ -116,7 +116,7 @@ namespace GPUVerify
             }
             ResolutionContext rc;
             Program program = parse(out rc);
-            new GPUVerifier(fn, program, rc).doit();
+            new GPUVerifier(fn, program, rc, GPUVerifyVCGenCommandLineOptions.size_t_bits).doit();
         }
 
         public static Program ParseBoogieProgram(List<string> fileNames, bool suppressTraceOutput)

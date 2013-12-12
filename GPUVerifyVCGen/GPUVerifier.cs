@@ -44,6 +44,8 @@ namespace GPUVerify
 
         private HashSet<string> ReservedNames = new HashSet<string>();
 
+        public readonly int size_t_bits;
+
         internal HashSet<string> OnlyThread1 = new HashSet<string>();
         internal HashSet<string> OnlyThread2 = new HashSet<string>();
 
@@ -91,12 +93,13 @@ namespace GPUVerify
         internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
         internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
 
-        internal GPUVerifier(string filename, Program program, ResolutionContext rc)
+        internal GPUVerifier(string filename, Program program, ResolutionContext rc, int size_t_bits)
             : base((IErrorSink)null)
         {
             this.outputFilename = filename;
             this.Program = program;
             this.ResContext = rc;
+            this.size_t_bits = size_t_bits;
             this.IntRep = GPUVerifyVCGenCommandLineOptions.MathInt ?
                 (IntegerRepresentation)new MathIntegerRepresentation(this) :
                 (IntegerRepresentation)new BVIntegerRepresentation(this);
@@ -304,7 +307,7 @@ namespace GPUVerify
             if (constFieldRef == null)
             {
                 constFieldRef = new Constant(Token.NoToken,
-                  new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(32)), /*unique=*/false);
+                  new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(size_t_bits)), /*unique=*/false);
                 constFieldRef.AddAttribute(attr);
                 Program.TopLevelDeclarations.Add(constFieldRef);
             }
@@ -400,9 +403,9 @@ namespace GPUVerify
 
         private void CheckSpecialConstantType(Constant C)
         {
-            if (!(C.TypedIdent.Type.Equals(Microsoft.Boogie.Type.Int) || C.TypedIdent.Type.Equals(Microsoft.Boogie.Type.GetBvType(32))))
+            if (!(C.TypedIdent.Type.Equals(Microsoft.Boogie.Type.Int) || C.TypedIdent.Type is Microsoft.Boogie.BvType))
             {
-                Error(C.tok, "Special constant '" + C.Name + "' must have type 'int' or 'bv32'");
+                Error(C.tok, "Special constant '" + C.Name + "' must have type 'int' or 'bv'");
             }
         }
 
@@ -1081,7 +1084,7 @@ namespace GPUVerify
         }
 
         internal LiteralExpr Zero() {
-          return IntRep.GetLiteral(0, 32);
+          return IntRep.GetLiteral(0, size_t_bits);
         }
 
         private void GeneratePreconditionsForDimension(String dimension)
