@@ -1915,7 +1915,7 @@ namespace GPUVerify
           }
         }
 
-        internal GlobalVariable FindOrCreateUsedMap(string arrayName)
+        internal GlobalVariable FindOrCreateUsedMap(string arrayName, Microsoft.Boogie.Type elementType)
         {
           string name = "_USED_" + arrayName;
 
@@ -1930,7 +1930,7 @@ namespace GPUVerify
             new List<Microsoft.Boogie.Type> { IntRep.GetIntType(size_t_bits) },
             new MapType(Token.NoToken,
                         new List<TypeVariable>(),
-                        new List<Microsoft.Boogie.Type> { IntRep.GetIntType(size_t_bits) },
+                        new List<Microsoft.Boogie.Type> { elementType },
                         Microsoft.Boogie.Type.Bool));
           GlobalVariable usedMap = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, name, mapType));
           usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(new object [] {}), null);

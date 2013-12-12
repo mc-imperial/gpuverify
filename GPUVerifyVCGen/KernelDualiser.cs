@@ -353,10 +353,10 @@ namespace GPUVerify {
 
           Expr variable = QKeyValue.FindExprAttribute(ass.Attributes, "variable");
           Expr offset = QKeyValue.FindExprAttribute(ass.Attributes, "offset");
-          IdentifierExpr arrayref = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateUsedMap(QKeyValue.FindStringAttribute(ass.Attributes, "arrayref")));
 
           List<Expr> offsets = (new int[] { 1, 2 }).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(offset.Clone() as Expr)).ToList();
           List<Expr> vars = (new int[] { 1, 2 }).Select(x => new VariableDualiser(x, verifier.uniformityAnalyser, procName).VisitExpr(variable.Clone() as Expr)).ToList();
+          IdentifierExpr arrayref = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateUsedMap(QKeyValue.FindStringAttribute(ass.Attributes, "arrayref"), vars[0].Type));
 
           foreach (int i in (new int[] { 0, 1 })) {
             AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Not(new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
