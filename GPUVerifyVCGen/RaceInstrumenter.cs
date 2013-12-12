@@ -506,6 +506,9 @@ namespace GPUVerify {
     }
 
     private CallCmd MakeCheckCall(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
+      if(SourceLocationAttributes == null) {
+        ExitWithNoSourceError(ar.v, Access);
+      }
       List<Expr> inParamsChk = new List<Expr>();
       inParamsChk.Add(ar.Index);
       MaybeAddValueParameter(inParamsChk, ar, Value, Access);
@@ -529,6 +532,9 @@ namespace GPUVerify {
     }
 
     private CallCmd MakeLogCall(AccessRecord ar, AccessType Access, Expr Value) {
+      if(SourceLocationAttributes == null) {
+        ExitWithNoSourceError(ar.v, Access);
+      }
       List<Expr> inParamsLog = new List<Expr>();
       inParamsLog.Add(ar.Index);
       MaybeAddValueParameter(inParamsLog, ar, Value, Access);
@@ -1028,6 +1034,13 @@ namespace GPUVerify {
       verifier.AddCandidateEnsures(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
     }
 
+    private void ExitWithNoSourceError(Variable v, AccessType Access)
+    {
+      Console.Error.WriteLine("No source location information available when processing " + 
+        Access + " operation on " + v + " at " + GPUVerifyVCGenCommandLineOptions.inputFiles[0] + ":" + 
+        v.tok.line + ":" + v.tok.col + ".  Aborting.");
+      Environment.Exit(1);
+    }
 
 
   }
