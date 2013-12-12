@@ -41,7 +41,7 @@ namespace GPUVerify.InvariantGenerationRules
                         continue;
                     }
 
-                    if (IsBVType (v.TypedIdent.Type))
+                    if (LoopInvariantGenerator.IsBVType (v.TypedIdent.Type))
                     {
                         int BVWidth = (v.TypedIdent.Type as BvType).Bits;
 
@@ -53,15 +53,6 @@ namespace GPUVerify.InvariantGenerationRules
                     }
                 }
             }
-        }
-
-        private bool IsBVType(Microsoft.Boogie.Type type)
-        {
-            // TODO: can this be made more general?
-            return type.Equals(Microsoft.Boogie.Type.GetBvType(64))
-                || type.Equals(Microsoft.Boogie.Type.GetBvType(32))
-                || type.Equals(Microsoft.Boogie.Type.GetBvType(16))
-                || type.Equals(Microsoft.Boogie.Type.GetBvType(8));
         }
 
     }

@@ -68,7 +68,7 @@ namespace GPUVerify {
                        !formals.Contains(x.Name) && 
                        modset.Contains(x.Name) &&
                        !verifier.uniformityAnalyser.IsUniform(impl.Name, x.Name) &&
-                       x.TypedIdent.Type.Equals(Microsoft.Boogie.Type.GetBvType(32))
+                       x.TypedIdent.Type.Equals(Microsoft.Boogie.Type.GetBvType(verifier.size_t_bits))
                 )
             );
         }
@@ -148,9 +148,10 @@ namespace GPUVerify {
         }
     }
 
-    private static bool IsBVType(Microsoft.Boogie.Type type)
+    internal static bool IsBVType(Microsoft.Boogie.Type type)
     {
-        return type.Equals(Microsoft.Boogie.Type.GetBvType(32))
+        return type.Equals(Microsoft.Boogie.Type.GetBvType(64))
+            || type.Equals(Microsoft.Boogie.Type.GetBvType(32))
             || type.Equals(Microsoft.Boogie.Type.GetBvType(16))
             || type.Equals(Microsoft.Boogie.Type.GetBvType(8));
     }
@@ -160,7 +161,7 @@ namespace GPUVerify {
       foreach (string lc in rsa.StridedLoopCounters(region.Identifier())) {
         var sc = rsa.GetStrideConstraint(lc);
         Variable lcVariable = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lc,
-                Microsoft.Boogie.Type.GetBvType(32)));
+                Microsoft.Boogie.Type.GetBvType(verifier.size_t_bits)));
         var lcExpr = new IdentifierExpr(Token.NoToken, lcVariable);
         var lcPred = sc.MaybeBuildPredicate(verifier, lcExpr);
 
