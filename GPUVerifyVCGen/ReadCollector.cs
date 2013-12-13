@@ -43,6 +43,16 @@ namespace GPUVerify
                     MultiDimensionalMapError();
                 }
 
+                if(!(node.Args[0] is IdentifierExpr)) {
+                  // This should only happen if the map is one of the special _USED maps for atomics
+                  var NodeArgs0 = node.Args[0] as NAryExpr;
+                  Debug.Assert(NodeArgs0 != null);
+                  Debug.Assert(NodeArgs0.Fun is MapSelect);
+                  Debug.Assert(NodeArgs0.Args[0] is IdentifierExpr);
+                  Debug.Assert(((IdentifierExpr)NodeArgs0.Args[0]).Name.StartsWith("_USED"));
+                  return base.VisitNAryExpr(node);
+                }
+
                 Debug.Assert(node.Args[0] is IdentifierExpr);
                 var ReadVariable = (node.Args[0] as IdentifierExpr).Decl;
                 var Index = node.Args[1];
