@@ -160,8 +160,7 @@ namespace GPUVerify {
       var rsa = verifier.reducedStrengthAnalyses[impl];
       foreach (string lc in rsa.StridedLoopCounters(region.Identifier())) {
         var sc = rsa.GetStrideConstraint(lc);
-        Variable lcVariable = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lc,
-                Microsoft.Boogie.Type.GetBvType(verifier.size_t_bits)));
+        Variable lcVariable = impl.LocVars.Where(Item => Item.Name == lc).ToList()[0];
         var lcExpr = new IdentifierExpr(Token.NoToken, lcVariable);
         var lcPred = sc.MaybeBuildPredicate(verifier, lcExpr);
 
