@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
-
+from __future__ import print_function
 import getopt
 import os
 import signal
@@ -125,7 +125,8 @@ class BatchCaller(object):
 cleanUpHandler = BatchCaller()
 
 """ Timing for the toolchain pipeline """
-Timing = []
+Tools = ["clang", "opt", "bugle", "gpuverifyvcgen", "gpuverifycruncher", "gpuverifyboogiedriver"]
+Timing = {}
 
 """ WindowsError is not defined on UNIX systems, this works around that """
 try:
@@ -382,6 +383,7 @@ def RunTool(ToolName, Command, ErrorCode, timeout=0):
   """ Run a tool.
       If the timeout is set to 0 then there will be no timeout.
   """
+  assert ToolName in Tools
   Verbose("Running " + ToolName)
   try:
     start = timeit.default_timer()
@@ -389,7 +391,7 @@ def RunTool(ToolName, Command, ErrorCode, timeout=0):
     end = timeit.default_timer()
   except Timeout:
     if CommandLineOptions.time:
-      Timing.append((ToolName, timeout))
+      Timing[ToolName] = timeout
     raise GPUVerifyException(ErrorCodes.TIMEOUT, ToolName + " timed out. " + \
                              "Use --timeout=N with N > " + str(timeout)    + \
                              " to increase timeout, or --timeout=0 to "    + \
@@ -400,8 +402,9 @@ def RunTool(ToolName, Command, ErrorCode, timeout=0):
                              pprint.pformat(Command))
 
   if CommandLineOptions.time:
-    Timing.append((ToolName, end-start))
+    Timing[ToolName] = end-start
   if returnCode != ErrorCodes.SUCCESS:
+    if CommandLineOptions.silent and stdout: print(stdout, file=sys.stderr)
     raise GPUVerifyException(ErrorCode, stdout)
 
 def showVersionAndExit():
@@ -1130,31 +1133,27 @@ def _main(argv):
   return 0
 
 def showTiming(exitCode):
-  if Timing:
-    tools, times = map(list, zip(*Timing))
-    total = sum(times)
-  else:
-    tools, times = [], []
-    total = 0.0
-
   if CommandLineOptions.timeCSVLabel is not None:
-    label = CommandLineOptions.timeCSVLabel
+    times = [ Timing.get(tool, 0.0) for tool in Tools ]
+    total = sum(times)
     times.append(total)
     row = [ '%.3f' % t for t in times ]
+    label = CommandLineOptions.timeCSVLabel
     if len(label) > 0: row.insert(0, label)
     if exitCode is ErrorCodes.SUCCESS:
       row.insert(1,'PASS')
-      print(', '.join(row))
     else:
       row.insert(1,'FAIL(' + str(exitCode) + ')')
-      print >> sys.stderr, ', '.join(row)
+    print(','.join(row))
   else:
+    total = sum(Timing.values())
     print("Timing information (%.2f secs):" % total)
-    if tools:
-      padTool = max([ len(tool) for tool in tools ])
-      padTime = max([ len('%.3f secs' % t) for t in times ])
-      for (tool, t) in Timing:
-        print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime)))
+    if Timing:
+      padTool = max([ len(tool) for tool in Timing.keys() ])
+      padTime = max([ len('%.3f secs' % t) for t in Timing.values() ])
+      for tool in Tools:
+        if tool in Timing:
+          print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % Timing[tool]).rjust(padTime)))
     else:
       print("- no tools ran")
 
@@ -1252,10 +1251,10 @@ if __name__ == '__main__':
     if (not (e.getExitCode() in ignoredErrors)) or CommandLineOptions.debugging:
       if e.getExitCode() == ErrorCodes.COMMAND_LINE_ERROR:
         # For command line errors only show the message and not internal details
-        print('GPUVerify: {0}'.format(e.msg))
+        print('GPUVerify: {0}'.format(e.msg), file=sys.stderr)
       else:
         # Show all exception info for everything else not ignored
-        print(str(e))
+        print(str(e), file=sys.stderr)
     sys.exit(e.getExitCode())
 
   sys.exit(ErrorCodes.SUCCESS)

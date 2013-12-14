@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 # vim: set shiftwidth=4 tabstop=4 expandtab softtabstop=4:
+from __future__ import print_function
 import os
 import sys
 import argparse
@@ -215,11 +216,11 @@ class GPUVerifyTestKernel(object):
 
             processInstance=subprocess.Popen(cmdLine,
                                              stdout=subprocess.PIPE,
-                                             stderr=subprocess.STDOUT,
+                                             stderr=subprocess.PIPE,
                                              cwd=os.path.dirname(self.path),
                                              preexec_fn=_posixSession
                                             )
-            stdout, _IGNORED = processInstance.communicate() #Allow program to run and wait for it to exit.
+            stdout, stderr = processInstance.communicate() #Allow program to run and wait for it to exit.
 
         except KeyboardInterrupt:
             logging.error("Received keyboard interrupt. Attempting to kill GPUVerify process")
@@ -228,6 +229,7 @@ class GPUVerifyTestKernel(object):
 
         # Handle byte/str issue in python 3.
         stdout = stdout.decode()
+        stderr = stderr.decode()
 
         #Record the true return code of GPUVerify
         if processInstance.returncode < 0:
@@ -244,7 +246,7 @@ class GPUVerifyTestKernel(object):
         if self.gpuverifyReturnCode == self.expectedReturnCode:
             for regexToMatch in self.regex.keys():
                 matcher=re.compile(regexToMatch, re.MULTILINE) #Allow ^ to match the beginning of multiple lines
-                if matcher.search(stdout) == None :
+                if matcher.search(stdout) == None and matcher.search(stderr) == None:
                     self.regex[regexToMatch]=False
                     logging.error(self.path + ": Regex \"" + regexToMatch + "\" failed to match output!")
                 else:
@@ -275,7 +277,7 @@ class GPUVerifyTestKernel(object):
 
         if self.timeAsCSV:
             #Print csv output for user to see
-            self.csvFile.write(stdout.split('\n')[-2] + "\n")
+            self.csvFile.write(stdout)
             self.csvFile.flush()
         del self.csvFile # We cannot serialise this object so we need to remove it from this class!
 
@@ -759,7 +761,7 @@ def main(arg):
     logging.info("Running tests...")
 
     if args.time_as_csv:
-        print("kernel, status, clang, opt, bugle, vcgen, cruncher, boogiedriver, total")
+        print("kernel,status,clang,opt,bugle,vcgen,cruncher,boogiedriver,total", file=csvFile)
 
     start = time.time()
     for test in tests:
