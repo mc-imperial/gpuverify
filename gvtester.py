@@ -652,6 +652,7 @@ def main(arg):
                         metavar='GPUVerifyCmdLineOption')
     parser.add_argument("--time-as-csv", action="store_true", default=False, help="Print timing of each test as CSV")
     parser.add_argument("--csv-file", type=str, default=None, help="Write timing data to a file (Note: requires --time-as-csv to be enabled)")
+    parser.add_argument("--stop-on-fail", action="store_true", default=False, help="Stop on first failure")
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
