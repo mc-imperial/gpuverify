@@ -133,10 +133,10 @@ namespace GPUVerify {
             visitor.Visit(nary);
             nonnegVars.UnionWith(
                 visitor.GetVariables().Where(
-                  x => x.Name.StartsWith("$") && 
-                       !formals.Contains(x.Name) && 
+                  x => x.Name.StartsWith("$") &&
+                       !formals.Contains(x.Name) &&
                        modset.Contains(x.Name) &&
-                       IsBVType(x.TypedIdent.Type)
+                       x.TypedIdent.Type.IsBv
                 )
             );
         }
@@ -146,14 +146,6 @@ namespace GPUVerify {
             var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetLiteral(0,BVWidth), new IdentifierExpr(v.tok, v));
             verifier.AddCandidateInvariant(region, inv, "guardNonNeg", InferenceStages.BASIC_CANDIDATE_STAGE);
         }
-    }
-
-    internal static bool IsBVType(Microsoft.Boogie.Type type)
-    {
-        return type.Equals(Microsoft.Boogie.Type.GetBvType(64))
-            || type.Equals(Microsoft.Boogie.Type.GetBvType(32))
-            || type.Equals(Microsoft.Boogie.Type.GetBvType(16))
-            || type.Equals(Microsoft.Boogie.Type.GetBvType(8));
     }
 
     private static void GenerateCandidateForReducedStrengthStrideVariables(GPUVerifier verifier, Implementation impl, IRegion region) {

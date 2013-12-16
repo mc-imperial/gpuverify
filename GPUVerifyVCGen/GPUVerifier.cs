@@ -44,6 +44,7 @@ namespace GPUVerify
 
         private HashSet<string> ReservedNames = new HashSet<string>();
 
+        internal const string _SIZE_T_BITS_TYPE = "_SIZE_T_TYPE";
         public readonly int size_t_bits;
 
         internal HashSet<string> OnlyThread1 = new HashSet<string>();
@@ -93,16 +94,17 @@ namespace GPUVerify
         internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
         internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
 
-        internal GPUVerifier(string filename, Program program, ResolutionContext rc, int size_t_bits)
+        internal GPUVerifier(string filename, Program program, ResolutionContext rc)
             : base((IErrorSink)null)
         {
             this.outputFilename = filename;
             this.Program = program;
             this.ResContext = rc;
-            this.size_t_bits = size_t_bits;
             this.IntRep = GPUVerifyVCGenCommandLineOptions.MathInt ?
                 (IntegerRepresentation)new MathIntegerRepresentation(this) :
                 (IntegerRepresentation)new BVIntegerRepresentation(this);
+
+            this.size_t_bits = SetSizeTBits();
 
             Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
 
@@ -165,6 +167,29 @@ namespace GPUVerify
                   }
               }
             }
+        }
+
+        private int SetSizeTBits()
+        {
+            bool found = false;
+            int bits = 0;
+            foreach (Declaration D in Program.TopLevelDeclarations) {
+                if (D is TypeSynonymDecl &&
+                    (D as TypeSynonymDecl).Name == _SIZE_T_BITS_TYPE) {
+                    var T = (D as TypeSynonymDecl).Body;
+                    if (T.IsBv) {
+                        bits = T.BvBits;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (!found) {
+                Console.WriteLine("GPUVerify: error: No valid _SIZE_T_TYPE found");
+                Environment.Exit(1);
+            }
+            Debug.Assert(found);
+            return bits;
         }
 
         private Dictionary<Procedure, Implementation> GetKernelProcedures()
@@ -403,7 +428,7 @@ namespace GPUVerify
 
         private void CheckSpecialConstantType(Constant C)
         {
-            if (!(C.TypedIdent.Type.Equals(Microsoft.Boogie.Type.Int) || C.TypedIdent.Type is Microsoft.Boogie.BvType))
+            if (!(C.TypedIdent.Type.IsInt || C.TypedIdent.Type.IsBv))
             {
                 Error(C.tok, "Special constant '" + C.Name + "' must have type 'int' or 'bv'");
             }
