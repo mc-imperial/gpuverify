@@ -155,10 +155,9 @@ class SourceLanguage(object):
 
 clangCoreIncludes = [ gvfindtools.bugleSrcDir + "/include-blang" ]
 
-clangCoreDefines = []
+clangCoreDefines = [ ]
 
-clangCoreOptions = [ "-target", "nvptx--bugle",
-                     "-Wall",
+clangCoreOptions = [ "-Wall",
                      "-g",
                      "-gcolumn-info",
                      "-emit-llvm",
@@ -187,15 +186,12 @@ else:
 
 clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                        "-O0",
-                       "-Xclang", "-mlink-bitcode-file",
-                       "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--bugle.bc",
                        "-include", "opencl.h"
                      ]
 clangOpenCLIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangOpenCLDefines = [ "cl_khr_fp64",
                        "cl_clang_storage_class_specifiers",
-                       "__OPENCL_VERSION__",
-                       "__OPENCL_32__"
+                       "__OPENCL_VERSION__"
                      ]
 
 clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
@@ -206,7 +202,7 @@ if os.name == "nt":
   clangCUDAOptions += ["-Xclang", "-cxx-abi", "-Xclang", "microsoft"]
 
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
-clangCUDADefines = [ "__CUDA_ARCH__",  "__CUDA_32__" ]
+clangCUDADefines = [ "__CUDA_ARCH__" ]
 
 """ Options for the tool """
 class DefaultCmdLineOptions(object):
@@ -271,6 +267,8 @@ class DefaultCmdLineOptions(object):
     self.warpSync = False
     self.warpSize = 32
     self.atomic = "rw"
+    self.sizeSizeT = 32
+    self.sizeSizeTSet = False
     self.noRefinedAtomics = False
     self.solver = "z3"
     self.raceInstrumenter = "standard"
@@ -718,6 +716,16 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.atomic = a.lower()
       else:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --atomic must be 'r','w','rw', or 'none'")
+    if o == "--32-bit":
+      if CommandLineOptions.sizeSizeTSet:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to specify size for size_t multiple times")
+      CommandLineOptions.sizeSizeTSet = True
+      CommandLineOptions.sizeSizeT = 32
+    if o == "--64-bit":
+      if CommandLineOptions.sizeSizeTSet:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to specify size for size_t multiple times")
+      CommandLineOptions.sizeSizeTSet = True
+      CommandLineOptions.sizeSizeT = 64
     if o == "--solver":
       if a.lower() in ("z3","cvc4"):
         CommandLineOptions.solver = a.lower()
@@ -854,6 +862,7 @@ def _main(argv):
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
               'solver=', 'logic=', 'race-instrumenter=', 'omit-infer=',
+              '32-bit', '64-bit'
              ])
   except getopt.GetoptError as getoptError:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, getoptError.msg + ".  Try --help for list of options")
@@ -871,6 +880,14 @@ def _main(argv):
 
   filename, ext = SplitFilenameExt(args[0])
 
+  CommandLineOptions.defines += [ '__BUGLE_' + str(CommandLineOptions.sizeSizeT) + '__' ]
+  if (CommandLineOptions.sizeSizeT == 32):
+    CommandLineOptions.clangOptions += [ "-target", "nvptx--bugle" ]
+  elif (CommandLineOptions.sizeSizeT == 64):
+    CommandLineOptions.clangOptions += [ "-target", "nvptx64--bugle" ]
+  else:
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "unknown size_t size '" + str(CommandLineOptions.sizeSizeT) + "'")
+
   if ext == ".cl":
     CommandLineOptions.clangOptions += clangOpenCLOptions
     CommandLineOptions.clangOptions += clangInlineOptions
@@ -880,6 +897,12 @@ def _main(argv):
     CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
     CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
     CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    if (CommandLineOptions.sizeSizeT == 32):
+      CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
+                                           "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--bugle.bc" ]
+    elif (CommandLineOptions.sizeSizeT == 64):
+      CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
+                                           "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx64--bugle.bc" ]
 
   elif ext == ".cu":
     CommandLineOptions.clangOptions += clangCUDAOptions
@@ -984,11 +1007,11 @@ def _main(argv):
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
-  
+
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyCruncherOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
-    
+
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/noinfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/contractInfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
@@ -1006,7 +1029,7 @@ def _main(argv):
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicAnalysis" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
-  
+
   if CommandLineOptions.solver == "cvc4":
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:SOLVER=cvc4" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
@@ -1028,7 +1051,7 @@ def _main(argv):
     if CommandLineOptions.solver == "z3":
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
-  
+
   CommandLineOptions.gpuVerifyCruncherOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyBoogieDriverOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/invInferConfigFile:" + os.path.dirname(os.path.abspath(__file__)) + os.sep + CommandLineOptions.invInferConfigFile ]
@@ -1044,7 +1067,7 @@ def _main(argv):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
-  
+
   if CommandLineOptions.inference and (not CommandLineOptions.mode == AnalysisMode.FINDBUGS):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ cbplFilename ]
   else:
