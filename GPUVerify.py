@@ -444,6 +444,8 @@ def showHelpAndExit():
     --version               Show version information.
 
   ADVANCED OPTIONS:
+    --32-bit                Assume 32-bit pointer size
+    --64-bit                Assume 64-bit pointer size
     --adversarial-abstraction  Completely abstract shared state, so that reads are
                             nondeterministic
     --array-equalities      Generate equality candidate invariants for array variables
