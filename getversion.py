@@ -30,12 +30,12 @@ def getVersionStringFromRepos():
     for tool, path in [ ('llvm', gvfindtools.llvmSrcDir),
                         ('bugle', gvfindtools.bugleSrcDir),
                         ('libclc', gvfindtools.libclcSrcDir),
-                        ('vcgen', sys.path[0]),
+                        ('vcgen', os.path.realpath(__file__)),
                         ('z3', gvfindtools.z3SrcDir),
                         ('cvc4', gvfindtools.cvc4SrcDir) ]:
       if os.path.isdir(path):
         vs.append(tool.ljust(9) + ": " + getsha(path))
-    return '\n'.join(vs)
+    return '\n'.join(vs) + '\n'
   except:
     return GPUVerifyRevisionErrorMessage
 
@@ -53,7 +53,7 @@ def getVersionString():
     vs += "Development version\n"
     vs += getVersionStringFromRepos() 
   else:
-    vs +="Deployment version\nBuilt from "
+    vs +="Deployment version\nBuilt from\n"
 
     errorMessage = "Error Could not read version from file " + GPUVerifyDeployVersionFile + "\n"
     #Try to open file
