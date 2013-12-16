@@ -160,7 +160,7 @@ namespace GPUVerify {
         Console.Error.WriteLine(id == 1 ? " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")" :
                                (id == 2 ? " (" + SpecificNameForThread() + " " + thread2 + ", " + SpecificNameForGroup() + " " + group2 + ")" : ""));
       }
-      Console.WriteLine();
+      Console.Error.WriteLine();
     }
 
     private void ReportRace(CallCounterexample CallCex) {
@@ -203,7 +203,7 @@ namespace GPUVerify {
           Console.Error.WriteLine(sli.Top() + ":");
           sli.PrintStackTrace();
         }
-        Console.WriteLine();
+        Console.Error.WriteLine();
       }
     }
 
@@ -511,7 +511,7 @@ namespace GPUVerify {
 
       AssertCmd failingAssert = err.FailingAssert;
 
-      Console.WriteLine("");
+      Console.Error.WriteLine();
       var sli = new SourceLocationInfo(GetAttributes(failingAssert), GetSourceFileName(), failingAssert.tok);
 
       int relevantThread = QKeyValue.FindIntAttribute(GetAttributes(failingAssert), "thread", -1);
@@ -552,21 +552,21 @@ namespace GPUVerify {
     }
 
     private static void ReportEnsuresFailure(Absy node) {
-      Console.WriteLine();
+      Console.Error.WriteLine();
       var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
       ErrorWriteLine(sli.Top() + ":", "postcondition might not hold on all return paths", ErrorMsgType.Error);
       sli.PrintStackTrace();
     }
 
     private static void ReportBarrierDivergence(Absy node) {
-      Console.WriteLine();
+      Console.Error.WriteLine();
       var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
       ErrorWriteLine(sli.Top() + ":", "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
       sli.PrintStackTrace();
     }
 
     private static void ReportRequiresFailure(Absy callNode, Absy reqNode) {
-      Console.WriteLine();
+      Console.Error.WriteLine();
       var CallSLI = new SourceLocationInfo(GetAttributes(callNode), GetSourceFileName(), callNode.tok);
       var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), GetSourceFileName(), reqNode.tok);
 

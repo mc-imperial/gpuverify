@@ -47,10 +47,10 @@ namespace GPUVerify {
 
       public string GetDirectory() {
         return directory;
-      }
-
-      public override string ToString()
-      {
+      }
+
+      public override string ToString()
+      {
         return GetFile() + ":" + GetLine() + ":" + GetColumn();
       }
 
@@ -182,10 +182,10 @@ namespace GPUVerify {
     public void PrintStackTrace() {
       GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(0), 2));
       for(int i = 1; i < Count(); i++) {
-        Console.WriteLine("invoked from " + records[i] + ":");
+        Console.Error.WriteLine("invoked from " + records[i] + ":");
         GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(i), 2));
       }
-      Console.WriteLine();
+      Console.Error.WriteLine();
     }
 
     private static string TrimLeadingSpaces(string s1, int noOfSpaces) {

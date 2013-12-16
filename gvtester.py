@@ -268,6 +268,8 @@ class GPUVerifyTestKernel(object):
 
             #Print output for user to see
             if logging.getLogger().getEffectiveLevel() != logging.CRITICAL:
+                for line in stderr.split('\n'):
+                    print(line)
                 for line in stdout.split('\n'):
                     print(line)
         else:
