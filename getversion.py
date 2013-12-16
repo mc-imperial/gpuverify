@@ -7,22 +7,37 @@ GPUVerifyDeployVersionFile= os.path.join(
                                           os.path.abspath( os.path.dirname(__file__) ),
                                           '.gvdeployversion'
                                         )
-GPUVerifyHgErrorMessage='Error could not retrieve version from Mercurial'
+GPUVerifyRevisionErrorMessage='Error getting version information'
 
+def getsha(path):
+  oldpath = os.getcwd()
+  os.chdir(path)
+  if os.path.isdir(os.path.join(path,'.git')):
+    sha = subprocess.check_output(['git','rev-parse','HEAD']).rstrip('\n')
+  elif os.path.isdir(os.path.join(path,'.hg')):
+    sha = subprocess.check_output(['hg','log','-r','-1','--template','{node}']).rstrip('\n')
+  elif os.path.isdir(os.path.join(path,'.svn')):
+    sha = subprocess.check_output(['svnversion']).rstrip('\n')
+  else:
+    sha = "Error [%s] path is not recognised as a git, mercurial or svn repository" % path
+  os.chdir(oldpath)
+  return sha
 
-def getVersionStringFromMercurial():
+def getVersionStringFromRepos():
   try:
-    p = subprocess.Popen(['hg','log','-r',' -1','--template','Revision {rev}:{node}\n'],
-                       stdout=subprocess.PIPE,
-                       cwd=sys.path[0])
-    (vs, stderr) = p.communicate()
-
-    if p.returncode != 0:
-      vs=GPUVerifyHgErrorMessage
+    import gvfindtools
+    vs = []
+    for tool, path in [ ('llvm', gvfindtools.llvmSrcDir),
+                        ('bugle', gvfindtools.bugleSrcDir),
+                        ('libclc', gvfindtools.libclcSrcDir),
+                        ('vcgen', '.'),
+                        ('z3', gvfindtools.z3SrcDir),
+                        ('cvc4', gvfindtools.cvc4SrcDir) ]:
+      if os.path.isdir(path):
+        vs.append(tool.ljust(9) + ": " + getsha(path))
+    return '\n'.join(vs)
   except:
-    vs=GPUVerifyHgErrorMessage
-  
-  return vs
+    return GPUVerifyRevisionErrorMessage
 
 def getVersionString():
   """
@@ -36,7 +51,7 @@ def getVersionString():
   # Look for Mercurial
   if os.path.isdir(sys.path[0] + os.sep + '.hg'):
     vs += "Development version\n"
-    vs += getVersionStringFromMercurial() 
+    vs += getVersionStringFromRepos() 
   else:
     vs +="Deployment version\nBuilt from "
 

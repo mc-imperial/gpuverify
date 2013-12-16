@@ -282,7 +282,7 @@ def main(argv):
   licenseString = "Licenses can be found in the license directory\n"
 
   #Determine version and create version string
-  versionString = getversion.getVersionStringFromMercurial()
+  versionString = getversion.getVersionStringFromRepos()
   versionString += "Deployed on " + datetime.datetime.utcnow().ctime() + " (UTC)"
 
   #Specify actions to perform
