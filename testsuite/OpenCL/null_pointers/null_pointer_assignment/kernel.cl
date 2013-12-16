@@ -10,7 +10,7 @@ __kernel void foo(int i)
   if (i)
    y = &x;
   else
-   y = NULL;
+   y = 0;
 
 
   y[0] = y[0] + 1;

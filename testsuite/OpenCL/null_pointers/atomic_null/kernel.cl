@@ -4,5 +4,5 @@
 
 kernel void foo()
 {
-  atomic_inc((__global int*)NULL);
+  atomic_inc((__global int*)0);
 }

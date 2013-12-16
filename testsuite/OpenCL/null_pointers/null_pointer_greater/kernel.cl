@@ -12,7 +12,7 @@ __kernel void foo(int i, __global int *A, __global bool *B)
     a = NULL;
 
 
-  if (a > (__global int *)NULL)
+  if (a > (__global int *)0)
     A[get_global_id(0)] = get_global_id(0);
   else
     A[0] = get_global_id(0);

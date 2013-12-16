@@ -4,7 +4,7 @@
 
 __kernel void foo(__global int *b)
 {
-  __global int *a = NULL;
+  __global int *a = 0;
   int x = a[get_global_id(0)];
 }
 

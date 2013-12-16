@@ -14,7 +14,7 @@ __kernel void foo(int i)
   float *y;
 
   if (i == 0)
-    y = bar(NULL);
+    y = bar(0);
   else
     y = bar(&x);
 

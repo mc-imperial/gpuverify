@@ -2,7 +2,7 @@
 //--local_size=8 --num_groups=8
 
 
-__constant int A[64];
+__constant int A[64] = { };
 
 __kernel void globalarray(__global float* p) {
   int i = get_global_id(0);
