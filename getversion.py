@@ -30,7 +30,7 @@ def getVersionStringFromRepos():
     for tool, path in [ ('llvm', gvfindtools.llvmSrcDir),
                         ('bugle', gvfindtools.bugleSrcDir),
                         ('libclc', gvfindtools.libclcSrcDir),
-                        ('vcgen', '.'),
+                        ('vcgen', sys.path[0]),
                         ('z3', gvfindtools.z3SrcDir),
                         ('cvc4', gvfindtools.cvc4SrcDir) ]:
       if os.path.isdir(path):
