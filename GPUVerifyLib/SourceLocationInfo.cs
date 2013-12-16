@@ -47,10 +47,10 @@ namespace GPUVerify {
 
       public string GetDirectory() {
         return directory;
-      }
-
-      public override string ToString()
-      {
+      }
+
+      public override string ToString()
+      {
         return GetFile() + ":" + GetLine() + ":" + GetColumn();
       }
 
