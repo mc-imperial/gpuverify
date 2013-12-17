@@ -957,7 +957,7 @@ def _main(argv):
     if not lang:
       raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "must specify --bugle-lang=[cl|cu] when given a bitcode .bc file")
     assert lang in [ "cl", "cu" ]
-    CommandLineOptions.bugleOptions += [ "-l", lang, "-o", gbplFilename, optFilename ]
+    CommandLineOptions.bugleOptions += [ "-l", lang, "-s", locFilename, "-o", gbplFilename, optFilename ]
 
   if CommandLineOptions.mathInt:
     CommandLineOptions.bugleOptions += [ "-i", "math" ]
