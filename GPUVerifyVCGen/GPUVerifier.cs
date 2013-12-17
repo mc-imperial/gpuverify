@@ -171,25 +171,13 @@ namespace GPUVerify
 
         private int SetSizeTBits()
         {
-            bool found = false;
-            int bits = 0;
-            foreach (Declaration D in Program.TopLevelDeclarations) {
-                if (D is TypeSynonymDecl &&
-                    (D as TypeSynonymDecl).Name == _SIZE_T_BITS_TYPE) {
-                    var T = (D as TypeSynonymDecl).Body;
-                    if (T.IsBv) {
-                        bits = T.BvBits;
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            if (!found) {
-                Console.WriteLine("GPUVerify: error: No valid _SIZE_T_TYPE found");
+            var candidates = Program.TopLevelDeclarations.OfType<TypeSynonymDecl>().
+              Where(Item => Item.Name == _SIZE_T_BITS_TYPE);
+            if(candidates.Count() != 1 || !candidates.ToList()[0].Body.IsBv) {
+                Console.WriteLine("GPUVerify: error: exactly one _SIZE_T_TYPE bit-vector type must be specified");
                 Environment.Exit(1);
             }
-            Debug.Assert(found);
-            return bits;
+            return candidates.ToList()[0].Body.BvBits;
         }
 
         private Dictionary<Procedure, Implementation> GetKernelProcedures()
