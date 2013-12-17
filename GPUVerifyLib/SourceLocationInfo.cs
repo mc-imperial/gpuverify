@@ -147,7 +147,7 @@ namespace GPUVerify {
       if(File.Exists(records[i].GetFile())) {
         return FetchCodeLine(records[i].GetFile(), records[i].GetLine());
       }
-      return FetchCodeLine(records[i].GetDirectory() + "\\" + Path.GetFileName(records[i].GetFile()), records[i].GetLine());
+      return FetchCodeLine(Path.Combine(records[i].GetDirectory(), Path.GetFileName(records[i].GetFile())), records[i].GetLine());
     }
 
     public static string FetchCodeLine(string path, int lineNo) {
