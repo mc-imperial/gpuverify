@@ -112,8 +112,9 @@ namespace GPUVerify {
     public SourceLocationInfo(QKeyValue attributes, string sourceFileName, IToken fallBackToken) {
       records = new List<Record>();
       try {
-        var sourceLocFileName = 
-          Path.GetFileNameWithoutExtension(sourceFileName) + ".loc";
+        var sourceLocFileName = Path.Combine(
+          Path.GetDirectoryName(sourceFileName),
+          Path.GetFileNameWithoutExtension(sourceFileName) + ".loc");
         using (StreamReader sr = new StreamReader(sourceLocFileName)) {
           int number = QKeyValue.FindIntAttribute(attributes, "sourceloc_num", -1);
           if(number == -1) {
@@ -136,8 +137,8 @@ namespace GPUVerify {
             }
           }
         }
-      } catch (Exception) {
-        // Don't warn, just fall back to Boogie token
+      } catch (Exception e) {
+        Console.Error.WriteLine("warning: getting souce loc info failed with: " + e.Message);
         records.Add(new Record(fallBackToken.line, fallBackToken.col, fallBackToken.filename, ""));
       }
     }
@@ -146,7 +147,7 @@ namespace GPUVerify {
       if(File.Exists(records[i].GetFile())) {
         return FetchCodeLine(records[i].GetFile(), records[i].GetLine());
       }
-      return FetchCodeLine(records[i].GetDirectory() + "\\" + Path.GetFileName(records[i].GetFile()), records[i].GetLine());
+      return FetchCodeLine(Path.Combine(records[i].GetDirectory(), Path.GetFileName(records[i].GetFile())), records[i].GetLine());
     }
 
     public static string FetchCodeLine(string path, int lineNo) {

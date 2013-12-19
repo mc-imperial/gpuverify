@@ -46,6 +46,7 @@ namespace GPUVerify
 
         internal const string _SIZE_T_BITS_TYPE = "_SIZE_T_TYPE";
         public readonly int size_t_bits;
+        public readonly int id_size_bits;
 
         internal HashSet<string> OnlyThread1 = new HashSet<string>();
         internal HashSet<string> OnlyThread2 = new HashSet<string>();
@@ -104,7 +105,8 @@ namespace GPUVerify
                 (IntegerRepresentation)new MathIntegerRepresentation(this) :
                 (IntegerRepresentation)new BVIntegerRepresentation(this);
 
-            this.size_t_bits = SetSizeTBits();
+            this.size_t_bits = GetSizeTBits();
+            this.id_size_bits = GetIdSizeBits();
 
             Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
 
@@ -169,15 +171,32 @@ namespace GPUVerify
             }
         }
 
-        private int SetSizeTBits()
+        private int GetSizeTBits()
         {
             var candidates = Program.TopLevelDeclarations.OfType<TypeSynonymDecl>().
               Where(Item => Item.Name == _SIZE_T_BITS_TYPE);
-            if(candidates.Count() != 1 || !candidates.ToList()[0].Body.IsBv) {
+            if (candidates.Count() != 1 || !candidates.ToList()[0].Body.IsBv) {
                 Console.WriteLine("GPUVerify: error: exactly one _SIZE_T_TYPE bit-vector type must be specified");
                 Environment.Exit(1);
             }
             return candidates.ToList()[0].Body.BvBits;
+        }
+
+        private int GetIdSizeBits()
+        {
+            var candidates = Program.TopLevelDeclarations.OfType<Constant>().
+              Where(Item => Item.Name == GROUP_SIZE_X_STRING);
+            if (candidates.Count() != 1) {
+                Console.WriteLine("GPUVerify: error: exactly one group_size_x must be specified");
+                Environment.Exit(1);
+            }
+            if (candidates.ToList()[0].TypedIdent.Type.IsInt)
+                return this.size_t_bits; // Number of bits is irrelevant
+            if (!candidates.ToList()[0].TypedIdent.Type.IsBv) {
+                Console.WriteLine("GPUVerify: error: group_size_x must be of type int or bv");
+                Environment.Exit(1);
+            }
+            return candidates.ToList()[0].TypedIdent.Type.BvBits;
         }
 
         private Dictionary<Procedure, Implementation> GetKernelProcedures()
@@ -320,7 +339,7 @@ namespace GPUVerify
             if (constFieldRef == null)
             {
                 constFieldRef = new Constant(Token.NoToken,
-                  new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(size_t_bits)), /*unique=*/false);
+                  new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(id_size_bits)), /*unique=*/false);
                 constFieldRef.AddAttribute(attr);
                 Program.TopLevelDeclarations.Add(constFieldRef);
             }
@@ -1108,8 +1127,8 @@ namespace GPUVerify
             return Int32.Parse(p.Substring(p.IndexOf("$") + 1, p.Length - (p.IndexOf("$") + 1)));
         }
 
-        internal LiteralExpr Zero() {
-          return IntRep.GetLiteral(0, size_t_bits);
+        internal LiteralExpr Zero(int bits) {
+          return IntRep.GetLiteral(0, bits);
         }
 
         private void GeneratePreconditionsForDimension(String dimension)
@@ -1126,9 +1145,9 @@ namespace GPUVerify
                     continue;
                 }
 
-                Expr GroupSizePositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), Zero());
-                Expr NumGroupsPositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), Zero());
-                Expr GroupIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), Zero());
+                Expr GroupSizePositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), Zero(id_size_bits));
+                Expr NumGroupsPositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), Zero(id_size_bits));
+                Expr GroupIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), Zero(id_size_bits));
                 Expr GroupIdLessThanNumGroups = IntRep.MakeSlt(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)));
 
                 Proc.Requires.Add(new Requires(false, GroupSizePositive));
@@ -1144,7 +1163,7 @@ namespace GPUVerify
                   Proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(GroupIdLessThanNumGroups)));
                 }
 
-                Expr ThreadIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), Zero());
+                Expr ThreadIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)), Zero(id_size_bits));
                 Expr ThreadIdLessThanGroupSize = IntRep.MakeSlt(new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)),
                   new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)));
 
@@ -1993,13 +2012,13 @@ namespace GPUVerify
                 string array,kind;
                 if (call.callee.StartsWith("_CHECK_ATOMIC")) {
                   kind = "ATOMIC";
-                  array = call.callee.Substring(14); // "_CHECK_ATOMIC_" is 15 characters
+                  array = call.callee.Substring(14); // "_CHECK_ATOMIC_" is 14 characters
                 } else if (call.callee.StartsWith("_CHECK_READ")) {
                   kind = "READ";
-                  array = call.callee.Substring(12); // "_CHECK_READ_" is 15 characters
+                  array = call.callee.Substring(12); // "_CHECK_READ_" is 12 characters
                 } else {// if (call.callee.StartsWith("_CHECK_WRITE")) {
                   kind = "WRITE";
-                  array = call.callee.Substring(13); // "_CHECK_WRITE_" is 15 characters
+                  array = call.callee.Substring(13); // "_CHECK_WRITE_" is 13 characters
                 }
                 result.Add(new CallCmd(Token.NoToken,"_WARP_SYNC_" + array + "_" + kind,new List<Expr>(),new List<IdentifierExpr>()));
               }
@@ -2033,7 +2052,7 @@ namespace GPUVerify
                 thenblocks.AddRange(MakeHavocBlocks(new Variable[] {v}));
               }
 
-              Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv" + size_t_bits, new BvType(size_t_bits));
+              Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv" + id_size_bits, new BvType(id_size_bits));
 
               Expr[] tids = (new int[] {1,2}).Select(x =>
                   IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",x)),IntRep.MakeAdd(

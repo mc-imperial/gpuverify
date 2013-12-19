@@ -444,7 +444,7 @@ def showHelpAndExit():
     --version               Show version information.
 
   ADVANCED OPTIONS:
-    --32-bit                Assume 32-bit pointer size
+    --32-bit                Assume 32-bit pointer size (default)
     --64-bit                Assume 64-bit pointer size
     --adversarial-abstraction  Completely abstract shared state, so that reads are
                             nondeterministic
@@ -957,7 +957,7 @@ def _main(argv):
     if not lang:
       raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "must specify --bugle-lang=[cl|cu] when given a bitcode .bc file")
     assert lang in [ "cl", "cu" ]
-    CommandLineOptions.bugleOptions += [ "-l", lang, "-o", gbplFilename, optFilename ]
+    CommandLineOptions.bugleOptions += [ "-l", lang, "-s", locFilename, "-o", gbplFilename, optFilename ]
 
   if CommandLineOptions.mathInt:
     CommandLineOptions.bugleOptions += [ "-i", "math" ]
