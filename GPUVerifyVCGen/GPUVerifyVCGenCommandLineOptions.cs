@@ -47,7 +47,7 @@ namespace GPUVerify
     public static bool AtomicVsRead = true;
     public static bool AtomicVsWrite = true;
     public static bool RefinedAtomics = true;
-    public static bool OptimiseReads = true;
+    public static bool OptimiseMemoryAccesses = true;
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
@@ -227,9 +227,9 @@ namespace GPUVerify
           RefinedAtomics = false;
           break;
 
-          case "-noOptimiseReads":
-          case "/noOptimiseReads":
-          OptimiseReads = false;
+          case "-noOptimiseMemoryAccesses":
+          case "/noOptimiseMemoryAccesses":
+          OptimiseMemoryAccesses = false;
           break;
 
           case "-checkSingleNonInlinedImpl":

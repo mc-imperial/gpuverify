@@ -155,6 +155,7 @@
     <Compile Include="InvariantGenerationRules\LoopVariableBoundsInvariantGenerator.cs" />
     <Compile Include="InvariantGenerationRules\InvariantGenerationRule.cs" />
     <Compile Include="InvariantGenerationRules\PowerOfTwoInvariantGenerator.cs" />
+    <Compile Include="LiteralIndexedArrayEliminator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RaceInstrumenter.cs" />
     <Compile Include="AbstractHoudiniTransformation.cs" />

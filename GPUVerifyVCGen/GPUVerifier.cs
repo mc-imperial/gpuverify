@@ -393,7 +393,7 @@ namespace GPUVerify
             MaybeCreateAttributedConst(NUM_GROUPS_Y_STRING, ref _NUM_GROUPS_Y);
             MaybeCreateAttributedConst(NUM_GROUPS_Z_STRING, ref _NUM_GROUPS_Z);
 
-            if(GPUVerifyVCGenCommandLineOptions.OptimiseReads) {
+            if(GPUVerifyVCGenCommandLineOptions.OptimiseMemoryAccesses) {
               ComputeReadOnlyArrays();
             }
 
@@ -438,6 +438,8 @@ namespace GPUVerify
             if (!ProgramUsesBarrierInvariants()) {
                 GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks = false;
             }
+
+            EliminateLiteralIndexedPrivateArrays();
 
             if (GPUVerifyVCGenCommandLineOptions.RefinedAtomics)
               RefineAtomicAbstraction();
@@ -534,7 +536,7 @@ namespace GPUVerify
             // global variables
             Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
 
-            if(GPUVerifyVCGenCommandLineOptions.OptimiseReads) {
+            if(GPUVerifyVCGenCommandLineOptions.OptimiseMemoryAccesses) {
               OptimiseReads();
             }
 
@@ -570,6 +572,16 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private void EliminateLiteralIndexedPrivateArrays()
+        {
+          // If a program contains private arrays that are only ever indexed by
+          // literals, these can be eliminated.  This reduces the extent to which
+          // arrays are used in the generated .bpl program, which may benefit
+          // constraint solving.
+          var Eliminator = new LiteralIndexedArrayEliminator(this);
+          Eliminator.Eliminate(Program);
         }
 
         private void AddCaptureStates()
