@@ -190,7 +190,7 @@ namespace GPUVerify
                                 }
                                 foreach (String s in mayBeDerivedFrom[impl.Name][v.Name])
                                 {
-                                    if (!mayBeDerivedFrom[impl.Name][lhs.AssignedVariable.Name].Contains(s))
+                                    if (mayBeDerivedFrom[impl.Name].ContainsKey(lhs.AssignedVariable.Name) && !mayBeDerivedFrom[impl.Name][lhs.AssignedVariable.Name].Contains(s))
                                     {
                                         SetMayBeDerivedFrom(impl.Name, lhs.AssignedVariable.Name, s);
                                     }

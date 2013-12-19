@@ -53,7 +53,7 @@ namespace GPUVerify
     {
       return new GlobalVariable(
                     Array.tok, new TypedIdent(Array.tok, Array.Name + "$" + Literal,
-                      (Array.TypedIdent.Type as MapType).Arguments[0]));
+                      (Array.TypedIdent.Type as MapType).Result));
     }
 
     private Dictionary<string, HashSet<string>> CollectRelevantArrays(Program Program)

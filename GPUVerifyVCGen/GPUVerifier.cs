@@ -369,7 +369,9 @@ namespace GPUVerify
                     }
                     else
                     {
+                      if (!QKeyValue.FindBoolAttribute(D.Attributes, "atomic_usedmap")) {
                         KernelArrayInfo.getPrivateArrays().Add(D as Variable);
+                      }
                     }
                 }
                 else if (D is Constant)
@@ -458,7 +460,9 @@ namespace GPUVerify
                 GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks = false;
             }
 
-            EliminateLiteralIndexedPrivateArrays();
+            if (GPUVerifyVCGenCommandLineOptions.OptimiseMemoryAccesses) {
+              EliminateLiteralIndexedPrivateArrays();
+            }
 
             if (GPUVerifyVCGenCommandLineOptions.RefinedAtomics)
               RefineAtomicAbstraction();
