@@ -967,10 +967,11 @@ namespace GPUVerify {
     }
 
     private Expr AccessedOffsetIsThreadLocalIdExpr(Variable v, AccessType Access) {
+      Expr offsetVar = new IdentifierExpr(v.tok, RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits)));
+      Expr offsetExpr = verifier.IntRep.MakeZext(new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", 1)), offsetVar.Type);
       return Expr.Imp(
                 new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access)),
-                Expr.Eq(new IdentifierExpr(v.tok, RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits))), 
-                  new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", 1))));
+                Expr.Eq(offsetVar, offsetExpr));
     }
 
     private Expr GlobalIdExpr(string dimension, int Thread) {
