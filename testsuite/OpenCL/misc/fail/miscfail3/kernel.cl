@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=16 --num_groups=1 --loop-unwind=10
+//--local_size=16 --num_groups=1 --loop-unwind=10 --no-inline
 //A\[0\] = get_local_id\(0\)[^A]+A\[0\] = get_local_id\(0\)
 
 __kernel void foo(__local int* A) {

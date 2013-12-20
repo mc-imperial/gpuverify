@@ -1,5 +1,5 @@
 //pass
-//--blockDim=64 --gridDim=64 --equality-abstraction
+//--blockDim=64 --gridDim=64 --equality-abstraction --no-inline
 
 #include "cuda.h"
 

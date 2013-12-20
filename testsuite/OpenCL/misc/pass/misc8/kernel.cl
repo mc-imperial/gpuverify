@@ -1,5 +1,5 @@
 //pass
-//--local_size=1024 --num_groups=1024
+//--local_size=1024 --num_groups=1024 --no-inline
 
 float baz(float p)
 {

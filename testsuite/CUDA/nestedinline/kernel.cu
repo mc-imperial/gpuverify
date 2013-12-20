@@ -1,5 +1,5 @@
 //pass
-//--blockDim=64 --gridDim=64
+//--blockDim=64 --gridDim=64 --no-inline
 #include <cuda.h>
 
 inline __device__ void f() __attribute__((always_inline));

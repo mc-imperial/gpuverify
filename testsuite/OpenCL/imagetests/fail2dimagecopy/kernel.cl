@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=[8,8] --num_groups=[8,8]
+//--local_size=[8,8] --num_groups=[8,8] --no-inline
 //[\s]+possible
 
 

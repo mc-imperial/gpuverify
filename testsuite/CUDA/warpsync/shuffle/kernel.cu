@@ -1,5 +1,5 @@
 //pass
-//--blockDim=512 --gridDim=1 --warp-sync=32
+//--blockDim=512 --gridDim=1 --warp-sync=32 --no-inline
 
 #include <cuda.h>
 

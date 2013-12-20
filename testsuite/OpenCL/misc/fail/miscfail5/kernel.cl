@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--num_groups=1024 --local_size=1024
+//--num_groups=1024 --local_size=1024 --no-inline
 //assert\(c.x == 2\)
 __kernel void foo()
 {

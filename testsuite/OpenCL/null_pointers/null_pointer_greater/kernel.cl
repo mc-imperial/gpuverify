@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=1024
+//--local_size=1024 --num_groups=1024 --no-inline
 //error: possible write-write race
 
 __kernel void foo(int i, __global int *A, __global bool *B)

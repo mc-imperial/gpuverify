@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=16 --num_groups=2
+//--local_size=16 --num_groups=2 --no-inline
 //possible read-write race
 //Write by work item [\d]+ in work group \d, .+kernel.cl:21:7
 //p\[tid \+ 1\] = tid

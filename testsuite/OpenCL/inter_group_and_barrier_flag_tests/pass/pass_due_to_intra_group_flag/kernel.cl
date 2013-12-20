@@ -1,5 +1,5 @@
 //pass
-//--local_size=1024 --num_groups=1024 --only-intra-group
+//--local_size=1024 --num_groups=1024 --only-intra-group --no-inline
 
 
 __kernel void foo(__global int* p) {

@@ -1,5 +1,5 @@
 //pass
-//--local_size=8 --num_groups=8
+//--local_size=8 --num_groups=8 --no-inline
 
 
 __constant int A[64] = { };

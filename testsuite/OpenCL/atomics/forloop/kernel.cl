@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=1
+//--local_size=1024 --num_groups=1 --no-inline
 //B\[tid\] = v;
 //v = atomic_add\(B\+i,v\);
 

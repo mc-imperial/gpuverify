@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=64 --num_groups=64
+//--local_size=64 --num_groups=64 --no-inline
 //Write by work item[\s]+[\d]+[\s]+in work group[\s]+[\d]+.+kernel.cl:9:7:[\s]+a = get_local_id\(0\);
 
 

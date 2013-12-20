@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--gridDim=1 --blockDim=2
+//--gridDim=1 --blockDim=2 --no-inline
 
 //This kernel is racy.
 //

@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=1024
+//--local_size=1024 --num_groups=1024 --no-inline
 //error: possible null pointer access for work item
 
 inline __attribute__((always_inline))  float* bar(float* p)

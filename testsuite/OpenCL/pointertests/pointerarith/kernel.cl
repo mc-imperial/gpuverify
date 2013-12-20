@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64
+//--local_size=64 --num_groups=64 --no-inline
 
 
 __kernel void foo(__global int* A, uint me)

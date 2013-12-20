@@ -1,5 +1,5 @@
 //pass
-//--local_size=256 --num_groups=256
+//--local_size=256 --num_groups=256 --no-inline
 
 
 #define  MAX_OPTIONS    (512)

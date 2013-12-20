@@ -1,5 +1,5 @@
 //pass
-//--local_size=256 --num_groups=128
+//--local_size=256 --num_groups=128 --no-inline
 
 
 __kernel void foo(__global float* p, __global float* q)

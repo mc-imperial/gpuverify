@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=8 --gridDim=1
+//--blockDim=8 --gridDim=1 --no-inline
 
 // The statically given values for A are not preserved when we translate CUDA
 // since the host is free to change the contents of A.

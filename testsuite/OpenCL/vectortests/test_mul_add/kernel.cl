@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=64 --num_groups=64
+//--local_size=64 --num_groups=64 --no-inline
 
 //Note: this test looks like it should pass.  However, it fails because
 //clang generates a muladd intrinsic which breaks floating point associativity.

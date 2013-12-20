@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64 --boogie-file=${KERNEL_DIR}/axioms.bpl
+//--local_size=64 --num_groups=64 --boogie-file=${KERNEL_DIR}/axioms.bpl --no-inline
 
 DECLARE_UF_BINARY(A, unsigned, unsigned, unsigned);
 DECLARE_UF_BINARY(A1, unsigned, unsigned, unsigned);

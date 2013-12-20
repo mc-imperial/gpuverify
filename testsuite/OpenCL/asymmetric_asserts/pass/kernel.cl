@@ -1,5 +1,5 @@
 //pass
-//--local_size=32 --num_groups=32
+//--local_size=32 --num_groups=32 --no-inline
 
 #define tid get_local_id(0)
 

@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64
+//--local_size=64 --num_groups=64 --no-inline
 
 
 inline __attribute__((always_inline)) bool __equal_floats(float* p, float* q) {

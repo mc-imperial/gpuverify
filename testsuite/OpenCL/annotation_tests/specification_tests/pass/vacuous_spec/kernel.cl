@@ -1,5 +1,5 @@
 //pass
-//--local_size=1024 --num_groups=1024
+//--local_size=1024 --num_groups=1024 --no-inline
 
 
 // The spec is impossible because no write is made to p

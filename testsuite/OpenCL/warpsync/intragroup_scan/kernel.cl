@@ -1,5 +1,5 @@
 //pass
-//--local_size=1024 --num_groups=1 --warp-sync=32
+//--local_size=1024 --num_groups=1 --warp-sync=32 --no-inline
 
 __attribute__((always_inline)) inline void scan_warp (local int* A)
 {

@@ -1,5 +1,5 @@
 //pass
-//--local_size=8 --num_groups=1
+//--local_size=8 --num_groups=1 --no-inline
 
 /*
  * The values of the constant array [A] should be preserved as requires clauses.

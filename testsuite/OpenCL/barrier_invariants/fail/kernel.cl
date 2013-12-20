@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=128 --num_groups=1
+//--local_size=128 --num_groups=1 --no-inline
 //this barrier invariant might not hold
 
 #define SZ 128

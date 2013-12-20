@@ -1,5 +1,5 @@
 //pass
-//--blockDim=64 --gridDim=16 -DWIDTH=256
+//--blockDim=64 --gridDim=16 -DWIDTH=256 --no-inline
 
 /*
  * Each thread writes to a global array and updates indicies [256*gid, 256*(gid+1)).

@@ -1,5 +1,5 @@
 //pass
-//--local_size=2048 --num_groups=1111 --equality-abstraction
+//--local_size=2048 --num_groups=1111 --equality-abstraction --no-inline
 
 #pragma OPENCL EXTENSION cl_khr_fp64: enable
 

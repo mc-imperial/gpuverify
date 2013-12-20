@@ -1,5 +1,5 @@
 //pass
-//--local_size=16 --num_groups=64
+//--local_size=16 --num_groups=64 --no-inline
 
 
 #define MAX 1024

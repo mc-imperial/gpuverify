@@ -1,5 +1,5 @@
 //pass
-//--local_size=16 --num_groups=1
+//--local_size=16 --num_groups=1 --no-inline
 
 
 #define fast_min(x, y) ((x) < (y) ? (x) : (y))

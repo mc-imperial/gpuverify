@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=64 --num_groups=1 --no-benign
+//--local_size=64 --num_groups=1 --no-benign --no-inline
 //kernel.cl: error: possible write-write race on
 
 
