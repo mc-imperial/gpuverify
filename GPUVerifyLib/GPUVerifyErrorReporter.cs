@@ -178,7 +178,7 @@ namespace GPUVerify {
         QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "state_id"));
       SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), GetSourceFileName(), CallCex.FailingCall.tok);
 
-      uint RaceyOffset = GetOffsetInBytes(CallCex);
+      ulong RaceyOffset = GetOffsetInBytes(CallCex);
 
       ErrorWriteLine("\n" + SourceInfoForSecondAccess.Top().GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
         CleanUpArrayName(DemangleName(RaceyArrayName)) + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
@@ -442,7 +442,7 @@ namespace GPUVerify {
       return state;
     }
 
-    private static uint GetOffsetInBytes(CallCounterexample Cex) {
+    private static ulong GetOffsetInBytes(CallCounterexample Cex) {
       uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
       Debug.Assert(ElemWidth != int.MaxValue);
       var element =
@@ -450,7 +450,7 @@ namespace GPUVerify {
         ? GetStateFromModel(QKeyValue.FindStringAttribute(Cex.FailingCall.Attributes, "state_id"),
            Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
         : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
-      return (Convert.ToUInt32(element.Numeral) * ElemWidth) / 8;
+      return (Convert.ToUInt64(element.Numeral) * ElemWidth) / 8;
     }
 
     private static Variable ExtractAccessHasOccurredVar(CallCounterexample err) {
