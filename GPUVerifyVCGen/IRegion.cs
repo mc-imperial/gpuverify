@@ -25,6 +25,7 @@ interface IRegion {
   Expr Guard();
   void AddInvariant(PredicateCmd pc);
   List<PredicateCmd> RemoveInvariants();
+  HashSet<Variable> PartitionVariablesOfHeader();
 }
 
 }

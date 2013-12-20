@@ -45,15 +45,9 @@ namespace GPUVerify {
     private static void GenerateCandidateForNonUniformGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
         if (!verifier.ContainsBarrierCall(region)) return;
 
-        HashSet<Variable> partitionVars = new HashSet<Variable>();
+        HashSet<Variable> partitionVars = region.PartitionVariablesOfHeader();
         HashSet<Variable> guardVars = new HashSet<Variable>();
 
-        foreach (var assume in region.Cmds().OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
-        {
-            var visitor = new VariablesOccurringInExpressionVisitor();
-            visitor.Visit(assume.Expr);
-            partitionVars.UnionWith(visitor.GetVariables());
-        }
         var formals = impl.InParams.Select(x => x.Name);
         var modset = GetModifiedVariables(region).Select(x => x.Name);
         foreach (var v in partitionVars)
@@ -110,15 +104,9 @@ namespace GPUVerify {
     }
 
     private static void GenerateCandidateForNonNegativeGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
-        var visitor = new VariablesOccurringInExpressionVisitor();
-        HashSet<Variable> partitionVars = new HashSet<Variable>();
+        HashSet<Variable> partitionVars = region.PartitionVariablesOfHeader();
         HashSet<Variable> nonnegVars = new HashSet<Variable>();
 
-        foreach (var assume in region.Cmds().OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
-        {
-            visitor.Visit(assume.Expr);
-            partitionVars.UnionWith(visitor.GetVariables());
-        }
         var formals = impl.InParams.Select(x => x.Name);
         var modset = GetModifiedVariables(region).Select(x => x.Name);
         foreach (var v in partitionVars)
@@ -130,6 +118,7 @@ namespace GPUVerify {
                   nary.Fun.FunctionName.Equals("BV32_SLT") ||
                   nary.Fun.FunctionName.Equals("BV32_SGE") ||
                   nary.Fun.FunctionName.Equals("BV32_SGT"))) continue;
+            var visitor = new VariablesOccurringInExpressionVisitor();
             visitor.Visit(nary);
             nonnegVars.UnionWith(
                 visitor.GetVariables().Where(
@@ -143,8 +132,11 @@ namespace GPUVerify {
         foreach (var v in nonnegVars)
         {
             int BVWidth = (v.TypedIdent.Type as BvType).Bits;
-            var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetLiteral(0,BVWidth), new IdentifierExpr(v.tok, v));
-            verifier.AddCandidateInvariant(region, inv, "guardNonNeg", InferenceStages.BASIC_CANDIDATE_STAGE);
+            // REVISIT: really we only want to guess for /integer/ variables.
+            if (BVWidth >= 8) {
+              var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetLiteral(0,BVWidth), new IdentifierExpr(v.tok, v));
+              verifier.AddCandidateInvariant(region, inv, "guardNonNeg", InferenceStages.BASIC_CANDIDATE_STAGE);
+            }
         }
     }
 
