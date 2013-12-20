@@ -201,7 +201,8 @@ class GPUVerifyTestKernel(object):
         """
         threadStr='[' + threading.currentThread().name + '] '
 
-        cmdLine=[sys.executable, GPUVerifyExecutable] + ['--no-inline'] + self.gpuverifyCmdArgs + [self.path]
+        cmdLine=[sys.executable, GPUVerifyExecutable] \
+            + self.gpuverifyCmdArgs + [self.path]
         try:
             logging.info(threadStr + "Running test " + self.path)
             logging.debug(self) # show pre test information
