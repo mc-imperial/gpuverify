@@ -150,7 +150,7 @@ namespace GPUVerify
       if (expr.Type.BvBits == resultType.BvBits)
         return expr;
       else
-        return MakeBitVectorUnaryBitVector("ZEXT" + resultType.BvBits, "zero_extend " + expr.Type.BvBits, expr, resultType);
+        return MakeBitVectorUnaryBitVector("ZEXT" + resultType.BvBits, "zero_extend " + (resultType.BvBits - expr.Type.BvBits), expr, resultType);
     }
 
     public bool IsAdd(Expr e, out Expr lhs, out Expr rhs) {
