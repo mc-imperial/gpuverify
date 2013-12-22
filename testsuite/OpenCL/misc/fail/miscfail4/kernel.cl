@@ -1,6 +1,5 @@
-//xfail:BOOGIE_ERROR
+//xfail:CLANG_ERROR
 //--local_size=16 --num_groups=1 --no-inline
-//attempt to modify constant memory
 
 __kernel void foo(__constant int* A) {
 
