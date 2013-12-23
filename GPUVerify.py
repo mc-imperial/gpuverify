@@ -186,6 +186,7 @@ else:
 
 clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                        "-O0",
+                       "-fno-builtin",
                        "-include", "opencl.h"
                      ]
 clangOpenCLIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
