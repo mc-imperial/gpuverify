@@ -23,7 +23,7 @@ namespace DynamicAnalysis
 			string file = CommandLineOptions.Files[0];
 			Program program;
 			var defines = new List<string>() { "FILE_0" };
-			int errors = Microsoft.Boogie.Parser.Parse(file, defines, out program);
+			int errors = Parser.Parse(file, defines, out program);
 			Debug.Assert(errors == 0, String.Format("Parse errors discovered in '{0}'", file));
 			errors = program.Resolve();
 			errors = program.Typecheck();

@@ -698,9 +698,9 @@ in GPUVerify then follow the steps below for Linux and Mac OS X.::
 
       $ cd ${BUILD_ROOT}
       $ hg clone https://hg.codeplex.com/boogie
-      $ cd boogie
+      $ cd boogie/Source
       $ xbuild /p:TargetFrameworkProfile="" /p:Configuration=Release Boogie.sln
-      $ cd Binaries
+      $ cd ../Binaries
       $ ls ${BUILD_ROOT}/gpuverify/BoogieBinaries \
              | xargs -I{} -t cp {} ${BUILD_ROOT}/gpuverify/BoogieBinaries
 
