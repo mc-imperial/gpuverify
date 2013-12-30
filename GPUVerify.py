@@ -491,7 +491,7 @@ def showHelpAndExit():
     --clang-opt=...         Specify option to be passed to Clang
     --opt-opt=...           Specify option to be passed to LLVM optimization pass
     --bugle-opt=...         Specify option to be passed to Bugle
-    --vcgen-opt=...         Specify option to be passed to be passed to VC generation
+    --vcgen-opt=...         Specify option to be passed to VC generation
                             engine
     --boogie-opt=...        Specify option to be passed to Boogie
     --stop-at-opt           Stop after LLVM optimization pass
