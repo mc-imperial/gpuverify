@@ -156,8 +156,22 @@ namespace Microsoft.Boogie
           start(getFreshProgram(false, true), ref outcome);
       }
 
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
-        printOutcome(outcome);
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo) {
+        // build map from invariant id (_b[0-9]+) to tag variable (e.g., accessBreak)
+        var tagMap = new Dictionary<string, string>(); 
+        Program p = getFreshProgram(false, false);
+        foreach (Block block in p.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).SelectMany(item => item)) {
+          foreach (AssertCmd cmd in block.Cmds.Where(x => x is AssertCmd)) {
+            string tag = QKeyValue.FindStringAttribute(cmd.Attributes, "tag");
+            if (tag != null) {
+              string c;
+              ((StaticRefutationEngine) refutationEngines[engineIdx]).Houdini.MatchCandidate(cmd.Expr, out c);
+              tagMap[c] = tag;
+            }
+          }
+        }
+        printOutcome(outcome, tagMap);
+      }
 
       if (!AllImplementationsValid(outcome)) {
         int verified = 0;
@@ -220,7 +234,7 @@ namespace Microsoft.Boogie
       return GVUtil.GetFreshProgram(fileNames, raceCheck, inline);
     }
 
-    private void printOutcome(Houdini.HoudiniOutcome outcome)
+    private void printOutcome(Houdini.HoudiniOutcome outcome, Dictionary<string, string> tagMap=null)
     {
       int numTrueAssigns = 0;
 
@@ -232,6 +246,28 @@ namespace Microsoft.Boogie
 
       Console.WriteLine("Number of true assignments = " + numTrueAssigns);
       Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+
+      if (tagMap != null && tagMap.Count() > 0) {
+        Console.WriteLine("Invariant generation results:");
+        HashSet<string> tags = new HashSet<string>(tagMap.Values);
+        Dictionary<string, int> tagTrue = new Dictionary<string, int>();
+        Dictionary<string, int> tagCount = new Dictionary<string, int>();
+        foreach (var x in tags) {
+          tagTrue[x] = 0;
+          tagCount[x] = 0;
+        }
+        foreach (var x in outcome.assignment) {
+          if (tagMap.Keys.Contains(x.Key)) {
+            string tag = tagMap[x.Key];
+            tagCount[tag]++;
+            if (x.Value) tagTrue[tag]++;
+          }
+        }
+        Console.WriteLine("  tag, ntrue, nguessed, hitrate");
+        foreach (var x in tags.OrderBy(x => x)) {
+          Console.WriteLine("  {0}, {1}, {2}, {3}%", x, tagTrue[x], tagCount[x], ((float) tagTrue[x]) / ((float) tagCount[x]) * 100.0);
+        }
+      }
     }
 
     // makes sure that configuration options are universally available
