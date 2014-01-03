@@ -81,6 +81,7 @@ namespace GPUVerify
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         private HashSet<Block> Covered = new HashSet<Block>();
         private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
+        private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
        
         public static void Start (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
         {
@@ -94,6 +95,21 @@ namespace GPUVerify
               return;
 
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();   
+
+            // Build map from label to basic block
+            foreach (Block block in impl.Blocks)
+                LabelToBlock[block.Label] = block;
+
+            // Compute loop-exit edges of each natural loop
+            Graph<Block> loopInfo = program.ProcessLoops(impl);
+            foreach (Block header in loopInfo.Headers)
+            {
+              HashSet<Block> loopBody = new HashSet<Block>();
+              foreach (Block tail in loopInfo.BackEdgeNodes(header))
+                loopBody.UnionWith(loopInfo.NaturalLoops(header, tail));
+              ComputeLoopExitBlocks(header, loopBody);
+            }
+
             Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
             try
             {  
@@ -112,8 +128,8 @@ namespace GPUVerify
                     Print.VerboseMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()));
                     Print.VerboseMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
                     EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
-                    InterpretKernel(program, impl);
-                } while (TotalHeaderExecutionCount() <= ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisHeaderLimit 
+                    InterpretKernel(program, impl, loopInfo.Headers);
+                } while (TotalHeaderExecutionCount() <= ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit 
                          && FormalParameterValues.Count > 0 
                          && !AllBlocksCovered(impl));
                 // The condition states: try to kill invariants while we have not exhausted a global loop header limit 
@@ -124,6 +140,35 @@ namespace GPUVerify
             {
                 SummarizeKilledInvariants();
                 Print.VerboseMessage("Dynamic analysis done");
+            }
+        }
+
+        private void ComputeLoopExitBlocks (Block header, HashSet<Block> loopBody)
+        {
+            HeaderToLoopExitBlocks[header] = new List<Block>();
+            foreach (Block block in loopBody)
+            {
+                TransferCmd transfer = block.TransferCmd;
+                if (transfer is GotoCmd)
+                {
+                    GotoCmd goto_ = transfer as GotoCmd;
+                    if (goto_.labelNames.Count == 1)
+                    {
+                        string succLabel = goto_.labelNames[0];
+                        Block succ = LabelToBlock[succLabel];
+                        if (!loopBody.Contains(succ))
+                          HeaderToLoopExitBlocks[header].Add(succ);
+                    }
+                    else
+                    {
+                        foreach (string succLabel in goto_.labelNames)
+                        {
+                            Block succ = LabelToBlock[succLabel];
+                            if (!loopBody.Contains(succ))
+                              HeaderToLoopExitBlocks[header].Add(succ);
+                        }
+                    }
+                }
             }
         }
 
@@ -364,19 +409,14 @@ namespace GPUVerify
             }
         }
 
-        private void InterpretKernel(Program program, Implementation impl)
+        private void InterpretKernel(Program program, Implementation impl, IEnumerable<Block> headers)
         {
             Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
-            IEnumerable<Block> headers = program.ProcessLoops(impl).Headers;
             try
             {
                 foreach (Requires requires in impl.Proc.Requires)
                 {
                     EvaluateRequires(requires);
-                }
-                foreach (Block block in impl.Blocks)
-                {
-                    LabelToBlock[block.Label] = block;
                 }
                 InitialiseFormalParams(impl.InParams);
                 {
@@ -391,7 +431,15 @@ namespace GPUVerify
                             HeaderExecutionCounts[block]++;
                         }
                         assumesHold = InterpretBasicBlock(program, impl, block);
-                        block = TransferControl(block);
+
+                        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor > 0
+                            && headers.Contains(block) 
+                            && HeaderExecutionCounts[block] >= ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor)
+                        {
+                            block = HeaderToLoopExitBlocks[block][0];
+                        }
+                        else
+                          block = TransferControl(block);
                     }
                 }
             }
@@ -399,7 +447,6 @@ namespace GPUVerify
             {
                 Console.WriteLine(e.ToString());
                 Memory.Dump();
-                //throw;
             }
         }
 
@@ -688,7 +735,8 @@ namespace GPUVerify
                     if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                     {
                         Console.WriteLine("ASSUME FALSIFIED: " + assume.Expr.ToString());
-                        return false;
+                        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor == 0)
+                          return false;
                     }
                 }
                 else

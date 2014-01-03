@@ -493,6 +493,7 @@ def showHelpAndExit():
     --bugle-opt=...         Specify option to be passed to Bugle
     --vcgen-opt=...         Specify option to be passed to VC generation
                             engine
+    --cruncher-opt=...      Specify option to be passed to invariant cruncher
     --boogie-opt=...        Specify option to be passed to Boogie
     --stop-at-opt           Stop after LLVM optimization pass
     --stop-at-gbpl          Stop after generating gbpl
@@ -646,8 +647,10 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.optOptions += str(a).split(" ")
     if o == "--vcgen-opt":
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
-    if o == "--boogie-opt":
+    # Cruncher and Boogie driver opts now separated to allow configuration of dynamic analysis options
+    if o == "--cruncher-opt":
       CommandLineOptions.gpuVerifyCruncherOptions += str(a).split(" ")
+    if o == "--boogie-opt":
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
     if o == "--bugle-opt":
       CommandLineOptions.bugleOptions += str(a).split(" ")
@@ -860,7 +863,7 @@ def _main(argv):
               'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
               'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication',
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
-              'vcgen-opt=', 'boogie-opt=', 'bugle-opt=', 'opt-opt=',
+              'vcgen-opt=', 'cruncher-opt=', 'boogie-opt=', 'bugle-opt=', 'opt-opt=',
               'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-cbpl', 'stop-at-bpl',
               'time', 'time-as-csv=', 'keep-temps',
