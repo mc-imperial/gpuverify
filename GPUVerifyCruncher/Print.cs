@@ -9,7 +9,7 @@
 
 using System;
 
-namespace DynamicAnalysis
+namespace GPUVerify
 {
 	public class Print
 	{

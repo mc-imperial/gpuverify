@@ -35,13 +35,21 @@
     <Compile Include="GPUVerifyCruncherCommandLineOptions.cs" />
     <Compile Include="InvariantInferrer.cs" />
     <Compile Include="RefutationEngine.cs" />
+    <Compile Include="BitVector.cs" />
+    <Compile Include="BoogieInterpreter.cs" />
+    <Compile Include="ExpressionTrees.cs" />
+    <Compile Include="GPU.cs" />
+    <Compile Include="Memory.cs" />
+    <Compile Include="Print.cs" />
   </ItemGroup>
+  <!--
   <ItemGroup>
     <ProjectReference Include="..\DynamicAnalysis\DynamicAnalysis.csproj">
       <Project>{328D351F-689A-48C9-9BD8-C87995CB20A2}</Project>
       <Name>DynamicAnalysis</Name>
     </ProjectReference>
   </ItemGroup>
+  -->
   <ItemGroup>
     <ProjectReference Include="..\GPUVerifyLib\GPUVerifyLib.csproj">
       <Project>{5E7E9AF7-4166-4082-B88B-F7766023D877}</Project>
@@ -76,6 +84,9 @@
     </Reference>
     <Reference Include="AbsInt">
       <HintPath>..\BoogieBinaries\AbsInt.dll</HintPath>
+    </Reference>
+    <Reference Include="Graph">
+      <HintPath>..\BoogieBinaries\Graph.dll</HintPath>
     </Reference>
   </ItemGroup>
    <Target Name="Clean">

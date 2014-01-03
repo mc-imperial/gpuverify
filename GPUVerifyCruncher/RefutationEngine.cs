@@ -182,10 +182,9 @@ namespace Microsoft.Boogie
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
         printConfig();
 
-      DynamicAnalysis.MainClass.Start(program, 
-                                      Tuple.Create(threadId_X, threadId_Y, threadId_Z), 
-                                      Tuple.Create(groupId_X, groupId_Y, groupId_Z),
-                                      verbose, debug);
+      BoogieInterpreter.Start(program, 
+                              Tuple.Create(threadId_X, threadId_Y, threadId_Z), 
+                              Tuple.Create(groupId_X, groupId_Y, groupId_Z));
 
       if (CommandLineOptions.Clo.Trace)
         Console.WriteLine("INFO:[Engine-" + name + "] finished.");

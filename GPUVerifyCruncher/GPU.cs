@@ -12,7 +12,7 @@ using System.Text;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace DynamicAnalysis
+namespace GPUVerify
 {
 	public enum DIMENSION {X, Y, Z};
 	

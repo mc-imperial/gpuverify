@@ -19,7 +19,7 @@ using Microsoft.Boogie.GraphUtil;
 using Microsoft.Basetypes;
 using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
 
-namespace DynamicAnalysis
+namespace GPUVerify
 {
     class UnhandledException : Exception
     {
@@ -83,12 +83,20 @@ namespace DynamicAnalysis
         private HashSet<Block> Covered = new HashSet<Block>();
         private Dictionary<Block, int> HeaderExecutions = new Dictionary<Block, int>();
        
+        public static void Start (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
+        {
+            new BoogieInterpreter(program, threadID, groupID);
+        }
+
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
         {
+            // If there are no invariants to falsify, return
+            if (program.TopLevelDeclarations.OfType<Constant>().Where(item => QKeyValue.FindBoolAttribute(item.Attributes,"existential")).Count() == 0)
+              return;
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();   
             Console.WriteLine("Falsyifying invariants with dynamic analysis...");
             try
-            {   
+            {  
                 do
                 {
                     // Reset the memory in readiness for the next execution

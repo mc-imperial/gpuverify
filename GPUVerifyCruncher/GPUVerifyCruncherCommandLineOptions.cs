@@ -24,6 +24,8 @@ namespace GPUVerify
     public bool ParallelInference = false;
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;
+    public int DynamicAnalysisHeaderExecutionCount = 1000;
+    public bool DynamicAnalysisUnrollLoops = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -52,6 +54,17 @@ namespace GPUVerify
       if (name == "dynamicAnalysis") {
         DynamicAnalysis = true;
         return true;
+      }
+
+      if (name == "dynamicAnalysisHeaderCount") {
+         if (ps.ConfirmArgumentCount(1))
+           ps.GetNumericArgument(ref DynamicAnalysisHeaderExecutionCount);
+         return true;
+      }
+
+      if (name == "dynamicAnalysisUnrollLoops") {
+         DynamicAnalysisUnrollLoops = true;
+         return true;
       }
 
       if (name == "inferInfo") {

@@ -15,7 +15,7 @@ using System.Collections.Specialized;
 using Microsoft.Basetypes;
 using Microsoft.Boogie;
 
-namespace DynamicAnalysis
+namespace GPUVerify
 {
     public class ExprTree : System.Collections.IEnumerable
     {

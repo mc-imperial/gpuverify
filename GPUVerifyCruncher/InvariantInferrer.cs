@@ -8,7 +8,6 @@
 //===----------------------------------------------------------------------===//
 
 ﻿using GPUVerify;
-using DynamicAnalysis;
 
 namespace Microsoft.Boogie
 {

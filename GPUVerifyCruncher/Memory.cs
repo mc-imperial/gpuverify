@@ -15,7 +15,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using Microsoft.Boogie;
 
-namespace DynamicAnalysis
+namespace GPUVerify
 {
     class UnitialisedException : Exception
     {
