@@ -371,8 +371,7 @@ namespace GPUVerify
             children.Add(one);
             children.Add(two);
         }
-    }
-    
+    }    
 
     public class LiteralNode<T> : ExprNode<T>
     {

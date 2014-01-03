@@ -68,6 +68,12 @@ namespace GPUVerify
          return true;
       }
 
+      if (name == "debugLevel") {
+         if (ps.ConfirmArgumentCount(1))
+           ps.GetNumericArgument(ref Print.debug);
+         return true;
+      }
+
       if (name == "inferInfo") {
         InferInfo = true;
         return true;
