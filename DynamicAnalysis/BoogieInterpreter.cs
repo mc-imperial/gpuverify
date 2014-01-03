@@ -67,7 +67,6 @@ namespace DynamicAnalysis
     public class BoogieInterpreter
     {
         private const int HeaderLimit = 10000;
-        private int HeaderCount = 0;
         private BitVector[] LocalID1 = new BitVector[3];
         private BitVector[] LocalID2 = new BitVector[3];
         private BitVector[] GlobalID1 = new BitVector[3];
@@ -82,33 +81,39 @@ namespace DynamicAnalysis
         private HashSet<string> KilledAsserts = new HashSet<string>();
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         private HashSet<Block> Covered = new HashSet<Block>();
-        
+        private Dictionary<Block, int> HeaderExecutions = new Dictionary<Block, int>();
        
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
         {
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();   
             Console.WriteLine("Falsyifying invariants with dynamic analysis...");
-            do
+            try
+            {   
+                do
+                {
+                    // Reset the memory in readiness for the next execution
+                    Memory.Clear();
+                    EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
+                    EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
+                    Print.VerboseMessage(gpu.ToString());
+                    // Set the local thread IDs and group IDs
+                    SetLocalIDs(localIDSpecification);
+                    SetGlobalIDs(globalIDSpecification);
+                    Print.VerboseMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()));
+                    Print.VerboseMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()));
+                    Print.VerboseMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()));
+                    Print.VerboseMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
+                    EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
+                    InterpretKernel(program, impl);
+                } while (FormalParameterValues.Count > 0 && !AllBlocksCovered(impl));
+                // ^^^^^^^^^^^^^^^^^ This means try to kill invariants while we have not exhausted a loop header limit AND there are formal parameter
+                // values we can actually manipulate AND not every basic block has been covered 
+            }
+            finally
             {
-                // Reset the memory in readiness for the next execution
-                Memory.Clear();
-                EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
-                EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
-                Print.VerboseMessage(gpu.ToString());
-                // Set the local thread IDs and group IDs
-                SetLocalIDs(localIDSpecification);
-                SetGlobalIDs(globalIDSpecification);
-                Print.VerboseMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()));
-                Print.VerboseMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()));
-                Print.VerboseMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()));
-                Print.VerboseMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
-                EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
-                InterpretKernel(program, impl);
-            } while (FormalParameterValues.Count > 0 && !AllBlocksCovered(impl));
-            // ^^^^^^^^^^^^^^^^^ This means try to kill invariants while we have not exhausted a loop header limit AND there are formal parameter
-            // values we can actually manipulate AND not every basic block has been covered 
-            SummarizeKilledInvariants();
-            Console.WriteLine("Dynamic analysis done");
+                SummarizeKilledInvariants();
+                Console.WriteLine("Dynamic analysis done");
+            }
         }
                
         private bool AllBlocksCovered (Implementation impl)
@@ -359,7 +364,11 @@ namespace DynamicAnalysis
                     while (block != null && assumesHold)
                     {
                         if (headers.Contains(block))
-                            HeaderCount++;
+                        {
+                            if (!HeaderExecutions.ContainsKey(block))
+                                HeaderExecutions[block] = 0;
+                            HeaderExecutions[block]++;
+                        }
                         assumesHold = InterpretBasicBlock(program, impl, block);
                         block = TransferControl(block);
                     }
@@ -369,6 +378,7 @@ namespace DynamicAnalysis
             {
                 Console.WriteLine(e.ToString());
                 Memory.Dump();
+                //throw;
             }
         }
 
@@ -610,7 +620,6 @@ namespace DynamicAnalysis
                             if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                             {
                                 Console.Write("==========> FALSE " + assert.ToString());
-                                Console.WriteLine("==========> Killed at header execution count " + HeaderCount.ToString());
                                 AssertStatus[assert] = BitVector.False;
                                 MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
                                 string BoogieVariable = null;
@@ -1186,8 +1195,10 @@ namespace DynamicAnalysis
             int dollarIndex = call.callee.IndexOf('$');
             Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
             string arrayName = call.callee.Substring(dollarIndex);
-            string raceArrayOffsetName = "_READ_OFFSET_" + arrayName + "$1";
-            Print.ConditionalExitMessage(Memory.HadRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
+            string raceArrayOffsetName = "_READ_OFFSET_" + arrayName;
+            if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
+                raceArrayOffsetName = "_READ_OFFSET_" + arrayName + "$1";
+            Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
             Expr offsetExpr = call.Ins[1];
             ExprTree tree = GetExprTree(offsetExpr);
             EvaluateExprTree(tree);
@@ -1205,8 +1216,10 @@ namespace DynamicAnalysis
             int dollarIndex = call.callee.IndexOf('$');
             Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
             string arrayName = call.callee.Substring(dollarIndex);
-            string raceArrayOffsetName = "_WRITE_OFFSET_" + arrayName + "$1";
-            Print.ConditionalExitMessage(Memory.HadRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
+            string raceArrayOffsetName = "_WRITE_OFFSET_" + arrayName;
+            if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
+                raceArrayOffsetName = "_WRITE_OFFSET_" + arrayName + "$1";
+            Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array write offset variable: " + raceArrayOffsetName);
             Expr offsetExpr = call.Ins[1];
             ExprTree tree = GetExprTree(offsetExpr);
             EvaluateExprTree(tree);

@@ -49,7 +49,7 @@ namespace DynamicAnalysis
             raceArrayOffsets[name].Clear();
         }
 
-        public bool HadRaceArrayVariable(string name)
+        public bool HasRaceArrayVariable(string name)
         {
             return raceArrayOffsets.ContainsKey(name);
         }
