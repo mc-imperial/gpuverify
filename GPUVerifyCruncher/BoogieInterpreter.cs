@@ -434,8 +434,9 @@ namespace GPUVerify
 
                         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor > 0
                             && headers.Contains(block) 
-                            && HeaderExecutionCounts[block] >= ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor)
+                            && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor)
                         {
+                            // If we have exceeded the user-set loop unroll factor then go to an exit block
                             block = HeaderToLoopExitBlocks[block][0];
                         }
                         else
@@ -735,6 +736,9 @@ namespace GPUVerify
                     if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                     {
                         Console.WriteLine("ASSUME FALSIFIED: " + assume.Expr.ToString());
+                        // When an assume fails in normal execution, something has gone awry with the state, so we kill execution.
+                        // However, when loops are unrolled and an assume fails, it is probably our unsafe execution which leads to the
+                        // invalid state, so we continue execution. 
                         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor == 0)
                           return false;
                     }
