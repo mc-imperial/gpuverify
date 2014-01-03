@@ -1,8 +1,8 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=1024
+//--local_size=1024 --num_groups=1024 --no-inline
 //kernel.cl:[\s]+error:[\s]+possible write-write race on \(\(char\*\)p\)\[20]
-//Write by thread 5[\s]+in group[\s]+[\d]+.+kernel.cl:14:6:[\s]+p\[get_local_id\(0\)] = get_local_id\(0\);
-//Write by thread [\d]+[\s]+in group[\s]+[\d]+.+kernel.cl:17:6:[\s]+p\[get_local_id\(0\)\+1\] = get_local_id\(0\);
+//Write by work item 5[\s]+in work group[\s]+[\d]+.+kernel.cl:14:6:[\s]+p\[get_local_id\(0\)] = get_local_id\(0\);
+//Write by work item [\d]+[\s]+in work group[\s]+[\d]+.+kernel.cl:17:6:[\s]+p\[get_local_id\(0\)\+1\] = get_local_id\(0\);
 
 
 

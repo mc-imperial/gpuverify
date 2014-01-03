@@ -16,22 +16,44 @@ using System.Diagnostics;
 using Microsoft.Boogie;
 
 namespace GPUVerify {
+
+  public enum SourceLanguage { OpenCL, CUDA }
+
   public class GVCommandLineOptions : CommandLineOptions {
 
     public string ArrayToCheck = null;
-    public bool NoSourceLocInfer = false;
     public bool OnlyIntraGroupRaceChecking = false;
     public bool DebugGPUVerify = false;
     // Dimensionality of block = BlockHighestDim + 1
     public int BlockHighestDim = 2;
     // Dimensionality of grid = GridHighestDim + 1
     public int GridHighestDim = 2;
+    public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
+    public string DemanglerPath = null;
 
     public GVCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser") {
     }
 
     protected override bool ParseOption(string name, CommandLineOptionEngine.CommandLineParseState ps) {
+
+      if (name == "demanglerPath") {
+        if (ps.ConfirmArgumentCount(1)) {
+          DemanglerPath = ps.args[ps.i];
+        }
+        return true;
+      }
+
+      if (name == "sourceLanguage") {
+        if (ps.ConfirmArgumentCount(1)) {
+          if(ps.args[ps.i] == "cl") {
+            SourceLanguage = SourceLanguage.OpenCL;
+          } else if(ps.args[ps.i] == "cu") {
+            SourceLanguage = SourceLanguage.CUDA;
+          }
+        }
+        return true;
+      }
 
       if (name == "blockHighestDim") {
         ps.GetNumericArgument(ref BlockHighestDim, 3);
@@ -48,13 +70,19 @@ namespace GPUVerify {
         return true;
       }
 
-      if (name == "noSourceLocInfer") {
-        NoSourceLocInfer = true;
+      if (name == "onlyIntraGroupRaceChecking") {
+        OnlyIntraGroupRaceChecking = true;
         return true;
       }
 
-      if (name == "onlyIntraGroupRaceChecking") {
-        OnlyIntraGroupRaceChecking = true;
+      if (name == "watchdogRaceChecking") {
+        if (ps.ConfirmArgumentCount(1)) {
+          if(ps.args[ps.i] == "SINGLE") {
+            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
+          } else if(ps.args[ps.i] == "MULTIPLE") {
+            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
+          }
+        }
         return true;
       }
 

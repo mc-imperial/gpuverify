@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=32 --gridDim=64
+//--blockDim=32 --gridDim=64 --no-inline
 //error: possible write-write race on
 
 

@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=1 --warp-sync=16
+//--local_size=1024 --num_groups=1 --warp-sync=16 --no-inline
 
 __kernel void shuffle (__local int* A)
 {

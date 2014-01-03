@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=12
+//--local_size=64 --num_groups=12 --no-inline
 
 __kernel void foo(__global unsigned *globalCounter, __local unsigned *localCounter, __global float *globalArray, __local float *localArray) {
 

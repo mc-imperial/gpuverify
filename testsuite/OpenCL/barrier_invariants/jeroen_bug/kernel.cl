@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=128 --num_groups=64
+//--local_size=128 --num_groups=64 --no-inline
 //insufficient permission
 
 #define SZ 128

@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64
+//--local_size=64 --num_groups=64 --no-inline
 
 __attribute__((always_inline)) inline bool __equal_floats(float* p, float* q) {
   char* cp = (char*)p;

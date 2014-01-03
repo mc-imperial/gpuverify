@@ -282,7 +282,7 @@ def main(argv):
   licenseString = "Licenses can be found in the license directory\n"
 
   #Determine version and create version string
-  versionString = getversion.getVersionStringFromMercurial()
+  versionString = getversion.getVersionStringFromRepos()
   versionString += "Deployed on " + datetime.datetime.utcnow().ctime() + " (UTC)"
 
   #Specify actions to perform
@@ -296,6 +296,7 @@ def main(argv):
   FileCopy(gvfindtools.bugleSrcDir, 'LICENSE.TXT', licenseDest),
   MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'bugle.txt'),
   RegexFileCopy(gvfindtools.bugleBinDir, r'bugle(\.exe)?$', gvfindtoolsdeploy.bugleBinDir),
+  RegexFileCopy(gvfindtools.bugleBinDir, r'bugle-demangle(\.exe)?$', gvfindtoolsdeploy.bugleBinDir),
   RegexFileCopy(gvfindtools.bugleBinDir, r'libbugleInlineCheckPlugin\.(so|dylib)?$', gvfindtoolsdeploy.bugleBinDir),
   # GPUVerify
   FileCopy(GPUVerifyRoot, 'inference.cfg', deployDir),
@@ -308,7 +309,6 @@ def main(argv):
   FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir),
   MoveFile(deployDir + os.sep + 'gvfindtoolsdeploy.py', deployDir + os.sep + 'gvfindtools.py'),
   RegexFileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
-  FileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, 'UnivBackPred2.smt2', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
   RegexFileCopy(gvfindtools.gpuVerifyVCGenBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyVCGenBinDir),
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
   DirCopy(os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite')),

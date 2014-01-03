@@ -155,6 +155,7 @@
     <Compile Include="InvariantGenerationRules\LoopVariableBoundsInvariantGenerator.cs" />
     <Compile Include="InvariantGenerationRules\InvariantGenerationRule.cs" />
     <Compile Include="InvariantGenerationRules\PowerOfTwoInvariantGenerator.cs" />
+    <Compile Include="LiteralIndexedArrayEliminator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RaceInstrumenter.cs" />
     <Compile Include="AbstractHoudiniTransformation.cs" />
@@ -168,6 +169,7 @@
     <Compile Include="CallSiteAnalyser.cs" />
     <Compile Include="IntegerRepresentation.cs" />
     <Compile Include="IntraProceduralLiveVariableAnalysis.cs" />
+    <Compile Include="StandardRaceInstrumenter.cs" />
     <Compile Include="StrideConstraint.cs" />
     <Compile Include="UnaryBarrierInvariantDescriptor.cs" />
     <Compile Include="UnstructuredRegion.cs" />
@@ -192,6 +194,7 @@
     <Compile Include="VariableDualiser.cs" />
     <Compile Include="VariablesOccurringInExpressionVisitor.cs" />
     <Compile Include="VariableDefinitionAnalysis.cs" />
+    <Compile Include="WatchdogRaceInstrumenter.cs" />
     <Compile Include="WriteCollector.cs" />
     <Compile Include="ConstantWriteCollector.cs" />
   </ItemGroup>

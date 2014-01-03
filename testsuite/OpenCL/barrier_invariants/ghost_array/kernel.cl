@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64
+//--local_size=64 --num_groups=64 --no-inline
 
 
 #define SZ 128
@@ -21,7 +21,7 @@ __kernel void foo() {
     A[get_local_id(0)]++;
   }
 
-  __read_permission(A_ghost[get_local_id(0)]);
+  __read_permission(int, A_ghost[get_local_id(0)]);
   __barrier_invariant_1(A[get_local_id(0)] == A_ghost[get_local_id(0)] + 10000, 
     get_local_id(0));
   barrier(CLK_LOCAL_MEM_FENCE);

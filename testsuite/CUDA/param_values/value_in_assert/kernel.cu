@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=16 --gridDim=16
+//--blockDim=16 --gridDim=16 --no-inline
 //a = 12
 //b = 36
 //c = 48

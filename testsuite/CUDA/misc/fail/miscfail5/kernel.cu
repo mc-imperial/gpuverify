@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--gridDim=1 --blockDim=4
+//--gridDim=1 --blockDim=4 --no-inline
 //attempt to modify constant memory
 
 __constant__ int global_constant[4];

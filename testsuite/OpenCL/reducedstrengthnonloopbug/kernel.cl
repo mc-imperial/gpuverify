@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=64 --num_groups=32
+//--local_size=64 --num_groups=32 --no-inline
 
 #define MAX 1024
 

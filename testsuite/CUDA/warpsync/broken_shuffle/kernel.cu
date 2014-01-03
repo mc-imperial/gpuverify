@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=1024 --gridDim=1 --warp-sync=16
+//--blockDim=1024 --gridDim=1 --warp-sync=16 --no-inline
 
 #include <cuda.h>
 

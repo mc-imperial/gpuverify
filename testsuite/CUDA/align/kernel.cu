@@ -1,5 +1,5 @@
 //pass
-//--blockDim=2 --gridDim=2
+//--blockDim=2 --gridDim=2 --no-inline
 
 #include <cuda.h>
 

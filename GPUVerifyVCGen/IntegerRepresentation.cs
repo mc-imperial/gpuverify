@@ -33,6 +33,7 @@ namespace GPUVerify
     Expr MakeMul(Expr lhs, Expr rhs);
     Expr MakeDiv(Expr lhs, Expr rhs);
     Expr MakeModPow2(Expr lhs, Expr rhs);
+    Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType);
     bool IsAdd(Expr e, out Expr lhs, out Expr rhs);
     bool IsMul(Expr e, out Expr lhs, out Expr rhs);
   }
@@ -85,6 +86,11 @@ namespace GPUVerify
         return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, Microsoft.Boogie.Type.Bool, lhs, rhs);
     }
 
+    private Expr MakeBitVectorUnaryBitVector(string suffix, string smtName, Expr expr, Microsoft.Boogie.Type resultType)
+    {
+        return MakeBVFunctionCall("BV" + expr.Type.BvBits + "_" + suffix, smtName, resultType, expr);
+    }
+
     private Expr MakeBitVectorBinaryBitVector(string suffix, string smtName, Expr lhs, Expr rhs)
     {
         return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, lhs.Type, lhs, rhs);
@@ -135,7 +141,16 @@ namespace GPUVerify
     }
 
     public Expr MakeModPow2(Expr lhs, Expr rhs) {
-      return MakeAnd(MakeSub(rhs, GetLiteral(1, 32)), lhs);
+      var BVType = rhs.Type as BvType;
+      return MakeAnd(MakeSub(rhs, GetLiteral(1, BVType.Bits)), lhs);
+    }
+
+    public Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType)
+    {
+      if (expr.Type.BvBits == resultType.BvBits)
+        return expr;
+      else
+        return MakeBitVectorUnaryBitVector("ZEXT" + resultType.BvBits, "zero_extend " + (resultType.BvBits - expr.Type.BvBits), expr, resultType);
     }
 
     public bool IsAdd(Expr e, out Expr lhs, out Expr rhs) {
@@ -234,6 +249,11 @@ namespace GPUVerify
 
     public Expr MakeModPow2(Expr lhs, Expr rhs) {
       return Expr.Binary(BinaryOperator.Opcode.Mod, lhs, rhs);
+    }
+
+    public Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType)
+    {
+      return expr;
     }
 
     public bool IsAdd(Expr e, out Expr lhs, out Expr rhs) {

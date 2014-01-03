@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=1
+//--local_size=1024 --num_groups=1 --no-inline
 //kernel.cl: error: possible read-write race
 //GPUVerify kernel analyser finished with 0 verified, 1 error
 

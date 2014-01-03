@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=512 --gridDim=1
+//--blockDim=512 --gridDim=1 --no-inline
 //Write by thread .+kernel\.cu:8:21:
 
 #include <cuda.h>

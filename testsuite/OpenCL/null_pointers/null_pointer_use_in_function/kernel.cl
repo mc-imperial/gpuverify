@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=1024
-//error: possible null pointer access for thread
+//--local_size=1024 --num_groups=1024 --no-inline
+//error: possible null pointer access for work item
 
 float* bar(float* p)
 {
@@ -14,7 +14,7 @@ __kernel void foo(int i)
   float *y;
 
   if (i == 0)
-    y = bar(NULL);
+    y = bar(0);
   else
     y = bar(&x);
 

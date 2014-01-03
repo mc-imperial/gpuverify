@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,6 +17,7 @@ using System.Diagnostics;
 
 namespace GPUVerify
 {
+
   public class GPUVerifyVCGenCommandLineOptions
   {
     public static List<string> inputFiles = new List<string>();
@@ -46,7 +47,7 @@ namespace GPUVerify
     public static bool AtomicVsRead = true;
     public static bool AtomicVsWrite = true;
     public static bool RefinedAtomics = true;
-    public static bool OptimiseReads = true;
+    public static bool OptimiseMemoryAccesses = true;
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
@@ -226,9 +227,9 @@ namespace GPUVerify
           RefinedAtomics = false;
           break;
 
-          case "-noOptimiseReads":
-          case "/noOptimiseReads":
-          OptimiseReads = false;
+          case "-noOptimiseMemoryAccesses":
+          case "/noOptimiseMemoryAccesses":
+          OptimiseMemoryAccesses = false;
           break;
 
           case "-checkSingleNonInlinedImpl":
@@ -244,6 +245,20 @@ namespace GPUVerify
           case "-noCandidate":
           case "/noCandidate":
           DoNotGenerateCandidates.Add(afterColon);
+          break;
+
+          case "-watchdogRaceChecking":
+          case "/watchdogRaceChecking":
+          if (!hasColonArgument || (afterColon != "SINGLE" && afterColon != "MULTIPLE"))
+          {
+            Console.WriteLine("Error: one of 'SINGLE' or 'MULTIPLE' expected after " + beforeColon + " argument");
+            Environment.Exit(1);
+          }
+          if(afterColon == "SINGLE") {
+            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
+          } else {
+            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
+          }
           break;
 
           default:

@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=64 --num_groups=12
+//--local_size=64 --num_groups=12 --no-inline
 
 __kernel void foo(__global unsigned *globalCounter, __global float *globalArray) {
 

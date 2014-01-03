@@ -1,5 +1,5 @@
 //pass
-//--local_size=1024 --num_groups=1
+//--local_size=1024 --num_groups=1 --no-inline
 
 kernel void definitions (local long int* G, local unsigned long int* H, global long int* I, global unsigned long int* J)
 {

@@ -24,6 +24,19 @@ class UnstructuredRegion : IRegion {
   Dictionary<Block, Block> innermostHeader = new Dictionary<Block, Block>();
   Expr guard;
 
+  public HashSet<Variable> PartitionVariablesOfHeader() {
+    if (header == null) return new HashSet<Variable>();
+    HashSet<Variable> partitionVars = new HashSet<Variable>();
+    var visitor = new VariablesOccurringInExpressionVisitor();
+    foreach (Block b in blockGraph.Successors(header)) {
+      foreach (var assume in b.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) {
+          visitor.Visit(assume.Expr);
+          partitionVars.UnionWith(visitor.GetVariables());
+      }
+    }
+    return partitionVars;
+  }
+
   public IEnumerable<Block> PreHeaders() {
     if (header == null) return Enumerable.Empty<Block>();
     var preds = blockGraph.Predecessors(header);

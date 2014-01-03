@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64
+//--local_size=64 --num_groups=64 --no-inline
 
 
 int4 bar(int4 v) {

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # encoding: utf-8
 # vim: set shiftwidth=4 tabstop=4 expandtab softtabstop=4:
+from __future__ import print_function
 import os
 import sys
 import argparse
@@ -200,7 +201,8 @@ class GPUVerifyTestKernel(object):
         """
         threadStr='[' + threading.currentThread().name + '] '
 
-        cmdLine=[sys.executable, GPUVerifyExecutable] + ['--no-inline'] + self.gpuverifyCmdArgs + [self.path]
+        cmdLine=[sys.executable, GPUVerifyExecutable] \
+            + self.gpuverifyCmdArgs + [self.path]
         try:
             logging.info(threadStr + "Running test " + self.path)
             logging.debug(self) # show pre test information
@@ -215,11 +217,11 @@ class GPUVerifyTestKernel(object):
 
             processInstance=subprocess.Popen(cmdLine,
                                              stdout=subprocess.PIPE,
-                                             stderr=subprocess.STDOUT,
+                                             stderr=subprocess.PIPE,
                                              cwd=os.path.dirname(self.path),
                                              preexec_fn=_posixSession
                                             )
-            stdout, _IGNORED = processInstance.communicate() #Allow program to run and wait for it to exit.
+            stdout, stderr = processInstance.communicate() #Allow program to run and wait for it to exit.
 
         except KeyboardInterrupt:
             logging.error("Received keyboard interrupt. Attempting to kill GPUVerify process")
@@ -228,6 +230,7 @@ class GPUVerifyTestKernel(object):
 
         # Handle byte/str issue in python 3.
         stdout = stdout.decode()
+        stderr = stderr.decode()
 
         #Record the true return code of GPUVerify
         if processInstance.returncode < 0:
@@ -244,7 +247,7 @@ class GPUVerifyTestKernel(object):
         if self.gpuverifyReturnCode == self.expectedReturnCode:
             for regexToMatch in self.regex.keys():
                 matcher=re.compile(regexToMatch, re.MULTILINE) #Allow ^ to match the beginning of multiple lines
-                if matcher.search(stdout) == None :
+                if matcher.search(stdout) == None and matcher.search(stderr) == None:
                     self.regex[regexToMatch]=False
                     logging.error(self.path + ": Regex \"" + regexToMatch + "\" failed to match output!")
                 else:
@@ -266,6 +269,8 @@ class GPUVerifyTestKernel(object):
 
             #Print output for user to see
             if logging.getLogger().getEffectiveLevel() != logging.CRITICAL:
+                for line in stderr.split('\n'):
+                    print(line)
                 for line in stdout.split('\n'):
                     print(line)
         else:
@@ -275,7 +280,7 @@ class GPUVerifyTestKernel(object):
 
         if self.timeAsCSV:
             #Print csv output for user to see
-            self.csvFile.write(stdout.split('\n')[-2] + "\n")
+            self.csvFile.write(stdout)
             self.csvFile.flush()
         del self.csvFile # We cannot serialise this object so we need to remove it from this class!
 
@@ -650,6 +655,7 @@ def main(arg):
                         metavar='GPUVerifyCmdLineOption')
     parser.add_argument("--time-as-csv", action="store_true", default=False, help="Print timing of each test as CSV")
     parser.add_argument("--csv-file", type=str, default=None, help="Write timing data to a file (Note: requires --time-as-csv to be enabled)")
+    parser.add_argument("--stop-on-fail", action="store_true", default=False, help="Stop on first failure")
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
@@ -759,7 +765,7 @@ def main(arg):
     logging.info("Running tests...")
 
     if args.time_as_csv:
-        print("kernel, status, clang, opt, bugle, vcgen, cruncher, boogiedriver, total")
+        print("kernel,status,clang,opt,bugle,vcgen,cruncher,boogiedriver,total", file=csvFile)
 
     start = time.time()
     for test in tests:

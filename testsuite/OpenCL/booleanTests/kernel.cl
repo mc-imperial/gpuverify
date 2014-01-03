@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64 --clang-opt=-Wno-tautological-compare
+//--local_size=64 --num_groups=64 --clang-opt=-Wno-tautological-compare --no-inline
 
 bool bar(void);
 

@@ -125,7 +125,7 @@ namespace GPUVerify {
         return;
       }
 
-      Console.Error.WriteLine("Bitwise values of parameters of " + impl.Name.TrimStart(new char[] { '$' }) + ":");
+      Console.Error.WriteLine("Bitwise values of parameters of '" + DemangleName(impl.Name.TrimStart(new char[] { '$' })) + "':");
       PopulateModelWithStatesIfNecessary(error);
 
       string thread1, thread2, group1, group2;
@@ -157,10 +157,10 @@ namespace GPUVerify {
         {
           Console.Error.Write("<unknown>");
         }
-        Console.Error.WriteLine(id == 1 ? " (thread " + thread1 + ", group " + group1 + ")" :
-                               (id == 2 ? " (thread " + thread2 + ", group " + group2 + ")" : ""));
+        Console.Error.WriteLine(id == 1 ? " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")" :
+                               (id == 2 ? " (" + SpecificNameForThread() + " " + thread2 + ", " + SpecificNameForGroup() + " " + group2 + ")" : ""));
       }
-      Console.WriteLine();
+      Console.Error.WriteLine();
     }
 
     private void ReportRace(CallCounterexample CallCex) {
@@ -174,24 +174,25 @@ namespace GPUVerify {
       string RaceyArrayName = GetArrayName(CallCex.FailingRequires);
       Debug.Assert(RaceyArrayName != null);
 
-      IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, RaceyArrayName, access1,
+      IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, RaceyArrayName, AccessType.Create(access1),
         QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "state_id"));
-      SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), CallCex.FailingCall.tok);
+      SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), GetSourceFileName(), CallCex.FailingCall.tok);
 
-      uint RaceyOffset = GetOffsetInBytes(ExtractOffsetVar(CallCex), CallCex.Model, CallCex.FailingCall);
+      ulong RaceyOffset = GetOffsetInBytes(CallCex);
 
-      ErrorWriteLine("\n" + SourceInfoForSecondAccess.GetFile() + ":", "possible " + raceName + " race on ((char*)" + RaceyArrayName + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
+      ErrorWriteLine("\n" + SourceInfoForSecondAccess.Top().GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
+        CleanUpArrayName(DemangleName(RaceyArrayName)) + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
 
-      Console.Error.WriteLine(access2 + " by thread " + thread2 + " in group " + group2 + ", " + SourceInfoForSecondAccess);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(SourceInfoForSecondAccess.FetchCodeLine() + "\n", 2));
+      Console.Error.WriteLine(access2 + " by " + SpecificNameForThread() + " " + thread2 + " in " + SpecificNameForGroup() + " " + group2 + ", " + SourceInfoForSecondAccess.Top() + ":");
+      SourceInfoForSecondAccess.PrintStackTrace();
 
-      Console.Error.Write(access1 + " by thread " + thread1 + " in group " + group1 + ", ");
+      Console.Error.Write(access1 + " by " + SpecificNameForThread() + " " + thread1 + " in " + SpecificNameForGroup() + " " + group1 + ", ");
       if(PossibleSourcesForFirstAccess.Count() == 1) {
-        Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0]);
-        GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(PossibleSourcesForFirstAccess.ToList()[0].FetchCodeLine() + "\n", 2));
+        Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0].Top() + ":");
+        PossibleSourcesForFirstAccess.ToList()[0].PrintStackTrace();
       } else if(PossibleSourcesForFirstAccess.Count() == 0) {
         Console.Error.WriteLine("from external source location\n");
       } else {
@@ -199,11 +200,40 @@ namespace GPUVerify {
         List<SourceLocationInfo> LocationsAsList = PossibleSourcesForFirstAccess.ToList();
         LocationsAsList.Sort(new SourceLocationInfo.SourceLocationInfoComparison());
         foreach(var sli in LocationsAsList) {
-          Console.Error.WriteLine(sli);
-          GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(sli.FetchCodeLine(), 2));
+          Console.Error.WriteLine(sli.Top() + ":");
+          sli.PrintStackTrace();
         }
-        Console.WriteLine();
+        Console.Error.WriteLine();
       }
+    }
+
+    private static string GetSourceFileName()
+    {
+      return CommandLineOptions.Clo.Files[CommandLineOptions.Clo.Files.Count() - 1];
+    }
+
+    private string CleanUpArrayName(string name)
+    {
+      // The purpose of this method is to take a demangled array name
+      // and turn it into a more readable form.
+      // The issue motivating this is that in CUDA, __shared__ arrays
+      // declared in functions get mangled to include the enclosing
+      // function.  The demangled name contains the whole of the
+      // function signature, which is not easy to read.
+
+      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.OpenCL) {
+        return name;
+      }
+
+      // Check to see whether the name includes a function open parenthesis
+      if(!(name.Contains("(") && name.Contains(":"))) {
+        return name;
+      }
+
+      var ComponentBeforeOpenParenSplitOnSpace = name.Split(new char[] { '(' })[0].Split( new char[] { ' ' });
+      var FunctionName = ComponentBeforeOpenParenSplitOnSpace.Last();
+      var ArrayName = name.Split(new char [] { ':' }).Last();
+      return FunctionName + "::" + ArrayName;
     }
 
     private static void PopulateModelWithStatesIfNecessary(Counterexample Cex)
@@ -268,12 +298,12 @@ namespace GPUVerify {
       }
     }
 
-    private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string ArrayName, string AccessType, string RaceyState)
+    private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string ArrayName, AccessType AccessType, string RaceyState)
     {
-      string ACCESS_HAS_OCCURRED = "_" + AccessType.ToUpper() + "_HAS_OCCURRED_$$" + ArrayName;
-      string ACCESS_OFFSET = "_" + AccessType.ToUpper() + "_OFFSET_$$" + ArrayName;
+      string AccessHasOccurred = RaceInstrumentationUtil.MakeHasOccurredVariableName("$$" + ArrayName, AccessType);
+      string AccessOffset = RaceInstrumentationUtil.MakeOffsetVariableName("$$" + ArrayName, AccessType);
 
-      AssumeCmd ConflictingAction = DetermineConflictingAction(CallCex, RaceyState, ACCESS_HAS_OCCURRED, ACCESS_OFFSET);
+      AssumeCmd ConflictingAction = DetermineConflictingAction(CallCex, RaceyState, AccessHasOccurred, AccessOffset);
 
       var ConflictingState = QKeyValue.FindStringAttribute(ConflictingAction.Attributes, "captureState");
 
@@ -303,20 +333,20 @@ namespace GPUVerify {
         HashSet<Block> LoopNodes = new HashSet<Block>(
           blockGraph.BackEdgeNodes(header).Select(Item => blockGraph.NaturalLoops(header, Item)).SelectMany(Item => Item)
         );
-        return GetSourceLocationsFromBlocks("_CHECK_" + AccessType.ToUpper() + "_$$" + ArrayName, LoopNodes);
+        return GetSourceLocationsFromBlocks("_CHECK_" + AccessType + "_$$" + ArrayName, LoopNodes);
       }
       else if(ConflictingState.Contains("call_return_state")  ) {
-        return GetSourceLocationsFromCall("_CHECK_" + AccessType.ToUpper() + "_$$" + ArrayName, 
+        return GetSourceLocationsFromCall("_CHECK_" + AccessType + "_$$" + ArrayName, 
           QKeyValue.FindStringAttribute(ConflictingAction.Attributes, "procedureName"));
       } else {
         Debug.Assert(ConflictingState.Contains("check_state"));
         return new HashSet<SourceLocationInfo> { 
-          new SourceLocationInfo(ConflictingAction.Attributes, ConflictingAction.tok)
+          new SourceLocationInfo(ConflictingAction.Attributes, GetSourceFileName(), ConflictingAction.tok)
         };
       }
     }
 
-    private static AssumeCmd DetermineConflictingAction(CallCounterexample CallCex, string RaceyState, string ACCESS_HAS_OCCURRED, string ACCESS_OFFSET)
+    private static AssumeCmd DetermineConflictingAction(CallCounterexample CallCex, string RaceyState, string AccessHasOccurred, string AccessOffset)
     {
       AssumeCmd LastLogAssume = null;
       string LastOffsetValue = null;
@@ -332,15 +362,19 @@ namespace GPUVerify {
             continue;
           }
           Model.CapturedState state = GetStateFromModel(StateName, CallCex.Model);
-          if (state == null || state.TryGet(ACCESS_HAS_OCCURRED) is Model.Uninterpreted)
+          if (state == null || state.TryGet(AccessHasOccurred) is Model.Uninterpreted)
           {
             // Either the state was not recorded, or the state has nothing to do with the reported error, so do not
             // analyse it further.
             continue;
           }
 
-          Model.Boolean AHO_value = (Model.Boolean)state.TryGet(ACCESS_HAS_OCCURRED);
-          Model.BitVector AO_value = (Model.BitVector)state.TryGet(ACCESS_OFFSET);
+          Model.Boolean AHO_value = state.TryGet(AccessHasOccurred) as Model.Boolean;
+          Model.BitVector AO_value = 
+            (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+            ? state.TryGet(AccessOffset)
+            : CallCex.Model.TryGetFunc(AccessOffset).GetConstant()) as Model.BitVector;
+
           if (!AHO_value.Value)
           {
             LastLogAssume = null;
@@ -384,7 +418,7 @@ namespace GPUVerify {
       {
         if (c.callee.Equals(CheckProcedureName))
         {
-          PossibleSources.Add(new SourceLocationInfo(c.Attributes, c.tok));
+          PossibleSources.Add(new SourceLocationInfo(c.Attributes, GetSourceFileName(), c.tok));
         } else {
           foreach(var sl in GetSourceLocationsFromCall(CheckProcedureName, c.callee)) {
             PossibleSources.Add(sl);
@@ -408,39 +442,50 @@ namespace GPUVerify {
       return state;
     }
 
-    private static uint GetOffsetInBytes(Variable OffsetVar, Model Model, CallCmd FailingCall) {
-      var element = GetStateFromModel(QKeyValue.FindStringAttribute(FailingCall.Attributes, "state_id"), Model).TryGet(OffsetVar.Name) as Model.Number;
-      uint elemOffset = Convert.ToUInt32(element.Numeral);
-      Debug.Assert(OffsetVar.Attributes != null);
-      uint elemWidth = (uint)QKeyValue.FindIntAttribute(OffsetVar.Attributes, "elem_width", int.MaxValue);
-      Debug.Assert(elemWidth != int.MaxValue);
-      return (elemOffset * elemWidth) / 8;
+    private static ulong GetOffsetInBytes(CallCounterexample Cex) {
+      uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
+      Debug.Assert(ElemWidth != int.MaxValue);
+      var element =
+        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+        ? GetStateFromModel(QKeyValue.FindStringAttribute(Cex.FailingCall.Attributes, "state_id"),
+           Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
+        : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
+      return (Convert.ToUInt64(element.Numeral) * ElemWidth) / 8;
+    }
+
+    private static Variable ExtractAccessHasOccurredVar(CallCounterexample err) {
+      var VFV = new VariableFinderVisitor(
+        RaceInstrumentationUtil.MakeHasOccurredVariableName(QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"), GetAccessType(err)));
+      VFV.Visit(err.FailingRequires.Condition);
+      return VFV.GetVariable();
     }
 
     private static Variable ExtractOffsetVar(CallCounterexample err) {
-      // The offset variable name can be exactly reconstructed from the attributes of the requires clause
-      string ArrayName = QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array");
-      AccessType Access;
-      if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
-          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read") ||
-          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic")) {
-        Access = AccessType.WRITE;
-      }
-      else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write") ||
-               QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic")) {
-        Access = AccessType.READ;
-      }
-      else {
-        Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read") ||
-                     QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
-        Access = AccessType.ATOMIC;
-      }
-
-      string OffsetVarName = "_" + Access + "_OFFSET_" + ArrayName;
-
-      var VFV = new VariableFinderVisitor(OffsetVarName);
+      var VFV = new VariableFinderVisitor(
+        RaceInstrumentationUtil.MakeOffsetVariableName(QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"), GetAccessType(err)));
       VFV.Visit(err.FailingRequires.Condition);
       return VFV.GetVariable();
+    }
+
+    private static AccessType GetAccessType(CallCounterexample err)
+    {
+      if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
+          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read") ||
+          QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic"))
+      {
+        return AccessType.WRITE;
+      }
+      else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write") ||
+               QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic"))
+      {
+        return AccessType.READ;
+      }
+      else
+      {
+        Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read") ||
+                     QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
+        return AccessType.ATOMIC;
+      }
     }
 
     static QKeyValue GetAttributes(Absy a) {
@@ -466,15 +511,15 @@ namespace GPUVerify {
 
       AssertCmd failingAssert = err.FailingAssert;
 
-      Console.WriteLine("");
-      var sli = new SourceLocationInfo(GetAttributes(failingAssert), failingAssert.tok);
+      Console.Error.WriteLine();
+      var sli = new SourceLocationInfo(GetAttributes(failingAssert), GetSourceFileName(), failingAssert.tok);
 
       int relevantThread = QKeyValue.FindIntAttribute(GetAttributes(failingAssert), "thread", -1);
       Debug.Assert(relevantThread == 1 || relevantThread == 2);
 
-      ErrorWriteLine(sli.ToString(), messagePrefix + " for thread " +
-                     (relevantThread == 1 ? thread1 : thread2) + " in group " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      ErrorWriteLine(sli.Top() + ":", messagePrefix + " for " + SpecificNameForThread() + " " +
+                     (relevantThread == 1 ? thread1 : thread2) + " in " + SpecificNameForGroup() + " " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
+      sli.PrintStackTrace();
       Console.Error.WriteLine();
     }
 
@@ -507,29 +552,29 @@ namespace GPUVerify {
     }
 
     private static void ReportEnsuresFailure(Absy node) {
-      Console.WriteLine();
-      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
-      ErrorWriteLine(sli.ToString(), "postcondition might not hold on all return paths", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      Console.Error.WriteLine();
+      var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
+      ErrorWriteLine(sli.Top() + ":", "postcondition might not hold on all return paths", ErrorMsgType.Error);
+      sli.PrintStackTrace();
     }
 
     private static void ReportBarrierDivergence(Absy node) {
-      Console.WriteLine();
-      var sli = new SourceLocationInfo(GetAttributes(node), node.tok);
-      ErrorWriteLine(sli.ToString(), "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(sli.FetchCodeLine());
+      Console.Error.WriteLine();
+      var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
+      ErrorWriteLine(sli.Top() + ":", "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
+      sli.PrintStackTrace();
     }
 
     private static void ReportRequiresFailure(Absy callNode, Absy reqNode) {
-      Console.WriteLine();
-      var CallSLI = new SourceLocationInfo(GetAttributes(callNode), callNode.tok);
-      var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), reqNode.tok);
+      Console.Error.WriteLine();
+      var CallSLI = new SourceLocationInfo(GetAttributes(callNode), GetSourceFileName(), callNode.tok);
+      var RequiresSLI = new SourceLocationInfo(GetAttributes(reqNode), GetSourceFileName(), reqNode.tok);
 
-      ErrorWriteLine(CallSLI.ToString(), "a precondition for this call might not hold", ErrorMsgType.Error);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(CallSLI.FetchCodeLine(), 2));
+      ErrorWriteLine(CallSLI.Top() + ":", "a precondition for this call might not hold", ErrorMsgType.Error);
+      CallSLI.PrintStackTrace();
 
-      ErrorWriteLine(RequiresSLI.ToString(), "this is the precondition that might not hold", ErrorMsgType.Note);
-      GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(RequiresSLI.FetchCodeLine(), 2));
+      ErrorWriteLine(RequiresSLI.Top() + ":", "this is the precondition that might not hold", ErrorMsgType.Note);
+      RequiresSLI.PrintStackTrace();
     }
 
     private static void GetThreadsAndGroupsFromModel(Model model, out string thread1, out string thread2, out string group1, out string group2, bool withSpaces) {
@@ -643,22 +688,47 @@ namespace GPUVerify {
       return arrName.Substring("$$".Length);
     }
 
-    private static string TrimLeadingSpaces(string s1, int noOfSpaces) {
-      if (String.IsNullOrWhiteSpace(s1)) {
-        return s1;
-      }
-
-      int index;
-      for (index = 0; (index + 1) < s1.Length && Char.IsWhiteSpace(s1[index]); ++index) ;
-      string returnString = s1.Substring(index);
-      for (int i = noOfSpaces; i > 0; --i) {
-        returnString = " " + returnString;
-      }
-      return returnString;
-    }
-
     public static void FixStateIds(Program Program) {
       new StateIdFixer().FixStateIds(Program);
+    }
+
+    private static string SpecificNameForGroup() {
+      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
+        return "block";
+      } else {
+        return "work group";
+      }
+    }
+
+    private static string SpecificNameForThread() {
+      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
+        return "thread";
+      } else {
+        return "work item";
+      }
+    }
+
+    private static string DemangleName(string name) {
+      var gvClo = CommandLineOptions.Clo as GVCommandLineOptions;
+      if(gvClo.SourceLanguage == SourceLanguage.CUDA && gvClo.DemanglerPath != null) {
+        try {
+          name = name.Replace('~','@');
+          Process demangler = new Process();
+          demangler.StartInfo = new ProcessStartInfo(gvClo.DemanglerPath, "-l cu " + name);
+          demangler.StartInfo.UseShellExecute = false;
+          demangler.StartInfo.RedirectStandardOutput = true;
+          string demangled = "";
+          demangler.OutputDataReceived += (sender, args) => demangled += args.Data;
+          demangler.Start();
+          demangler.BeginOutputReadLine();
+          demangler.WaitForExit();
+          return demangled;
+        } catch(Exception e) {
+          Console.Error.WriteLine("warning: name demangling failed with: " + e.Message);
+          return name;
+        }
+      }
+      return name;
     }
 
   }
@@ -766,6 +836,7 @@ namespace GPUVerify {
       }
       return result;
     }
+
 
   }
 

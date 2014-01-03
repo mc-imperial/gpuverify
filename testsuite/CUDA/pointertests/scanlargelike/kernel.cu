@@ -1,5 +1,5 @@
 //pass
-//--blockDim=32 --gridDim=64
+//--blockDim=32 --gridDim=64 --no-inline
 #include <cuda.h>
 
 #define N 32

@@ -1,5 +1,5 @@
 //pass
-//--no-infer --num_groups=64 --local_size=16
+//--no-infer --num_groups=64 --local_size=16 --no-inline
 
 #define TYPE float8
 

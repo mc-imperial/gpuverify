@@ -1,5 +1,5 @@
 //xfail:BUGLE_ERROR
-//--gridDim=1 --blockDim=2
+//--gridDim=1 --blockDim=2 --no-inline
 
 //This kernel is racy. However, variable-length memcpys are not supported.
 //Expect error at Bugle stage.

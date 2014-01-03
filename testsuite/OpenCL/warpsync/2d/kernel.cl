@@ -1,5 +1,5 @@
 //pass
-//--local_size=[4,4] --num_groups=[10,10] --warp-sync=16
+//--local_size=[4,4] --num_groups=[10,10] --warp-sync=16 --no-inline
 
 #define SIZE 4
 #define TILES 10

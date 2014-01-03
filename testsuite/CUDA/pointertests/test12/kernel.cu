@@ -1,9 +1,7 @@
 //pass
-//--blockDim=64 --gridDim=64
+//--blockDim=64 --gridDim=64 --no-inline
 
 #include "cuda.h"
-
-__shared__ int gA = 100;
 
 int gB = 200;
 
@@ -16,7 +14,8 @@ __global__ void foo(int* q, int* r) {
 
   __shared__ int A[10];
 
-  __shared__ int* p = A;
+  __shared__ int* p;
+  p = A;
 
   bar(p);//[threadIdx.x] = 0;
 

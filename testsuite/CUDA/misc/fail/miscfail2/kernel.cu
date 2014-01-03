@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=512 --gridDim=1 --no-infer
+//--blockDim=512 --gridDim=1 --no-infer --no-inline
 //kernel.cu:57:21: error: loop invariant might not be maintained
 
 #include <cuda.h>

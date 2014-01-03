@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=64 --gridDim=64
+//--blockDim=64 --gridDim=64 --no-inline
 //
 
 #include "cuda.h"

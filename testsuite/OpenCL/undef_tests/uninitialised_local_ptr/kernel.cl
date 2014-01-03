@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
-//--local_size=64 --num_groups=64 --clang-opt=-Wno-uninitialized
-//kernel.cl:9:3:[\s]+error:[\s]+this assertion might not hold for thread [\d]+ in group [\d]+[\s]+__assert\(x == 0\);
+//--local_size=64 --num_groups=64 --clang-opt=-Wno-uninitialized --no-inline
+//kernel.cl:9:3:[\s]+error:[\s]+this assertion might not hold for work item [\d]+ in work group [\d]+[\s]+__assert\(x == 0\);
 
 
 

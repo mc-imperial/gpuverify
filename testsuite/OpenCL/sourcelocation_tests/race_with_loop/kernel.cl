@@ -1,7 +1,7 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=2
-//Write by thread [\d]+ in group [\d], .+kernel.cl:16:7:
-//Read by thread [\d]+ in group [\d], possible sources are:
+//--local_size=1024 --num_groups=2 --no-inline
+//Write by work item [\d]+ in work group [\d], .+kernel.cl:16:7:
+//Read by work item [\d]+ in work group [\d], possible sources are:
 //kernel.cl:12:9
 //kernel.cl:13:9
 

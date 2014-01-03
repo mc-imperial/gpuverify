@@ -1,5 +1,5 @@
 //xfail:GPUVERIFYVCGEN_ERROR
-//--local_size=16 --num_groups=7 --no-infer
+//--local_size=16 --num_groups=7 --no-infer --no-inline
 //kernel.cl:15:9:[\s]+user-specified invariant does not appear at loop head
 
 #define tid get_local_id(0)

@@ -20,7 +20,7 @@ using Microsoft.Basetypes;
 
 namespace GPUVerify {
 
-  class RaceInstrumenter : IRaceInstrumenter {
+  abstract class RaceInstrumenter : IRaceInstrumenter {
     protected GPUVerifier verifier;
 
     private QKeyValue SourceLocationAttributes = null;
@@ -55,7 +55,7 @@ namespace GPUVerify {
         foreach (var kind in AccessType.Types)
         {
           if (verifier.ContainsNamedVariable(
-              LoopInvariantGenerator.GetModifiedVariables(region), GPUVerifier.MakeAccessHasOccurredVariableName(v.Name, kind))) {
+              LoopInvariantGenerator.GetModifiedVariables(region), RaceInstrumentationUtil.MakeHasOccurredVariableName(v.Name, kind))) {
             AddNoAccessCandidateInvariant(region, v, kind);
           }
         }
@@ -96,6 +96,239 @@ namespace GPUVerify {
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.READ, offsetPredicatesRead);
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.WRITE, offsetPredicatesWrite);
         AddOffsetsSatisfyPredicatesCandidateInvariant(region, v, AccessType.ATOMIC, offsetPredicatesAtomic);
+        AddComponentBreakingCandidateInvariants(impl, region, v, AccessType.READ);
+        AddComponentBreakingCandidateInvariants(impl, region, v, AccessType.WRITE);
+        AddComponentBreakingCandidateInvariants(impl, region, v, AccessType.ATOMIC);
+      }
+    }
+
+    /*
+     * Generates candidate invariants by rewriting offset expressions.
+     * 
+     * A component is an identifier (i.e., local_id_{x,y,z} or group_id_{x,y,z})
+     * where /at least one/ component is necessarily distinct between distinct
+     * threads. Given an offset expression we extract components using division
+     * and subtraction.
+     */
+    private void AddComponentBreakingCandidateInvariants(Implementation impl, IRegion region, Variable v, AccessType Access) {
+      if (verifier.ContainsBarrierCall(region)) return;
+
+      // get offset expression
+      // continue if there is exactly one offset expression, or,
+      // if all offsets are to the same logical element of a vector type (e.g., uint2).
+      HashSet<Expr> offsets = GetOffsetsAccessed(region, v, Access);
+      if (offsets.Count() == 0) return;
+      if (offsets.Count() > 1) {
+        HashSet<string> vs = new HashSet<string>();
+        foreach (var offset in offsets) {
+          var visitor = new VariablesOccurringInExpressionVisitor();
+          visitor.Visit(offset);
+          vs.UnionWith(visitor.GetVariables().Select(x => x.Name));
+          // Could further refine by checking offset has form
+          // BV32_ADD(BV32_MUL(v, c+i) where c is a constant 2,3,4
+          //                           and   i is in [0,c)
+        }
+        if (vs.Count() != 1) return;
+      }
+
+      // now get the offset definition, distribute and try breaking apart
+      bool isConstant;
+      var def = verifier.varDefAnalyses[impl].SubstDefinitions(offsets.First(), impl.Name, out isConstant);
+      if (def == null || isConstant) return;
+      // Should also check expression consists only of adds and muls?
+      var distribute = new DistributeExprVisitor(verifier);
+      var rewrite = distribute.Visit(def);
+      var component = new ComponentVisitor();
+      component.Visit(rewrite);
+      var invariants = component.GenerateCandidateInvariants(verifier, v, Access);
+      foreach (Expr inv in invariants) {
+        verifier.AddCandidateInvariant(region, inv, "accessBreak", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+      }
+    }
+
+    class FunctionsOccurringInExpressionVisitor : StandardVisitor {
+      private HashSet<string> functions = new HashSet<string>();
+      internal IEnumerable<string> GetFunctions() {
+        return functions;
+      }
+      public override Expr VisitNAryExpr(NAryExpr node) {
+        functions.Add(node.Fun.FunctionName);
+        return base.VisitNAryExpr(node);
+      }
+    }
+
+    class VariablesOrLiteralsOccurringInExpressionVisitor : StandardVisitor {
+      private HashSet<Expr> terms = new HashSet<Expr>();
+      internal IEnumerable<Expr> GetVariablesOrLiterals() {
+        return terms;
+      }
+      public override Variable VisitVariable(Variable node) {
+          terms.Add(new IdentifierExpr(Token.NoToken, node));
+          return base.VisitVariable(node);
+      }
+      public override LiteralExpr VisitLiteralExpr(LiteralExpr node) {
+          terms.Add(node);
+          return base.VisitLiteralExpr(node);
+      }
+    }
+
+    /*
+     * Generate component candidates from an offset expression.
+     *
+     * We assume that the offset expression is distributed so that each
+     * component appears in a separate multiply subexpression.
+     */
+    class ComponentVisitor : StandardVisitor {
+      private HashSet<string> AllComponents;
+      private Dictionary<Expr, HashSet<Expr>> ComponentMap;
+      bool CanAccessBreak;
+
+      internal ComponentVisitor() {
+        ComponentMap = new Dictionary<Expr, HashSet<Expr>>();
+        AllComponents = new HashSet<string>();
+        AllComponents.Add((GPUVerifier.MakeThreadId("X", 1)).Name);
+        AllComponents.Add((GPUVerifier.MakeThreadId("Y", 1)).Name);
+        AllComponents.Add((GPUVerifier.MakeThreadId("Z", 1)).Name);
+        AllComponents.Add((GPUVerifier.MakeGroupId("X", 1)).Name);
+        AllComponents.Add((GPUVerifier.MakeGroupId("Y", 1)).Name);
+        AllComponents.Add((GPUVerifier.MakeGroupId("Z", 1)).Name);
+        CanAccessBreak = true;
+      }
+
+      public void Dump() {
+        if (CanAccessBreak) {
+          Console.WriteLine("Can access break expression.");
+          foreach (var c in ComponentMap.Keys) {
+            var terms = ComponentMap[c];
+            Console.WriteLine("Component {0} has {1} multiply terms", c, terms.Count());
+            foreach (var t in terms) {
+              Console.WriteLine("  Term {0}", t);
+            }
+          }
+        } else {
+          Console.WriteLine("Can't access break expression.");
+        }
+      }
+
+      /*
+       * Generate invariants from the populated ComponentMap.
+       *
+       * For example, the following expression for components c and d:
+       *      access = (c * xs) + (d * ys)
+       * generates the invariants
+       *      c = (access/xs) - (d*ys/xs)
+       *      d = (access/ys) - (c*xs/ys)
+       */
+      public IEnumerable<Expr> GenerateCandidateInvariants(GPUVerifier verifier, Variable v, AccessType Access) {
+        if (!CanAccessBreak) return Enumerable.Empty<Expr>();
+
+        var result = new List<Expr>();
+        var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
+        foreach (var c in ComponentMap.Keys) {
+          Expr invariant = new IdentifierExpr(Token.NoToken, offsetVar);
+          var xs = ComponentMap[c];
+          foreach (var x in xs) { 
+            invariant = verifier.IntRep.MakeDiv(invariant, x);
+          }
+          foreach (var d in ComponentMap.Keys.Where(x => x != c)) {
+            Expr subexpr = d;
+            var ys = ComponentMap[d];
+            foreach (var y in ys.Except(xs)) {
+              subexpr = verifier.IntRep.MakeMul(subexpr, y);
+            }
+            foreach (var x in xs.Except(ys)) { 
+              subexpr = verifier.IntRep.MakeDiv(subexpr, x);
+            }
+            invariant = verifier.IntRep.MakeSub(invariant, subexpr);
+          }
+          invariant = Expr.Eq(c, invariant);
+          invariant = Expr.Imp(new IdentifierExpr(Token.NoToken, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access)), invariant);
+          result.Add(invariant);
+        }
+        return result;
+      }
+
+      private bool IsMultiplyExpr(Expr e) {
+        var visitor = new FunctionsOccurringInExpressionVisitor();
+        visitor.Visit(e);
+        var fs = visitor.GetFunctions();
+        return (fs.Count() == 1 && fs.Single() == "BV32_MUL");
+      }
+
+      /*
+       * Extract information for each subexpression containing only multiplies
+       * of a single component and terms (literals or variables) and add it to
+       * the ComponentMap. We conservatively bail by unsetting CanAccessBreak.
+       *
+       * TODO: do not ignore guard expression
+       * TODO: rewrite for arbitrary bitwidths (currently fixed for BV32)
+       */
+      public override Expr VisitNAryExpr(NAryExpr node) {
+        if (node.Fun.FunctionName.Equals("BV32_MUL")) {
+          if (IsMultiplyExpr(node)) {
+            var visitor = new VariablesOrLiteralsOccurringInExpressionVisitor();
+            visitor.Visit(node);
+            var terms = visitor.GetVariablesOrLiterals();
+            var components = terms.Where(t => t is IdentifierExpr && AllComponents.Contains((t as IdentifierExpr).Decl.Name));
+            if (components.Count() == 0) { // assume guard expression
+              return node;
+            } else if (components.Count() == 1) {
+              if (terms.All(t => (t.Type as BvType).Bits == 32)) {
+                var c = components.Single();
+                var termsExceptC = new HashSet<Expr>(terms.Where(t => t is LiteralExpr || t != c));
+                if (!ComponentMap.ContainsKey(c)) {
+                  ComponentMap[c] = termsExceptC;
+                  return node;
+                }
+              }
+            }
+          }
+          // otherwise bail
+          CanAccessBreak = false;
+          return node;
+        }
+        return base.VisitNAryExpr(node);
+      }
+    }
+
+    /*
+     * Distribute multiplication over addition in an expression.
+     *
+     * We rewrite all subexpressions of the form
+     *   (mul t (add e1 e2)) 
+     * into
+     *   (add (mul t e1) (mul t e2))
+     *
+     * TODO: rewrite for arbitrary bitwidths (currently fixed for BV32)
+     */
+    class DistributeExprVisitor : Duplicator {
+      private GPUVerifier verifier;
+      internal DistributeExprVisitor(GPUVerifier verifier) {
+        this.verifier = verifier;
+      }
+      public override Expr VisitNAryExpr(NAryExpr node) {
+        if (node.Fun.FunctionName.Equals("BV32_MUL")) {
+          Expr lhs = node.Args[0];
+          Expr rhs = node.Args[1];
+          bool lhsIsLeaf = (lhs is LiteralExpr || lhs is IdentifierExpr);
+          bool rhsIsLeaf = (rhs is LiteralExpr || rhs is IdentifierExpr);
+          if (!(lhsIsLeaf && rhsIsLeaf)) {
+            Expr leaf = lhsIsLeaf ? lhs : rhs;
+            NAryExpr term = (lhsIsLeaf ? rhs : lhs) as NAryExpr;
+            if (term != null && term.Fun.FunctionName.Equals("BV32_ADD")) {
+              Expr e1 = term.Args[0];
+              Expr e2 = term.Args[1];
+              Expr newLhs =  verifier.IntRep.MakeMul(leaf, e1);
+              Expr newRhs =  verifier.IntRep.MakeMul(leaf, e2);
+              var visitor = new DistributeExprVisitor(verifier);
+              Expr lhs2 = visitor.VisitExpr(newLhs);
+              Expr rhs2 = visitor.VisitExpr(newRhs);
+              var rewrite = verifier.IntRep.MakeAdd(lhs2, rhs2);
+              return base.VisitExpr(rewrite);
+            }
+          }
+        }
+        return base.VisitNAryExpr(node);
       }
     }
 
@@ -118,7 +351,7 @@ namespace GPUVerify {
     }
 
     private List<Expr> CollectOffsetPredicates(Implementation impl, IRegion region, Variable v, AccessType Access) {
-      var offsetVar = verifier.MakeOffsetVariable(v.Name, Access);
+      var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
       var offsetExpr = new IdentifierExpr(Token.NoToken, offsetVar);
       var offsetPreds = new List<Expr>();
 
@@ -180,7 +413,7 @@ namespace GPUVerify {
         // and upper bound for the access. i.e.,
         //   constant <= access <= constant[group-id+1/group-id]
         Variable groupId = groupIds.Single();
-        Expr groupIdPlusOne = verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), verifier.IntRep.GetLiteral(1,32));
+        Expr groupIdPlusOne = verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), verifier.IntRep.GetLiteral(1, verifier.size_t_bits));
         Dictionary<Variable, Expr> substs = new Dictionary<Variable, Expr>();
         substs.Add(groupId, groupIdPlusOne);
         Substitution s = Substituter.SubstitutionFromHashtable(substs);
@@ -416,6 +649,8 @@ namespace GPUVerify {
 
     }
 
+    protected abstract void AddLogAccessProcedure(Variable v, AccessType Access);
+
     private void AddRaceCheckingDecsAndProcsForVar(Variable v) {
       foreach (var kind in AccessType.Types)
       {
@@ -504,6 +739,9 @@ namespace GPUVerify {
     }
 
     private CallCmd MakeCheckCall(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
+      if(SourceLocationAttributes == null) {
+        ExitWithNoSourceError(ar.v, Access);
+      }
       List<Expr> inParamsChk = new List<Expr>();
       inParamsChk.Add(ar.Index);
       MaybeAddValueParameter(inParamsChk, ar, Value, Access);
@@ -527,6 +765,9 @@ namespace GPUVerify {
     }
 
     private CallCmd MakeLogCall(AccessRecord ar, AccessType Access, Expr Value) {
+      if(SourceLocationAttributes == null) {
+        ExitWithNoSourceError(ar.v, Access);
+      }
       List<Expr> inParamsLog = new List<Expr>();
       inParamsLog.Add(ar.Index);
       MaybeAddValueParameter(inParamsLog, ar, Value, Access);
@@ -608,7 +849,6 @@ namespace GPUVerify {
       Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
       Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
       Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
-      Variable SourceParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_source", mt.Arguments[0]));
       Debug.Assert(!(mt.Result is MapType));
 
       inParams.Add(PredicateParameter);
@@ -738,69 +978,10 @@ namespace GPUVerify {
       return result;
     }
 
-    public void AddRaceCheckingDeclarations() {
+    public virtual void AddRaceCheckingDeclarations() {
       foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddRaceCheckingDecsAndProcsForVar(v);
       }
-    }
-
-    protected void AddLogAccessProcedure(Variable v, AccessType Access) {
-      Procedure LogAccessProcedure = MakeLogAccessProcedureHeader(v, Access);
-
-      Debug.Assert(v.TypedIdent.Type is MapType);
-      MapType mt = v.TypedIdent.Type as MapType;
-      Debug.Assert(mt.Arguments.Count == 1);
-
-      Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
-      Variable AccessValueVariable = GPUVerifier.MakeValueVariable(v.Name, Access, mt.Result);
-      Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
-
-      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
-      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
-      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
-      Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
-
-      Debug.Assert(!(mt.Result is MapType));
-
-      List<Variable> locals = new List<Variable>();
-      Variable TrackVariable = new LocalVariable(v.tok, new TypedIdent(v.tok, "track", Microsoft.Boogie.Type.Bool));
-      locals.Add(TrackVariable);
-
-      List<BigBlock> bigblocks = new List<BigBlock>();
-
-      List<Cmd> simpleCmds = new List<Cmd>();
-
-      simpleCmds.Add(new HavocCmd(v.tok, new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
-
-      Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter), new IdentifierExpr(v.tok, TrackVariable));
-
-      simpleCmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable,
-          Condition, Expr.True));
-      simpleCmds.Add(MakeConditionalAssignment(AccessOffsetVariable,
-          Condition,
-          new IdentifierExpr(v.tok, OffsetParameter)));
-      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
-        simpleCmds.Add(MakeConditionalAssignment(AccessValueVariable,
-          Condition,
-          new IdentifierExpr(v.tok, ValueParameter)));
-      }
-      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-        simpleCmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
-          Condition,
-          Expr.Neq(new IdentifierExpr(v.tok, ValueParameter),
-            new IdentifierExpr(v.tok, ValueOldParameter))));
-      }
-
-      bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));
-
-      Implementation LogAccessImplementation = new Implementation(v.tok, "_LOG_" + Access + "_" + v.Name, new List<TypeVariable>(), LogAccessProcedure.InParams, new List<Variable>(), locals, new StmtList(bigblocks, v.tok));
-      GPUVerifier.AddInlineAttribute(LogAccessImplementation);
-
-      LogAccessImplementation.Proc = LogAccessProcedure;
-
-      verifier.Program.TopLevelDeclarations.Add(LogAccessProcedure);
-      verifier.Program.TopLevelDeclarations.Add(LogAccessImplementation);
     }
 
     protected void AddUpdateBenignFlagProcedure(Variable v) {
@@ -811,7 +992,7 @@ namespace GPUVerify {
       Debug.Assert(mt.Arguments.Count == 1);
 
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
-      Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, AccessType.WRITE);
+      Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, AccessType.WRITE, verifier.IntRep.GetIntType(verifier.size_t_bits));
       Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
@@ -876,7 +1057,7 @@ namespace GPUVerify {
 
         if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           WriteNoBenignTest = Expr.Neq(
-              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result)),
+              new IdentifierExpr(Token.NoToken, RaceInstrumentationUtil.MakeValueVariable(v.Name, AccessType.WRITE, mt.Result)),
               new IdentifierExpr(Token.NoToken, ValueParameter));
         }
 
@@ -886,7 +1067,7 @@ namespace GPUVerify {
 
         if (!GPUVerifyVCGenCommandLineOptions.NoBenign) {
           ReadNoBenignTest = Expr.Neq(
-              new IdentifierExpr(Token.NoToken, GPUVerifier.MakeValueVariable(v.Name, AccessType.READ, mt.Result)),
+              new IdentifierExpr(Token.NoToken, RaceInstrumentationUtil.MakeValueVariable(v.Name, AccessType.READ, mt.Result)),
               new IdentifierExpr(Token.NoToken, ValueParameter));
         }
 
@@ -912,7 +1093,7 @@ namespace GPUVerify {
     protected void AddCheckAccessCheck(Variable v, Procedure CheckAccessProcedure, Variable PredicateParameter, Variable OffsetParameter, Expr NoBenignTest, AccessType Access, String attribute) {
       // Check atomic by thread 2 does not conflict with read by thread 1
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Variable AccessOffsetVariable = verifier.MakeOffsetVariable(v.Name, Access);
+      Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
 
       Expr AccessGuard = new IdentifierExpr(Token.NoToken, PredicateParameter);
       AccessGuard = Expr.And(AccessGuard, new IdentifierExpr(Token.NoToken, AccessHasOccurredVariable));
@@ -957,7 +1138,7 @@ namespace GPUVerify {
     }
 
 
-    private static AssignCmd MakeConditionalAssignment(Variable lhs, Expr condition, Expr rhs) {
+    protected static AssignCmd MakeConditionalAssignment(Variable lhs, Expr condition, Expr rhs) {
       List<AssignLhs> lhss = new List<AssignLhs>();
       List<Expr> rhss = new List<Expr>();
       lhss.Add(new SimpleAssignLhs(lhs.tok, new IdentifierExpr(lhs.tok, lhs)));
@@ -1019,10 +1200,11 @@ namespace GPUVerify {
     }
 
     private Expr AccessedOffsetIsThreadLocalIdExpr(Variable v, AccessType Access) {
+      Expr offsetVar = new IdentifierExpr(v.tok, RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits)));
+      Expr offsetExpr = verifier.IntRep.MakeZext(new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", 1)), offsetVar.Type);
       return Expr.Imp(
                 new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access)),
-                Expr.Eq(new IdentifierExpr(v.tok, verifier.MakeOffsetVariable(v.Name, Access)), 
-                  new IdentifierExpr(v.tok, GPUVerifier.MakeThreadId("X", 1))));
+                Expr.Eq(offsetVar, offsetExpr));
     }
 
     private Expr GlobalIdExpr(string dimension, int Thread) {
@@ -1052,7 +1234,7 @@ namespace GPUVerify {
     }
 
     private IdentifierExpr OffsetXExpr(Variable v, AccessType Access, int Thread) {
-      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(verifier.MakeOffsetVariable(v.Name, Access)));
+      return new IdentifierExpr(v.tok, new VariableDualiser(Thread, null, null).VisitVariable(RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits))));
     }
 
     protected void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, AccessType Access) {
@@ -1086,6 +1268,13 @@ namespace GPUVerify {
       verifier.AddCandidateEnsures(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
     }
 
+    private void ExitWithNoSourceError(Variable v, AccessType Access)
+    {
+      Console.Error.WriteLine("No source location information available when processing " + 
+        Access + " operation on " + v + " at " + GPUVerifyVCGenCommandLineOptions.inputFiles[0] + ":" + 
+        v.tok.line + ":" + v.tok.col + ".  Aborting.");
+      Environment.Exit(1);
+    }
 
 
   }

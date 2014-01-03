@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
-
+from __future__ import print_function
 import getopt
 import os
 import signal
@@ -125,7 +125,8 @@ class BatchCaller(object):
 cleanUpHandler = BatchCaller()
 
 """ Timing for the toolchain pipeline """
-Timing = []
+Tools = ["clang", "opt", "bugle", "gpuverifyvcgen", "gpuverifycruncher", "gpuverifyboogiedriver"]
+Timing = {}
 
 """ WindowsError is not defined on UNIX systems, this works around that """
 try:
@@ -154,10 +155,9 @@ class SourceLanguage(object):
 
 clangCoreIncludes = [ gvfindtools.bugleSrcDir + "/include-blang" ]
 
-clangCoreDefines = []
+clangCoreDefines = [ ]
 
-clangCoreOptions = [ "-target", "nvptx--bugle",
-                     "-Wall",
+clangCoreOptions = [ "-Wall",
                      "-g",
                      "-gcolumn-info",
                      "-emit-llvm",
@@ -186,8 +186,7 @@ else:
 
 clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                        "-O0",
-                       "-Xclang", "-mlink-bitcode-file",
-                       "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--bugle.bc",
+                       "-fno-builtin",
                        "-include", "opencl.h"
                      ]
 clangOpenCLIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
@@ -197,8 +196,12 @@ clangOpenCLDefines = [ "cl_khr_fp64",
                      ]
 
 clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
-                       "-include", "cuda.h"
+                     "-include", "cuda.h"
                    ]
+
+if os.name == "nt":
+  clangCUDAOptions += ["-Xclang", "-cxx-abi", "-Xclang", "microsoft"]
+
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
@@ -265,8 +268,11 @@ class DefaultCmdLineOptions(object):
     self.warpSync = False
     self.warpSize = 32
     self.atomic = "rw"
+    self.sizeSizeT = 32
+    self.sizeSizeTSet = False
     self.noRefinedAtomics = False
     self.solver = "z3"
+    self.raceInstrumenter = "standard"
     self.logic = "QF_ALL_SUPPORTED"
     self.skip = { "clang": False,
              "opt": False,
@@ -340,6 +346,9 @@ def run(command,timeout=0):
       # We don't want messages to go to stdout if being used as module
       popenargs['stdout']=subprocess.PIPE
 
+  if CommandLineOptions.silent:
+      popenargs['stdout']=subprocess.PIPE
+
   # Redirect stderr to whatever stdout is redirected to
   popenargs['stderr']=subprocess.STDOUT
 
@@ -373,6 +382,7 @@ def RunTool(ToolName, Command, ErrorCode, timeout=0):
   """ Run a tool.
       If the timeout is set to 0 then there will be no timeout.
   """
+  assert ToolName in Tools
   Verbose("Running " + ToolName)
   try:
     start = timeit.default_timer()
@@ -380,7 +390,7 @@ def RunTool(ToolName, Command, ErrorCode, timeout=0):
     end = timeit.default_timer()
   except Timeout:
     if CommandLineOptions.time:
-      Timing.append((ToolName, timeout))
+      Timing[ToolName] = timeout
     raise GPUVerifyException(ErrorCodes.TIMEOUT, ToolName + " timed out. " + \
                              "Use --timeout=N with N > " + str(timeout)    + \
                              " to increase timeout, or --timeout=0 to "    + \
@@ -391,8 +401,9 @@ def RunTool(ToolName, Command, ErrorCode, timeout=0):
                              pprint.pformat(Command))
 
   if CommandLineOptions.time:
-    Timing.append((ToolName, end-start))
+    Timing[ToolName] = end-start
   if returnCode != ErrorCodes.SUCCESS:
+    if CommandLineOptions.silent and stdout: print(stdout, file=sys.stderr)
     raise GPUVerifyException(ErrorCode, stdout)
 
 def showVersionAndExit():
@@ -434,23 +445,18 @@ def showHelpAndExit():
     --version               Show version information.
 
   ADVANCED OPTIONS:
+    --32-bit                Assume 32-bit pointer size (default)
+    --64-bit                Assume 64-bit pointer size
     --adversarial-abstraction  Completely abstract shared state, so that reads are
                             nondeterministic
     --array-equalities      Generate equality candidate invariants for array variables
     --asymmetric-asserts    Emit assertions only for first thread.  Sound, and may lead
                             to faster verification, but can yield false positives
     --boogie-file=X.bpl     Specify a supporting .bpl file to be used during verification
-    --boogie-opt=...        Specify option to be passed to Boogie
     --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file
-    --bugle-opt=...         Specify option to be passed to Bugle
     --call-site-analysis    Turn on call site analysis
-    --clang-opt=...         Specify option to be passed to CLANG
-    --debug                 Enable debugging of GPUVerify components: exceptions will
-                            not be suppressed
     --equality-abstraction  Make shared arrays nondeterministic, but consistent between
                             threads, at barriers
-    --gen-smt2              Generate smt2 file
-    --keep-temps            Keep intermediate bc, gbpl, bpl and cbpl files
     --math-int              Represent integer types using mathematical integers
                             instead of bit-vectors
     --no-annotations        Ignore all source-level annotations
@@ -465,24 +471,37 @@ def showHelpAndExit():
     --only-log              Log accesses to arrays, but do not check for races.  This
                             can be useful for determining access pattern invariants
     --silent                Silent on success; only show errors/timing
-    --stop-at-opt           Stop after LLVM optimization pass
-    --stop-at-gbpl          Stop after generating gbpl
-    --stop-at-cbpl          Stop after generating an annotated bpl
-    --stop-at-bpl           Stop after generating bpl
     --time-as-csv=label     Print timing as CSV row with label
-    --vcgen-opt=...         Specify option to be passed to be passed to VC generation
-                            engine
     --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32
     --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none)
                             (default is --atomic=rw)
     --no-refined-atomics    Don't do abstraction refinement on the return values from atomics
+    --race-instrumenter=X   Choose which method of race instrumentation to use.  Options are:
+                            'standard', 'watchdog-single', 'watchdog-multiple'.  Default is 'standard'
     --solver=X              Choose which SMT Theorem Prover to use in the backend.
                             Available options: 'Z3' or 'cvc4' (default is 'Z3')
     --logic=X               Define the logic to be used by the CVC4 SMT solver backend
                             (default is QF_ALL_SUPPORTED)
 
+  DEVELOPMENT OPTIONS:
+    --debug                 Enable debugging of GPUVerify components: exceptions will
+                            not be suppressed
+    --keep-temps            Keep intermediate bc, gbpl, bpl and cbpl files
+    --gen-smt2              Generate smt2 file
+    --clang-opt=...         Specify option to be passed to Clang
+    --opt-opt=...           Specify option to be passed to LLVM optimization pass
+    --bugle-opt=...         Specify option to be passed to Bugle
+    --vcgen-opt=...         Specify option to be passed to VC generation
+                            engine
+    --boogie-opt=...        Specify option to be passed to Boogie
+    --stop-at-opt           Stop after LLVM optimization pass
+    --stop-at-gbpl          Stop after generating gbpl
+    --stop-at-bpl           Stop after generating bpl
+    --stop-at-cbpl          Stop after generating an annotated bpl
+
   INVARIANT INFERENCE OPTIONS:
     --no-infer              Turn off invariant inference
+    --omit-infer=X          Do not generate invariants tagged 'X'
     --staged-inference      Perform invariant inference in stages; this can boost
                             performance for complex kernels (but this is not guaranteed)
     --parallel-inference    Use multiple solver instances in parallel to accelerate invariant
@@ -623,6 +642,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.noUniformityAnalysis = True
     if o == "--clang-opt":
       CommandLineOptions.clangOptions += str(a).split(" ")
+    if o == "--opt-opt":
+      CommandLineOptions.optOptions += str(a).split(" ")
     if o == "--vcgen-opt":
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
     if o == "--boogie-opt":
@@ -661,6 +682,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.noRefinedAtomics = True
     if o == "--call-site-analysis":
       CommandLineOptions.callSiteAnalysis = True
+    if o in ("--omit-infer"):
+      CommandLineOptions.gpuVerifyVCGenOptions.append('/noCandidate:' + a)
 
   # All options whose processing can result in an error go in this loop.
   # See also the comment above the previous loop.
@@ -701,11 +724,26 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.atomic = a.lower()
       else:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --atomic must be 'r','w','rw', or 'none'")
+    if o == "--32-bit":
+      if CommandLineOptions.sizeSizeTSet:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to specify size for size_t multiple times")
+      CommandLineOptions.sizeSizeTSet = True
+      CommandLineOptions.sizeSizeT = 32
+    if o == "--64-bit":
+      if CommandLineOptions.sizeSizeTSet:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to specify size for size_t multiple times")
+      CommandLineOptions.sizeSizeTSet = True
+      CommandLineOptions.sizeSizeT = 64
     if o == "--solver":
       if a.lower() in ("z3","cvc4"):
         CommandLineOptions.solver = a.lower()
       else:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --solver must be 'Z3' or 'CVC4'")
+    if o == "--race-instrumenter":
+      if a.lower() in ("standard","watchdog-single","watchdog-multiple"):
+        CommandLineOptions.raceInstrumenter = a.lower()
+      else:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --race-instrumenter must be one of 'standard', 'watchdog-single' or 'watchdog-multiple'")
     if o == "--scheduling":
       if a.lower() in ("all-together","unsound-first","dynamic-first","phased"):
         CommandLineOptions.scheduling = a.lower()
@@ -772,6 +810,8 @@ def processOpenCLOptions(opts, args):
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "number of work groups must be specified via --num_groups=...")
 
 def processCUDAOptions(opts, args):
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/sourceLanguage:cu", "/demanglerPath:" + gvfindtools.bugleBinDir + os.sep + "bugle-demangle" ];
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/sourceLanguage:cu", "/demanglerPath:" + gvfindtools.bugleBinDir + os.sep + "bugle-demangle" ];
   for o, a in opts:
     if o == "--blockDim":
       if CommandLineOptions.groupSize != []:
@@ -820,7 +860,7 @@ def _main(argv):
               'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
               'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication',
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
-              'vcgen-opt=', 'boogie-opt=', 'bugle-opt=',
+              'vcgen-opt=', 'boogie-opt=', 'bugle-opt=', 'opt-opt=',
               'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-cbpl', 'stop-at-bpl',
               'time', 'time-as-csv=', 'keep-temps',
@@ -829,7 +869,8 @@ def _main(argv):
               'staged-inference', 'parallel-inference',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'atomic=', 'no-refined-atomics',
-              'solver=', 'logic='
+              'solver=', 'logic=', 'race-instrumenter=', 'omit-infer=',
+              '32-bit', '64-bit'
              ])
   except getopt.GetoptError as getoptError:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, getoptError.msg + ".  Try --help for list of options")
@@ -847,6 +888,14 @@ def _main(argv):
 
   filename, ext = SplitFilenameExt(args[0])
 
+  CommandLineOptions.defines += [ '__BUGLE_' + str(CommandLineOptions.sizeSizeT) + '__' ]
+  if (CommandLineOptions.sizeSizeT == 32):
+    CommandLineOptions.clangOptions += [ "-target", "nvptx--bugle" ]
+  elif (CommandLineOptions.sizeSizeT == 64):
+    CommandLineOptions.clangOptions += [ "-target", "nvptx64--bugle" ]
+  else:
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "unknown size_t size '" + str(CommandLineOptions.sizeSizeT) + "'")
+
   if ext == ".cl":
     CommandLineOptions.clangOptions += clangOpenCLOptions
     CommandLineOptions.clangOptions += clangInlineOptions
@@ -856,6 +905,12 @@ def _main(argv):
     CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
     CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
     CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    if (CommandLineOptions.sizeSizeT == 32):
+      CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
+                                           "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--bugle.bc" ]
+    elif (CommandLineOptions.sizeSizeT == 64):
+      CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
+                                           "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx64--bugle.bc" ]
 
   elif ext == ".cu":
     CommandLineOptions.clangOptions += clangCUDAOptions
@@ -884,9 +939,9 @@ def _main(argv):
     cleanUpHandler.register(DeleteFile, bcFilename)
     if not CommandLineOptions.stopAtOpt: cleanUpHandler.register(DeleteFile, optFilename)
     if not CommandLineOptions.stopAtGbpl: cleanUpHandler.register(DeleteFile, gbplFilename)
+    if not CommandLineOptions.stopAtGbpl: cleanUpHandler.register(DeleteFile, locFilename)
     if not CommandLineOptions.stopAtCbpl: cleanUpHandler.register(DeleteFile, cbplFilename)
     if not CommandLineOptions.stopAtBpl: cleanUpHandler.register(DeleteFile, bplFilename)
-    if not CommandLineOptions.stopAtBpl: cleanUpHandler.register(DeleteFile, locFilename)
 
   CommandLineOptions.clangOptions.append("-o")
   CommandLineOptions.clangOptions.append(bcFilename)
@@ -895,11 +950,7 @@ def _main(argv):
   CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
   if ext in [ ".cl", ".cu" ]:
-    CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-o", gbplFilename, optFilename ]
-    if CommandLineOptions.mathInt:
-      CommandLineOptions.bugleOptions += [ "-i", "math" ]
-    if not CommandLineOptions.noInline:
-      CommandLineOptions.bugleOptions += [ "-inline" ]
+    CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
   elif not CommandLineOptions.skip['bugle']:
     lang = CommandLineOptions.bugleLanguage
     if not lang: # try to infer
@@ -912,7 +963,12 @@ def _main(argv):
     if not lang:
       raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "must specify --bugle-lang=[cl|cu] when given a bitcode .bc file")
     assert lang in [ "cl", "cu" ]
-    CommandLineOptions.bugleOptions += [ "-l", lang, "-o", gbplFilename, optFilename ]
+    CommandLineOptions.bugleOptions += [ "-l", lang, "-s", locFilename, "-o", gbplFilename, optFilename ]
+
+  if CommandLineOptions.mathInt:
+    CommandLineOptions.bugleOptions += [ "-i", "math" ]
+  if not CommandLineOptions.noInline:
+    CommandLineOptions.bugleOptions += [ "-inline" ]
 
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/atomics:" + CommandLineOptions.atomic ]
   if CommandLineOptions.warpSync:
@@ -959,11 +1015,11 @@ def _main(argv):
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
-  
+
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyCruncherOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
     CommandLineOptions.gpuVerifyBoogieDriverOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
-    
+
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/noinfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/contractInfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
@@ -981,11 +1037,11 @@ def _main(argv):
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicAnalysis" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
-  CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:LOGIC=" + CommandLineOptions.logic ]
-  
+
   if CommandLineOptions.solver == "cvc4":
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:SOLVER=cvc4" ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/proverOpt:LOGIC=" + CommandLineOptions.logic ]
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/proverOpt:LOGIC=" + CommandLineOptions.logic ]
   else:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
@@ -1003,12 +1059,23 @@ def _main(argv):
     if CommandLineOptions.solver == "z3":
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
-  
+
   CommandLineOptions.gpuVerifyCruncherOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyBoogieDriverOptions += CommandLineOptions.defaultOptions
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/invInferConfigFile:" + os.path.dirname(os.path.abspath(__file__)) + os.sep + CommandLineOptions.invInferConfigFile ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ bplFilename ]
-  
+
+  if CommandLineOptions.raceInstrumenter == "watchdog-single":
+    CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-single" ]
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/watchdogRaceChecking:SINGLE" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/watchdogRaceChecking:SINGLE" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/watchdogRaceChecking:SINGLE" ]
+  if CommandLineOptions.raceInstrumenter == "watchdog-multiple":
+    CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-multiple" ]
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
+
   if CommandLineOptions.inference and (not CommandLineOptions.mode == AnalysisMode.FINDBUGS):
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ cbplFilename ]
   else:
@@ -1097,31 +1164,27 @@ def _main(argv):
   return 0
 
 def showTiming(exitCode):
-  if Timing:
-    tools, times = map(list, zip(*Timing))
-    total = sum(times)
-  else:
-    tools, times = [], []
-    total = 0.0
-
   if CommandLineOptions.timeCSVLabel is not None:
-    label = CommandLineOptions.timeCSVLabel
+    times = [ Timing.get(tool, 0.0) for tool in Tools ]
+    total = sum(times)
     times.append(total)
     row = [ '%.3f' % t for t in times ]
+    label = CommandLineOptions.timeCSVLabel
     if len(label) > 0: row.insert(0, label)
     if exitCode is ErrorCodes.SUCCESS:
       row.insert(1,'PASS')
-      print(', '.join(row))
     else:
       row.insert(1,'FAIL(' + str(exitCode) + ')')
-      print >> sys.stderr, ', '.join(row)
+    print(','.join(row))
   else:
+    total = sum(Timing.values())
     print("Timing information (%.2f secs):" % total)
-    if tools:
-      padTool = max([ len(tool) for tool in tools ])
-      padTime = max([ len('%.3f secs' % t) for t in times ])
-      for (tool, t) in Timing:
-        print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % t).rjust(padTime)))
+    if Timing:
+      padTool = max([ len(tool) for tool in Timing.keys() ])
+      padTime = max([ len('%.3f secs' % t) for t in Timing.values() ])
+      for tool in Tools:
+        if tool in Timing:
+          print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % Timing[tool]).rjust(padTime)))
     else:
       print("- no tools ran")
 
@@ -1219,10 +1282,10 @@ if __name__ == '__main__':
     if (not (e.getExitCode() in ignoredErrors)) or CommandLineOptions.debugging:
       if e.getExitCode() == ErrorCodes.COMMAND_LINE_ERROR:
         # For command line errors only show the message and not internal details
-        print('GPUVerify: {0}'.format(e.msg))
+        print('GPUVerify: {0}'.format(e.msg), file=sys.stderr)
       else:
         # Show all exception info for everything else not ignored
-        print(str(e))
+        print(str(e), file=sys.stderr)
     sys.exit(e.getExitCode())
 
   sys.exit(ErrorCodes.SUCCESS)

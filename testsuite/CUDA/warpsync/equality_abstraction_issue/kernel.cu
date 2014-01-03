@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--warp-sync=32 --blockDim=32 --gridDim=1 --equality-abstraction
+//--warp-sync=32 --blockDim=32 --gridDim=1 --equality-abstraction --no-inline
 //kernel.cu:10
 
 __global__ void foo(int * A) {

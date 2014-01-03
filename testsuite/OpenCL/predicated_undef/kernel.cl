@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64 --clang-opt=-Wno-uninitialized
+//--local_size=64 --num_groups=64 --clang-opt=-Wno-uninitialized --no-inline
 
 __kernel void k(__global int *input, __global int *output) {
 

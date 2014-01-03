@@ -1,5 +1,5 @@
 //pass
-//--local_size=2 --num_groups=1
+//--local_size=2 --num_groups=1 --no-inline
 
 
 

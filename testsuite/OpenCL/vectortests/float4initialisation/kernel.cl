@@ -1,8 +1,8 @@
 //pass
-//--local_size=64 --num_groups=64
+//--local_size=64 --num_groups=64 --no-inline
 
 
-static __attribute__((always_inline)) bool __equal_floats(float* p, float* q) {
+inline __attribute__((always_inline)) bool __equal_floats(float* p, float* q) {
   char* cp = (char*)p;
   char* cq = (char*)q;
   return cp[0] == cq[0] &&

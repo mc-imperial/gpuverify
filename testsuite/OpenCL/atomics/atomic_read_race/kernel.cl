@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=1024 --num_groups=1
+//--local_size=1024 --num_groups=1 --no-inline
 //error: possible read-atomic race
 
 __kernel void atomic (__local int* A)

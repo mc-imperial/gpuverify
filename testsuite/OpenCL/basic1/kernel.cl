@@ -1,7 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64
-
-#include "opencl.h"
+//--local_size=64 --num_groups=64 --no-inline
 
 __kernel void foo() {
   int a, b, c;

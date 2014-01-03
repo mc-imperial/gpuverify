@@ -45,15 +45,9 @@ namespace GPUVerify {
     private static void GenerateCandidateForNonUniformGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
         if (!verifier.ContainsBarrierCall(region)) return;
 
-        HashSet<Variable> partitionVars = new HashSet<Variable>();
+        HashSet<Variable> partitionVars = region.PartitionVariablesOfHeader();
         HashSet<Variable> guardVars = new HashSet<Variable>();
 
-        foreach (var assume in region.Cmds().OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
-        {
-            var visitor = new VariablesOccurringInExpressionVisitor();
-            visitor.Visit(assume.Expr);
-            partitionVars.UnionWith(visitor.GetVariables());
-        }
         var formals = impl.InParams.Select(x => x.Name);
         var modset = GetModifiedVariables(region).Select(x => x.Name);
         foreach (var v in partitionVars)
@@ -68,7 +62,7 @@ namespace GPUVerify {
                        !formals.Contains(x.Name) && 
                        modset.Contains(x.Name) &&
                        !verifier.uniformityAnalyser.IsUniform(impl.Name, x.Name) &&
-                       x.TypedIdent.Type.Equals(Microsoft.Boogie.Type.GetBvType(32))
+                       x.TypedIdent.Type.Equals(Microsoft.Boogie.Type.GetBvType(verifier.size_t_bits))
                 )
             );
         }
@@ -110,15 +104,9 @@ namespace GPUVerify {
     }
 
     private static void GenerateCandidateForNonNegativeGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
-        var visitor = new VariablesOccurringInExpressionVisitor();
-        HashSet<Variable> partitionVars = new HashSet<Variable>();
+        HashSet<Variable> partitionVars = region.PartitionVariablesOfHeader();
         HashSet<Variable> nonnegVars = new HashSet<Variable>();
 
-        foreach (var assume in region.Cmds().OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
-        {
-            visitor.Visit(assume.Expr);
-            partitionVars.UnionWith(visitor.GetVariables());
-        }
         var formals = impl.InParams.Select(x => x.Name);
         var modset = GetModifiedVariables(region).Select(x => x.Name);
         foreach (var v in partitionVars)
@@ -130,37 +118,33 @@ namespace GPUVerify {
                   nary.Fun.FunctionName.Equals("BV32_SLT") ||
                   nary.Fun.FunctionName.Equals("BV32_SGE") ||
                   nary.Fun.FunctionName.Equals("BV32_SGT"))) continue;
+            var visitor = new VariablesOccurringInExpressionVisitor();
             visitor.Visit(nary);
             nonnegVars.UnionWith(
                 visitor.GetVariables().Where(
-                  x => x.Name.StartsWith("$") && 
-                       !formals.Contains(x.Name) && 
+                  x => x.Name.StartsWith("$") &&
+                       !formals.Contains(x.Name) &&
                        modset.Contains(x.Name) &&
-                       IsBVType(x.TypedIdent.Type)
+                       x.TypedIdent.Type.IsBv
                 )
             );
         }
         foreach (var v in nonnegVars)
         {
             int BVWidth = (v.TypedIdent.Type as BvType).Bits;
-            var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetLiteral(0,BVWidth), new IdentifierExpr(v.tok, v));
-            verifier.AddCandidateInvariant(region, inv, "guardNonNeg", InferenceStages.BASIC_CANDIDATE_STAGE);
+            // REVISIT: really we only want to guess for /integer/ variables.
+            if (BVWidth >= 8) {
+              var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetLiteral(0,BVWidth), new IdentifierExpr(v.tok, v));
+              verifier.AddCandidateInvariant(region, inv, "guardNonNeg", InferenceStages.BASIC_CANDIDATE_STAGE);
+            }
         }
-    }
-
-    private static bool IsBVType(Microsoft.Boogie.Type type)
-    {
-        return type.Equals(Microsoft.Boogie.Type.GetBvType(32))
-            || type.Equals(Microsoft.Boogie.Type.GetBvType(16))
-            || type.Equals(Microsoft.Boogie.Type.GetBvType(8));
     }
 
     private static void GenerateCandidateForReducedStrengthStrideVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
       var rsa = verifier.reducedStrengthAnalyses[impl];
       foreach (string lc in rsa.StridedLoopCounters(region.Identifier())) {
         var sc = rsa.GetStrideConstraint(lc);
-        Variable lcVariable = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lc,
-                Microsoft.Boogie.Type.GetBvType(32)));
+        Variable lcVariable = impl.LocVars.Where(Item => Item.Name == lc).ToList()[0];
         var lcExpr = new IdentifierExpr(Token.NoToken, lcVariable);
         var lcPred = sc.MaybeBuildPredicate(verifier, lcExpr);
 
@@ -360,10 +344,8 @@ namespace GPUVerify {
         List<Variable> vars = new List<Variable>();
         c.AddAssignedVariables(vars);
         foreach (Variable v in vars) {
-          // TODO: remove temporary workaround for atomic refinement
-          if(v != null) {
-            result.Add(v);
-          }
+          Debug.Assert(v != null);
+          result.Add(v);
         }
       }
 

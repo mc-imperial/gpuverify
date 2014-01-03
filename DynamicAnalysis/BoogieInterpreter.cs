@@ -272,7 +272,7 @@ namespace DynamicAnalysis
                     Memory.AddGlobalArray(decl.Name);
                 if (RegularExpressions.OFFSET_VARIABLE.IsMatch(decl.Name))
                 {
-                    if (QKeyValue.FindBoolAttribute(decl.Attributes, "GLOBAL"))
+                    if (QKeyValue.FindBoolAttribute(decl.Attributes, "global"))
                         Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GLOBAL);
                     else
                         Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GROUP_SHARED);

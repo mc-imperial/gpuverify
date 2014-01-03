@@ -1,5 +1,5 @@
 //pass
-//--local_size=1024 --num_groups=1
+//--local_size=1024 --num_groups=1 --no-inline
 
 __kernel void atomic (__local int* A,
                       __local int* B)

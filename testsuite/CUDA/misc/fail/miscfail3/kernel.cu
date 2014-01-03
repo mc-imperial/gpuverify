@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=1024 --gridDim=1
+//--blockDim=1024 --gridDim=1 --no-inline
 //kernel.cu: error: possible read-write race
 //GPUVerify kernel analyser finished with 1 verified, 1 error
 

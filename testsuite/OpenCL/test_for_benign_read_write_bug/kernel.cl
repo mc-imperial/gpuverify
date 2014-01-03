@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--local_size=64 --num_groups=64 --equality-abstraction
+//--local_size=64 --num_groups=64 --equality-abstraction --no-inline
 //
 
 //xfail

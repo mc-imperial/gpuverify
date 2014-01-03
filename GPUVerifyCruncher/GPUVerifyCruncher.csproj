@@ -78,4 +78,8 @@
       <HintPath>..\BoogieBinaries\AbsInt.dll</HintPath>
     </Reference>
   </ItemGroup>
+   <Target Name="Clean">
+    <RemoveDir Directories="$(ProjectDir)\bin" />
+    <RemoveDir Directories="$(ProjectDir)\obj" />
+  </Target>
 </Project>
