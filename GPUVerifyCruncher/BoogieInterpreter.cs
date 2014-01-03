@@ -66,7 +66,6 @@ namespace GPUVerify
 
     public class BoogieInterpreter
     {
-        private const int HeaderLimit = 10000;
         private BitVector[] LocalID1 = new BitVector[3];
         private BitVector[] LocalID2 = new BitVector[3];
         private BitVector[] GlobalID1 = new BitVector[3];
@@ -81,7 +80,7 @@ namespace GPUVerify
         private HashSet<string> KilledAsserts = new HashSet<string>();
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         private HashSet<Block> Covered = new HashSet<Block>();
-        private Dictionary<Block, int> HeaderExecutions = new Dictionary<Block, int>();
+        private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
        
         public static void Start (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
         {
@@ -93,8 +92,9 @@ namespace GPUVerify
             // If there are no invariants to falsify, return
             if (program.TopLevelDeclarations.OfType<Constant>().Where(item => QKeyValue.FindBoolAttribute(item.Attributes,"existential")).Count() == 0)
               return;
+
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();   
-            Console.WriteLine("Falsyifying invariants with dynamic analysis...");
+            Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
             try
             {  
                 do
@@ -113,15 +113,28 @@ namespace GPUVerify
                     Print.VerboseMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
                     EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
                     InterpretKernel(program, impl);
-                } while (FormalParameterValues.Count > 0 && !AllBlocksCovered(impl));
-                // ^^^^^^^^^^^^^^^^^ This means try to kill invariants while we have not exhausted a loop header limit AND there are formal parameter
-                // values we can actually manipulate AND not every basic block has been covered 
+                } while (TotalHeaderExecutionCount() <= ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisHeaderLimit 
+                         && FormalParameterValues.Count > 0 
+                         && !AllBlocksCovered(impl));
+                // The condition states: try to kill invariants while we have not exhausted a global loop header limit 
+                // AND there are formal parameter values we can actually manipulate 
+                // AND not every basic block has been covered
             }
             finally
             {
                 SummarizeKilledInvariants();
-                Console.WriteLine("Dynamic analysis done");
+                Print.VerboseMessage("Dynamic analysis done");
             }
+        }
+
+        private int TotalHeaderExecutionCount ()
+        {
+            int count = 0;
+            foreach (KeyValuePair<Block, int> it in HeaderExecutionCounts)
+            {
+                count += it.Value;
+            }
+            return count;
         }
                
         private bool AllBlocksCovered (Implementation impl)
@@ -139,9 +152,9 @@ namespace GPUVerify
         {
             if (KilledAsserts.Count > 0)
             {
-                Console.WriteLine("Dynamic analysis removed " + KilledAsserts.Count.ToString() + " invariants:");
+                Print.VerboseMessage("Dynamic analysis removed " + KilledAsserts.Count.ToString() + " invariants:");
                 foreach (string BoogieVariable in KilledAsserts)
-                    Console.WriteLine(BoogieVariable);
+                    Print.VerboseMessage(BoogieVariable);
             }
         }
         
@@ -373,9 +386,9 @@ namespace GPUVerify
                     {
                         if (headers.Contains(block))
                         {
-                            if (!HeaderExecutions.ContainsKey(block))
-                                HeaderExecutions[block] = 0;
-                            HeaderExecutions[block]++;
+                            if (!HeaderExecutionCounts.ContainsKey(block))
+                                HeaderExecutionCounts[block] = 0;
+                            HeaderExecutionCounts[block]++;
                         }
                         assumesHold = InterpretBasicBlock(program, impl, block);
                         block = TransferControl(block);
@@ -627,7 +640,7 @@ namespace GPUVerify
                             EvaluateExprTree(tree);
                             if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                             {
-                                Console.Write("==========> FALSE " + assert.ToString());
+                                Print.VerboseMessage("==========> FALSE " + assert.ToString());
                                 AssertStatus[assert] = BitVector.False;
                                 MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
                                 string BoogieVariable = null;

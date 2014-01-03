@@ -8,13 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 using System;
+using Microsoft.Boogie;
 
 namespace GPUVerify
 {
 	public class Print
 	{
 		public static int debug = 0;
-		public static bool verbose = false;
 		
 		public static void DebugMessage (string arg, int level)
 		{
@@ -30,14 +30,13 @@ namespace GPUVerify
 		
 		public static void VerboseMessage (string arg)
 		{
-			if (verbose)
-				Console.WriteLine(arg);
+            if (CommandLineOptions.Clo.Trace)
+			    Console.WriteLine(arg);
 		}
 		
 		public static void WarningMessage (string arg)
 		{
-		    if (verbose)
-		         Console.WriteLine("****************** WARNING: {0}", arg);
+		    Console.WriteLine("****************** WARNING: {0}", arg);
 		}
 		
 		public static void ExitMessage (string arg)
