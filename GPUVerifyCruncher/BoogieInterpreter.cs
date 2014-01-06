@@ -51,6 +51,7 @@ namespace GPUVerify
         public static Regex BVADD              = new Regex("BV[0-9]+_ADD", RegexOptions.IgnoreCase);
         public static Regex BVSUB              = new Regex("BV[0-9]+_SUB", RegexOptions.IgnoreCase);
         public static Regex BVMUL              = new Regex("BV[0-9]+_MUL", RegexOptions.IgnoreCase);
+        public static Regex BVDIV              = new Regex("BV[0-9]+_DIV", RegexOptions.IgnoreCase);
         public static Regex BVAND              = new Regex("BV[0-9]+_AND", RegexOptions.IgnoreCase);
         public static Regex BVOR               = new Regex("BV[0-9]+_OR", RegexOptions.IgnoreCase);
         public static Regex BVXOR              = new Regex("BV[0-9]+_XOR", RegexOptions.IgnoreCase);
@@ -119,18 +120,17 @@ namespace GPUVerify
                     Memory.Clear();
                     EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
                     EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
-                    Print.VerboseMessage(gpu.ToString());
+                    Print.DebugMessage(gpu.ToString(), 1);
                     // Set the local thread IDs and group IDs
                     SetLocalIDs(localIDSpecification);
                     SetGlobalIDs(globalIDSpecification);
-                    Print.VerboseMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()));
-                    Print.VerboseMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()));
-                    Print.VerboseMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()));
-                    Print.VerboseMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()));
+                    Print.DebugMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
                     EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
                     InterpretKernel(program, impl, loopInfo.Headers);
-                } while (TotalHeaderExecutionCount() <= ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit 
-                         && FormalParameterValues.Count > 0 
+                } while (FormalParameterValues.Count > 0 
                          && !AllBlocksCovered(impl));
                 // The condition states: try to kill invariants while we have not exhausted a global loop header limit 
                 // AND there are formal parameter values we can actually manipulate 
@@ -176,9 +176,7 @@ namespace GPUVerify
         {
             int count = 0;
             foreach (KeyValuePair<Block, int> it in HeaderExecutionCounts)
-            {
                 count += it.Value;
-            }
             return count;
         }
                
@@ -411,18 +409,28 @@ namespace GPUVerify
 
         private void InterpretKernel(Program program, Implementation impl, IEnumerable<Block> headers)
         {
-            Print.VerboseMessage(String.Format("Interpreting implementation '{0}'", impl.Name));
+            Print.DebugMessage(String.Format("Interpreting implementation '{0}'", impl.Name), 1);
             try
             {
+                // Put formal parameters into a state matching the requires clauses
                 foreach (Requires requires in impl.Proc.Requires)
-                {
                     EvaluateRequires(requires);
-                }
+                // Initialise any formal parameters not constrained by requires clauses
                 InitialiseFormalParams(impl.InParams);
+                // Start intrepreting at the entry basic block
+                Block block = impl.Blocks[0];
+                // Continue until the exit basic block is reached
+                while (block != null)
                 {
-                    bool assumesHold = true;
-                    Block block = impl.Blocks[0];
-                    while (block != null && assumesHold)
+                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor > 0
+                        && headers.Contains(block) 
+                        && HeaderExecutionCounts.ContainsKey(block)
+                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor)
+                    {
+                        // If we have exceeded the user-set loop unroll factor then go to an exit block
+                        block = HeaderToLoopExitBlocks[block][0];
+                    }
+                    else
                     {
                         if (headers.Contains(block))
                         {
@@ -430,19 +438,12 @@ namespace GPUVerify
                                 HeaderExecutionCounts[block] = 0;
                             HeaderExecutionCounts[block]++;
                         }
-                        assumesHold = InterpretBasicBlock(program, impl, block);
 
-                        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor > 0
-                            && headers.Contains(block) 
-                            && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor)
-                        {
-                            // If we have exceeded the user-set loop unroll factor then go to an exit block
-                            block = HeaderToLoopExitBlocks[block][0];
-                        }
-                        else
-                          block = TransferControl(block);
+                        InterpretBasicBlock(program, impl, block);
+                        block = TransferControl(block);
                     }
                 }
+
             }
             catch (UnhandledException e)
             {
@@ -577,7 +578,6 @@ namespace GPUVerify
                 // Only initialise formal parameters not initialised through requires clauses
                 if (!Memory.Contains(v.Name))
                 {
-                    Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised", v.Name, v.TypedIdent.Type.ToString()));
                     int width;
                     if (v.TypedIdent.Type is BvType)
                     {
@@ -609,12 +609,14 @@ namespace GPUVerify
                     }
                     
                     Memory.Store(v.Name, initialValue);
-                    Print.VerboseMessage("...assigning " + initialValue.ToString());
+                    Print.DebugMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
+                                                     v.Name, v.TypedIdent.Type.ToString(),
+                                                     initialValue.ToString()), 1);
                   }
-         }
+            }
         }
 
-        private bool InterpretBasicBlock (Program program, Implementation impl, Block block)
+        private void InterpretBasicBlock (Program program, Implementation impl, Block block)
         {
             Print.DebugMessage(String.Format("==========> Entering basic block with label '{0}'", block.Label), 1);
             // Record that this basic block has executed
@@ -734,19 +736,13 @@ namespace GPUVerify
                     ExprTree tree = GetExprTree(assume.Expr);
                     EvaluateExprTree(tree);
                     if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
-                    {
                         Console.WriteLine("ASSUME FALSIFIED: " + assume.Expr.ToString());
-                        // When an assume fails in normal execution, something has gone awry with the state, so we kill execution.
-                        // However, when loops are unrolled and an assume fails, it is probably our unsafe execution which leads to the
-                        // invalid state, so we continue execution. 
-                        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor == 0)
-                          return false;
-                    }
                 }
                 else
+                {
                     throw new UnhandledException("Unhandled command: " + cmd.ToString());
+                }
             }
-            return true;
         }
         
         private Block TransferControl (Block block)
@@ -783,7 +779,6 @@ namespace GPUVerify
 
         private void EvaluateBinaryNode(BinaryNode<BitVector> binary)
         {
-            Print.DebugMessage("Evaluating binary bv node", 10);
             ExprNode<BitVector> left = binary.GetChildren()[0] as ExprNode<BitVector>;
             ExprNode<BitVector> right = binary.GetChildren()[1] as ExprNode<BitVector>;
             foreach (BitVector lhs in left.evaluations)
@@ -992,6 +987,8 @@ namespace GPUVerify
                         binary.evaluations.Add(lhs - rhs);
                     else if (RegularExpressions.BVMUL.IsMatch(binary.op))
                         binary.evaluations.Add(lhs * rhs);
+                    else if (RegularExpressions.BVDIV.IsMatch(binary.op))
+                        binary.evaluations.Add(lhs / rhs);
                     else if (RegularExpressions.BVAND.IsMatch(binary.op))
                         binary.evaluations.Add(lhs & rhs);
                     else if (RegularExpressions.BVOR.IsMatch(binary.op))
@@ -1022,7 +1019,6 @@ namespace GPUVerify
         
         private void EvaluateUnaryNode(UnaryNode<BitVector> unary)
         {
-            Print.DebugMessage("Evaluating unary bv node", 10);  
             ExprNode<BitVector> child = (ExprNode<BitVector>) unary.GetChildren()[0];
             if (child.uninitialised)
                 unary.uninitialised = true;
@@ -1219,6 +1215,7 @@ namespace GPUVerify
 
         private void Barrier(CallCmd call)
         {
+            Print.DebugMessage("In barrier", 10);
             ExprTree groupSharedTree = GetExprTree(call.Ins[0]);
             ExprTree globalTree = GetExprTree(call.Ins[1]);
             EvaluateExprTree(groupSharedTree);
