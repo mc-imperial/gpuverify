@@ -22,15 +22,27 @@ namespace GPUVerify
 
         public ControlDependence (Implementation impl)
         {
-            Graph<Block> cfg     = Program.GraphFromImpl(impl);
+            Graph<Block> cfg = Program.GraphFromImpl(impl);
             Graph<Block> reverse = cfg.Dual(new Block());
-            // Assume control dependences are empty
+            // Assume an empty control-dependence relation
             foreach (Block block in cfg.Nodes)
             {
                 Dependences[block] = new HashSet<Block>();
             }
+            // Build up an immediate post-dominator map to ease control dependence calculation
             ComputeImmediatePostdominators(reverse, reverse.DominatorMap);
             ComputeControlDependences(reverse, reverse.DominatorMap);
+        }
+
+        public HashSet<Block> GetControllingNodes ()
+        {
+            HashSet<Block> nodes = new HashSet<Block>();
+            foreach (KeyValuePair<Block, HashSet<Block>> it in Dependences)
+            {
+                if (it.Value.Count > 0)
+                    nodes.Add(it.Key);
+            }
+            return nodes;
         }
 
         private void ComputeImmediatePostdominators (Graph<Block> cfg, DomRelation<Block> postdom)
@@ -49,6 +61,8 @@ namespace GPUVerify
 
         private void ComputeControlDependences (Graph<Block> cfg, DomRelation<Block> postdom)
         {
+            // We use the property that, if X is in the post-dominance frontier of Y, Y is control
+            // dependent on X. The following computes post-dominance frontier information
             foreach (Block block in cfg.Nodes)
             {
                 IEnumerable<Block> predecessors = cfg.Predecessors(block);

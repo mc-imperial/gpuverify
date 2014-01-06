@@ -96,7 +96,6 @@ namespace GPUVerify
               return;
 
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();
-            ControlDependence cdep = new ControlDependence(impl);
             // Build map from label to basic block
             foreach (Block block in impl.Blocks)
                 LabelToBlock[block.Label] = block;
@@ -110,6 +109,8 @@ namespace GPUVerify
                 loopBody.UnionWith(loopInfo.NaturalLoops(header, tail));
               ComputeLoopExitBlocks(header, loopBody);
             }
+
+            DetermineWhetherFormalParametersAffectControlFlow(impl);
 
             Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
             try
@@ -140,6 +141,15 @@ namespace GPUVerify
             {
                 SummarizeKilledInvariants();
                 Print.VerboseMessage("Dynamic analysis done");
+            }
+        }
+
+        private void DetermineWhetherFormalParametersAffectControlFlow (Implementation impl)
+        {
+            ControlDependence controlDependence = new ControlDependence(impl);
+            foreach (Block block in controlDependence.GetControllingNodes())
+            {
+                Console.WriteLine(block.ToString());
             }
         }
 
