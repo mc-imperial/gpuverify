@@ -15,25 +15,22 @@ using Microsoft.Boogie.GraphUtil;
 
 namespace GPUVerify
 {
-    public class ControlDepedence
+    public class ControlDependence
     {
         private Dictionary<Block, Block> ImmediatePostdominators = new Dictionary<Block, Block>();
-        private Dictionary<Block, HashSet<Block>> PostdominanceFrontiers = new Dictionary<Block, HashSet<Block>>();
-        private Dictionary<Block, HashSet<Block>> Depedences = new Dictionary<Block, HashSet<Block>>();
+        private Dictionary<Block, HashSet<Block>> Dependences = new Dictionary<Block, HashSet<Block>>();
 
-        public ControlDepedence (Implementation impl)
+        public ControlDependence (Implementation impl)
         {
             Graph<Block> cfg     = Program.GraphFromImpl(impl);
             Graph<Block> reverse = cfg.Dual(new Block());
-            // Assume post-dominance frontiers and control dependences are empty
+            // Assume control dependences are empty
             foreach (Block block in cfg.Nodes)
             {
-                PostdominanceFrontiers[block] = new HashSet<Block>();
-                Depedences[block] = new HashSet<Block>();
+                Dependences[block] = new HashSet<Block>();
             }
             ComputeImmediatePostdominators(reverse, reverse.DominatorMap);
-            ComputeDominanceFrontiers(reverse, reverse.DominatorMap); 
-            ComputeControlDependences(reverse);
+            ComputeControlDependences(reverse, reverse.DominatorMap);
         }
 
         private void ComputeImmediatePostdominators (Graph<Block> cfg, DomRelation<Block> postdom)
@@ -50,7 +47,7 @@ namespace GPUVerify
             }
         }
 
-        private void ComputeDominanceFrontiers (Graph<Block> cfg, DomRelation<Block> postdom)
+        private void ComputeControlDependences (Graph<Block> cfg, DomRelation<Block> postdom)
         {
             foreach (Block block in cfg.Nodes)
             {
@@ -63,21 +60,10 @@ namespace GPUVerify
                         Block runner = pred;
                         while (runner != immediatePostdom)
                         {
-                            PostdominanceFrontiers[runner].Add(block);
+                            Dependences[block].Add(runner);
                             runner = ImmediatePostdominators[runner];
                         }
                     }
-                }
-            }
-        }
-
-        private void ComputeControlDependences (Graph<Block> cfg)
-        {
-            foreach (Block block in cfg.Nodes)
-            {
-                foreach (Block runner in PostdominanceFrontiers[block])
-                {
-                    Depedences[runner].Add(block);
                 }
             }
         }

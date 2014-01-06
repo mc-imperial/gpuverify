@@ -42,7 +42,7 @@
     <Compile Include="GPU.cs" />
     <Compile Include="Memory.cs" />
     <Compile Include="Print.cs" />
-    <Compile Include="ControlDepedence.cs" />
+    <Compile Include="ControlDependence.cs" />
   </ItemGroup>
   <!--
   <ItemGroup>

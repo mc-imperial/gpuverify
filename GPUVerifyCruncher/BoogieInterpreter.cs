@@ -96,7 +96,7 @@ namespace GPUVerify
               return;
 
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();
-            ControlDepedence cdep = new ControlDepedence(impl);
+            ControlDependence cdep = new ControlDependence(impl);
             // Build map from label to basic block
             foreach (Block block in impl.Blocks)
                 LabelToBlock[block.Label] = block;
