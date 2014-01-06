@@ -28,6 +28,7 @@
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
     <DefineConstants>TRACE</DefineConstants>
+    <DebugType>none</DebugType>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -41,6 +42,7 @@
     <Compile Include="GPU.cs" />
     <Compile Include="Memory.cs" />
     <Compile Include="Print.cs" />
+    <Compile Include="ControlDepedence.cs" />
   </ItemGroup>
   <!--
   <ItemGroup>
@@ -89,7 +91,7 @@
       <HintPath>..\BoogieBinaries\Graph.dll</HintPath>
     </Reference>
   </ItemGroup>
-   <Target Name="Clean">
+  <Target Name="Clean">
     <RemoveDir Directories="$(ProjectDir)\bin" />
     <RemoveDir Directories="$(ProjectDir)\obj" />
   </Target>
