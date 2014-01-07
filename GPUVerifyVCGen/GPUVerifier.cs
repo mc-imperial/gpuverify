@@ -1371,10 +1371,12 @@ namespace GPUVerify
                 barrierEntryBlock.ec = new IfCmd(tok, IfGuard, returnstatement, null, null);
             }
 
-            if(KernelArrayInfo.getGroupSharedArrays().Count > 0) {
+            var SharedArrays = KernelArrayInfo.getGroupSharedArrays();
+            SharedArrays = SharedArrays.Where(x => !KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(x)).ToList();
+            if(SharedArrays.Count > 0) {
 
                 bigblocks.AddRange(
-                      MakeResetBlocks(Expr.And(P1, LocalFence1), KernelArrayInfo.getGroupSharedArrays()));
+                      MakeResetBlocks(Expr.And(P1, LocalFence1), SharedArrays));
 
                 // This could be relaxed to take into account whether the threads are in different
                 // groups, but for now we keep it relatively simple
@@ -1382,8 +1384,7 @@ namespace GPUVerify
                 Expr AtLeastOneEnabledWithLocalFence =
                   Expr.Or(Expr.And(P1, LocalFence1), Expr.And(P2, LocalFence2));
 
-                if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGroupSharedArrays())) {
-                  var SharedArrays = KernelArrayInfo.getGroupSharedArrays();
+                if (SomeArrayModelledNonAdversarially(SharedArrays)) {
                   var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ? 
                     SharedArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
                     Enumerable.Empty<Variable>();
@@ -1395,16 +1396,17 @@ namespace GPUVerify
                 }
             }
 
-            if (KernelArrayInfo.getGlobalArrays().Count > 0)
+            var GlobalArrays = KernelArrayInfo.getGlobalArrays();
+            GlobalArrays = GlobalArrays.Where(x => !KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(x)).ToList();
+            if (GlobalArrays.Count > 0)
             {
                 bigblocks.AddRange(
-                      MakeResetBlocks(Expr.And(P1, GlobalFence1), KernelArrayInfo.getGlobalArrays()));
+                      MakeResetBlocks(Expr.And(P1, GlobalFence1), GlobalArrays));
 
                 Expr ThreadsInSameGroup_BothEnabled_AtLeastOneGlobalFence = 
                   Expr.And(Expr.And(GPUVerifier.ThreadsInSameGroup(), Expr.And(P1, P2)), Expr.Or(GlobalFence1, GlobalFence2));
 
-                if (SomeArrayModelledNonAdversarially(KernelArrayInfo.getGlobalArrays())) {
-                  var GlobalArrays = KernelArrayInfo.getGlobalArrays();
+                if (SomeArrayModelledNonAdversarially(GlobalArrays)) {
                   var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ? 
                     GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
                     Enumerable.Empty<Variable>();
