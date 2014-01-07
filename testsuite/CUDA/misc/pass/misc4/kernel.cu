@@ -1,5 +1,5 @@
 //pass
-//--gridDim=1024 --blockDim=1024
+//--gridDim=1024 --blockDim=1024 --no-inline
 
 __device__ void bar(int i);
 
