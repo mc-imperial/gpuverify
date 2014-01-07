@@ -15,7 +15,7 @@ using System.Text.RegularExpressions;
 using System.Linq;
 using Microsoft.Boogie;
 
-namespace DynamicAnalysis
+namespace GPUVerify
 {
     class UnitialisedException : Exception
     {
@@ -49,7 +49,7 @@ namespace DynamicAnalysis
             raceArrayOffsets[name].Clear();
         }
 
-        public bool HadRaceArrayVariable(string name)
+        public bool HasRaceArrayVariable(string name)
         {
             return raceArrayOffsets.ContainsKey(name);
         }

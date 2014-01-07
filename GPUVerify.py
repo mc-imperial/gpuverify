@@ -453,17 +453,10 @@ def showHelpAndExit():
     --asymmetric-asserts    Emit assertions only for first thread.  Sound, and may lead
                             to faster verification, but can yield false positives
     --boogie-file=X.bpl     Specify a supporting .bpl file to be used during verification
-    --boogie-opt=...        Specify option to be passed to Boogie
     --bugle-lang=[cl|cu]    Bitcode language if passing in a bitcode file
-    --bugle-opt=...         Specify option to be passed to Bugle
     --call-site-analysis    Turn on call site analysis
-    --clang-opt=...         Specify option to be passed to CLANG
-    --debug                 Enable debugging of GPUVerify components: exceptions will
-                            not be suppressed
     --equality-abstraction  Make shared arrays nondeterministic, but consistent between
                             threads, at barriers
-    --gen-smt2              Generate smt2 file
-    --keep-temps            Keep intermediate bc, gbpl, bpl and cbpl files
     --math-int              Represent integer types using mathematical integers
                             instead of bit-vectors
     --no-annotations        Ignore all source-level annotations
@@ -478,13 +471,7 @@ def showHelpAndExit():
     --only-log              Log accesses to arrays, but do not check for races.  This
                             can be useful for determining access pattern invariants
     --silent                Silent on success; only show errors/timing
-    --stop-at-opt           Stop after LLVM optimization pass
-    --stop-at-gbpl          Stop after generating gbpl
-    --stop-at-cbpl          Stop after generating an annotated bpl
-    --stop-at-bpl           Stop after generating bpl
     --time-as-csv=label     Print timing as CSV row with label
-    --vcgen-opt=...         Specify option to be passed to be passed to VC generation
-                            engine
     --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32
     --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none)
                             (default is --atomic=rw)
@@ -495,6 +482,23 @@ def showHelpAndExit():
                             Available options: 'Z3' or 'cvc4' (default is 'Z3')
     --logic=X               Define the logic to be used by the CVC4 SMT solver backend
                             (default is QF_ALL_SUPPORTED)
+
+  DEVELOPMENT OPTIONS:
+    --debug                 Enable debugging of GPUVerify components: exceptions will
+                            not be suppressed
+    --keep-temps            Keep intermediate bc, gbpl, bpl and cbpl files
+    --gen-smt2              Generate smt2 file
+    --clang-opt=...         Specify option to be passed to Clang
+    --opt-opt=...           Specify option to be passed to LLVM optimization pass
+    --bugle-opt=...         Specify option to be passed to Bugle
+    --vcgen-opt=...         Specify option to be passed to VC generation
+                            engine
+    --cruncher-opt=...      Specify option to be passed to invariant cruncher
+    --boogie-opt=...        Specify option to be passed to Boogie
+    --stop-at-opt           Stop after LLVM optimization pass
+    --stop-at-gbpl          Stop after generating gbpl
+    --stop-at-bpl           Stop after generating bpl
+    --stop-at-cbpl          Stop after generating an annotated bpl
 
   INVARIANT INFERENCE OPTIONS:
     --no-infer              Turn off invariant inference
@@ -639,10 +643,14 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.noUniformityAnalysis = True
     if o == "--clang-opt":
       CommandLineOptions.clangOptions += str(a).split(" ")
+    if o == "--opt-opt":
+      CommandLineOptions.optOptions += str(a).split(" ")
     if o == "--vcgen-opt":
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
-    if o == "--boogie-opt":
+    # Cruncher and Boogie driver opts now separated to allow configuration of dynamic analysis options
+    if o == "--cruncher-opt":
       CommandLineOptions.gpuVerifyCruncherOptions += str(a).split(" ")
+    if o == "--boogie-opt":
       CommandLineOptions.gpuVerifyBoogieDriverOptions += str(a).split(" ")
     if o == "--bugle-opt":
       CommandLineOptions.bugleOptions += str(a).split(" ")
@@ -855,7 +863,7 @@ def _main(argv):
               'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
               'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication',
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
-              'vcgen-opt=', 'boogie-opt=', 'bugle-opt=',
+              'vcgen-opt=', 'cruncher-opt=', 'boogie-opt=', 'bugle-opt=', 'opt-opt=',
               'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-cbpl', 'stop-at-bpl',
               'time', 'time-as-csv=', 'keep-temps',

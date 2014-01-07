@@ -15,7 +15,7 @@ using System.Collections.Specialized;
 using Microsoft.Basetypes;
 using Microsoft.Boogie;
 
-namespace DynamicAnalysis
+namespace GPUVerify
 {
     public class ExprTree : System.Collections.IEnumerable
     {
@@ -371,8 +371,7 @@ namespace DynamicAnalysis
             children.Add(one);
             children.Add(two);
         }
-    }
-    
+    }    
 
     public class LiteralNode<T> : ExprNode<T>
     {

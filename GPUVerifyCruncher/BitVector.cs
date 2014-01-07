@@ -11,7 +11,7 @@ using System;
 using System.Collections;
 using Microsoft.Boogie;
 
-namespace DynamicAnalysis
+namespace GPUVerify
 {
     public class BitVector
     {
