@@ -111,8 +111,6 @@ namespace GPUVerify {
      * and subtraction.
      */
     private void AddComponentBreakingCandidateInvariants(Implementation impl, IRegion region, Variable v, AccessType Access) {
-      if (verifier.ContainsBarrierCall(region)) return;
-
       // get offset expression
       // continue if there is exactly one offset expression, or,
       // if all offsets are to the same logical element of a vector type (e.g., uint2).
