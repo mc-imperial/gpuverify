@@ -17,11 +17,11 @@ using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-    class VariablesOccurringInExpressionVisitor : StandardVisitor
+    public class VariablesOccurringInExpressionVisitor : StandardVisitor
     {
         private HashSet<Variable> variables = new HashSet<Variable>();
 
-        internal IEnumerable<Microsoft.Boogie.Variable> GetVariables()
+        public IEnumerable<Microsoft.Boogie.Variable> GetVariables()
         {
             return variables;
         }
