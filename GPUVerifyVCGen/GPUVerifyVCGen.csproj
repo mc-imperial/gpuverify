@@ -10,7 +10,6 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>GPUVerify</RootNamespace>
     <AssemblyName>GPUVerifyVCGen</AssemblyName>
-    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <TargetFrameworkProfile Condition=" '$(OS)' == 'Windows_NT' ">Client</TargetFrameworkProfile>
     <FileAlignment>512</FileAlignment>
     <CodeContractsAssemblyMode>1</CodeContractsAssemblyMode>
@@ -192,7 +191,6 @@
     <Compile Include="ReadCollector.cs" />
     <Compile Include="ReducedStrengthAnalysis.cs" />
     <Compile Include="VariableDualiser.cs" />
-    <Compile Include="VariablesOccurringInExpressionVisitor.cs" />
     <Compile Include="VariableDefinitionAnalysis.cs" />
     <Compile Include="WatchdogRaceInstrumenter.cs" />
     <Compile Include="WriteCollector.cs" />
