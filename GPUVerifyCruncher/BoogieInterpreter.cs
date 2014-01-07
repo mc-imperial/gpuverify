@@ -146,10 +146,37 @@ namespace GPUVerify
 
         private void DetermineWhetherFormalParametersAffectControlFlow (Implementation impl)
         {
-            ControlDependence controlDependence = new ControlDependence(impl);
-            foreach (Block block in controlDependence.GetControllingNodes())
+            Graph<Block> cfg = Program.GraphFromImpl(impl);
+            var ctrlDep = cfg.ControlDependence();
+            foreach (Block block in cfg.Nodes)
             {
-                Console.WriteLine(block.ToString());
+                if (ctrlDep.ContainsKey(block))
+                {
+                    HashSet<Variable> partitionVars = new HashSet<Variable>();
+                    var visitor = new VariablesOccurringInExpressionVisitor();
+                    foreach (Block b in cfg.Successors(block)) 
+                    {
+                        foreach (var assume in b.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
+                        {
+                            visitor.Visit(assume.Expr);
+                            partitionVars.UnionWith(visitor.GetVariables());
+                        }
+                    }
+                    if (partitionVars.Count > 0)
+                    {
+                        Print.ConditionalExitMessage(partitionVars.Count == 1, "Too many partition variables found for basic block " + block.Label);
+                        // From now on there is only one partition variable to contend with
+                        Variable partitionVar = partitionVars.ToList()[0];
+                        foreach (AssignCmd cmd in block.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
+                        {
+                            foreach (SimpleAssignLhs lhs in cmd.Lhss.Where(x => x is SimpleAssignLhs)) 
+                            {
+                                if (lhs.DeepAssignedVariable.Name == partitionVar.Name)
+                                    Console.WriteLine(lhs.DeepAssignedIdentifier);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -773,7 +800,7 @@ namespace GPUVerify
                     foreach (string succLabel in goto_.labelNames)
                     {
                         Block succ = LabelToBlock[succLabel];
-                        PredicateCmd predicateCmd = (PredicateCmd)succ.Cmds[0];
+                        PredicateCmd predicateCmd = (PredicateCmd) succ.Cmds[0];
                         ExprTree exprTree = GetExprTree(predicateCmd.Expr);
                         EvaluateExprTree(exprTree);
                         if (exprTree.evaluation.Equals(BitVector.True))
