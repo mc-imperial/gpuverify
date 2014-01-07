@@ -226,14 +226,14 @@ namespace GPUVerify {
       }
 
       // Check to see whether the name includes a function open parenthesis
-      if(!(name.Contains("(") && name.Contains(":"))) {
+      if(!name.Contains(":")) {
         return name;
       }
-
-      var ComponentBeforeOpenParenSplitOnSpace = name.Split(new char[] { '(' })[0].Split( new char[] { ' ' });
-      var FunctionName = ComponentBeforeOpenParenSplitOnSpace.Last();
-      var ArrayName = name.Split(new char [] { ':' }).Last();
-      return FunctionName + "::" + ArrayName;
+      
+      return String.Join("::",
+        Regex.Replace(Regex.Replace(name.Split(new char[] { ' ' }).Last(), "'", ""), "`", "").
+          Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries).
+            Where(Item => !Regex.IsMatch(Item, @"^\d+$")).ToArray());
     }
 
     private static void PopulateModelWithStatesIfNecessary(Counterexample Cex)
