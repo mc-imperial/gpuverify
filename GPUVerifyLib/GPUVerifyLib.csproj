@@ -28,6 +28,7 @@
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
     <DefineConstants>TRACE</DefineConstants>
+    <DebugType>none</DebugType>
   </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
@@ -78,6 +79,7 @@
     <Compile Include="KernelAnalyser.cs" />
     <Compile Include="GVCommandLineOptions.cs" />
     <Compile Include="Utilities.cs" />
+    <Compile Include="VariablesOccurringInExpressionVisitor.cs" />
   </ItemGroup>
   <Target Name="Clean">
     <RemoveDir Directories="$(ProjectDir)\bin" />

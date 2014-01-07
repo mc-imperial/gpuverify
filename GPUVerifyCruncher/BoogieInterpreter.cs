@@ -146,10 +146,32 @@ namespace GPUVerify
 
         private void DetermineWhetherFormalParametersAffectControlFlow (Implementation impl)
         {
-            ControlDependence controlDependence = new ControlDependence(impl);
-            foreach (Block block in controlDependence.GetControllingNodes())
+            Graph<Block> cfg = Program.GraphFromImpl(impl);
+            var ctrlDep = cfg.ControlDependence();
+            foreach (Block block in cfg.Nodes)
             {
-                Console.WriteLine(block.ToString());
+                if (ctrlDep.ContainsKey(block))
+                {
+                    HashSet<Variable> vars = new HashSet<Variable>();
+                    var visitor = new VariablesOccurringInExpressionVisitor();
+                    foreach (Block b in cfg.Successors(block)) 
+                    {
+                        foreach (var assume in b.Cmds.OfType<AssumeCmd>()) 
+                        {
+                            visitor.Visit(assume.Expr);
+                            vars.UnionWith(visitor.GetVariables());
+                        }
+                    }
+                    Variable var_ = vars.ToList()[0];
+                    foreach (AssignCmd cmd in block.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
+                    {
+                        foreach (SimpleAssignLhs lhs in cmd.Lhss.Where(x => x is SimpleAssignLhs)) 
+                        {
+                            if (lhs.DeepAssignedVariable.Name == var_.Name)
+                                Console.WriteLine(lhs.DeepAssignedIdentifier);
+                        }
+                    }
+                }
             }
         }
 
@@ -701,6 +723,7 @@ namespace GPUVerify
                             if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                             {
                                 Print.VerboseMessage("==========> FALSE " + assert.ToString());
+                                //Memory.Dump();
                                 AssertStatus[assert] = BitVector.False;
                                 MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
                                 string BoogieVariable = null;
@@ -773,7 +796,7 @@ namespace GPUVerify
                     foreach (string succLabel in goto_.labelNames)
                     {
                         Block succ = LabelToBlock[succLabel];
-                        PredicateCmd predicateCmd = (PredicateCmd)succ.Cmds[0];
+                        PredicateCmd predicateCmd = (PredicateCmd) succ.Cmds[0];
                         ExprTree exprTree = GetExprTree(predicateCmd.Expr);
                         EvaluateExprTree(exprTree);
                         if (exprTree.evaluation.Equals(BitVector.True))
@@ -996,11 +1019,15 @@ namespace GPUVerify
                     else if (RegularExpressions.BVSUB.IsMatch(binary.op))
                         binary.evaluations.Add(lhs - rhs);
                     else if (RegularExpressions.BVMUL.IsMatch(binary.op))
+                    {
                         binary.evaluations.Add(lhs * rhs);
+                    }
                     else if (RegularExpressions.BVDIV.IsMatch(binary.op))
                         binary.evaluations.Add(lhs / rhs);
                     else if (RegularExpressions.BVAND.IsMatch(binary.op))
+                    {        
                         binary.evaluations.Add(lhs & rhs);
+                    }
                     else if (RegularExpressions.BVOR.IsMatch(binary.op))
                         binary.evaluations.Add(lhs | rhs);
                     else if (RegularExpressions.BVXOR.IsMatch(binary.op))
@@ -1064,7 +1091,7 @@ namespace GPUVerify
                 else if (RegularExpressions.BVZEXT.IsMatch(unary.op))
                 {
                     BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
-                    unary.evaluations.Add(ZeroExtended);  
+                    unary.evaluations.Add(ZeroExtended);
                 }
                 else if (RegularExpressions.BVSEXT.IsMatch(unary.op))
                 {
@@ -1279,14 +1306,18 @@ namespace GPUVerify
             if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
                 raceArrayOffsetName = "_READ_OFFSET_" + arrayName + "$1";
             Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
-            Expr offsetExpr = call.Ins[1];
-            ExprTree tree = GetExprTree(offsetExpr);
-            EvaluateExprTree(tree);
-            if (!tree.unitialised)
+            ExprTree tree1 = GetExprTree(call.Ins[0]);
+            EvaluateExprTree(tree1);
+            if (!tree1.unitialised && tree1.evaluation.Equals(BitVector.True))
             {
-                Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
-                string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
-                Memory.Store(accessTracker, BitVector.True);
+                ExprTree tree2 = GetExprTree(call.Ins[1]);
+                EvaluateExprTree(tree2);
+                if (!tree2.unitialised)
+                {
+                    Memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
+                    string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
+                    Memory.Store(accessTracker, BitVector.True);
+                }
             }
         }
 
@@ -1300,14 +1331,18 @@ namespace GPUVerify
             if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
                 raceArrayOffsetName = "_WRITE_OFFSET_" + arrayName + "$1";
             Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array write offset variable: " + raceArrayOffsetName);
-            Expr offsetExpr = call.Ins[1];
-            ExprTree tree = GetExprTree(offsetExpr);
-            EvaluateExprTree(tree);
-            if (!tree.unitialised)
+            ExprTree tree1 = GetExprTree(call.Ins[0]);
+            EvaluateExprTree(tree1);
+            if (!tree1.unitialised && tree1.evaluation.Equals(BitVector.True))
             {
-                Memory.AddRaceArrayOffset(raceArrayOffsetName, tree.evaluation);
-                string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
-                Memory.Store(accessTracker, BitVector.True);
+                ExprTree tree2 = GetExprTree(call.Ins[1]);
+                EvaluateExprTree(tree2);
+                if (!tree2.unitialised)
+                {
+                    Memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
+                    string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
+                    Memory.Store(accessTracker, BitVector.True);
+                }
             }
         }
         
