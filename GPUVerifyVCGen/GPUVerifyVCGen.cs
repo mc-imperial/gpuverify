@@ -70,6 +70,7 @@ namespace GPUVerify
             }
 
             Microsoft.Boogie.CommandLineOptions.Clo.DoModSetAnalysis = true;
+            Microsoft.Boogie.CommandLineOptions.Clo.PruneInfeasibleEdges = GPUVerifyVCGenCommandLineOptions.PruneInfeasibleEdges;
 
             rc = new ResolutionContext(null);
             program.Resolve(rc);

@@ -221,7 +221,7 @@ class DefaultCmdLineOptions(object):
                        "/doModSetAnalysis", "/useArrayTheory",
                        "/doNotUseLabels", "/enhancedErrorMessages:1"
                      ]
-    self.gpuVerifyVCGenOptions = []
+    self.gpuVerifyVCGenOptions = [ "/noPruneInfeasibleEdges" ]
     self.gpuVerifyCruncherOptions = []
     self.gpuVerifyBoogieDriverOptions = []
     self.bugleOptions = []

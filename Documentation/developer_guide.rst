@@ -53,9 +53,9 @@ Replace as appropriate or setup an environment variable.::
 
      $ export PATH=${BUILD_ROOT}/local/bin:$PATH
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.3)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.4)::
 
-     $ export LLVM_RELEASE=33
+     $ export LLVM_RELEASE=34
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -265,9 +265,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.3)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.4)::
 
-     $ export LLVM_RELEASE=33
+     $ export LLVM_RELEASE=34
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -493,9 +493,9 @@ drives.
    You can add this permanently to your ``$profile`` so that the Microsoft
    compiler is always available at the command-line.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.3)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.4)::
 
-      > $LLVM_RELEASE=33
+      > $LLVM_RELEASE=34
       > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
