@@ -104,13 +104,14 @@ namespace GPUVerify
             Graph<Block> loopInfo = program.ProcessLoops(impl);
             foreach (Block header in loopInfo.Headers)
             {
-              HashSet<Block> loopBody = new HashSet<Block>();
-              foreach (Block tail in loopInfo.BackEdgeNodes(header))
-                loopBody.UnionWith(loopInfo.NaturalLoops(header, tail));
-              ComputeLoopExitBlocks(header, loopBody);
+                HashSet<Block> loopBody = new HashSet<Block>();
+                foreach (Block tail in loopInfo.BackEdgeNodes(header))
+                    loopBody.UnionWith(loopInfo.NaturalLoops(header, tail));
+                ComputeLoopExitBlocks(header, loopBody);
             }
 
-            DetermineWhetherFormalParametersAffectControlFlow(impl);
+            // Can formal parameters affect control flow?
+            DetermineWhetherFormalParametersAffectControlFlow(impl, loopInfo);
 
             Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
             try
@@ -144,7 +145,38 @@ namespace GPUVerify
             }
         }
 
-        private void DetermineWhetherFormalParametersAffectControlFlow (Implementation impl)
+       private bool IsPredicateOrTemp (Variable theVar) 
+       {
+            string varName = theVar.Name;
+            if (varName.Length >= 2 && 
+                (varName.Substring(0, 1).Equals("p") || varName.Substring(0, 1).Equals("v"))) 
+            {
+                for (int i = 1; i < varName.Length; i++) 
+                {
+                    if (!Char.IsDigit(varName.ToCharArray()[i])) 
+                        return false;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        private HashSet<Expr> FindAssignmentsToTempVariable (Block block, Variable theVar)
+        {
+            HashSet<Expr> rhss = new HashSet<Expr>();
+            foreach (AssignCmd cmd in block.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
+            {
+                var lhss = cmd.Lhss.Where(x => x is SimpleAssignLhs);
+                foreach (var LhsRhs in lhss.Zip(cmd.Rhss)) 
+                {
+                    if (LhsRhs.Item1.DeepAssignedVariable.Name == theVar.Name)
+                        rhss.Add(LhsRhs.Item2);
+                }
+            }
+            return rhss;
+        }
+
+        private void DetermineWhetherFormalParametersAffectControlFlow (Implementation impl, Graph<Block> loopInfo)
         {
             Graph<Block> cfg = Program.GraphFromImpl(impl);
             var ctrlDep = cfg.ControlDependence();
@@ -152,24 +184,63 @@ namespace GPUVerify
             {
                 if (ctrlDep.ContainsKey(block))
                 {
-                    HashSet<Variable> vars = new HashSet<Variable>();
+                                                                    Console.WriteLine(block.Label);
+                    HashSet<Variable> varsInAssumes = new HashSet<Variable>();
                     var visitor = new VariablesOccurringInExpressionVisitor();
-                    foreach (Block b in cfg.Successors(block)) 
+                    foreach (Block succ in cfg.Successors(block)) 
                     {
-                        foreach (var assume in b.Cmds.OfType<AssumeCmd>()) 
+                        foreach (var assume in succ.Cmds.OfType<AssumeCmd>()) 
                         {
                             visitor.Visit(assume.Expr);
-                            vars.UnionWith(visitor.GetVariables());
+                            varsInAssumes.UnionWith(visitor.GetVariables());
                         }
                     }
-                    Variable var_ = vars.ToList()[0];
-                    foreach (AssignCmd cmd in block.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
+                    HashSet<Variable> varsInGuardExpr = new HashSet<Variable>();
+                    List<Variable> unresolvedVars = new List<Variable>(); 
+                    unresolvedVars.Add(varsInAssumes.ToList()[0]);
+                    while (unresolvedVars.Count > 0)
                     {
-                        foreach (SimpleAssignLhs lhs in cmd.Lhss.Where(x => x is SimpleAssignLhs)) 
+                        Variable unresolved = unresolvedVars[0];
+                        unresolvedVars.RemoveAt(0);
+                        HashSet<Expr> rhss = new HashSet<Expr>();
+                        Stack<Block> stack = new Stack<Block>();
+                        stack.Push(block);
+                        while (stack.Count > 0)
                         {
-                            if (lhs.DeepAssignedVariable.Name == var_.Name)
-                                Console.WriteLine(lhs.DeepAssignedIdentifier);
+                            Block stackBlock = stack.Pop();
+                            HashSet<Expr> rhssFound = FindAssignmentsToTempVariable(stackBlock, unresolved); 
+                            if (rhssFound.Count == 0)
+                            {
+                                foreach (Block pred in cfg.Predecessors(stackBlock))
+                                {
+                                    if (!loopInfo.Headers.ToList().Contains(stackBlock))
+                                        stack.Push(pred);
+                                    else if (!loopInfo.BackEdgeNodes(stackBlock).ToList().Contains(pred))
+                                        stack.Push(pred);
+                                }
+                            }
+                            else
+                                rhss.UnionWith(rhssFound);
                         }
+                        foreach (Expr rhs in rhss)
+                        {
+                            var visitor2 = new VariablesOccurringInExpressionVisitor();
+                            visitor2.Visit(rhs);
+                            foreach (Variable foundVar in visitor2.GetVariables())
+                            {
+                                if (IsPredicateOrTemp(foundVar))
+                                {
+                                    if (!unresolvedVars.Contains(foundVar))
+                                        unresolvedVars.Add(foundVar);
+                                }
+                                else
+                                    varsInGuardExpr.Add(foundVar);
+                            }
+                        }
+                    }
+                    foreach (Variable newVar in varsInGuardExpr)
+                    {
+                        Console.WriteLine(newVar);
                     }
                 }
             }
@@ -389,53 +460,29 @@ namespace GPUVerify
                         Memory.Store(constant.Name, BitVector.False);
                 }
                 else if (constant.Name.Equals("local_id_x$1"))
-                {
                     Memory.Store(constant.Name, LocalID1[0]);
-                }
                 else if (constant.Name.Equals("local_id_y$1"))
-                {
                     Memory.Store(constant.Name, LocalID1[1]);
-                }
                 else if (constant.Name.Equals("local_id_z$1"))
-                {
                     Memory.Store(constant.Name, LocalID1[2]);
-                }
                 else if (constant.Name.Equals("local_id_x$2"))
-                {
                     Memory.Store(constant.Name, LocalID2[0]);
-                }
                 else if (constant.Name.Equals("local_id_y$2"))
-                {
                     Memory.Store(constant.Name, LocalID2[1]);
-                }
                 else if (constant.Name.Equals("local_id_z$2"))
-                {
                     Memory.Store(constant.Name, LocalID2[2]);
-                }
                 else if (constant.Name.Equals("group_id_x$1"))
-                {
                     Memory.Store(constant.Name, GlobalID1[0]);
-                }
                 else if (constant.Name.Equals("group_id_y$1"))
-                {
                     Memory.Store(constant.Name, GlobalID1[1]);
-                }
                 else if (constant.Name.Equals("group_id_z$1"))
-                {
                     Memory.Store(constant.Name, GlobalID1[2]);
-                }
                 else if (constant.Name.Equals("group_id_x$2"))
-                {
                     Memory.Store(constant.Name, GlobalID2[0]);
-                }
                 else if (constant.Name.Equals("group_id_y$2"))
-                {
                     Memory.Store(constant.Name, GlobalID2[1]);
-                }
                 else if (constant.Name.Equals("group_id_z$2"))
-                {
                     Memory.Store(constant.Name, GlobalID2[2]);
-                }
             }
         }
 
@@ -723,7 +770,6 @@ namespace GPUVerify
                             if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
                             {
                                 Print.VerboseMessage("==========> FALSE " + assert.ToString());
-                                //Memory.Dump();
                                 AssertStatus[assert] = BitVector.False;
                                 MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
                                 string BoogieVariable = null;
