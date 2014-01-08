@@ -74,6 +74,7 @@ namespace GPUVerify
         private GPU gpu = new GPU();
         private Random Random = new Random();
         private Memory Memory = new Memory();
+        private HashSet<string> FormalParametersAffectingControlFlow = new HashSet<string>();
         private Dictionary<string, BitVector> FormalParameterValues = new Dictionary<string, BitVector>();
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
@@ -184,7 +185,6 @@ namespace GPUVerify
             {
                 if (ctrlDep.ContainsKey(block))
                 {
-                                                                    Console.WriteLine(block.Label);
                     HashSet<Variable> varsInAssumes = new HashSet<Variable>();
                     var visitor = new VariablesOccurringInExpressionVisitor();
                     foreach (Block succ in cfg.Successors(block)) 
@@ -240,7 +240,11 @@ namespace GPUVerify
                     }
                     foreach (Variable newVar in varsInGuardExpr)
                     {
-                        Console.WriteLine(newVar);
+                        foreach (Variable formal in impl.InParams)
+                        {
+                            if (newVar.Name == formal.Name)
+                                FormalParametersAffectingControlFlow.Add(formal.Name);
+                        }
                     }
                 }
             }
@@ -655,7 +659,8 @@ namespace GPUVerify
             foreach (Variable v in formals)
             {
                 // Only initialise formal parameters not initialised through requires clauses
-                if (!Memory.Contains(v.Name))
+                // and which can influence control flow
+                if (!Memory.Contains(v.Name) && FormalParametersAffectingControlFlow.Contains(v.Name))
                 {
                     int width;
                     if (v.TypedIdent.Type is BvType)
@@ -688,9 +693,9 @@ namespace GPUVerify
                     }
                     
                     Memory.Store(v.Name, initialValue);
-                    Print.DebugMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
+                    Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
                                                      v.Name, v.TypedIdent.Type.ToString(),
-                                                     initialValue.ToString()), 1);
+                                                     initialValue.ToString()));
                   }
             }
         }
