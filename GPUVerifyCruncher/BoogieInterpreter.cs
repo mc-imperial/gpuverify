@@ -29,6 +29,26 @@ namespace GPUVerify
         }
     }
     
+    internal static class BinaryOps 
+    {
+        public static string OR       = "||";
+        public static string AND      = "&&";    
+        public static string IF       = "==>";
+        public static string IFF      = "<==>";
+        public static string GT       = ">";
+        public static string GTE      = ">=";
+        public static string LT       = "<";
+        public static string LTE      = "<=";
+        public static string ADD      = "+";
+        public static string SUBTRACT = "-";
+        public static string MULTIPLY = "*";
+        public static string DIVIDE   = "/";
+        public static string NEQ      = "!=";
+        public static string EQ       = "==";
+        
+        public static string [] AllBinaryOps = new string[]{OR, AND, IF, IFF, GT, GTE, LT, LTE, ADD, SUBTRACT, MULTIPLY, DIVIDE, NEQ, EQ};
+    }
+    
     internal static class RegularExpressions
     {
         public static Regex INVARIANT_VARIABLE = new Regex("_[a-z][0-9]+"); // Case sensitive 
@@ -63,6 +83,11 @@ namespace GPUVerify
         public static Regex BVSEXT             = new Regex("BV[0-9]+_SEXT", RegexOptions.IgnoreCase);
         public static Regex CAST_TO_FP         = new Regex("(U|S)I[0-9]+_TO_FP[0-9]+", RegexOptions.IgnoreCase);
         public static Regex CAST_TO_INT        = new Regex("FP[0-9]+_TO_(U|S)I[0-9]+", RegexOptions.IgnoreCase);
+        
+        
+        public static Regex [] AllBinaryRegexes = new Regex[]{BVSLE, BVSLT, BVSGE, BVSGT, BVULE, BVULT, BVUGE, BVUGT, 
+                                                                BVASHR, BVLSHR, BVSHL, BVADD, BVSUB, BVMUL, BVDIV, BVAND, 
+                                                                BVOR, BVXOR, BVSREM, BVUREM, BVSDIV, BVUDIV};
     }
 
     public class BoogieInterpreter
@@ -85,10 +110,14 @@ namespace GPUVerify
         private int GlobalHeaderCount = 0;
         private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
         private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
-       
+         
         public static void Start (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
         {
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
             new BoogieInterpreter(program, threadID, groupID);
+            timer.Stop();
+            Print.VerboseMessage("Dynamic analysis consumed " + timer.Elapsed);
         }
 
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
@@ -96,7 +125,7 @@ namespace GPUVerify
             // If there are no invariants to falsify, return
             if (program.TopLevelDeclarations.OfType<Constant>().Where(item => QKeyValue.FindBoolAttribute(item.Attributes,"existential")).Count() == 0)
               return;
-
+              
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();
             // Build map from label to basic block
             foreach (Block block in impl.Blocks)
@@ -197,15 +226,20 @@ namespace GPUVerify
                             varsInAssumes.UnionWith(visitor.GetVariables());
                         }
                     }
+                    // Variables in the guard expression which are neither temps nor predicates 
                     HashSet<Variable> varsInGuardExpr = new HashSet<Variable>();
+                    // Unresolved variables are those which we have to expand in the expression tree
                     List<Variable> unresolvedVars = new List<Variable>(); 
                     unresolvedVars.Add(varsInAssumes.ToList()[0]);
+                    // While we still have to expand an unresolved variable...
                     while (unresolvedVars.Count > 0)
                     {
                         Variable unresolved = unresolvedVars[0];
                         unresolvedVars.RemoveAt(0);
                         HashSet<Expr> rhss = new HashSet<Expr>();
                         Stack<Block> stack = new Stack<Block>();
+                        // Try to find a basic block which includes a statement that defines the unresolved variable.
+                        // Begin the search at the current basic block and work backwards, ignoring loop-back edges
                         stack.Push(block);
                         while (stack.Count > 0)
                         {
@@ -224,6 +258,7 @@ namespace GPUVerify
                             else
                                 rhss.UnionWith(rhssFound);
                         }
+                        // Go through every defining expression and rip out the variables
                         foreach (Expr rhs in rhss)
                         {
                             var visitor2 = new VariablesOccurringInExpressionVisitor();
@@ -655,43 +690,47 @@ namespace GPUVerify
             {
                 // Only initialise formal parameters not initialised through requires clauses
                 // and which can influence control flow
-                if (!Memory.Contains(v.Name) && FormalParametersAffectingControlFlow.Contains(v.Name))
+                if (!Memory.Contains(v.Name))
                 {
-                    int width;
-                    if (v.TypedIdent.Type is BvType)
+                    Print.WarningMessage(String.Format("Formal parameter '{0}' not initialised", v.Name));
+                    if (FormalParametersAffectingControlFlow.Contains(v.Name))
                     {
-                        BvType bv = (BvType)v.TypedIdent.Type;
-                        width = bv.Bits;
-                    }
-                    else if (v.TypedIdent.Type is BasicType)
-                    {
-                        BasicType basic = (BasicType)v.TypedIdent.Type;
-                        if (basic.IsInt)
-                            width = 32;
+                        int width;
+                        if (v.TypedIdent.Type is BvType)
+                        {
+                            BvType bv = (BvType)v.TypedIdent.Type;
+                            width = bv.Bits;
+                        }
+                        else if (v.TypedIdent.Type is BasicType)
+                        {
+                            BasicType basic = (BasicType)v.TypedIdent.Type;
+                            if (basic.IsInt)
+                                width = 32;
+                            else
+                                throw new UnhandledException(String.Format("Unhandled basic type '{0}'", basic.ToString()));
+                        }
                         else
-                            throw new UnhandledException(String.Format("Unhandled basic type '{0}'", basic.ToString()));
-                    }
-                    else
-                        throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
+                            throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
                     
-                    BitVector initialValue;
-                    if (!FormalParameterValues.ContainsKey(v.Name))
-                    {
-                        initialValue = InitialiseFormalParameter(width);
-                        FormalParameterValues[v.Name] = initialValue;
-                    }
-                    else
-                    {
-                        BitVector previousValue = FormalParameterValues[v.Name];
-                        initialValue = InitialiseFormalParameter(width, previousValue);
-                        FormalParameterValues[v.Name] = initialValue;
-                    }
+                        BitVector initialValue;
+                        if (!FormalParameterValues.ContainsKey(v.Name))
+                        {
+                            initialValue = InitialiseFormalParameter(width);
+                            FormalParameterValues[v.Name] = initialValue;
+                        }
+                        else
+                        {
+                            BitVector previousValue = FormalParameterValues[v.Name];
+                            initialValue = InitialiseFormalParameter(width, previousValue);
+                            FormalParameterValues[v.Name] = initialValue;
+                        }
                     
-                    Memory.Store(v.Name, initialValue);
-                    Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
-                                                     v.Name, v.TypedIdent.Type.ToString(),
-                                                     initialValue.ToString()));
-                  }
+                        Memory.Store(v.Name, initialValue);
+                        Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
+                                                       v.Name, v.TypedIdent.Type.ToString(),
+                                                       initialValue.ToString()));
+                    }
+                }
             }
         }
 
@@ -860,96 +899,221 @@ namespace GPUVerify
         {
             ExprNode<BitVector> left = binary.GetChildren()[0] as ExprNode<BitVector>;
             ExprNode<BitVector> right = binary.GetChildren()[1] as ExprNode<BitVector>;
+            
             foreach (BitVector lhs in left.evaluations)
             {
                 foreach (BitVector rhs in right.evaluations)
                 {
-                    if (binary.op.Equals("||"))
-                    {
-                        if (lhs.Equals(BitVector.True) || rhs.Equals(BitVector.True))
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }        
-                    else if (binary.op.Equals("&&"))
-                    {
-                        if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (binary.op.Equals("==>"))
+                    if (binary.op.Equals(BinaryOps.IF))
                     {
                         if (rhs.Equals(BitVector.True) || lhs.Equals(BitVector.False))
                             binary.evaluations.Add(BitVector.True);
                         else
                             binary.evaluations.Add(BitVector.False);
                     }
-                    else if (binary.op.Equals("<==>"))
+                    else if (RegularExpressions.BVADD.IsMatch(binary.op))
                     {
-                        if ((lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True)) 
-                            || (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False)))
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
+                        binary.evaluations.Add(lhs + rhs);
                     }
-                    else if (binary.op.Equals("<"))
+                    else if (RegularExpressions.BVSUB.IsMatch(binary.op))
                     {
-                        if (lhs < rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    } 
-                    else if (binary.op.Equals("<="))
-                    {
-                        if (lhs <= rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }   
-                    else if (binary.op.Equals(">"))
-                    {
-                        if (lhs > rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
+                        binary.evaluations.Add(lhs - rhs);
                     }
-                    else if (binary.op.Equals(">="))
+                    else if (RegularExpressions.BVMUL.IsMatch(binary.op))
                     {
-                        if (lhs >= rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
+                        binary.evaluations.Add(lhs * rhs);
                     }
-                    else if (binary.op.Equals("=="))
+                    else if (binary.op.Equals(BinaryOps.EQ))
                     {
                         if (lhs == rhs)
                             binary.evaluations.Add(BitVector.True);
                         else
                             binary.evaluations.Add(BitVector.False);
                     }
-                    else if (binary.op.Equals("!="))
+                    else if (binary.op.Equals(BinaryOps.AND))
+                    {
+                        if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.OR))
+                    {
+                        if (lhs.Equals(BitVector.True) || rhs.Equals(BitVector.True))
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVAND.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs & rhs);
+                    }
+                    else if (RegularExpressions.BVOR.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs | rhs);
+                    }
+                    else if (RegularExpressions.BVSLT.IsMatch(binary.op))
+                    {
+                        if (lhs < rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVSLE.IsMatch(binary.op))
+                    {
+                        if (lhs <= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.IFF))
+                    {
+                        if ((lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
+                            || (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False)))
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.LT))
+                    {
+                        if (lhs < rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.LTE))
+                    {
+                        if (lhs <= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.GT))
+                    {
+                        if (lhs > rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.GTE))
+                    {
+                        if (lhs >= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.NEQ))
                     {
                         if (lhs != rhs)
                             binary.evaluations.Add(BitVector.True);
                         else
                             binary.evaluations.Add(BitVector.False);
                     }
-                    else if (binary.op.Equals("+"))
+                    else if (binary.op.Equals(BinaryOps.ADD))
                     {
                         binary.evaluations.Add(lhs + rhs);
                     }
-                    else if (binary.op.Equals("-"))
+                    else if (binary.op.Equals(BinaryOps.SUBTRACT))
                     {
                         binary.evaluations.Add(lhs - rhs);
                     }
-                    else if (binary.op.Equals("*"))
+                    else if (binary.op.Equals(BinaryOps.MULTIPLY))
                     {
                         binary.evaluations.Add(lhs * rhs);
                     }
-                    else if (binary.op.Equals("/"))
+                    else if (binary.op.Equals(BinaryOps.DIVIDE))
                     {
                         binary.evaluations.Add(lhs / rhs);
+                    }
+                    else if (RegularExpressions.BVSGT.IsMatch(binary.op))
+                    {
+                        if (lhs > rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVSGE.IsMatch(binary.op))
+                    {
+                        if (lhs >= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVULT.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned < rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVULE.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
+                        if (lhsUnsigned <= rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVUGT.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned > rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVUGE.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned >= rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVASHR.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
+                    }
+                    else if (RegularExpressions.BVLSHR.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(BitVector.LogicalShiftRight(lhs, rhs.ConvertToInt32()));
+                    }
+                    else if (RegularExpressions.BVSHL.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs << rhs.ConvertToInt32());
+                    }
+                    else if (RegularExpressions.BVDIV.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs / rhs);
+                    }
+                    else if (RegularExpressions.BVXOR.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs ^ rhs);
+                    }
+                    else if (RegularExpressions.BVSREM.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs % rhs);
+                    }
+                    else if (RegularExpressions.BVUREM.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
+                    }
+                    else if (RegularExpressions.BVSDIV.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs / rhs);
+                    }
+                    else if (RegularExpressions.BVUDIV.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
                     }
                     else if (binary.op.Equals("FEQ32") ||
                              binary.op.Equals("FEQ64") ||
@@ -989,110 +1153,6 @@ namespace GPUVerify
                         if (!FPInterpretations.ContainsKey(FPTriple))
                             FPInterpretations[FPTriple] = new BitVector(Random.Next());
                         binary.evaluations.Add(FPInterpretations[FPTriple]);
-                    }
-                    else if (RegularExpressions.BVSLT.IsMatch(binary.op))
-                    {
-                        if (lhs < rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVSLE.IsMatch(binary.op))
-                    {
-                        if (lhs <= rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVSGT.IsMatch(binary.op))
-                    {
-                        if (lhs > rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVSGE.IsMatch(binary.op))
-                    {
-                        if (lhs >= rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }  
-                    else if (RegularExpressions.BVULT.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        if (lhsUnsigned < rhsUnsigned)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVULE.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
-                        if (lhsUnsigned <= rhsUnsigned)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVUGT.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        if (lhsUnsigned > rhsUnsigned)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVUGE.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        if (lhsUnsigned >= rhsUnsigned)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVASHR.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
-                    else if (RegularExpressions.BVLSHR.IsMatch(binary.op))
-                        binary.evaluations.Add(BitVector.LogicalShiftRight(lhs, rhs.ConvertToInt32()));
-                    else if (RegularExpressions.BVSHL.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs << rhs.ConvertToInt32());
-                    else if (RegularExpressions.BVADD.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs + rhs);
-                    else if (RegularExpressions.BVSUB.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs - rhs);
-                    else if (RegularExpressions.BVMUL.IsMatch(binary.op))
-                    {
-                        binary.evaluations.Add(lhs * rhs);
-                    }
-                    else if (RegularExpressions.BVDIV.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs / rhs);
-                    else if (RegularExpressions.BVAND.IsMatch(binary.op))
-                    {        
-                        binary.evaluations.Add(lhs & rhs);
-                    }
-                    else if (RegularExpressions.BVOR.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs | rhs);
-                    else if (RegularExpressions.BVXOR.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs ^ rhs);
-                    else if (RegularExpressions.BVSREM.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs % rhs);
-                    else if (RegularExpressions.BVUREM.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
-                    }
-                    else if (RegularExpressions.BVSDIV.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs / rhs);
-                    else if (RegularExpressions.BVUDIV.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
                     }
                     else
                         throw new UnhandledException("Unhandled bv binary op: " + binary.op);               

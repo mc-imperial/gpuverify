@@ -329,7 +329,7 @@ namespace GPUVerify
         public static BitVector Slice (BitVector a, int high, int low)
         {
             Print.ConditionalExitMessage(high > low, "Slicing " + a.ToString() + 
-            " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not defined"); 
+            " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not valid"); 
             int startIndex = a.Bits.Length - high;
             int length = high - low;
             string bits = a.Bits.Substring(startIndex, length);
