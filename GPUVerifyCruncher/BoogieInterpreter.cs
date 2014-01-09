@@ -82,6 +82,7 @@ namespace GPUVerify
         private HashSet<string> KilledAsserts = new HashSet<string>();
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         private HashSet<Block> Covered = new HashSet<Block>();
+        private int GlobalHeaderCount = 0;
         private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
         private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
        
@@ -133,7 +134,8 @@ namespace GPUVerify
                     Print.DebugMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
                     EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
                     InterpretKernel(program, impl, loopInfo.Headers);
-                } while (FormalParameterValues.Count > 0 
+                } while (GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit
+                         && FormalParameterValues.Count > 0 
                          && !AllBlocksCovered(impl));
                 // The condition states: try to kill invariants while we have not exhausted a global loop header limit 
                 // AND there are formal parameter values we can actually manipulate 
@@ -277,14 +279,6 @@ namespace GPUVerify
                     }
                 }
             }
-        }
-
-        private int TotalHeaderExecutionCount ()
-        {
-            int count = 0;
-            foreach (KeyValuePair<Block, int> it in HeaderExecutionCounts)
-                count += it.Value;
-            return count;
         }
                
         private bool AllBlocksCovered (Implementation impl)
@@ -502,8 +496,8 @@ namespace GPUVerify
                 InitialiseFormalParams(impl.InParams);
                 // Start intrepreting at the entry basic block
                 Block block = impl.Blocks[0];
-                // Continue until the exit basic block is reached
-                while (block != null)
+                // Continue until the exit basic block is reached or we exhaust the loop header count
+                while (block != null && GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit)
                 {
                     if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor > 0
                         && headers.Contains(block) 
@@ -517,6 +511,7 @@ namespace GPUVerify
                     {
                         if (headers.Contains(block))
                         {
+                            GlobalHeaderCount++;
                             if (!HeaderExecutionCounts.ContainsKey(block))
                                 HeaderExecutionCounts[block] = 0;
                             HeaderExecutionCounts[block]++;
