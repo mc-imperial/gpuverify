@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
 using Microsoft.Boogie;
@@ -53,6 +54,7 @@ namespace GPUVerify
     {
         public static Regex INVARIANT_VARIABLE = new Regex("_[a-z][0-9]+"); // Case sensitive 
         public static Regex OFFSET_VARIABLE    = new Regex("_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase);
+        public static Regex TRACKING_VARIABLE  = new Regex("_(WRITE|READ|ATOMIC)_HAS_OCCURRED_", RegexOptions.IgnoreCase);
         public static Regex LOG_READ           = new Regex("_LOG_READ_", RegexOptions.IgnoreCase);
         public static Regex LOG_WRITE          = new Regex("_LOG_WRITE_", RegexOptions.IgnoreCase);
         public static Regex LOG_ATOMIC         = new Regex("_LOG_ATOMIC_", RegexOptions.IgnoreCase);
@@ -470,12 +472,14 @@ namespace GPUVerify
             {
                 if (decl.TypedIdent.Type is MapType)
                     Memory.AddGlobalArray(decl.Name);
-                if (RegularExpressions.OFFSET_VARIABLE.IsMatch(decl.Name))
+                if (RegularExpressions.TRACKING_VARIABLE.IsMatch(decl.Name))
                 {
+                    int index = decl.Name.IndexOf('$');
+                    string arrayName = decl.Name.Substring(index);
                     if (QKeyValue.FindBoolAttribute(decl.Attributes, "global"))
-                        Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GLOBAL);
+                        Memory.AddRaceArrayOffsetVariables(arrayName, MemorySpace.GLOBAL);
                     else
-                        Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GROUP_SHARED);
+                        Memory.AddRaceArrayOffsetVariables(arrayName, MemorySpace.GROUP_SHARED);
                 }
             }
         }
@@ -769,14 +773,14 @@ namespace GPUVerify
                                 subscriptExpr.AddIndex(subscript);
                             }
                             ExprTree tree = LhsEval.Item2;
-                            if (!tree.unitialised)
+                            if (!tree.uninitialised)
                                 Memory.Store(lhs.DeepAssignedVariable.Name, subscriptExpr, tree.evaluation);
                         }
                         else
                         {
                             SimpleAssignLhs lhs = (SimpleAssignLhs)LhsEval.Item1;
                             ExprTree tree = LhsEval.Item2;
-                            if (!tree.unitialised)
+                            if (!tree.uninitialised)
                                 Memory.Store(lhs.AssignedVariable.Name, tree.evaluation);
                         }
                     }
@@ -806,7 +810,7 @@ namespace GPUVerify
                         if (AssertStatus[assert].Equals(BitVector.True))
                         {
                             EvaluateExprTree(tree);
-                            if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
+                            if (!tree.uninitialised && tree.evaluation.Equals(BitVector.False))
                             {
                                 Print.VerboseMessage("==========> FALSE " + assert.ToString());
                                 AssertStatus[assert] = BitVector.False;
@@ -853,7 +857,7 @@ namespace GPUVerify
                     AssumeCmd assume = cmd as AssumeCmd;
                     ExprTree tree = GetExprTree(assume.Expr);
                     EvaluateExprTree(tree);
-                    if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
+                    if (!tree.uninitialised && tree.evaluation.Equals(BitVector.False))
                         Console.WriteLine("ASSUME FALSIFIED: " + assume.Expr.ToString());
                 }
                 else
@@ -1225,20 +1229,14 @@ namespace GPUVerify
                         if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
                         {                            
                             foreach (BitVector offset in Memory.GetRaceArrayOffsets(_node.symbol))
-                            {
                                 _node.evaluations.Add(offset);
-                            }
                         }
                         else
                         {
                             if (!Memory.Contains(_node.symbol))
-                            {
                                 _node.uninitialised = true;
-                            }
                             else
-                            {
                                 _node.evaluations.Add(Memory.GetValue(_node.symbol));
-                            }
                         }
                     }
                     else if (node is MapSymbolNode<BitVector>)
@@ -1337,11 +1335,9 @@ namespace GPUVerify
             }
             
             ExprNode<BitVector> root = tree.Root() as ExprNode<BitVector>;
-            tree.unitialised = root.uninitialised;
+            tree.uninitialised = root.uninitialised;
             if (root.evaluations.Count == 1)
-            {
                 tree.evaluation = root.GetUniqueElement();
-            }
             else
             {
                 tree.evaluation = BitVector.True;
@@ -1363,18 +1359,16 @@ namespace GPUVerify
             ExprTree globalTree = GetExprTree(call.Ins[1]);
             EvaluateExprTree(groupSharedTree);
             EvaluateExprTree(globalTree);
-            
             foreach (string name in Memory.GetRaceArrayVariables())
             {
-                if ((Memory.IsInGlobalMemory(name) && globalTree.evaluation.Equals(BitVector.True)) ||
-                    (Memory.IsInGroupSharedMemory(name) && groupSharedTree.evaluation.Equals(BitVector.True)))
+                int index = name.IndexOf('$');
+                string arrayName = name.Substring(index);
+                if ((Memory.IsInGlobalMemory(arrayName) && globalTree.evaluation.Equals(BitVector.True)) ||
+                    (Memory.IsInGroupSharedMemory(arrayName) && groupSharedTree.evaluation.Equals(BitVector.True)))
                 {
                     if (Memory.GetRaceArrayOffsets(name).Count > 0)
                     {
-                        int dollarIndex = name.IndexOf('$');
-                        Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-                        string arrayName = name.Substring(dollarIndex);
-                        string accessType = name.Substring(0, dollarIndex);
+                        string accessType = name.Substring(0, index);
                         switch (accessType)
                         {
                             case "_WRITE_OFFSET_":
@@ -1405,20 +1399,19 @@ namespace GPUVerify
         private void LogRead(CallCmd call)
         {
             Print.DebugMessage("In log read", 10);
-            int dollarIndex = call.callee.IndexOf('$');
-            Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-            string arrayName = call.callee.Substring(dollarIndex);
+            int index = call.callee.IndexOf('$');
+            string arrayName = call.callee.Substring(index);
             string raceArrayOffsetName = "_READ_OFFSET_" + arrayName;
             if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
                 raceArrayOffsetName = "_READ_OFFSET_" + arrayName + "$1";
             Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
             ExprTree tree1 = GetExprTree(call.Ins[0]);
             EvaluateExprTree(tree1);
-            if (!tree1.unitialised && tree1.evaluation.Equals(BitVector.True))
+            if (!tree1.uninitialised && tree1.evaluation.Equals(BitVector.True))
             {
                 ExprTree tree2 = GetExprTree(call.Ins[1]);
                 EvaluateExprTree(tree2);
-                if (!tree2.unitialised)
+                if (!tree2.uninitialised)
                 {
                     Memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
                     string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
@@ -1430,20 +1423,19 @@ namespace GPUVerify
         private void LogWrite(CallCmd call)
         {
             Print.DebugMessage("In log write", 10);
-            int dollarIndex = call.callee.IndexOf('$');
-            Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-            string arrayName = call.callee.Substring(dollarIndex);
+            int index = call.callee.IndexOf('$');
+            string arrayName = call.callee.Substring(index);
             string raceArrayOffsetName = "_WRITE_OFFSET_" + arrayName;
             if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
                 raceArrayOffsetName = "_WRITE_OFFSET_" + arrayName + "$1";
             Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array write offset variable: " + raceArrayOffsetName);
             ExprTree tree1 = GetExprTree(call.Ins[0]);
             EvaluateExprTree(tree1);
-            if (!tree1.unitialised && tree1.evaluation.Equals(BitVector.True))
+            if (!tree1.uninitialised && tree1.evaluation.Equals(BitVector.True))
             {
                 ExprTree tree2 = GetExprTree(call.Ins[1]);
                 EvaluateExprTree(tree2);
-                if (!tree2.unitialised)
+                if (!tree2.uninitialised)
                 {
                     Memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
                     string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
@@ -1455,9 +1447,8 @@ namespace GPUVerify
         private void LogAtomic(CallCmd call)
         {
             Print.DebugMessage("In log atomic", 10);
-            int dollarIndex = call.callee.IndexOf('$');
-            Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-            string arrayName = call.callee.Substring(dollarIndex);
+            int index = call.callee.IndexOf('$');
+            string arrayName = call.callee.Substring(index);
             // Evaluate the offset expression 
             Expr offsetExpr = call.Ins[1];
             ExprTree offsetTree = GetExprTree(offsetExpr);
