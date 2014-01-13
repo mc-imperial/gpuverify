@@ -51,6 +51,7 @@ namespace GPUVerify
     internal static class RegularExpressions
     {
         public static Regex INVARIANT_VARIABLE = new Regex("_[a-z][0-9]+"); // Case sensitive 
+        public static Regex WATCHDOG_VARIABLE  = new Regex("_WATCHED_OFFSET", RegexOptions.IgnoreCase);
         public static Regex OFFSET_VARIABLE    = new Regex("_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase);
         public static Regex TRACKING_VARIABLE  = new Regex("_(WRITE|READ|ATOMIC)_HAS_OCCURRED_", RegexOptions.IgnoreCase);
         public static Regex LOG_READ           = new Regex("_LOG_READ_", RegexOptions.IgnoreCase);
@@ -1219,7 +1220,7 @@ namespace GPUVerify
 					if (node is ScalarSymbolNode<BitVector>)
 					{
 						ScalarSymbolNode<BitVector> _node = node as ScalarSymbolNode<BitVector>;
-						if (_node.symbol == "_WATCHED_OFFSET")
+						if (RegularExpressions.WATCHDOG_VARIABLE.IsMatch(_node.symbol))
 						{
 							var visitor = new VariablesOccurringInExpressionVisitor();
 							visitor.Visit(tree.expr);
@@ -1240,6 +1241,7 @@ namespace GPUVerify
 									break;
 								}
 							}
+							Print.ConditionalExitMessage(offsetVariable != "", "Unable to find offset variable");
 							foreach (BitVector offset in Memory.GetRaceArrayOffsets(offsetVariable))
                                 _node.evaluations.Add(offset);
 						}
