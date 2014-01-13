@@ -84,6 +84,7 @@ namespace GPUVerify
         public static Regex BVSEXT             = new Regex("BV[0-9]+_SEXT", RegexOptions.IgnoreCase);
         public static Regex CAST_TO_FP         = new Regex("(U|S)I[0-9]+_TO_FP[0-9]+", RegexOptions.IgnoreCase);
         public static Regex CAST_TO_INT        = new Regex("FP[0-9]+_TO_(U|S)I[0-9]+", RegexOptions.IgnoreCase);
+        public static Regex CAST_FP_TO_DOUBLE  = new Regex("FP[0-9]+_CONV[0-9]+", RegexOptions.IgnoreCase);
     }
 
     public class BoogieInterpreter
@@ -1206,6 +1207,11 @@ namespace GPUVerify
                     unary.evaluations.Add(child.GetUniqueElement());
                 else if (RegularExpressions.CAST_TO_INT.IsMatch(unary.op))
                     unary.evaluations.Add(child.GetUniqueElement());
+				else if (RegularExpressions.CAST_FP_TO_DOUBLE.IsMatch(unary.op))
+				{
+					BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
+                    unary.evaluations.Add(ZeroExtended);
+				}
                 else
                     throw new UnhandledException("Unhandled bv unary op: " + unary.op);
             }  
