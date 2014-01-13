@@ -46,8 +46,6 @@ namespace GPUVerify
         public static string DIVIDE   = "/";
         public static string NEQ      = "!=";
         public static string EQ       = "==";
-        
-        public static string [] AllBinaryOps = new string[]{OR, AND, IF, IFF, GT, GTE, LT, LTE, ADD, SUBTRACT, MULTIPLY, DIVIDE, NEQ, EQ};
     }
     
     internal static class RegularExpressions
@@ -85,11 +83,6 @@ namespace GPUVerify
         public static Regex BVSEXT             = new Regex("BV[0-9]+_SEXT", RegexOptions.IgnoreCase);
         public static Regex CAST_TO_FP         = new Regex("(U|S)I[0-9]+_TO_FP[0-9]+", RegexOptions.IgnoreCase);
         public static Regex CAST_TO_INT        = new Regex("FP[0-9]+_TO_(U|S)I[0-9]+", RegexOptions.IgnoreCase);
-        
-        
-        public static Regex [] AllBinaryRegexes = new Regex[]{BVSLE, BVSLT, BVSGE, BVSGT, BVULE, BVULT, BVUGE, BVUGT, 
-                                                                BVASHR, BVLSHR, BVSHL, BVADD, BVSUB, BVMUL, BVDIV, BVAND, 
-                                                                BVOR, BVXOR, BVSREM, BVUREM, BVSDIV, BVUDIV};
     }
 
     public class BoogieInterpreter
@@ -476,10 +469,10 @@ namespace GPUVerify
                 {
                     int index = decl.Name.IndexOf('$');
                     string arrayName = decl.Name.Substring(index);
-                    if (QKeyValue.FindBoolAttribute(decl.Attributes, "global"))
-                        Memory.AddRaceArrayOffsetVariables(arrayName, MemorySpace.GLOBAL);
-                    else
-                        Memory.AddRaceArrayOffsetVariables(arrayName, MemorySpace.GROUP_SHARED);
+					//if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD)
+						Memory.AddRaceArrayOffsetVariables(arrayName);
+                    MemorySpace space = QKeyValue.FindBoolAttribute(decl.Attributes, "global") ? MemorySpace.GLOBAL : MemorySpace.GROUP_SHARED;
+                    Memory.SetMemorySpace(arrayName, space);
                 }
             }
         }
@@ -1218,20 +1211,44 @@ namespace GPUVerify
         }
         
         private void EvaluateExprTree(ExprTree tree)
-        {            
-            foreach (HashSet<Node> nodes in tree)
-            {
-                foreach (Node node in nodes)
-                {
-                    if (node is ScalarSymbolNode<BitVector>)
-                    {
-                        ScalarSymbolNode<BitVector> _node = node as ScalarSymbolNode<BitVector>;
-                        if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
+		{            
+			foreach (HashSet<Node> nodes in tree)
+			{
+				foreach (Node node in nodes)
+				{
+					if (node is ScalarSymbolNode<BitVector>)
+					{
+						ScalarSymbolNode<BitVector> _node = node as ScalarSymbolNode<BitVector>;
+						if (_node.symbol == "_WATCHED_OFFSET")
+						{
+							var visitor = new VariablesOccurringInExpressionVisitor();
+							visitor.Visit(tree.expr);
+							string offsetVariable = "";
+							foreach (Variable variable in visitor.GetVariables())
+							{
+								if (RegularExpressions.TRACKING_VARIABLE.IsMatch(variable.Name))
+								{
+									int index = variable.Name.IndexOf('$');
+                					string arrayName = variable.Name.Substring(index);
+									string accessType = variable.Name.Substring(0, index);
+									if (accessType == "_WRITE_HAS_OCCURRED_")
+										offsetVariable = "_WRITE_OFFSET_" + arrayName;
+									else if (accessType == "_READ_HAS_OCCURRED_")
+										offsetVariable = "_READ_OFFSET_" + arrayName;
+									else
+										offsetVariable = "_ATOMIC_OFFSET_" + arrayName;
+									break;
+								}
+							}
+							foreach (BitVector offset in Memory.GetRaceArrayOffsets(offsetVariable))
+                                _node.evaluations.Add(offset);
+						}
+                        else if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
                         {                            
                             foreach (BitVector offset in Memory.GetRaceArrayOffsets(_node.symbol))
                                 _node.evaluations.Add(offset);
                         }
-                        else
+						else
                         {
                             if (!Memory.Contains(_node.symbol))
                                 _node.uninitialised = true;
@@ -1404,7 +1421,7 @@ namespace GPUVerify
             string raceArrayOffsetName = "_READ_OFFSET_" + arrayName;
             if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
                 raceArrayOffsetName = "_READ_OFFSET_" + arrayName + "$1";
-            Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
+			Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
             ExprTree tree1 = GetExprTree(call.Ins[0]);
             EvaluateExprTree(tree1);
             if (!tree1.uninitialised && tree1.evaluation.Equals(BitVector.True))

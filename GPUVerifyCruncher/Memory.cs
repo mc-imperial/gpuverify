@@ -56,11 +56,15 @@ namespace GPUVerify
             return raceArrayOffsets.ContainsKey(name);
         }
 
-        public void AddRaceArrayOffsetVariables (string name, MemorySpace space)
+        public void AddRaceArrayOffsetVariables (string name)
         {
             raceArrayOffsets["_WRITE_OFFSET_" + name] = new HashSet<BitVector>();
             raceArrayOffsets["_READ_OFFSET_" + name] = new HashSet<BitVector>();
             raceArrayOffsets["_ATOMIC_OFFSET_" + name] = new HashSet<BitVector>();
+        }
+        
+        public void SetMemorySpace (string name, MemorySpace space)
+        {
             arrayLocations[name] = space;
         }
         
