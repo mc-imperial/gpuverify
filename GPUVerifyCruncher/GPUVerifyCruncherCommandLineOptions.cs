@@ -24,7 +24,7 @@ namespace GPUVerify
     public bool ParallelInference = false;
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;
-    public int DynamicAnalysisLoopHeaderLimit = 100;
+    public int DynamicAnalysisLoopHeaderLimit = 1000;
     public int DynamicAnalysisLoopUnrollFactor = 0;
 
     public GPUVerifyCruncherCommandLineOptions() :
