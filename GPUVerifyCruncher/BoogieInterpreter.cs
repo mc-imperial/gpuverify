@@ -97,7 +97,6 @@ namespace GPUVerify
         private Random Random = new Random();
         private Memory Memory = new Memory();
         private HashSet<string> FormalParametersAffectingControlFlow = new HashSet<string>();
-        private Dictionary<string, BitVector> FormalParameterValues = new Dictionary<string, BitVector>();
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
         private Dictionary<AssertCmd, BitVector> AssertStatus = new Dictionary<AssertCmd, BitVector>();
@@ -107,6 +106,7 @@ namespace GPUVerify
         private int GlobalHeaderCount = 0;
         private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
         private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
+        private int Executions = 0;
          
         public static void Start (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
         {
@@ -160,12 +160,13 @@ namespace GPUVerify
                     Print.DebugMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
                     EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
                     InterpretKernel(program, impl, loopInfo.Headers);
+                    Executions++;
                 } while (GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit
-                         && FormalParameterValues.Count > 0 
-                         && !AllBlocksCovered(impl));
+                         && !AllBlocksCovered(impl)
+                         && Executions < 5);
                 // The condition states: try to kill invariants while we have not exhausted a global loop header limit 
-                // AND there are formal parameter values we can actually manipulate 
                 // AND not every basic block has been covered
+                // AND the number of re-invocations of the kernel does not exceed 5
             }
             finally
             {
@@ -623,64 +624,18 @@ namespace GPUVerify
             }
         }
         
-        private BitVector InitialiseFormalParameter (int width, BitVector previousValue = null)
+        private BitVector InitialiseFormalParameter (int width)
         {
             // Boolean types have width 1
             if (width == 1)
             {
-                // If the previous value was set to false, flip
-                if (previousValue != null && previousValue.Equals(BitVector.False))
-                    return BitVector.True;
-                // If the previous value was set to true, flip
-                else if (previousValue != null && previousValue.Equals(BitVector.True))
-                    return BitVector.False;
-                // Otherwise choose randomly between true and false 
-                else if (Random.Next(0, 2) == 1)
+                if (Random.Next(0, 2) == 1)
                     return BitVector.True;
                 else
                     return BitVector.False;
             }
             else
-            {
-                char[] previousBits;
-                if (previousValue != null)
-                {
-                    previousBits = previousValue.Bits.ToCharArray();
-                }
-                else
-                {   
-                    previousBits = new char[width];
-                    for (int i = 0; i < width; ++i)
-                        previousBits[i] = '0';
-                }
-                char[] bits = new char[width];
-                // Ensure the BV represents a non-negative integer
-                bits[0] = '0';
-                // Ensure the BV is always an even integer
-                bits[width-1] = '0';
-                // The following code either doubles the previous value or it initialises the value to 2.
-                // We choose 2 to start because it is likely loop bounds will always be greater than 1 
-                for (int i = 1; i < width - 1; ++i)
-                {
-                    if (previousValue != null)
-                    { 
-                        // If the next bit of the previous value is 1 then this bit of the new value should be 1
-                        if (previousValue.Bits[i+1] == '1')
-                            bits[i] = '1';
-                        else
-                            bits[i] = '0';
-                    }
-                    else
-                    {
-                        // Set the second-to-last bit to represent 2
-                        if (i == width - 2)
-                            bits[i] = '1';
-                        else
-                            bits[i] = '0';
-                    }
-                } 
-                return new BitVector(new string(bits));
-            }
+                return new BitVector(Random.Next(2,513));
         }
         
         private void InitialiseFormalParams(List<Variable> formals)
@@ -711,19 +666,7 @@ namespace GPUVerify
                         else
                             throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
                     
-                        BitVector initialValue;
-                        if (!FormalParameterValues.ContainsKey(v.Name))
-                        {
-                            initialValue = InitialiseFormalParameter(width);
-                            FormalParameterValues[v.Name] = initialValue;
-                        }
-                        else
-                        {
-                            BitVector previousValue = FormalParameterValues[v.Name];
-                            initialValue = InitialiseFormalParameter(width, previousValue);
-                            FormalParameterValues[v.Name] = initialValue;
-                        }
-                    
+                        BitVector initialValue = InitialiseFormalParameter(width);                    
                         Memory.Store(v.Name, initialValue);
                         Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
                                                        v.Name, v.TypedIdent.Type.ToString(),
@@ -741,7 +684,6 @@ namespace GPUVerify
             // Execute all the statements
             foreach (Cmd cmd in block.Cmds)
             {   
-                //Console.Write(cmd.ToString());
                 if (cmd is AssignCmd)
                 {
                     AssignCmd assign = cmd as AssignCmd;
@@ -905,10 +847,11 @@ namespace GPUVerify
                 {
                     if (binary.op.Equals(BinaryOps.IF))
                     {
-                        if (rhs.Equals(BitVector.True) || lhs.Equals(BitVector.False))
-                            binary.evaluations.Add(BitVector.True);
-                        else
+                        if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.False))
+                        {
                             binary.evaluations.Add(BitVector.False);
+                            return;
+                        }
                     }
                     else if (RegularExpressions.BVADD.IsMatch(binary.op))
                     {
@@ -931,17 +874,19 @@ namespace GPUVerify
                     }
                     else if (binary.op.Equals(BinaryOps.AND))
                     {
-                        if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
-                            binary.evaluations.Add(BitVector.True);
-                        else
+                        if (!(lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True)))
+                        {
                             binary.evaluations.Add(BitVector.False);
+                            return;
+                        }
                     }
                     else if (binary.op.Equals(BinaryOps.OR))
                     {
                         if (lhs.Equals(BitVector.True) || rhs.Equals(BitVector.True))
+                        {
                             binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
+                            return;
+                        }
                     }
                     else if (RegularExpressions.BVAND.IsMatch(binary.op))
                     {
