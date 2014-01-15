@@ -534,10 +534,10 @@ namespace GPUVerify
                 // Continue until the exit basic block is reached or we exhaust the loop header count
                 while (block != null && GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit)
                 {
-                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor > 0
+                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor > 0
                         && headers.Contains(block) 
                         && HeaderExecutionCounts.ContainsKey(block)
-                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor)
+                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor)
                     {
                         // If we have exceeded the user-set loop unroll factor then go to an exit block
                         block = HeaderToLoopExitBlocks[block][0];
@@ -762,6 +762,7 @@ namespace GPUVerify
                                 }
                                 Print.ConditionalExitMessage(BoogieVariable != null, "Unable to find Boogie variable");
                                 KilledAsserts.Add(BoogieVariable);
+                                // Kill the assert in Houdini, which will be invoked after the dynamic analyser
                                 ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
                                 ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
                             }
@@ -785,7 +786,7 @@ namespace GPUVerify
                                 else
                                     randomBits[i] = '0';
                             }
-                            Memory.Store(id.Name, new BitVector(new  string(randomBits)));
+                            Memory.Store(id.Name, new BitVector(new string(randomBits)));
                         }
                     }
                 }
