@@ -27,7 +27,8 @@ ErrorCodes.OPT_ERROR:"Could not perform necessary optimisations to your kernel."
 ErrorCodes.BUGLE_ERROR:"Could not translate LLVM bitcode to Boogie.",
 ErrorCodes.GPUVERIFYVCGEN_ERROR:"Could not generate invariants and/or perform two-thread abstraction.",
 ErrorCodes.BOOGIE_ERROR:"",
-ErrorCodes.BOOGIE_TIMEOUT:"Verification timed out."
+ErrorCodes.TIMEOUT:"Verification timed out.",
+ErrorCodes.CONFIGURATION_ERROR:"The web service has been incorrectly configured. Please report this issue to gpuverify-support@googlegroups.com"
 }
 
 # Observer design pattern
