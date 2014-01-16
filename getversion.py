@@ -10,15 +10,21 @@ GPUVerifyDeployVersionFile= os.path.join(
                                         )
 GPUVerifyRevisionErrorMessage='Error getting version information'
 
-def getsha(path):
+def getsha(path, showLocalRev=False):
   oldpath = os.getcwd()
   os.chdir(path)
   if os.path.isdir(os.path.join(path,'.git')):
+    if showLocalRev: raise Exception('Not supported')
     sha = subprocess.check_output(['git','rev-parse','HEAD'])
+
   elif os.path.isdir(os.path.join(path,'.hg')):
-    sha = subprocess.check_output(['hg','log','-r','-1','--template','{node}'])
+    templateKeyword = '{rev}' if showLocalRev else '{node}'
+    sha = subprocess.check_output(['hg','log','-r','-1','--template', templateKeyword])
+
   elif os.path.isdir(os.path.join(path,'.svn')):
+    # The revision number is global is svn
     sha = subprocess.check_output(['svnversion'])
+
   else:
     sha = "Error [%s] path is not recognised as a git, mercurial or svn repository" % path
   os.chdir(oldpath)
@@ -28,14 +34,16 @@ def getVersionStringFromRepos():
   try:
     import gvfindtools
     vs = []
-    for tool, path in [ ('llvm', gvfindtools.llvmSrcDir),
-                        ('bugle', gvfindtools.bugleSrcDir),
-                        ('libclc', gvfindtools.libclcSrcDir),
-                        ('vcgen', os.path.dirname(__file__)),
-                        ('z3', gvfindtools.z3SrcDir),
-                        ('cvc4', gvfindtools.cvc4SrcDir) ]:
+    for tool, path, localRev in [ ('llvm', gvfindtools.llvmSrcDir, False),
+                                  ('bugle', gvfindtools.bugleSrcDir, False),
+                                  ('libclc', gvfindtools.libclcSrcDir, False),
+                                  ('vcgen', os.path.dirname(__file__), False),
+                                  ('z3', gvfindtools.z3SrcDir, False),
+                                  ('cvc4', gvfindtools.cvc4SrcDir, False),
+                                  ('local-revision', os.path.dirname(__file__), True) # GPUVerifyRise4Fun depends on this
+                                ]:
       if os.path.isdir(path):
-        vs.append(tool.ljust(9) + ": " + getsha(path))
+        vs.append(tool.ljust(15) + ": " + getsha(path, localRev))
     return '\n'.join(vs) + '\n'
   except Exception as e:
     return GPUVerifyRevisionErrorMessage + " : " + str(e)

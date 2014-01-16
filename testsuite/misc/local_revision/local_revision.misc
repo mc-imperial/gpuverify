@@ -1,0 +1,11 @@
+//pass
+//--version
+//^local-revision\s+:\s+\d{4,}
+
+/*
+* This tests that --version shows
+* the Mercurial local revision number.
+*
+* GPUVerifyRise4Fun depends on this functionality.
+* Do not change it unless you know what you're doing!
+*/
