@@ -237,7 +237,7 @@ namespace GPUVerify
                 child.parent = parent;
                 return parent;
             }
-			else if (expr is BvConcatExpr)
+			      else if (expr is BvConcatExpr)
             {
                 BvConcatExpr bvConcat = expr as BvConcatExpr;
                 Node one = CreateFromExpr(bvConcat.E0);
