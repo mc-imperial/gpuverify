@@ -642,7 +642,7 @@ def main(arg):
     parser.add_argument("-c","--compare-pickles",type=str,nargs=2,action=comparePickleFiles,help="Compare two test runs recorded in pickle files then exit. The first file should be an old test run and the second file should be a newer test run.")
 
     #General options
-    parser.add_argument("--kernel-regex", type=str, default=r"^kernel\.(cu|cl)$", help="Regex for kernel file names (default: \"%(default)s\")")
+    parser.add_argument("--test-filename-regex", type=str, default=r"^(kernel\.(cu|cl))|(\w+.misc)$", help="Regex for test file names (default: \"%(default)s\")")
     parser.add_argument("--from-file", type=str, default=None, action='append', help="File containing relative paths of kernels to test")
     parser.add_argument("--ignore-file", type=str, default=None, action='append', help="File containing relative paths of kernels to ignore")
     parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])
@@ -690,6 +690,7 @@ def main(arg):
 
     cudaCount=0
     openCLCount=0
+    miscCount=0
     kernelFiles=[]
     if (args.from_file):
       for f in args.from_file:
@@ -699,13 +700,15 @@ def main(arg):
             cudaCount+=1
           elif kernel.endswith('cl'):
             openCLCount+=1
+          elif kernel.endswith('misc'):
+              miscCount+=1
           else:
             logging.debug("Not a valid kernel:\"{}\"".format(kernel))
             return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
           kernelFiles.append(os.path.join(recursionRootPath,kernel))
 
     else:
-      matcher=re.compile(args.kernel_regex)
+      matcher=re.compile(args.test_filename_regex)
       logging.debug("Recursing {}".format(recursionRootPath))
       for(root,dirs,files) in os.walk(recursionRootPath):
           for f in files:
@@ -716,11 +719,15 @@ def main(arg):
                   if f.endswith('cl'):
                       openCLCount+=1
                       logging.debug("Found OpenCL kernel:\"{}\"".format(f))
+                  if f.endswith('misc'):
+                      miscCount+=1
+                      logging.debug("Found miscellaneous test:\"{}\"".format(f))
 
                   kernelFiles.append(os.path.join(root,f))
 
     cudaCountIgnored=0
     openCLCountIgnored=0
+    miscCountIgnored=0
     kernelFilesIgnored=[]
     if (args.ignore_file):
       for f in args.ignore_file:
@@ -730,20 +737,22 @@ def main(arg):
             cudaCountIgnored+=1
           elif kernel.endswith('cl'):
             openCLCountIgnored+=1
+          elif kernel.endswith('misc'):
+            miscCountIgnored+=1
           else:
             logging.debug("Not a valid kernel:\"{}\"".format(kernel))
             return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
           kernelFilesIgnored.append(os.path.join(recursionRootPath,kernel))
         kernelFiles = list(set(kernelFiles) - set(kernelFilesIgnored))
 
-      logging.info("Found    {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
-      logging.info("Ignoring {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCountIgnored,cudaCountIgnored))
-      logging.info("Running  {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount-openCLCountIgnored,cudaCount-cudaCountIgnored))
+      logging.info("Found    {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount,cudaCount,miscCount))
+      logging.info("Ignoring {0} OpenCL kernels, {1} CUDA kernels and {2] miscellaneous tests".format(openCLCountIgnored,cudaCountIgnored,miscCountIgnored))
+      logging.info("Running  {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount-openCLCountIgnored,cudaCount-cudaCountIgnored,miscCount-miscCountIgnored))
     else:
-      logging.info("Found {0} OpenCL kernels and {1} CUDA kernels.".format(openCLCount,cudaCount))
+      logging.info("Found {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount,cudaCount,miscCount))
 
     if len(kernelFiles) == 0:
-        logging.error("Could not find any OpenCL or CUDA kernels")
+        logging.error("Could not find any OpenCL, CUDA kernels or miscellaneous tests")
         return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
 
     #Do in place sort of paths so we have a guaranteed order
