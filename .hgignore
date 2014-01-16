@@ -64,3 +64,5 @@ GPUVerify.v11.suo
 #gv-rise4fun counters
 utils/GPUVerifyRise4Fun/*-counter.pickle
 
+# GPUVerify error report dump
+__gvdump.txt
