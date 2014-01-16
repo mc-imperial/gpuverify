@@ -1,3 +1,4 @@
+# vim: set sw=2 ts=2 softtabstop=2 expandtab=2:
 import os
 import sys
 import subprocess
@@ -13,15 +14,15 @@ def getsha(path):
   oldpath = os.getcwd()
   os.chdir(path)
   if os.path.isdir(os.path.join(path,'.git')):
-    sha = subprocess.check_output(['git','rev-parse','HEAD']).rstrip('\n')
+    sha = subprocess.check_output(['git','rev-parse','HEAD'])
   elif os.path.isdir(os.path.join(path,'.hg')):
-    sha = subprocess.check_output(['hg','log','-r','-1','--template','{node}']).rstrip('\n')
+    sha = subprocess.check_output(['hg','log','-r','-1','--template','{node}'])
   elif os.path.isdir(os.path.join(path,'.svn')):
-    sha = subprocess.check_output(['svnversion']).rstrip('\n')
+    sha = subprocess.check_output(['svnversion'])
   else:
     sha = "Error [%s] path is not recognised as a git, mercurial or svn repository" % path
   os.chdir(oldpath)
-  return sha
+  return sha.decode().rstrip('\n')
 
 def getVersionStringFromRepos():
   try:
@@ -36,8 +37,8 @@ def getVersionStringFromRepos():
       if os.path.isdir(path):
         vs.append(tool.ljust(9) + ": " + getsha(path))
     return '\n'.join(vs) + '\n'
-  except:
-    return GPUVerifyRevisionErrorMessage
+  except Exception as e:
+    return GPUVerifyRevisionErrorMessage + " : " + str(e)
 
 def getVersionString():
   """
@@ -48,8 +49,10 @@ def getVersionString():
   it is found it will use that.
   """
   vs="GPUVerify:"
+
+  hgPath = os.path.join( os.path.dirname(__file__), '.hg')
   # Look for Mercurial
-  if os.path.isdir(sys.path[0] + os.sep + '.hg'):
+  if os.path.isdir(hgPath):
     vs += "Development version\n"
     vs += getVersionStringFromRepos() 
   else:
