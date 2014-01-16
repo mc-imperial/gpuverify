@@ -1,4 +1,5 @@
-""" This module provides a simple
+""" vim: set sw=2 ts=2 softtabstop=2 expandtab:
+This module provides a simple
     API to GPUVerify
 """
 import config
