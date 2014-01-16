@@ -325,13 +325,17 @@ class GPUVerifyTool(object):
   def getVersionString(self):
     ( returnCode, versionString ) = self.__runTool(['--version'])
     if returnCode == 0:
-      #Parse version string
-      matcher = re.search(r'(\d+):([0-9a-fA-F]+)',versionString)
-      if not matcher:
-        raise Exception('Could not parse version string from "' + versionString + '"')
 
+      # Parse version string
+      matcher = re.search(r'local-revision\s+:\s+(\d+)',versionString)
+      if not matcher:
+        raise Exception('Could not parse local-revision string from "' + versionString + '"')
       localID=matcher.group(1)
-      changesetID=matcher.group(2)
+
+      matcher = re.search(r'vcgen\s+:\s+(\d+)',versionString)
+      if not matcher:
+        raise Exception('Could not parse vcgen string from "' + versionString + '"')
+      changesetID=matcher.group(1)
 
       return (localID, changesetID)
 
