@@ -539,7 +539,7 @@ namespace GPUVerify
                         && HeaderExecutionCounts.ContainsKey(block)
                         && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor)
                     {
-                        // If we have exceeded the user-set loop unroll factor then go to an exit block
+                        // If we have exceeded the user-set loop escape factor then go to an exit block
                         block = HeaderToLoopExitBlocks[block][0];
                     }
                     else

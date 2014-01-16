@@ -39,6 +39,7 @@ namespace GPUVerify {
         GenerateCandidateForReducedStrengthStrideVariables(verifier, impl, region);
         GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
         GenerateCandidateForNonUniformGuardVariables(verifier, impl, region);
+        GenerateCandidateForLoopBounds(verifier, impl, region);
       }
     }
 
@@ -152,6 +153,39 @@ namespace GPUVerify {
           verifier.AddCandidateInvariant(region, lcPred, "loopCounterIsStrided", InferenceStages.BASIC_CANDIDATE_STAGE);
         }
       }
+    }
+
+    private static void GenerateCandidateForLoopBounds (GPUVerifier verifier, Implementation impl, IRegion region) 
+    {
+        HashSet<Variable> partitionVars = region.PartitionVariablesOfHeader();
+        foreach (Variable v in partitionVars)
+        {
+            Expr partitionDefExpr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+            var visitor = new VariablesOccurringInExpressionVisitor();
+            visitor.Visit(partitionDefExpr);
+            List<Variable> variableList = visitor.GetVariables().ToList();
+            if (variableList.Count == 1)
+            {
+                Variable loopCounter = variableList[0];
+                foreach (Block preheader in region.PreHeaders())
+                {
+                    foreach (AssignCmd cmd in preheader.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
+                    {
+                        var lhss = cmd.Lhss.Where(x => x is SimpleAssignLhs);
+                        foreach (var LhsRhs in lhss.Zip(cmd.Rhss)) 
+                        {
+                            if (LhsRhs.Item1.DeepAssignedVariable.Name == loopCounter.Name)
+                            {
+                                var inv = verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2);
+                                verifier.AddCandidateInvariant(region, inv, "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+                                var inv2 = verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2);
+                                verifier.AddCandidateInvariant(region, inv2, "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     public static void PostInstrument(GPUVerifier verifier, Implementation Impl) {
