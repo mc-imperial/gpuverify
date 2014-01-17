@@ -1,5 +1,5 @@
 //===-----------------------------------------------------------------------==//
-//
+//GetAssumeCmd
 //                GPUVerify - a Verifier for GPU Kernels
 //
 // This file is distributed under the Microsoft Public License.  See
@@ -752,13 +752,15 @@ namespace GPUVerify {
       captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
         "captureState", new List<object>() { CheckState }, captureStateAssume.Attributes);
       captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
+        "check_id", new List<object>() { CheckState }, captureStateAssume.Attributes);
+      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
         "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
       
       result.Add(captureStateAssume);
       CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
       checkAccessCallCmd.Proc = checkProcedure;
       checkAccessCallCmd.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
-      checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "state_id", new List<object>() { CheckState }, checkAccessCallCmd.Attributes);
+      checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "check_id", new List<object>() { CheckState }, checkAccessCallCmd.Attributes);
       return checkAccessCallCmd;
     }
 

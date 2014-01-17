@@ -175,7 +175,7 @@ namespace GPUVerify {
       Debug.Assert(RaceyArrayName != null);
 
       IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, RaceyArrayName, AccessType.Create(access1),
-        QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "state_id"));
+        GetStateName(CallCex));
       SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), GetSourceFileName(), CallCex.FailingCall.tok);
 
       ulong RaceyOffset = GetOffsetInBytes(CallCex);
@@ -205,6 +205,16 @@ namespace GPUVerify {
         }
         Console.Error.WriteLine();
       }
+    }
+
+    private static string GetStateName(CallCounterexample CallCex)
+    {
+      Contract.Requires(QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "check_id") != null);
+      string CheckId = QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "check_id");
+      return QKeyValue.FindStringAttribute(
+        (CallCex.Trace.Last().Cmds.OfType<AssumeCmd>().Where(
+          Item => QKeyValue.FindStringAttribute(Item.Attributes, "check_id") == CheckId).ToList()[0]
+        ).Attributes, "captureState");
     }
 
     private static string GetSourceFileName()
@@ -447,26 +457,10 @@ namespace GPUVerify {
       Debug.Assert(ElemWidth != int.MaxValue);
       var element =
         (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
-        ? GetStateFromModel(QKeyValue.FindStringAttribute(GetCaptureStateBeforeFailingCall(Cex).Attributes, "captureState"),
+        ? GetStateFromModel(GetStateName(Cex),
            Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
         : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
       return (Convert.ToUInt64(element.Numeral) * ElemWidth) / 8;
-    }
-
-    private static AssumeCmd GetCaptureStateBeforeFailingCall(CallCounterexample Cex)
-    {
-      foreach(var b in Cex.Trace) {
-        AssumeCmd prev = null;
-        foreach(var c in b.Cmds) {
-          if(c is AssumeCmd && QKeyValue.FindStringAttribute(((AssumeCmd)c).Attributes, "captureState") != null) {
-            prev = c as AssumeCmd;
-          }
-          if(c == Cex.FailingCall) {
-            return prev;
-          }
-        }
-      }
-      return null;
     }
 
     private static Variable ExtractAccessHasOccurredVar(CallCounterexample err) {
@@ -751,23 +745,12 @@ namespace GPUVerify {
 
   class StateIdFixer {
 
-    // For race reporting, we emit a bunch of "state_id" attributes.
-    // It is important that these are not duplicated.  However,
-    // loop unrolling duplicates them.  This class is responsible for
-    // fixing things up.  It is not a particularly elegant solution.
-
-    private int CheckStateCounter = 0;
-    private int LoopHeadStateCounter = 0;
-    private int CallReturnStateCounter = 0;
+    private int FreshCounter = 0;
 
     internal void FixStateIds(Program Program) {
-
-      Debug.Assert(CommandLineOptions.Clo.LoopUnrollCount != -1);
-
       foreach(var impl in Program.Implementations()) {
         impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds));
       }
-
     }
 
     private Block FixStateIds(Block b) {
@@ -776,37 +759,7 @@ namespace GPUVerify {
         var a = b.Cmds[i] as AssumeCmd;
         if (a != null && (QKeyValue.FindStringAttribute(a.Attributes, "captureState") != null)) {
           string StateName = QKeyValue.FindStringAttribute(a.Attributes, "captureState");
-          if(StateName.Contains("check_state")) {
-            // It is necessary to clone the assume and call command, because after loop unrolling
-            // there is aliasing between blocks of different loop iterations
-            newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetCheckStateId(a.Attributes, "captureState")));
-
-            #region Skip on to the next call, adding all intervening commands to the new command list
-            CallCmd c;
-            do {
-              i++;
-              Debug.Assert(i < b.Cmds.Count());
-              c = b.Cmds[i] as CallCmd;
-              if(c == null) {
-                newCmds.Add(b.Cmds[i]);
-              }
-            } while(c == null);
-            Debug.Assert(c != null);
-            #endregion
-
-            Debug.Assert(QKeyValue.FindStringAttribute(c.Attributes, "state_id") != null);
-            var newCall = new CallCmd(Token.NoToken, c.callee, c.Ins, c.Outs, ResetCheckStateId(c.Attributes, "state_id"));
-            newCall.Proc = c.Proc;
-            newCmds.Add(newCall);
-            CheckStateCounter++;
-          } else if(StateName.Contains("call_return_state")) {
-            newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetStateId(a.Attributes, "call_return_state_", CallReturnStateCounter)));
-            CallReturnStateCounter++;
-          } else {
-            Debug.Assert(StateName.Contains("loop_head_state"));
-            newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, ResetStateId(a.Attributes, "loop_head_state_", LoopHeadStateCounter)));
-            LoopHeadStateCounter++;
-          }
+          newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, FreshStateId(a.Attributes)));
         }
         else {
           newCmds.Add(b.Cmds[i]);
@@ -816,43 +769,25 @@ namespace GPUVerify {
       return b;
     }
 
-    private QKeyValue ResetCheckStateId(QKeyValue Attributes, string Key) {
-      // This demands special treatment.
+    private QKeyValue FreshStateId(QKeyValue Attributes) {
       // Returns attributes identical to Attributes, but:
       // - reversed (for ease of implementation; should not matter)
-      // - with the value for Key replaced by "check_state_X" where X is the counter field
-      Debug.Assert(QKeyValue.FindStringAttribute(Attributes, Key) != null);
-      QKeyValue result = null;
-      while (Attributes != null) {
-        if (Attributes.Key.Equals(Key)) {
-          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { "check_state_" + CheckStateCounter }, result);
-        }
-        else {
-          result = new QKeyValue(Token.NoToken, Attributes.Key, Attributes.Params, result);
-        }
-        Attributes = Attributes.Next;
-      }
-      return result;
-    }
+      // - with the value for "captureState" replaced by a fresh value
+      Contract.Requires(QKeyValue.FindStringAttribute(Attributes, "captureState") != null);
+      string FreshValue = QKeyValue.FindStringAttribute(Attributes, "captureState") + "$renamed$" + FreshCounter;
+      FreshCounter++;
 
-    private QKeyValue ResetStateId(QKeyValue Attributes, string prefix, int counter) {
-      // Returns attributes identical to Attributes, but:
-      // - reversed (for ease of implementation; should not matter)
-      // - with the value for "captureState" replaced by prefix_counter
-      Debug.Assert(QKeyValue.FindStringAttribute(Attributes, "captureState") != null);
       QKeyValue result = null;
       while (Attributes != null) {
         if (Attributes.Key.Equals("captureState")) {
-          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { prefix + counter }, result);
-        }
-        else {
+          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { FreshValue }, result);
+        } else {
           result = new QKeyValue(Token.NoToken, Attributes.Key, Attributes.Params, result);
         }
         Attributes = Attributes.Next;
       }
       return result;
     }
-
 
   }
 
