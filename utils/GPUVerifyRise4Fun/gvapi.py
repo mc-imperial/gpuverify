@@ -332,7 +332,7 @@ class GPUVerifyTool(object):
         raise Exception('Could not parse local-revision string from "' + versionString + '"')
       localID=matcher.group(1)
 
-      matcher = re.search(r'vcgen\s+:\s+(\d+)',versionString)
+      matcher = re.search(r'vcgen\s+:\s+([a-z0-9]+)',versionString)
       if not matcher:
         raise Exception('Could not parse vcgen string from "' + versionString + '"')
       changesetID=matcher.group(1)
