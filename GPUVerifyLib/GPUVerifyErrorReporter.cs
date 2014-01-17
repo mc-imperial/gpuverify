@@ -443,14 +443,32 @@ namespace GPUVerify {
     }
 
     private static ulong GetOffsetInBytes(CallCounterexample Cex) {
+
+      AssumeCmd a = GetAssumeCmdBeforeFailingCall(Cex);
+
+
       uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
       Debug.Assert(ElemWidth != int.MaxValue);
       var element =
         (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
-        ? GetStateFromModel(QKeyValue.FindStringAttribute(Cex.FailingCall.Attributes, "state_id"),
+        ? GetStateFromModel(QKeyValue.FindStringAttribute(GetAssumeCmdBeforeFailingCall(Cex).Attributes, "captureState"),
            Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
         : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
       return (Convert.ToUInt64(element.Numeral) * ElemWidth) / 8;
+    }
+
+    private static AssumeCmd GetAssumeCmdBeforeFailingCall(CallCounterexample Cex)
+    {
+      foreach(var b in Cex.Trace) {
+        Cmd prev = null;
+        foreach(var c in b.Cmds) {
+          if(c == Cex.FailingCall) {
+            return prev as AssumeCmd;
+          }
+          prev = c;
+        }
+      }
+      return null;
     }
 
     private static Variable ExtractAccessHasOccurredVar(CallCounterexample err) {
