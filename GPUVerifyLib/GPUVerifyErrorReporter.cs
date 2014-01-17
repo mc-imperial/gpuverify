@@ -319,6 +319,15 @@ namespace GPUVerify {
 
       if (ConflictingState.Contains("loop_head_state"))
       {
+        // The state may have been renamed (for example, if k-induction has been employed),
+        // so we need to find the original state name.  This can be computed as the substring before the first
+        // occurrence of '$'.  This inversion is fragile, and would be a good candidate for making robust
+        string ConflictingStatePrefix;
+        if(ConflictingState.Contains('$')) {
+          ConflictingStatePrefix = ConflictingState.Substring(0, ConflictingState.IndexOf('$'));
+        } else {
+          ConflictingStatePrefix = ConflictingState;
+        }
         Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, false);
         Implementation originalImplementation = originalProgram.Implementations().Where(Item => Item.Name.Equals(impl.Name)).ToList()[0];
         var blockGraph = originalProgram.ProcessLoops(originalImplementation);
@@ -328,7 +337,7 @@ namespace GPUVerify {
           foreach (var c in b.Cmds.OfType<AssumeCmd>())
           {
             var stateId = QKeyValue.FindStringAttribute(c.Attributes, "captureState");
-            if (stateId != null && stateId.Equals(ConflictingState))
+            if (stateId != null && stateId.Equals(ConflictingStatePrefix))
             {
               header = b;
               break;
