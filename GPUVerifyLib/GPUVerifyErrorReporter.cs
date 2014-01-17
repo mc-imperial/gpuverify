@@ -698,10 +698,6 @@ namespace GPUVerify {
       return arrName.Substring("$$".Length);
     }
 
-    public static void FixStateIds(Program Program) {
-      new StateIdFixer().FixStateIds(Program);
-    }
-
     private static string SpecificNameForGroup() {
       if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
         return "block";
@@ -739,54 +735,6 @@ namespace GPUVerify {
         }
       }
       return name;
-    }
-
-  }
-
-  class StateIdFixer {
-
-    private int FreshCounter = 0;
-
-    internal void FixStateIds(Program Program) {
-      foreach(var impl in Program.Implementations()) {
-        impl.Blocks = new List<Block>(impl.Blocks.Select(FixStateIds));
-      }
-    }
-
-    private Block FixStateIds(Block b) {
-      List<Cmd> newCmds = new List<Cmd>();
-      for (int i = 0; i < b.Cmds.Count(); i++) {
-        var a = b.Cmds[i] as AssumeCmd;
-        if (a != null && (QKeyValue.FindStringAttribute(a.Attributes, "captureState") != null)) {
-          string StateName = QKeyValue.FindStringAttribute(a.Attributes, "captureState");
-          newCmds.Add(new AssumeCmd(Token.NoToken, a.Expr, FreshStateId(a.Attributes)));
-        }
-        else {
-          newCmds.Add(b.Cmds[i]);
-        }
-      }
-      b.Cmds = newCmds;
-      return b;
-    }
-
-    private QKeyValue FreshStateId(QKeyValue Attributes) {
-      // Returns attributes identical to Attributes, but:
-      // - reversed (for ease of implementation; should not matter)
-      // - with the value for "captureState" replaced by a fresh value
-      Contract.Requires(QKeyValue.FindStringAttribute(Attributes, "captureState") != null);
-      string FreshValue = QKeyValue.FindStringAttribute(Attributes, "captureState") + "$renamed$" + FreshCounter;
-      FreshCounter++;
-
-      QKeyValue result = null;
-      while (Attributes != null) {
-        if (Attributes.Key.Equals("captureState")) {
-          result = new QKeyValue(Token.NoToken, Attributes.Key, new List<object>() { FreshValue }, result);
-        } else {
-          result = new QKeyValue(Token.NoToken, Attributes.Key, Attributes.Params, result);
-        }
-        Attributes = Attributes.Next;
-      }
-      return result;
     }
 
   }
