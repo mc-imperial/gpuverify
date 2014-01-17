@@ -95,7 +95,6 @@ namespace Microsoft.Boogie
       if (CommandLineOptions.Clo.LoopUnrollCount != -1) {
         Debug.Assert(!CommandLineOptions.Clo.ContractInfer);
         program.UnrollLoops(CommandLineOptions.Clo.LoopUnrollCount, CommandLineOptions.Clo.SoundLoopUnrolling);
-        GPUVerifyErrorReporter.FixStateIds(program);
       }
 
       return VerifyProgram(program);
