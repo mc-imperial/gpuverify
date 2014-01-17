@@ -234,6 +234,7 @@ class DefaultCmdLineOptions(object):
     self.adversarialAbstraction = False
     self.equalityAbstraction = False
     self.loopUnwindDepth = 2
+    self.kInductionDepth = -1
     self.noBenign = False
     self.onlyDivergence = False
     self.onlyIntraGroup = False
@@ -518,6 +519,7 @@ def showHelpAndExit():
     --infer-config-file=X.cfg       Specify a custom configuration file to be used
                             during invariant inference
     --infer-info            Prints information about the inference process.
+    --k-induction-depth=X   Applies k-induction with k=X to all loops.
 
   OPENCL OPTIONS:
     --local_size=X          Specify whether work-group is 1D, 2D
@@ -691,6 +693,13 @@ def processGeneralOptions(opts, args):
   # All options whose processing can result in an error go in this loop.
   # See also the comment above the previous loop.
   for o, a in opts:
+    if o == "--k-induction-depth":
+      try:
+        if int(a) < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --k-induction-depth")
+        CommandLineOptions.kInductionDepth = int(a)
+      except ValueError:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --k-induction-depth")
     if o == "--loop-unwind":
       CommandLineOptions.mode = AnalysisMode.FINDBUGS
       try:
@@ -858,7 +867,7 @@ def _main(argv):
   try:
     opts, args = getopt.gnu_getopt(argv,'D:I:h',
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
-              'loop-unwind=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group',
+              'loop-unwind=', 'k-induction-depth=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group',
               'only-log', 'adversarial-abstraction', 'equality-abstraction',
               'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
               'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication',
@@ -1018,6 +1027,10 @@ def _main(argv):
 
   if CommandLineOptions.mode == AnalysisMode.FINDBUGS:
     CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/loopUnroll:" + str(CommandLineOptions.loopUnwindDepth) ]
+
+  if CommandLineOptions.kInductionDepth >= 0:
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/kInductionDepth:" + str(CommandLineOptions.kInductionDepth) ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/kInductionDepth:" + str(CommandLineOptions.kInductionDepth) ]
 
   if CommandLineOptions.boogieMemout > 0:
     CommandLineOptions.gpuVerifyCruncherOptions.append("/z3opt:-memory:" + str(CommandLineOptions.boogieMemout))
