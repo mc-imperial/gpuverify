@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
 using Microsoft.Boogie;
@@ -29,10 +30,30 @@ namespace GPUVerify
         }
     }
     
+    internal static class BinaryOps 
+    {
+        public static string OR       = "||";
+        public static string AND      = "&&";    
+        public static string IF       = "==>";
+        public static string IFF      = "<==>";
+        public static string GT       = ">";
+        public static string GTE      = ">=";
+        public static string LT       = "<";
+        public static string LTE      = "<=";
+        public static string ADD      = "+";
+        public static string SUBTRACT = "-";
+        public static string MULTIPLY = "*";
+        public static string DIVIDE   = "/";
+        public static string NEQ      = "!=";
+        public static string EQ       = "==";
+    }
+    
     internal static class RegularExpressions
     {
         public static Regex INVARIANT_VARIABLE = new Regex("_[a-z][0-9]+"); // Case sensitive 
+        public static Regex WATCHDOG_VARIABLE  = new Regex("_WATCHED_OFFSET", RegexOptions.IgnoreCase);
         public static Regex OFFSET_VARIABLE    = new Regex("_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase);
+        public static Regex TRACKING_VARIABLE  = new Regex("_(WRITE|READ|ATOMIC)_HAS_OCCURRED_", RegexOptions.IgnoreCase);
         public static Regex LOG_READ           = new Regex("_LOG_READ_", RegexOptions.IgnoreCase);
         public static Regex LOG_WRITE          = new Regex("_LOG_WRITE_", RegexOptions.IgnoreCase);
         public static Regex LOG_ATOMIC         = new Regex("_LOG_ATOMIC_", RegexOptions.IgnoreCase);
@@ -63,6 +84,7 @@ namespace GPUVerify
         public static Regex BVSEXT             = new Regex("BV[0-9]+_SEXT", RegexOptions.IgnoreCase);
         public static Regex CAST_TO_FP         = new Regex("(U|S)I[0-9]+_TO_FP[0-9]+", RegexOptions.IgnoreCase);
         public static Regex CAST_TO_INT        = new Regex("FP[0-9]+_TO_(U|S)I[0-9]+", RegexOptions.IgnoreCase);
+        public static Regex CAST_FP_TO_DOUBLE  = new Regex("FP[0-9]+_CONV[0-9]+", RegexOptions.IgnoreCase);
     }
 
     public class BoogieInterpreter
@@ -75,19 +97,24 @@ namespace GPUVerify
         private Random Random = new Random();
         private Memory Memory = new Memory();
         private HashSet<string> FormalParametersAffectingControlFlow = new HashSet<string>();
-        private Dictionary<string, BitVector> FormalParameterValues = new Dictionary<string, BitVector>();
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
         private Dictionary<AssertCmd, BitVector> AssertStatus = new Dictionary<AssertCmd, BitVector>();
         private HashSet<string> KilledAsserts = new HashSet<string>();
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         private HashSet<Block> Covered = new HashSet<Block>();
+        private int GlobalHeaderCount = 0;
         private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
         private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
-       
+        private int Executions = 0;
+         
         public static void Start (Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
         {
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
             new BoogieInterpreter(program, threadID, groupID);
+            timer.Stop();
+            Print.VerboseMessage("Dynamic analysis consumed " + timer.Elapsed);
         }
 
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
@@ -95,7 +122,7 @@ namespace GPUVerify
             // If there are no invariants to falsify, return
             if (program.TopLevelDeclarations.OfType<Constant>().Where(item => QKeyValue.FindBoolAttribute(item.Attributes,"existential")).Count() == 0)
               return;
-
+              
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();
             // Build map from label to basic block
             foreach (Block block in impl.Blocks)
@@ -133,11 +160,13 @@ namespace GPUVerify
                     Print.DebugMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
                     EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
                     InterpretKernel(program, impl, loopInfo.Headers);
-                } while (FormalParameterValues.Count > 0 
-                         && !AllBlocksCovered(impl));
+                    Executions++;
+                } while (GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit
+                         && !AllBlocksCovered(impl)
+                         && Executions < 5);
                 // The condition states: try to kill invariants while we have not exhausted a global loop header limit 
-                // AND there are formal parameter values we can actually manipulate 
                 // AND not every basic block has been covered
+                // AND the number of re-invocations of the kernel does not exceed 5
             }
             finally
             {
@@ -195,15 +224,20 @@ namespace GPUVerify
                             varsInAssumes.UnionWith(visitor.GetVariables());
                         }
                     }
+                    // Variables in the guard expression which are neither temps nor predicates 
                     HashSet<Variable> varsInGuardExpr = new HashSet<Variable>();
+                    // Unresolved variables are those which we have to expand in the expression tree
                     List<Variable> unresolvedVars = new List<Variable>(); 
                     unresolvedVars.Add(varsInAssumes.ToList()[0]);
+                    // While we still have to expand an unresolved variable...
                     while (unresolvedVars.Count > 0)
                     {
                         Variable unresolved = unresolvedVars[0];
                         unresolvedVars.RemoveAt(0);
                         HashSet<Expr> rhss = new HashSet<Expr>();
                         Stack<Block> stack = new Stack<Block>();
+                        // Try to find a basic block which includes a statement that defines the unresolved variable.
+                        // Begin the search at the current basic block and work backwards, ignoring loop-back edges
                         stack.Push(block);
                         while (stack.Count > 0)
                         {
@@ -222,6 +256,7 @@ namespace GPUVerify
                             else
                                 rhss.UnionWith(rhssFound);
                         }
+                        // Go through every defining expression and rip out the variables
                         foreach (Expr rhs in rhss)
                         {
                             var visitor2 = new VariablesOccurringInExpressionVisitor();
@@ -277,14 +312,6 @@ namespace GPUVerify
                     }
                 }
             }
-        }
-
-        private int TotalHeaderExecutionCount ()
-        {
-            int count = 0;
-            foreach (KeyValuePair<Block, int> it in HeaderExecutionCounts)
-                count += it.Value;
-            return count;
         }
                
         private bool AllBlocksCovered (Implementation impl)
@@ -441,12 +468,14 @@ namespace GPUVerify
             {
                 if (decl.TypedIdent.Type is MapType)
                     Memory.AddGlobalArray(decl.Name);
-                if (RegularExpressions.OFFSET_VARIABLE.IsMatch(decl.Name))
+                if (RegularExpressions.TRACKING_VARIABLE.IsMatch(decl.Name))
                 {
-                    if (QKeyValue.FindBoolAttribute(decl.Attributes, "global"))
-                        Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GLOBAL);
-                    else
-                        Memory.AddRaceArrayVariable(decl.Name, MemorySpace.GROUP_SHARED);
+                    int index = decl.Name.IndexOf('$');
+                    string arrayName = decl.Name.Substring(index);
+					//if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD)
+						Memory.AddRaceArrayOffsetVariables(arrayName);
+                    MemorySpace space = QKeyValue.FindBoolAttribute(decl.Attributes, "global") ? MemorySpace.GLOBAL : MemorySpace.GROUP_SHARED;
+                    Memory.SetMemorySpace(arrayName, space);
                 }
             }
         }
@@ -502,21 +531,22 @@ namespace GPUVerify
                 InitialiseFormalParams(impl.InParams);
                 // Start intrepreting at the entry basic block
                 Block block = impl.Blocks[0];
-                // Continue until the exit basic block is reached
-                while (block != null)
+                // Continue until the exit basic block is reached or we exhaust the loop header count
+                while (block != null && GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit)
                 {
-                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor > 0
+                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor > 0
                         && headers.Contains(block) 
                         && HeaderExecutionCounts.ContainsKey(block)
-                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopUnrollFactor)
+                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions) CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor)
                     {
-                        // If we have exceeded the user-set loop unroll factor then go to an exit block
+                        // If we have exceeded the user-set loop escape factor then go to an exit block
                         block = HeaderToLoopExitBlocks[block][0];
                     }
                     else
                     {
                         if (headers.Contains(block))
                         {
+                            GlobalHeaderCount++;
                             if (!HeaderExecutionCounts.ContainsKey(block))
                                 HeaderExecutionCounts[block] = 0;
                             HeaderExecutionCounts[block]++;
@@ -594,64 +624,18 @@ namespace GPUVerify
             }
         }
         
-        private BitVector InitialiseFormalParameter (int width, BitVector previousValue = null)
+        private BitVector InitialiseFormalParameter (int width)
         {
             // Boolean types have width 1
             if (width == 1)
             {
-                // If the previous value was set to false, flip
-                if (previousValue != null && previousValue.Equals(BitVector.False))
-                    return BitVector.True;
-                // If the previous value was set to true, flip
-                else if (previousValue != null && previousValue.Equals(BitVector.True))
-                    return BitVector.False;
-                // Otherwise choose randomly between true and false 
-                else if (Random.Next(0, 2) == 1)
+                if (Random.Next(0, 2) == 1)
                     return BitVector.True;
                 else
                     return BitVector.False;
             }
             else
-            {
-                char[] previousBits;
-                if (previousValue != null)
-                {
-                    previousBits = previousValue.Bits.ToCharArray();
-                }
-                else
-                {   
-                    previousBits = new char[width];
-                    for (int i = 0; i < width; ++i)
-                        previousBits[i] = '0';
-                }
-                char[] bits = new char[width];
-                // Ensure the BV represents a non-negative integer
-                bits[0] = '0';
-                // Ensure the BV is always an even integer
-                bits[width-1] = '0';
-                // The following code either doubles the previous value or it initialises the value to 2.
-                // We choose 2 to start because it is likely loop bounds will always be greater than 1 
-                for (int i = 1; i < width - 1; ++i)
-                {
-                    if (previousValue != null)
-                    { 
-                        // If the next bit of the previous value is 1 then this bit of the new value should be 1
-                        if (previousValue.Bits[i+1] == '1')
-                            bits[i] = '1';
-                        else
-                            bits[i] = '0';
-                    }
-                    else
-                    {
-                        // Set the second-to-last bit to represent 2
-                        if (i == width - 2)
-                            bits[i] = '1';
-                        else
-                            bits[i] = '0';
-                    }
-                } 
-                return new BitVector(new string(bits));
-            }
+                return new BitVector(Random.Next(2,513));
         }
         
         private void InitialiseFormalParams(List<Variable> formals)
@@ -660,43 +644,35 @@ namespace GPUVerify
             {
                 // Only initialise formal parameters not initialised through requires clauses
                 // and which can influence control flow
-                if (!Memory.Contains(v.Name) && FormalParametersAffectingControlFlow.Contains(v.Name))
+                if (!Memory.Contains(v.Name))
                 {
-                    int width;
-                    if (v.TypedIdent.Type is BvType)
+                    Print.WarningMessage(String.Format("Formal parameter '{0}' not initialised", v.Name));
+                    if (FormalParametersAffectingControlFlow.Contains(v.Name))
                     {
-                        BvType bv = (BvType)v.TypedIdent.Type;
-                        width = bv.Bits;
-                    }
-                    else if (v.TypedIdent.Type is BasicType)
-                    {
-                        BasicType basic = (BasicType)v.TypedIdent.Type;
-                        if (basic.IsInt)
-                            width = 32;
+                        int width;
+                        if (v.TypedIdent.Type is BvType)
+                        {
+                            BvType bv = (BvType)v.TypedIdent.Type;
+                            width = bv.Bits;
+                        }
+                        else if (v.TypedIdent.Type is BasicType)
+                        {
+                            BasicType basic = (BasicType)v.TypedIdent.Type;
+                            if (basic.IsInt)
+                                width = 32;
+                            else
+                                throw new UnhandledException(String.Format("Unhandled basic type '{0}'", basic.ToString()));
+                        }
                         else
-                            throw new UnhandledException(String.Format("Unhandled basic type '{0}'", basic.ToString()));
-                    }
-                    else
-                        throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
+                            throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
                     
-                    BitVector initialValue;
-                    if (!FormalParameterValues.ContainsKey(v.Name))
-                    {
-                        initialValue = InitialiseFormalParameter(width);
-                        FormalParameterValues[v.Name] = initialValue;
+                        BitVector initialValue = InitialiseFormalParameter(width);                    
+                        Memory.Store(v.Name, initialValue);
+                        Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
+                                                       v.Name, v.TypedIdent.Type.ToString(),
+                                                       initialValue.ToString()));
                     }
-                    else
-                    {
-                        BitVector previousValue = FormalParameterValues[v.Name];
-                        initialValue = InitialiseFormalParameter(width, previousValue);
-                        FormalParameterValues[v.Name] = initialValue;
-                    }
-                    
-                    Memory.Store(v.Name, initialValue);
-                    Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
-                                                     v.Name, v.TypedIdent.Type.ToString(),
-                                                     initialValue.ToString()));
-                  }
+                }
             }
         }
 
@@ -708,7 +684,6 @@ namespace GPUVerify
             // Execute all the statements
             foreach (Cmd cmd in block.Cmds)
             {   
-                //Console.Write(cmd.ToString());
                 if (cmd is AssignCmd)
                 {
                     AssignCmd assign = cmd as AssignCmd;
@@ -735,14 +710,14 @@ namespace GPUVerify
                                 subscriptExpr.AddIndex(subscript);
                             }
                             ExprTree tree = LhsEval.Item2;
-                            if (!tree.unitialised)
+                            if (!tree.uninitialised)
                                 Memory.Store(lhs.DeepAssignedVariable.Name, subscriptExpr, tree.evaluation);
                         }
                         else
                         {
                             SimpleAssignLhs lhs = (SimpleAssignLhs)LhsEval.Item1;
                             ExprTree tree = LhsEval.Item2;
-                            if (!tree.unitialised)
+                            if (!tree.uninitialised)
                                 Memory.Store(lhs.AssignedVariable.Name, tree.evaluation);
                         }
                     }
@@ -772,7 +747,7 @@ namespace GPUVerify
                         if (AssertStatus[assert].Equals(BitVector.True))
                         {
                             EvaluateExprTree(tree);
-                            if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
+                            if (!tree.uninitialised && tree.evaluation.Equals(BitVector.False))
                             {
                                 Print.VerboseMessage("==========> FALSE " + assert.ToString());
                                 AssertStatus[assert] = BitVector.False;
@@ -787,6 +762,7 @@ namespace GPUVerify
                                 }
                                 Print.ConditionalExitMessage(BoogieVariable != null, "Unable to find Boogie variable");
                                 KilledAsserts.Add(BoogieVariable);
+                                // Kill the assert in Houdini, which will be invoked after the dynamic analyser
                                 ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
                                 ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
                             }
@@ -810,7 +786,7 @@ namespace GPUVerify
                                 else
                                     randomBits[i] = '0';
                             }
-                            Memory.Store(id.Name, new BitVector(new  string(randomBits)));
+                            Memory.Store(id.Name, new BitVector(new string(randomBits)));
                         }
                     }
                 }
@@ -819,7 +795,7 @@ namespace GPUVerify
                     AssumeCmd assume = cmd as AssumeCmd;
                     ExprTree tree = GetExprTree(assume.Expr);
                     EvaluateExprTree(tree);
-                    if (!tree.unitialised && tree.evaluation.Equals(BitVector.False))
+                    if (!tree.uninitialised && tree.evaluation.Equals(BitVector.False))
                         Console.WriteLine("ASSUME FALSIFIED: " + assume.Expr.ToString());
                 }
                 else
@@ -865,96 +841,224 @@ namespace GPUVerify
         {
             ExprNode<BitVector> left = binary.GetChildren()[0] as ExprNode<BitVector>;
             ExprNode<BitVector> right = binary.GetChildren()[1] as ExprNode<BitVector>;
+            
             foreach (BitVector lhs in left.evaluations)
             {
                 foreach (BitVector rhs in right.evaluations)
                 {
-                    if (binary.op.Equals("||"))
+                    if (binary.op.Equals(BinaryOps.IF))
                     {
-                        if (lhs.Equals(BitVector.True) || rhs.Equals(BitVector.True))
-                            binary.evaluations.Add(BitVector.True);
-                        else
+                        if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.False))
+                        {
                             binary.evaluations.Add(BitVector.False);
-                    }        
-                    else if (binary.op.Equals("&&"))
-                    {
-                        if (lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
+                            return;
+                        }
                     }
-                    else if (binary.op.Equals("==>"))
+                    else if (RegularExpressions.BVADD.IsMatch(binary.op))
                     {
-                        if (rhs.Equals(BitVector.True) || lhs.Equals(BitVector.False))
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
+                        binary.evaluations.Add(lhs + rhs);
                     }
-                    else if (binary.op.Equals("<==>"))
+                    else if (RegularExpressions.BVSUB.IsMatch(binary.op))
                     {
-                        if ((lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True)) 
-                            || (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False)))
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
+                        binary.evaluations.Add(lhs - rhs);
                     }
-                    else if (binary.op.Equals("<"))
+                    else if (RegularExpressions.BVMUL.IsMatch(binary.op))
                     {
-                        if (lhs < rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    } 
-                    else if (binary.op.Equals("<="))
-                    {
-                        if (lhs <= rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }   
-                    else if (binary.op.Equals(">"))
-                    {
-                        if (lhs > rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
+                        binary.evaluations.Add(lhs * rhs);
                     }
-                    else if (binary.op.Equals(">="))
-                    {
-                        if (lhs >= rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (binary.op.Equals("=="))
+                    else if (binary.op.Equals(BinaryOps.EQ))
                     {
                         if (lhs == rhs)
                             binary.evaluations.Add(BitVector.True);
                         else
                             binary.evaluations.Add(BitVector.False);
                     }
-                    else if (binary.op.Equals("!="))
+                    else if (binary.op.Equals(BinaryOps.AND))
+                    {
+                        if (!(lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True)))
+                        {
+                            binary.evaluations.Add(BitVector.False);
+                            return;
+                        }
+                    }
+                    else if (binary.op.Equals(BinaryOps.OR))
+                    {
+                        if (lhs.Equals(BitVector.True) || rhs.Equals(BitVector.True))
+                        {
+                            binary.evaluations.Add(BitVector.True);
+                            return;
+                        }
+                    }
+                    else if (RegularExpressions.BVAND.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs & rhs);
+                    }
+                    else if (RegularExpressions.BVOR.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs | rhs);
+                    }
+                    else if (RegularExpressions.BVSLT.IsMatch(binary.op))
+                    {
+                        if (lhs < rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVSLE.IsMatch(binary.op))
+                    {
+                        if (lhs <= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.IFF))
+                    {
+                        if ((lhs.Equals(BitVector.True) && rhs.Equals(BitVector.True))
+                            || (lhs.Equals(BitVector.False) && rhs.Equals(BitVector.False)))
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.LT))
+                    {
+                        if (lhs < rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.LTE))
+                    {
+                        if (lhs <= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.GT))
+                    {
+                        if (lhs > rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.GTE))
+                    {
+                        if (lhs >= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (binary.op.Equals(BinaryOps.NEQ))
                     {
                         if (lhs != rhs)
                             binary.evaluations.Add(BitVector.True);
                         else
                             binary.evaluations.Add(BitVector.False);
                     }
-                    else if (binary.op.Equals("+"))
+                    else if (binary.op.Equals(BinaryOps.ADD))
                     {
                         binary.evaluations.Add(lhs + rhs);
                     }
-                    else if (binary.op.Equals("-"))
+                    else if (binary.op.Equals(BinaryOps.SUBTRACT))
                     {
                         binary.evaluations.Add(lhs - rhs);
                     }
-                    else if (binary.op.Equals("*"))
+                    else if (binary.op.Equals(BinaryOps.MULTIPLY))
                     {
                         binary.evaluations.Add(lhs * rhs);
                     }
-                    else if (binary.op.Equals("/"))
+                    else if (binary.op.Equals(BinaryOps.DIVIDE))
                     {
                         binary.evaluations.Add(lhs / rhs);
+                    }
+                    else if (RegularExpressions.BVSGT.IsMatch(binary.op))
+                    {
+                        if (lhs > rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVSGE.IsMatch(binary.op))
+                    {
+                        if (lhs >= rhs)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVULT.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned < rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVULE.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
+                        if (lhsUnsigned <= rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVUGT.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned > rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVUGE.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        if (lhsUnsigned >= rhsUnsigned)
+                            binary.evaluations.Add(BitVector.True);
+                        else
+                            binary.evaluations.Add(BitVector.False);
+                    }
+                    else if (RegularExpressions.BVASHR.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
+                    }
+                    else if (RegularExpressions.BVLSHR.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(BitVector.LogicalShiftRight(lhs, rhs.ConvertToInt32()));
+                    }
+                    else if (RegularExpressions.BVSHL.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs << rhs.ConvertToInt32());
+                    }
+                    else if (RegularExpressions.BVDIV.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs / rhs);
+                    }
+                    else if (RegularExpressions.BVXOR.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs ^ rhs);
+                    }
+                    else if (RegularExpressions.BVSREM.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs % rhs);
+                    }
+                    else if (RegularExpressions.BVUREM.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
+                    }
+                    else if (RegularExpressions.BVSDIV.IsMatch(binary.op))
+                    {
+                        binary.evaluations.Add(lhs / rhs);
+                    }
+                    else if (RegularExpressions.BVUDIV.IsMatch(binary.op))
+                    {
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
                     }
                     else if (binary.op.Equals("FEQ32") ||
                              binary.op.Equals("FEQ64") ||
@@ -994,110 +1098,6 @@ namespace GPUVerify
                         if (!FPInterpretations.ContainsKey(FPTriple))
                             FPInterpretations[FPTriple] = new BitVector(Random.Next());
                         binary.evaluations.Add(FPInterpretations[FPTriple]);
-                    }
-                    else if (RegularExpressions.BVSLT.IsMatch(binary.op))
-                    {
-                        if (lhs < rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVSLE.IsMatch(binary.op))
-                    {
-                        if (lhs <= rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVSGT.IsMatch(binary.op))
-                    {
-                        if (lhs > rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVSGE.IsMatch(binary.op))
-                    {
-                        if (lhs >= rhs)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }  
-                    else if (RegularExpressions.BVULT.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        if (lhsUnsigned < rhsUnsigned)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVULE.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
-                        if (lhsUnsigned <= rhsUnsigned)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVUGT.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        if (lhsUnsigned > rhsUnsigned)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVUGE.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        if (lhsUnsigned >= rhsUnsigned)
-                            binary.evaluations.Add(BitVector.True);
-                        else
-                            binary.evaluations.Add(BitVector.False);
-                    }
-                    else if (RegularExpressions.BVASHR.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs >> rhs.ConvertToInt32());
-                    else if (RegularExpressions.BVLSHR.IsMatch(binary.op))
-                        binary.evaluations.Add(BitVector.LogicalShiftRight(lhs, rhs.ConvertToInt32()));
-                    else if (RegularExpressions.BVSHL.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs << rhs.ConvertToInt32());
-                    else if (RegularExpressions.BVADD.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs + rhs);
-                    else if (RegularExpressions.BVSUB.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs - rhs);
-                    else if (RegularExpressions.BVMUL.IsMatch(binary.op))
-                    {
-                        binary.evaluations.Add(lhs * rhs);
-                    }
-                    else if (RegularExpressions.BVDIV.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs / rhs);
-                    else if (RegularExpressions.BVAND.IsMatch(binary.op))
-                    {        
-                        binary.evaluations.Add(lhs & rhs);
-                    }
-                    else if (RegularExpressions.BVOR.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs | rhs);
-                    else if (RegularExpressions.BVXOR.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs ^ rhs);
-                    else if (RegularExpressions.BVSREM.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs % rhs);
-                    else if (RegularExpressions.BVUREM.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
-                    }
-                    else if (RegularExpressions.BVSDIV.IsMatch(binary.op))
-                        binary.evaluations.Add(lhs / rhs);
-                    else if (RegularExpressions.BVUDIV.IsMatch(binary.op))
-                    {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
-                        binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
                     }
                     else
                         throw new UnhandledException("Unhandled bv binary op: " + binary.op);               
@@ -1153,37 +1153,61 @@ namespace GPUVerify
                     unary.evaluations.Add(child.GetUniqueElement());
                 else if (RegularExpressions.CAST_TO_INT.IsMatch(unary.op))
                     unary.evaluations.Add(child.GetUniqueElement());
+				else if (RegularExpressions.CAST_FP_TO_DOUBLE.IsMatch(unary.op))
+				{
+					BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
+                    unary.evaluations.Add(ZeroExtended);
+				}
                 else
                     throw new UnhandledException("Unhandled bv unary op: " + unary.op);
             }  
         }
         
         private void EvaluateExprTree(ExprTree tree)
-        {            
-            foreach (HashSet<Node> nodes in tree)
-            {
-                foreach (Node node in nodes)
-                {
-                    if (node is ScalarSymbolNode<BitVector>)
-                    {
-                        ScalarSymbolNode<BitVector> _node = node as ScalarSymbolNode<BitVector>;
-                        if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
+		{            
+			foreach (HashSet<Node> nodes in tree)
+			{
+				foreach (Node node in nodes)
+				{
+					if (node is ScalarSymbolNode<BitVector>)
+					{
+						ScalarSymbolNode<BitVector> _node = node as ScalarSymbolNode<BitVector>;
+						if (RegularExpressions.WATCHDOG_VARIABLE.IsMatch(_node.symbol))
+						{
+							var visitor = new VariablesOccurringInExpressionVisitor();
+							visitor.Visit(tree.expr);
+							string offsetVariable = "";
+							foreach (Variable variable in visitor.GetVariables())
+							{
+								if (RegularExpressions.TRACKING_VARIABLE.IsMatch(variable.Name))
+								{
+									int index = variable.Name.IndexOf('$');
+                					string arrayName = variable.Name.Substring(index);
+									string accessType = variable.Name.Substring(0, index);
+									if (accessType == "_WRITE_HAS_OCCURRED_")
+										offsetVariable = "_WRITE_OFFSET_" + arrayName;
+									else if (accessType == "_READ_HAS_OCCURRED_")
+										offsetVariable = "_READ_OFFSET_" + arrayName;
+									else
+										offsetVariable = "_ATOMIC_OFFSET_" + arrayName;
+									break;
+								}
+							}
+							Print.ConditionalExitMessage(offsetVariable != "", "Unable to find offset variable");
+							foreach (BitVector offset in Memory.GetRaceArrayOffsets(offsetVariable))
+                                _node.evaluations.Add(offset);
+						}
+                        else if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
                         {                            
                             foreach (BitVector offset in Memory.GetRaceArrayOffsets(_node.symbol))
-                            {
                                 _node.evaluations.Add(offset);
-                            }
                         }
-                        else
+						else
                         {
                             if (!Memory.Contains(_node.symbol))
-                            {
                                 _node.uninitialised = true;
-                            }
                             else
-                            {
                                 _node.evaluations.Add(Memory.GetValue(_node.symbol));
-                            }
                         }
                     }
                     else if (node is MapSymbolNode<BitVector>)
@@ -1282,11 +1306,9 @@ namespace GPUVerify
             }
             
             ExprNode<BitVector> root = tree.Root() as ExprNode<BitVector>;
-            tree.unitialised = root.uninitialised;
+            tree.uninitialised = root.uninitialised;
             if (root.evaluations.Count == 1)
-            {
                 tree.evaluation = root.GetUniqueElement();
-            }
             else
             {
                 tree.evaluation = BitVector.True;
@@ -1308,18 +1330,16 @@ namespace GPUVerify
             ExprTree globalTree = GetExprTree(call.Ins[1]);
             EvaluateExprTree(groupSharedTree);
             EvaluateExprTree(globalTree);
-            
             foreach (string name in Memory.GetRaceArrayVariables())
             {
-                if ((Memory.IsInGlobalMemory(name) && globalTree.evaluation.Equals(BitVector.True)) ||
-                    (Memory.IsInGroupSharedMemory(name) && groupSharedTree.evaluation.Equals(BitVector.True)))
+                int index = name.IndexOf('$');
+                string arrayName = name.Substring(index);
+                if ((Memory.IsInGlobalMemory(arrayName) && globalTree.evaluation.Equals(BitVector.True)) ||
+                    (Memory.IsInGroupSharedMemory(arrayName) && groupSharedTree.evaluation.Equals(BitVector.True)))
                 {
                     if (Memory.GetRaceArrayOffsets(name).Count > 0)
                     {
-                        int dollarIndex = name.IndexOf('$');
-                        Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-                        string arrayName = name.Substring(dollarIndex);
-                        string accessType = name.Substring(0, dollarIndex);
+                        string accessType = name.Substring(0, index);
                         switch (accessType)
                         {
                             case "_WRITE_OFFSET_":
@@ -1350,20 +1370,19 @@ namespace GPUVerify
         private void LogRead(CallCmd call)
         {
             Print.DebugMessage("In log read", 10);
-            int dollarIndex = call.callee.IndexOf('$');
-            Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-            string arrayName = call.callee.Substring(dollarIndex);
+            int index = call.callee.IndexOf('$');
+            string arrayName = call.callee.Substring(index);
             string raceArrayOffsetName = "_READ_OFFSET_" + arrayName;
             if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
                 raceArrayOffsetName = "_READ_OFFSET_" + arrayName + "$1";
-            Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
+			Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array read offset variable: " + raceArrayOffsetName);
             ExprTree tree1 = GetExprTree(call.Ins[0]);
             EvaluateExprTree(tree1);
-            if (!tree1.unitialised && tree1.evaluation.Equals(BitVector.True))
+            if (!tree1.uninitialised && tree1.evaluation.Equals(BitVector.True))
             {
                 ExprTree tree2 = GetExprTree(call.Ins[1]);
                 EvaluateExprTree(tree2);
-                if (!tree2.unitialised)
+                if (!tree2.uninitialised)
                 {
                     Memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
                     string accessTracker = "_READ_HAS_OCCURRED_" + arrayName; 
@@ -1375,20 +1394,19 @@ namespace GPUVerify
         private void LogWrite(CallCmd call)
         {
             Print.DebugMessage("In log write", 10);
-            int dollarIndex = call.callee.IndexOf('$');
-            Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-            string arrayName = call.callee.Substring(dollarIndex);
+            int index = call.callee.IndexOf('$');
+            string arrayName = call.callee.Substring(index);
             string raceArrayOffsetName = "_WRITE_OFFSET_" + arrayName;
             if (!Memory.HasRaceArrayVariable(raceArrayOffsetName))
                 raceArrayOffsetName = "_WRITE_OFFSET_" + arrayName + "$1";
             Print.ConditionalExitMessage(Memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find array write offset variable: " + raceArrayOffsetName);
             ExprTree tree1 = GetExprTree(call.Ins[0]);
             EvaluateExprTree(tree1);
-            if (!tree1.unitialised && tree1.evaluation.Equals(BitVector.True))
+            if (!tree1.uninitialised && tree1.evaluation.Equals(BitVector.True))
             {
                 ExprTree tree2 = GetExprTree(call.Ins[1]);
                 EvaluateExprTree(tree2);
-                if (!tree2.unitialised)
+                if (!tree2.uninitialised)
                 {
                     Memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
                     string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName; 
@@ -1400,9 +1418,8 @@ namespace GPUVerify
         private void LogAtomic(CallCmd call)
         {
             Print.DebugMessage("In log atomic", 10);
-            int dollarIndex = call.callee.IndexOf('$');
-            Print.ConditionalExitMessage(dollarIndex >= 0, "Unable to find dollar sign");
-            string arrayName = call.callee.Substring(dollarIndex);
+            int index = call.callee.IndexOf('$');
+            string arrayName = call.callee.Substring(index);
             // Evaluate the offset expression 
             Expr offsetExpr = call.Ins[1];
             ExprTree offsetTree = GetExprTree(offsetExpr);

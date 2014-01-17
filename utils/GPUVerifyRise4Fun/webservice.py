@@ -1,3 +1,4 @@
+# vim: set sw=2 ts=2 softtabstop=2 expandtab:
 from meta_data import *
 from flask import Flask, jsonify, url_for, request, abort
 from socket import gethostname

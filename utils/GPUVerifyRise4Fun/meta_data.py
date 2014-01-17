@@ -1,4 +1,5 @@
-"""
+""" vim: set sw=2 ts=2 softtabstop=2 expandtab:
+
    This module provides a basic meta for the Rise4Fun tool.
    Some fields are expected to be modified.
 """

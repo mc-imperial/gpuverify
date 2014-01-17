@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Text;
@@ -34,6 +35,7 @@ namespace GPUVerify
         private Dictionary<string, Dictionary <SubscriptExpr, BitVector>> arrays = new Dictionary<string, Dictionary <SubscriptExpr, BitVector>>();
         private Dictionary<string, HashSet<BitVector>> raceArrayOffsets = new Dictionary<string, HashSet<BitVector>>();
         private Dictionary<string, MemorySpace> arrayLocations = new Dictionary<string, MemorySpace>() ;
+        
         public Memory()
         {
         }
@@ -54,9 +56,15 @@ namespace GPUVerify
             return raceArrayOffsets.ContainsKey(name);
         }
 
-        public void AddRaceArrayVariable(string name, MemorySpace space)
+        public void AddRaceArrayOffsetVariables (string name)
         {
-            raceArrayOffsets[name] = new HashSet<BitVector>();
+            raceArrayOffsets["_WRITE_OFFSET_" + name] = new HashSet<BitVector>();
+            raceArrayOffsets["_READ_OFFSET_" + name] = new HashSet<BitVector>();
+            raceArrayOffsets["_ATOMIC_OFFSET_" + name] = new HashSet<BitVector>();
+        }
+        
+        public void SetMemorySpace (string name, MemorySpace space)
+        {
             arrayLocations[name] = space;
         }
         

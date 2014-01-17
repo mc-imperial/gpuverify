@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 using System;
+using System.Diagnostics;
 using System.Text;
 using System.Linq;
 using System.Collections.Generic;
@@ -24,7 +25,7 @@ namespace GPUVerify
         protected Node root = null;
         protected int height = 0;
         public BitVector evaluation;
-        public bool unitialised = false;
+        public bool uninitialised = false;
         public Expr expr;
 
         public ExprTree(Expr expr)
@@ -57,7 +58,7 @@ namespace GPUVerify
                 if (!(node is LiteralNode<BitVector>))
                     node.ClearState();
             }
-            unitialised = false;
+            uninitialised = false;
         }
 
         public Node Root()
@@ -236,7 +237,7 @@ namespace GPUVerify
                 child.parent = parent;
                 return parent;
             }
-			else if (expr is BvConcatExpr)
+			      else if (expr is BvConcatExpr)
             {
                 BvConcatExpr bvConcat = expr as BvConcatExpr;
                 Node one = CreateFromExpr(bvConcat.E0);

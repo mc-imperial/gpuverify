@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""
+""" vim: set sw=2 ts=2 softtabstop=2 expandtab:
+
   This utility is intended to be used with the
   KernelCounterObserver which records several 
   '*-counter.pickle' files (where * is a number),

@@ -14,7 +14,9 @@ using System.Linq;
 using System.Text;
 using Microsoft.Boogie;
 using Microsoft.Basetypes;
+using Microsoft.Boogie.GraphUtil;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 using GPUVerify.InvariantGenerationRules;
 
@@ -39,7 +41,10 @@ namespace GPUVerify {
         GenerateCandidateForReducedStrengthStrideVariables(verifier, impl, region);
         GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
         GenerateCandidateForNonUniformGuardVariables(verifier, impl, region);
+        GenerateCandidateForLoopBounds(verifier, impl, region);
       }
+      // The following is deliberately not in the above foreach loop
+      //GenerateCandidateForLoopsWhichAreControlDependentOnThreadIDs(verifier, impl);
     }
 
     private static void GenerateCandidateForNonUniformGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region) {
@@ -152,6 +157,140 @@ namespace GPUVerify {
           verifier.AddCandidateInvariant(region, lcPred, "loopCounterIsStrided", InferenceStages.BASIC_CANDIDATE_STAGE);
         }
       }
+    }
+
+    private static void GenerateCandidateForLoopBounds (GPUVerifier verifier, Implementation impl, IRegion region) 
+    {
+        HashSet<Variable> partitionVars = region.PartitionVariablesOfHeader();
+        foreach (Variable v in partitionVars)
+        {
+            Expr partitionDefExpr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+            var visitor = new VariablesOccurringInExpressionVisitor();
+            visitor.Visit(partitionDefExpr);
+            List<Variable> variableList = visitor.GetVariables().ToList();
+            if (variableList.Count == 1)
+            {
+                Variable loopCounter = variableList[0];
+                foreach (Block preheader in region.PreHeaders())
+                {
+                    foreach (AssignCmd cmd in preheader.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
+                    {
+                        var lhss = cmd.Lhss.Where(x => x is SimpleAssignLhs);
+                        foreach (var LhsRhs in lhss.Zip(cmd.Rhss)) 
+                        {
+                            if (LhsRhs.Item1.DeepAssignedVariable.Name == loopCounter.Name)
+                            {
+                                var inv = verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2);
+                                verifier.AddCandidateInvariant(region, inv, "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+                                var inv2 = verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2);
+                                verifier.AddCandidateInvariant(region, inv2, "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static void GenerateCandidateForLoopsWhichAreControlDependentOnThreadIDs (GPUVerifier verifier, Implementation impl) 
+    {
+        // We use control dependence information to determine whether a loop is always uniformly executed.
+        // If a loop is control dependent on a conditional statement involving thread IDs then the following candidate invariants
+        // are produced:
+        // 1) The negation of the conditional implies that the thread is disabled
+        // 2) The negation of the conditional implies that the thread does not read or write to any array within the loop
+        Graph<Block> cfg = Program.GraphFromImpl(impl);
+        var ctrlDep = cfg.ControlDependence();
+        ctrlDep.TransitiveClosure();
+        Graph<Block> loopInfo = verifier.Program.ProcessLoops(impl);
+        Dictionary<Block, Expr> controlNodeExprs = new Dictionary<Block, Expr>();
+        foreach (Block header in loopInfo.Headers)
+        {
+            // Go through every loop in the CFG and determine the distinct basic blocks on which it is control dependent
+            HashSet<Block> controllingBlocks = new HashSet<Block>();
+            foreach (Block block in cfg.Nodes)
+            {
+                if (ctrlDep.ContainsKey(block) && block != header)
+                {
+                  // Loop headers are always control dependent on themselves. Ignore this control dependence
+                  // as we want to compute the set of basic blocks whose conditions
+                  foreach (Block ctrlDepBlock in ctrlDep[block].Where(x => x == header))
+                      controllingBlocks.Add(block);
+                }
+            }
+            if (controllingBlocks.Count > 0)
+            {
+              // If the loop is control dependent on other blocks
+              foreach (Block controlling in controllingBlocks)
+              {
+                  Console.WriteLine(header.Label + " has control dependence on " + controlling.Label);
+                  if (!controlNodeExprs.ContainsKey(controlling)) 
+                  {
+                    // If we have not done so already, fully expand the expression which determines the direction of the conditional
+                    ExpandControllingNodeGuardExpr(cfg, controlling);  
+                  }
+              }
+            }
+        }
+    }
+        
+    private static void ExpandControllingNodeGuardExpr (Graph<Block> cfg, Block controlling)
+    {
+       // Get the partition variable
+       List<Variable> tempVariables = new List<Variable>();
+       var visitor = new VariablesOccurringInExpressionVisitor();
+       foreach (Block succ in cfg.Successors(controlling)) 
+       {
+           foreach (var assume in succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) 
+           {
+             visitor.Visit(assume.Expr);
+             tempVariables.AddRange(visitor.GetVariables().ToList());
+           }
+       }
+       // There should be exactly one partition variable 
+       Debug.Assert(tempVariables.Count == 1);
+       while (tempVariables.Count > 1)
+       {
+           Variable temp = tempVariables[0];
+           tempVariables.RemoveAt(0);
+                Console.WriteLine(temp);
+           HashSet<Expr> assignments = new HashSet<Expr>();
+           foreach (AssignCmd cmd in controlling.Cmds.OfType<AssignCmd>().Reverse<Cmd>())
+           {
+             var lhss = cmd.Lhss.OfType<SimpleAssignLhs>();
+             foreach (var LhsRhs in lhss.Zip(cmd.Rhss)) 
+             {
+               if (LhsRhs.Item1.DeepAssignedVariable.Name == temp.Name)
+                 assignments.Add(LhsRhs.Item2);
+             }
+           }
+           foreach (Expr expr in assignments)
+                {
+                    var visitor2 = new FindTempVariablesInExpr();
+                    visitor2.Visit(expr);
+                    tempVariables.AddRange(visitor2.GetVariables().ToList());
+                }
+       }
+    }
+    
+    class FindTempVariablesInExpr : StandardVisitor
+    {
+        private static Regex IS_TEMP = new Regex("v[0-9]+$");
+       
+        private HashSet<Variable> variables = new HashSet<Variable>();
+
+        public IEnumerable<Microsoft.Boogie.Variable> GetVariables()
+        {
+            return variables;
+        }
+
+            
+        public override Variable VisitVariable(Variable node)
+        {
+            if (IS_TEMP.IsMatch(node.Name))
+              variables.Add(node);
+            return base.VisitVariable(node);
+        }
     }
 
     public static void PostInstrument(GPUVerifier verifier, Implementation Impl) {

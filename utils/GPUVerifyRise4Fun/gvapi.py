@@ -1,4 +1,5 @@
-""" This module provides a simple
+""" vim: set sw=2 ts=2 softtabstop=2 expandtab:
+This module provides a simple
     API to GPUVerify
 """
 import config
@@ -27,7 +28,8 @@ ErrorCodes.OPT_ERROR:"Could not perform necessary optimisations to your kernel."
 ErrorCodes.BUGLE_ERROR:"Could not translate LLVM bitcode to Boogie.",
 ErrorCodes.GPUVERIFYVCGEN_ERROR:"Could not generate invariants and/or perform two-thread abstraction.",
 ErrorCodes.BOOGIE_ERROR:"",
-ErrorCodes.BOOGIE_TIMEOUT:"Verification timed out."
+ErrorCodes.TIMEOUT:"Verification timed out.",
+ErrorCodes.CONFIGURATION_ERROR:"The web service has been incorrectly configured. Please report this issue to gpuverify-support@googlegroups.com"
 }
 
 # Observer design pattern
@@ -323,13 +325,17 @@ class GPUVerifyTool(object):
   def getVersionString(self):
     ( returnCode, versionString ) = self.__runTool(['--version'])
     if returnCode == 0:
-      #Parse version string
-      matcher = re.search(r'(\d+):([0-9a-fA-F]+)',versionString)
-      if not matcher:
-        raise Exception('Could not parse version string from "' + versionString + '"')
 
+      # Parse version string
+      matcher = re.search(r'local-revision\s+:\s+(\d+)',versionString)
+      if not matcher:
+        raise Exception('Could not parse local-revision string from "' + versionString + '"')
       localID=matcher.group(1)
-      changesetID=matcher.group(2)
+
+      matcher = re.search(r'vcgen\s+:\s+(\d+)',versionString)
+      if not matcher:
+        raise Exception('Could not parse vcgen string from "' + versionString + '"')
+      changesetID=matcher.group(1)
 
       return (localID, changesetID)
 

@@ -443,29 +443,27 @@ namespace GPUVerify {
     }
 
     private static ulong GetOffsetInBytes(CallCounterexample Cex) {
-
-      AssumeCmd a = GetAssumeCmdBeforeFailingCall(Cex);
-
-
       uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
       Debug.Assert(ElemWidth != int.MaxValue);
       var element =
         (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
-        ? GetStateFromModel(QKeyValue.FindStringAttribute(GetAssumeCmdBeforeFailingCall(Cex).Attributes, "captureState"),
+        ? GetStateFromModel(QKeyValue.FindStringAttribute(GetCaptureStateBeforeFailingCall(Cex).Attributes, "captureState"),
            Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
         : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
       return (Convert.ToUInt64(element.Numeral) * ElemWidth) / 8;
     }
 
-    private static AssumeCmd GetAssumeCmdBeforeFailingCall(CallCounterexample Cex)
+    private static AssumeCmd GetCaptureStateBeforeFailingCall(CallCounterexample Cex)
     {
       foreach(var b in Cex.Trace) {
-        Cmd prev = null;
+        AssumeCmd prev = null;
         foreach(var c in b.Cmds) {
-          if(c == Cex.FailingCall) {
-            return prev as AssumeCmd;
+          if(c is AssumeCmd && QKeyValue.FindStringAttribute(((AssumeCmd)c).Attributes, "captureState") != null) {
+            prev = c as AssumeCmd;
           }
-          prev = c;
+          if(c == Cex.FailingCall) {
+            return prev;
+          }
         }
       }
       return null;

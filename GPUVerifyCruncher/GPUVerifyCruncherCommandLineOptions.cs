@@ -25,7 +25,7 @@ namespace GPUVerify
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;
     public int DynamicAnalysisLoopHeaderLimit = 1000;
-    public int DynamicAnalysisLoopUnrollFactor = 0;
+    public int DynamicAnalysisLoopEscapeFactor = 0;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -62,9 +62,9 @@ namespace GPUVerify
          return true;
       }
 
-      if (name == "dynamicAnalysisLoopUnrollFactor") {
+      if (name == "dynamicAnalysisLoopEscapeFactor") {
          if (ps.ConfirmArgumentCount(1))
-           ps.GetNumericArgument(ref DynamicAnalysisLoopUnrollFactor);
+           ps.GetNumericArgument(ref DynamicAnalysisLoopEscapeFactor);
          return true;
       }
 
