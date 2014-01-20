@@ -1,3 +1,12 @@
+//===-----------------------------------------------------------------------==//
+//
+//                GPUVerify - a Verifier for GPU Kernels
+//
+// This file is distributed under the Microsoft Public License.  See
+// LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
 using System;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
@@ -14,7 +23,6 @@ namespace GPUVerify
   private Graph<Block> cfg;
   private Dictionary<Variable, Expr> assignments = new Dictionary<Variable, Expr>();
   private Variable initialVariable;
-  private Expr unexpanded;
   private Expr expanded;
 
   public AssignmentExpressionExpander(Implementation impl, Variable variable)
