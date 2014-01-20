@@ -97,7 +97,6 @@ namespace GPUVerify
   private GPU gpu = new GPU();
   private Random Random = new Random();
   private Memory Memory = new Memory();
-  private HashSet<string> FormalParametersAffectingControlFlow = new HashSet<string>();
   private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
   private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
   private Dictionary<AssertCmd, BitVector> AssertStatus = new Dictionary<AssertCmd, BitVector>();
@@ -139,9 +138,6 @@ namespace GPUVerify
     ComputeLoopExitBlocks(header, loopBody);
    }
 
-   // Can formal parameters affect control flow?
-   DetermineWhetherFormalParametersAffectControlFlow(impl, loopInfo);
-
    Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
    try
    {  
@@ -173,116 +169,6 @@ namespace GPUVerify
    {
     SummarizeKilledInvariants();
     Print.VerboseMessage("Dynamic analysis done");
-   }
-  }
-
-  private bool IsPredicateOrTemp(Variable theVar)
-  {
-   string varName = theVar.Name;
-   if (varName.Length >= 2 &&
-                (varName.Substring(0, 1).Equals("p") || varName.Substring(0, 1).Equals("v")))
-   {
-    for (int i = 1; i < varName.Length; i++)
-    {
-     if (!Char.IsDigit(varName.ToCharArray()[i]))
-      return false;
-    }
-    return true;
-   }
-   return false;
-  }
-
-  private HashSet<Expr> FindAssignmentsToTempVariable(Block block, Variable theVar)
-  {
-   HashSet<Expr> rhss = new HashSet<Expr>();
-   foreach (AssignCmd cmd in block.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
-   {
-    var lhss = cmd.Lhss.Where(x => x is SimpleAssignLhs);
-    foreach (var LhsRhs in lhss.Zip(cmd.Rhss))
-    {
-     if (LhsRhs.Item1.DeepAssignedVariable.Name == theVar.Name)
-      rhss.Add(LhsRhs.Item2);
-    }
-   }
-   return rhss;
-  }
-
-  private void DetermineWhetherFormalParametersAffectControlFlow(Implementation impl, Graph<Block> loopInfo)
-  {
-   Graph<Block> cfg = Program.GraphFromImpl(impl);
-   var ctrlDep = cfg.ControlDependence();
-   foreach (Block block in cfg.Nodes)
-   {
-    if (ctrlDep.ContainsKey(block))
-    {
-     HashSet<Variable> varsInAssumes = new HashSet<Variable>();
-     var visitor = new VariablesOccurringInExpressionVisitor();
-     foreach (Block succ in cfg.Successors(block))
-     {
-      foreach (var assume in succ.Cmds.OfType<AssumeCmd>())
-      {
-       visitor.Visit(assume.Expr);
-       varsInAssumes.UnionWith(visitor.GetVariables());
-      }
-     }
-     // Variables in the guard expression which are neither temps nor predicates 
-     HashSet<Variable> varsInGuardExpr = new HashSet<Variable>();
-     // Unresolved variables are those which we have to expand in the expression tree
-     List<Variable> unresolvedVars = new List<Variable>(); 
-     unresolvedVars.Add(varsInAssumes.ToList()[0]);
-     // While we still have to expand an unresolved variable...
-     while (unresolvedVars.Count > 0)
-     {
-      Variable unresolved = unresolvedVars[0];
-      unresolvedVars.RemoveAt(0);
-      HashSet<Expr> rhss = new HashSet<Expr>();
-      Stack<Block> stack = new Stack<Block>();
-      // Try to find a basic block which includes a statement that defines the unresolved variable.
-      // Begin the search at the current basic block and work backwards, ignoring loop-back edges
-      stack.Push(block);
-      while (stack.Count > 0)
-      {
-       Block stackBlock = stack.Pop();
-       HashSet<Expr> rhssFound = FindAssignmentsToTempVariable(stackBlock, unresolved); 
-       if (rhssFound.Count == 0)
-       {
-        foreach (Block pred in cfg.Predecessors(stackBlock))
-        {
-         if (!loopInfo.Headers.ToList().Contains(stackBlock))
-          stack.Push(pred);
-         else if (!loopInfo.BackEdgeNodes(stackBlock).ToList().Contains(pred))
-          stack.Push(pred);
-        }
-       }
-       else
-        rhss.UnionWith(rhssFound);
-      }
-      // Go through every defining expression and rip out the variables
-      foreach (Expr rhs in rhss)
-      {
-       var visitor2 = new VariablesOccurringInExpressionVisitor();
-       visitor2.Visit(rhs);
-       foreach (Variable foundVar in visitor2.GetVariables())
-       {
-        if (IsPredicateOrTemp(foundVar))
-        {
-         if (!unresolvedVars.Contains(foundVar))
-          unresolvedVars.Add(foundVar);
-        }
-        else
-         varsInGuardExpr.Add(foundVar);
-       }
-      }
-     }
-     foreach (Variable newVar in varsInGuardExpr)
-     {
-      foreach (Variable formal in impl.InParams)
-      {
-       if (newVar.Name == formal.Name)
-        FormalParametersAffectingControlFlow.Add(formal.Name);
-      }
-     }
-    }
    }
   }
 
@@ -648,8 +534,6 @@ namespace GPUVerify
     if (!Memory.Contains(v.Name))
     {
      //Print.WarningMessage(String.Format("Formal parameter '{0}' not initialised", v.Name));
-     if (FormalParametersAffectingControlFlow.Contains(v.Name))
-     {
       int width;
       if (v.TypedIdent.Type is BvType)
       {
@@ -673,7 +557,6 @@ namespace GPUVerify
        v.Name, v.TypedIdent.Type.ToString(),
        initialValue.ToString()));
      }
-    }
    }
   }
 
