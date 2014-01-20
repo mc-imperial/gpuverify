@@ -1,4 +1,4 @@
-# vim: set sw=2 ts=2 softtabstop=2 expandtab=2:
+# vim: set sw=2 ts=2 softtabstop=2 expandtab:
 import os
 import sys
 import subprocess
@@ -34,16 +34,36 @@ def getVersionStringFromRepos():
   try:
     import gvfindtools
     vs = []
-    for tool, path, localRev in [ ('llvm', gvfindtools.llvmSrcDir, False),
-                                  ('bugle', gvfindtools.bugleSrcDir, False),
-                                  ('libclc', gvfindtools.libclcSrcDir, False),
-                                  ('vcgen', os.path.dirname(__file__), False),
-                                  ('z3', gvfindtools.z3SrcDir, False),
-                                  ('cvc4', gvfindtools.cvc4SrcDir, False),
-                                  ('local-revision', os.path.dirname(__file__), True) # GPUVerifyRise4Fun depends on this
+
+    # This method is used so if a member (e.g. libclcSrcDir)
+    # doesn't exist in gvfindtools then we just set None
+    # rather than raising an exception.
+    # YUCK: This makes things very inelegant
+    def repoTuple(toolName, **kargs ):
+      getLocalRev = ( 'getLocalRev' in kargs )
+
+      if 'gvft' in kargs:
+        return (toolName, getattr(gvfindtools, kargs['gvft'], None), getLocalRev)
+      elif 'path' in kargs:
+        return (toolName, kargs['path'], getLocalRev)
+      else:
+        raise Exception('Misuse of repoTuple')
+
+    for tool, path, localRev in [ repoTuple('llvm', gvft='llvmSrcDir'),
+                                  repoTuple('bugle', gvft='bugleSrcDir'),
+                                  repoTuple('libclc', gvft='libclcSrcDir'),
+                                  repoTuple('vcgen', path=os.path.dirname(__file__)),
+                                  repoTuple('z3', gvft='z3SrcDir'),
+                                  repoTuple('cvc4', gvft='cvc4SrcDir'),
+                                  repoTuple('local-revision', path=os.path.dirname(__file__), getLocalRev=True) # GPUVerifyRise4Fun depends on this
                                 ]:
-      if os.path.isdir(path):
-        vs.append(tool.ljust(15) + ": " + getsha(path, localRev))
+      try:
+          vs.append(tool.ljust(15) + ": ") 
+          revision = getsha(path, localRev) 
+      except Exception as e:
+        revision = "No version information available ({0})".format(str(e))
+
+      vs[-1] += revision
     return '\n'.join(vs) + '\n'
   except Exception as e:
     return GPUVerifyRevisionErrorMessage + " : " + str(e)

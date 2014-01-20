@@ -25,15 +25,6 @@ namespace GPUVerify
   /// </summary>
   public static class GVUtil
   {
-    public static IEnumerable<Implementation> Implementations(this Program p)
-    {
-      return p.TopLevelDeclarations.OfType<Implementation>();
-    }
-
-    public static IEnumerable<Block> Blocks(this Program p)
-    {
-      return p.Implementations().Select(Item => Item.Blocks).SelectMany(Item => Item);
-    }
 
     /// <summary>
     /// Returns a Microsoft.Boogie.Houdini.ConcurrentHoudini.RefutedAnnotation object by iterating the

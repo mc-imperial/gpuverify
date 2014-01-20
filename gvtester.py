@@ -642,7 +642,7 @@ def main(arg):
     parser.add_argument("-c","--compare-pickles",type=str,nargs=2,action=comparePickleFiles,help="Compare two test runs recorded in pickle files then exit. The first file should be an old test run and the second file should be a newer test run.")
 
     #General options
-    parser.add_argument("--test-filename-regex", type=str, default=r"^(kernel\.(cu|cl))|(\w+.misc)$", help="Regex for test file names (default: \"%(default)s\")")
+    parser.add_argument("--test-filename-regex", "--kernel-regex", type=str, default=r'(^kernel\.(cu|cl)$)|(^.+\.misc$)', help="Regex for test file names (default: \"%(default)s\")")
     parser.add_argument("--from-file", type=str, default=None, action='append', help="File containing relative paths of kernels to test")
     parser.add_argument("--ignore-file", type=str, default=None, action='append', help="File containing relative paths of kernels to ignore")
     parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])

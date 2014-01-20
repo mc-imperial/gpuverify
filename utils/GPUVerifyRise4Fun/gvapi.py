@@ -289,7 +289,7 @@ class GPUVerifyTool(object):
       cmdArgs.append(f.name)
 
       response = self.__runTool(cmdArgs)
-      if response[0] in ( ErrorCodes.BOOGIE_TIMEOUT , ErrorCodes.GPUVERIFYVCGEN_TIMEOUT ):
+      if response[0] == ErrorCodes.TIMEOUT:
         _logging.error('GPUVerify timed out (ErrorCode:{})'.format(response[0])) 
 
     finally:
@@ -332,7 +332,7 @@ class GPUVerifyTool(object):
         raise Exception('Could not parse local-revision string from "' + versionString + '"')
       localID=matcher.group(1)
 
-      matcher = re.search(r'vcgen\s+:\s+(\d+)',versionString)
+      matcher = re.search(r'vcgen\s+:\s+([a-z0-9]+)',versionString)
       if not matcher:
         raise Exception('Could not parse vcgen string from "' + versionString + '"')
       changesetID=matcher.group(1)
