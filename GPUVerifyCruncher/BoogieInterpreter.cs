@@ -646,7 +646,7 @@ namespace GPUVerify
                 // and which can influence control flow
                 if (!Memory.Contains(v.Name))
                 {
-                    Print.WarningMessage(String.Format("Formal parameter '{0}' not initialised", v.Name));
+                    //Print.WarningMessage(String.Format("Formal parameter '{0}' not initialised", v.Name));
                     if (FormalParametersAffectingControlFlow.Contains(v.Name))
                     {
                         int width;
