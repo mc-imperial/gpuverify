@@ -252,67 +252,79 @@ namespace GPUVerify
       if (!controlNodeExprInfo.ContainsKey(controlling))
       {
        // If we have not done so already, fully expand the expression which determines the direction of the conditional
-       AssignmentExpressionExpander guardExpressions = ExpandControllingNodeGuardExpr(cfg, controlling);
+       HashSet<Variable> tempVariables = new HashSet<Variable>();
        var visitor = new VariablesOccurringInExpressionVisitor();
-       visitor.Visit(guardExpressions.GetExpandedExpr());
+       foreach (Block succ in cfg.Successors(controlling))
+       {
+        foreach (var assume in succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")))
+        {
+         visitor.Visit(assume.Expr);
+         tempVariables.UnionWith(visitor.GetVariables().ToList());
+        }
+       }
+       // There should be exactly one partition variable 
+       Debug.Assert(tempVariables.Count == 1);
+       AssignmentExpressionExpander guardExpression = new AssignmentExpressionExpander(cfg, tempVariables.Single());
+       
+       visitor.ClearVariables();
+       visitor.Visit(guardExpression.GetExpandedExpr());
        HashSet<Variable> GPUVariables = new HashSet<Variable>();
        foreach (Variable variable in visitor.GetVariables())
        {
         if (ThreadOrGroupID.IsMatch(variable.Name))
          GPUVariables.Add(variable);
        }
-       controlNodeExprInfo[controlling] = Tuple.Create(guardExpressions, GPUVariables); 
+       controlNodeExprInfo[controlling] = Tuple.Create(guardExpression, GPUVariables); 
       }
      }
-     // Negate the expressions
-     List<Expr> negatedExprs = new List<Expr>();
+     // Build up the expressions on the LHS of the implication
+     List<Expr> antecedentExprs = new List<Expr>();
      foreach (Block controlling in controllingBlocks)
      {
       if (controlNodeExprInfo[controlling].Item2.Count > 0)
       {
-       // If the fully-expanded conditional expression contains thread or group IDs then negate the expression 
-       Expr negatedExpr = Expr.Not(controlNodeExprInfo[controlling].Item1.GetUnexpandedExpr() as Expr);
-       negatedExprs.Add(negatedExpr);
+       // If the fully-expanded conditional expression contains thread or group IDs
+       foreach (Block succ in cfg.Successors(controlling))
+       {
+         // Find the side of the branch that must execute if the loop is executes
+        if (cfg.DominatorMap.DominatedBy(header, succ))
+        {
+         // Get the assume associated with the branch
+         var assume = succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")).Single();
+         if (assume.Expr is NAryExpr)
+         {
+          NAryExpr nary = assume.Expr as NAryExpr;
+          Debug.Assert((nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not);
+          antecedentExprs.Add(controlNodeExprInfo[controlling].Item1.GetUnexpandedExpr() as Expr);
+         }
+         else
+         {
+          Expr negatedExpr = Expr.Not(controlNodeExprInfo[controlling].Item1.GetUnexpandedExpr() as Expr);
+          antecedentExprs.Add(negatedExpr);
+         }         
+        }
+       }
       }
      }
-     if (negatedExprs.Count > 0)
+     if (antecedentExprs.Count > 0)
      {
-      // Create the set of implications which state that, if one of the negated expressions holds, 
+      // Create the set of implications which state that, if one of the antecedent expressions holds, 
       // the thread is not enabled and does not read or write to an array location in the loop body
       Expr lhsOfImplication;
-      if (negatedExprs.Count > 1)
+      if (antecedentExprs.Count > 1)
       {
-       lhsOfImplication = Expr.Or(negatedExprs[0], negatedExprs[1]);
-       for (int i=2; i<negatedExprs.Count; ++i)
+       lhsOfImplication = Expr.Or(antecedentExprs[0], antecedentExprs[1]);
+       for (int i = 2; i < antecedentExprs.Count; ++i)
        {
-        lhsOfImplication = Expr.Or(lhsOfImplication, negatedExprs[i]);
+        lhsOfImplication = Expr.Or(lhsOfImplication, antecedentExprs[i]);
        }
       }
       else
-       lhsOfImplication = negatedExprs[0];
+       lhsOfImplication = antecedentExprs[0];
       AddInvariantsForLoopsWhichAreControlDependentOnThreadOrGroupIDs(verifier, header, loopBody, lhsOfImplication);
      }
     }
    }
-  }
-  
-  private static AssignmentExpressionExpander ExpandControllingNodeGuardExpr(Graph<Block> cfg, Block controlling)
-  {
-   // Get the partition variable
-   HashSet<Variable> tempVariables = new HashSet<Variable>();
-   var visitor = new VariablesOccurringInExpressionVisitor();
-   foreach (Block succ in cfg.Successors(controlling))
-   {
-    foreach (var assume in succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")))
-    {
-     visitor.Visit(assume.Expr);
-     tempVariables.UnionWith(visitor.GetVariables().ToList());
-    }
-   }
-   // There should be exactly one partition variable 
-   Debug.Assert(tempVariables.Count == 1);
-   Variable temp = tempVariables.Single();
-   return new AssignmentExpressionExpander(cfg, temp);
   }
 
   private static void AddInvariantsForLoopsWhichAreControlDependentOnThreadOrGroupIDs(GPUVerifier verifier, Block header, HashSet<Block> loopBody, Expr lhsOfImplication)
