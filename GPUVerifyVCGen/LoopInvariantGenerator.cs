@@ -212,17 +212,17 @@ namespace GPUVerify
    // We use control dependence information to determine whether a loop is always uniformly executed.
    // If a loop is control dependent on a conditional statement involving thread or group IDs then the following 
    // candidate invariants are produced:
-   // 1) The negation of the conditional implies that the thread is disabled
-   // 2) The negation of the conditional implies that the thread does not read or write to any array within the loop
+   // 1) If the conditional expression causes control flow to avoid the loop, the thread is disabled
+   // 2) If the conditional expression causes control flow to avoid the loop, the thread does not read or write 
+   //    to any array within the loop
    // Note that, if the loop is control dependent on multiple nodes in the CFG, the LHS of these implications will be
-   // a disjunction of the negated conditionals; that is, if one of the conditionals is false, the thread must be disabled
+   // a disjunction of the conditional expressions
    
    Graph<Block> cfg = Program.GraphFromImpl(impl);
    var ctrlDep = cfg.ControlDependence();
    ctrlDep.TransitiveClosure();
    Graph<Block> loopInfo = verifier.Program.ProcessLoops(impl);
-   Dictionary<Block, Tuple<AssignmentExpressionExpander, HashSet<Variable>>> controlNodeExprInfo = new Dictionary<Block, Tuple<AssignmentExpressionExpander, HashSet<Variable>>>();
-   Regex ThreadOrGroupID = new Regex("(local|global)_id_(x|y|z)$");
+   Dictionary<Block, AssignmentExpressionExpander> controlNodeExprInfo = new Dictionary<Block, AssignmentExpressionExpander>();
    
    foreach (Block header in loopInfo.Headers)
    {
@@ -241,7 +241,9 @@ namespace GPUVerify
       // as we want to compute the set of basic blocks whose conditions lead to execution of the loop header
       // at least once
       foreach (Block ctrlDepBlock in ctrlDep[block].Where(x => x == header))
+      {
        controllingBlocks.Add(block);
+      }
      }
     }
     if (controllingBlocks.Count > 0)
@@ -264,29 +266,19 @@ namespace GPUVerify
        }
        // There should be exactly one partition variable 
        Debug.Assert(tempVariables.Count == 1);
-       AssignmentExpressionExpander guardExpression = new AssignmentExpressionExpander(cfg, tempVariables.Single());
-       
-       visitor.ClearVariables();
-       visitor.Visit(guardExpression.GetExpandedExpr());
-       HashSet<Variable> GPUVariables = new HashSet<Variable>();
-       foreach (Variable variable in visitor.GetVariables())
-       {
-        if (ThreadOrGroupID.IsMatch(variable.Name))
-         GPUVariables.Add(variable);
-       }
-       controlNodeExprInfo[controlling] = Tuple.Create(guardExpression, GPUVariables); 
+       controlNodeExprInfo[controlling] = new AssignmentExpressionExpander(cfg, tempVariables.Single()); 
       }
      }
      // Build up the expressions on the LHS of the implication
      List<Expr> antecedentExprs = new List<Expr>();
      foreach (Block controlling in controllingBlocks)
      {
-      if (controlNodeExprInfo[controlling].Item2.Count > 0)
+      if (controlNodeExprInfo[controlling].GetGPUVariables().Count > 0)
       {
        // If the fully-expanded conditional expression contains thread or group IDs
        foreach (Block succ in cfg.Successors(controlling))
        {
-         // Find the side of the branch that must execute if the loop is executes
+         // Find the side of the branch that must execute if the loop executes
         if (cfg.DominatorMap.DominatedBy(header, succ))
         {
          // Get the assume associated with the branch
@@ -295,11 +287,13 @@ namespace GPUVerify
          {
           NAryExpr nary = assume.Expr as NAryExpr;
           Debug.Assert((nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not);
-          antecedentExprs.Add(controlNodeExprInfo[controlling].Item1.GetUnexpandedExpr() as Expr);
+          // The assume is a not expression !E. Negating !E gives !!E which is logically equivalent to E.
+          // E is the expression that must hold for the conditional to bypass the loop
+          antecedentExprs.Add(controlNodeExprInfo[controlling].GetUnexpandedExpr());
          }
          else
          {
-          Expr negatedExpr = Expr.Not(controlNodeExprInfo[controlling].Item1.GetUnexpandedExpr() as Expr);
+          Expr negatedExpr = Expr.Not(controlNodeExprInfo[controlling].GetUnexpandedExpr());
           antecedentExprs.Add(negatedExpr);
          }         
         }
