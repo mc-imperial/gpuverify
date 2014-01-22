@@ -208,7 +208,7 @@ namespace GPUVerify
                         foreach (Expr param in callCmd.Ins) {
                             ExprMayAffectControlFlow(impl.Name, param);
                         }
-                    } else if(callCmd.callee != verifier.BarrierProcedure.Name) {
+                    } else if(!GPUVerifier.IsBarrier(callCmd.Proc)) {
 
                         Implementation CalleeImplementation = verifier.GetImplementation(callCmd.callee);
                         if (CalleeImplementation != null) {

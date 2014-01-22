@@ -36,7 +36,7 @@ namespace GPUVerify
 
         public Dictionary<Procedure, Implementation> KernelProcedures;
 
-        public Procedure BarrierProcedure;
+        private HashSet<Procedure> BarrierProcedures = new HashSet<Procedure>();
         public string BarrierProcedureLocalFenceArgName;
         public string BarrierProcedureGlobalFenceArgName;
 
@@ -551,9 +551,18 @@ namespace GPUVerify
                 EmitProgram(outputFilename + "_dualised");
             }
 
+            if (GPUVerifyVCGenCommandLineOptions.NonDeterminiseUninterpretedFunctions) {
+              NonDeterminiseUninterpretedFunctions();
+              if (GPUVerifyVCGenCommandLineOptions.ShowStages) {
+                EmitProgram(outputFilename + "_ufs_removed");
+              }
+            }
+
             RaceInstrumenter.AddRaceCheckingDeclarations();
 
-            GenerateBarrierImplementation();
+            foreach(var b in BarrierProcedures) {
+              GenerateBarrierImplementation(b);
+            }
 
             // We now do modset analysis here because the previous passes add new
             // global variables
@@ -595,6 +604,12 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private void NonDeterminiseUninterpretedFunctions()
+        {
+          var UFRemover = new UninterpretedFunctionRemover(this);
+          UFRemover.Eliminate(Program);
         }
 
         private void EliminateLiteralIndexedPrivateArrays()
@@ -1287,12 +1302,10 @@ namespace GPUVerify
             return new Constant(Token.NoToken, new TypedIdent(Token.NoToken, resultWithoutThreadId.Name + "$" + number, GetTypeOfId(dimension)));
         }
 
-        private void GenerateBarrierImplementation()
+        private void GenerateBarrierImplementation(Procedure BarrierProcedure)
         {
-            IToken tok = BarrierProcedure.tok;
-
             List<BigBlock> bigblocks = new List<BigBlock>();
-            BigBlock barrierEntryBlock = new BigBlock(tok, "__BarrierImpl", new List<Cmd>(), null, null);
+            BigBlock barrierEntryBlock = new BigBlock(Token.NoToken, "__BarrierImpl", new List<Cmd>(), null, null);
             bigblocks.Add(barrierEntryBlock);
 
             Expr P1 = null, P2 = null, LocalFence1 = null, LocalFence2 = null, GlobalFence1 = null, GlobalFence2 = null;
@@ -1364,11 +1377,11 @@ namespace GPUVerify
             if (!GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
                 List<BigBlock> returnbigblocks = new List<BigBlock>();
-                returnbigblocks.Add(new BigBlock(tok, "__Disabled", new List<Cmd>(), null, new ReturnCmd(tok)));
+                returnbigblocks.Add(new BigBlock(Token.NoToken, "__Disabled", new List<Cmd>(), null, new ReturnCmd(Token.NoToken)));
                 StmtList returnstatement = new StmtList(returnbigblocks, BarrierProcedure.tok);
 
                 Expr IfGuard = Expr.Or(Expr.And(Expr.Not(P1), Expr.Not(P2)), Expr.And(ThreadsInSameGroup(), Expr.Or(Expr.Not(P1), Expr.Not(P2))));
-                barrierEntryBlock.ec = new IfCmd(tok, IfGuard, returnstatement, null, null);
+                barrierEntryBlock.ec = new IfCmd(Token.NoToken, IfGuard, returnstatement, null, null);
             }
 
             var SharedArrays = KernelArrayInfo.getGroupSharedArrays();
@@ -1634,7 +1647,9 @@ namespace GPUVerify
 
         private int Check()
         {
-            BarrierProcedure = FindOrCreateBarrierProcedure();
+            var BarrierProcedure = FindOrCreateBarrierProcedure();
+
+            BarrierProcedures.Add(BarrierProcedure);
 
             if (ErrorCount > 0)
             {
@@ -1713,7 +1728,12 @@ namespace GPUVerify
 
         internal bool ContainsBarrierCall(IRegion loop)
         {
-          return loop.Cmds().OfType<CallCmd>().Where(Item => Item.Proc == BarrierProcedure).Count() > 0;
+          return loop.Cmds().OfType<CallCmd>().Where(Item => IsBarrier(Item.Proc)).Count() > 0;
+        }
+
+        internal static bool IsBarrier(Procedure Proc)
+        {
+          return QKeyValue.FindBoolAttribute(Proc.Attributes, "barrier");
         }
 
         internal bool ArrayModelledAdversarially(Variable v)

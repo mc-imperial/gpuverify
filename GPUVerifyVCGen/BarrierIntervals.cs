@@ -52,7 +52,7 @@ namespace GPUVerify
     {
       HashSet<BarrierInterval> result = new HashSet<BarrierInterval>();
 
-      ExtractCommandsIntoBlocks(impl, Item => (Item is CallCmd && ((CallCmd)Item).Proc == verifier.BarrierProcedure));
+      ExtractCommandsIntoBlocks(impl, Item => (Item is CallCmd && GPUVerifier.IsBarrier(((CallCmd)Item).Proc)));
       Graph<Block> cfg = Program.GraphFromImpl(impl);
       Graph<Block> dual = cfg.Dual(new Block());
       DomRelation<Block> dom = cfg.DominatorMap;
@@ -90,16 +90,18 @@ namespace GPUVerify
         return false;
       }
       CallCmd c = b.Cmds[0] as CallCmd;
-      if(c == null || c.Proc != verifier.BarrierProcedure) {
+      if(c == null || !GPUVerifier.IsBarrier(c.Proc)) {
         return false;
       }
 
-      if(!verifier.uniformityAnalyser.IsUniform(verifier.BarrierProcedure.Name)) {
+      var BarrierProcedure = c.Proc;
+
+      if(!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name)) {
         // We may be able to do better in this case, but for now we conservatively say no
         return false;  
       }
 
-      if(BarrierHasNonUniformArgument()) {
+      if(BarrierHasNonUniformArgument(BarrierProcedure)) {
         // Also we may be able to do better in this case, but for now we conservatively say no
         return false;
       }
@@ -120,10 +122,10 @@ namespace GPUVerify
       return true;
     }
 
-    private bool BarrierHasNonUniformArgument()
+    private bool BarrierHasNonUniformArgument(Procedure BarrierProcedure)
     {
-      foreach(var v in verifier.BarrierProcedure.InParams) {
-        if(!verifier.uniformityAnalyser.IsUniform(verifier.BarrierProcedure.Name, GVUtil.StripThreadIdentifier(v.Name))) {
+      foreach(var v in BarrierProcedure.InParams) {
+        if(!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name, GVUtil.StripThreadIdentifier(v.Name))) {
           return true;
         }
       }

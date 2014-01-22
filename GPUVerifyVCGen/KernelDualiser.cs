@@ -169,7 +169,7 @@ namespace GPUVerify {
         }
 
 
-        if (Call.callee.Equals(verifier.BarrierProcedure.Name)) {
+        if (GPUVerifier.IsBarrier(Call.Proc)) {
           // Assert barrier invariants
           foreach (var BIDescriptor in BarrierInvariantDescriptors) {
             QKeyValue SourceLocationInfo = BIDescriptor.GetSourceLocationInfo();
@@ -259,7 +259,7 @@ namespace GPUVerify {
 
         cs.Add(NewCallCmd);
 
-        if (Call.callee.Equals(verifier.BarrierProcedure.Name)) {
+        if (GPUVerifier.IsBarrier(Call.Proc)) {
           foreach (var BIDescriptor in BarrierInvariantDescriptors) {
             foreach (var Instantiation in BIDescriptor.GetInstantiationCmds()) {
               cs.Add(Instantiation);

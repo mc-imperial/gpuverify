@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -171,6 +171,7 @@
     <Compile Include="StandardRaceInstrumenter.cs" />
     <Compile Include="StrideConstraint.cs" />
     <Compile Include="UnaryBarrierInvariantDescriptor.cs" />
+    <Compile Include="UninterpretedFunctionRemover.cs" />
     <Compile Include="UnstructuredRegion.cs" />
     <Compile Include="IRegion.cs" />
     <Compile Include="KernelDualiser.cs" />
