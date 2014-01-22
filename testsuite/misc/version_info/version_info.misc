@@ -2,12 +2,10 @@
 //--version
 //^llvm\s+:\s+\d{6,}
 //^bugle\s+:\s+[0-9a-z]{40}
-//^libclc\s+:\s+[0-9a-z]{40}
+//^libclc\s+:\s+.*
 //^vcgen\s+:\s+[0-9a-z]{40}
-//^z3\s+:\s+[0-9a-z]{40}
-//^cvc4\s+:\s+[0-9a-z]{40}
-
-// FIXME: cvc4 is optional
+//^z3\s+:\s+.*
+//^cvc4\s+:\s+.*
 
 /*
 * This test checks that GPUVerify's
