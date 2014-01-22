@@ -49,6 +49,7 @@ namespace GPUVerify
     public static bool RefinedAtomics = true;
     public static bool OptimiseMemoryAccesses = true;
     public static bool NonDeterminiseUninterpretedFunctions = false;
+    public static bool IdentifySafeBarriers = true;
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
     public static bool PruneInfeasibleEdges = true;

@@ -456,6 +456,12 @@ namespace GPUVerify
 
             CheckUserSuppliedLoopInvariants();
 
+            DuplicateBarriers();
+
+            if (GPUVerifyVCGenCommandLineOptions.IdentifySafeBarriers) {
+              IdentifySafeBarriers();
+            }
+
             if (!ProgramUsesBarrierInvariants()) {
                 GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks = false;
             }
@@ -467,7 +473,11 @@ namespace GPUVerify
             if (GPUVerifyVCGenCommandLineOptions.RefinedAtomics)
               RefineAtomicAbstraction();
 
-            DoUniformityAnalysis();
+            var nonUniformVars = new List<Variable> { _X, _Y, _Z };
+            if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
+                nonUniformVars.AddRange(new Variable[] { _GROUP_X, _GROUP_Y, _GROUP_Z } );
+            }
+            uniformityAnalyser = DoUniformityAnalysis(nonUniformVars);
 
             if (GPUVerifyVCGenCommandLineOptions.ShowUniformityAnalysis) {
                 uniformityAnalyser.dump();
@@ -606,6 +616,48 @@ namespace GPUVerify
 
         }
 
+        private void IdentifySafeBarriers()
+        {
+          var uni = DoUniformityAnalysis(new List<Variable> { _X, _Y, _Z });
+          foreach(var b in BarrierProcedures) {
+            if(uni.IsUniform(b.Name)) {
+              b.AddAttribute("safe_barrier", new object[] { });
+            }
+          }
+        }
+
+        private void DuplicateBarriers()
+        {
+          // Make a separate barrier procedure for every barrier call.
+          // This paves the way for barrier divergence optimisations
+          // for specific barriers
+          Contract.Requires(BarrierProcedures.Count() == 1);
+          Program.TopLevelDeclarations.Remove(BarrierProcedures.ToList()[0]);
+          BarrierProcedures = new HashSet<Procedure>();
+          int BarrierCounter = 0;
+          foreach(Block b in Program.Blocks().ToList()) {
+            List<Cmd> newCmds = new List<Cmd>();
+            foreach(Cmd c in b.Cmds) {
+              var call = c as CallCmd;
+              if(call == null || !IsBarrier(call.Proc)) {
+                newCmds.Add(c);
+                continue;
+              }
+              Procedure NewBarrier = new Duplicator().VisitProcedure(call.Proc);
+              Debug.Assert(IsBarrier(NewBarrier));
+              NewBarrier.Name = NewBarrier.Name + "_duplicated_" + BarrierCounter;
+              BarrierCounter++;
+              var NewCall = new CallCmd(call.tok, NewBarrier.Name, call.Ins, call.Outs, call.Attributes);
+              NewCall.Proc = NewBarrier;
+              newCmds.Add(NewCall);
+              Program.TopLevelDeclarations.Add(NewBarrier);
+              BarrierProcedures.Add(NewBarrier);
+              ResContext.AddProcedure(NewBarrier);
+            }
+            b.Cmds = newCmds;
+          }
+        }
+
         private void NonDeterminiseUninterpretedFunctions()
         {
           var UFRemover = new UninterpretedFunctionRemover(this);
@@ -738,7 +790,7 @@ namespace GPUVerify
             arrayControlFlowAnalyser.Analyse();
         }
 
-        private void DoUniformityAnalysis()
+        private UniformityAnalyser DoUniformityAnalysis(List<Variable> nonUniformVars)
         {
             var entryPoints = new HashSet<Implementation>();
             if (GPUVerifyVCGenCommandLineOptions.DoUniformityAnalysis) {
@@ -749,15 +801,10 @@ namespace GPUVerify
               }
             }
 
-            var nonUniformVars = new List<Variable> { _X, _Y, _Z };
-
-            if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
-                nonUniformVars.AddRange(new Variable[] { _GROUP_X, _GROUP_Y, _GROUP_Z } );
-            }
-
-            uniformityAnalyser = new UniformityAnalyser(Program, GPUVerifyVCGenCommandLineOptions.DoUniformityAnalysis,
+            var result = new UniformityAnalyser(Program, GPUVerifyVCGenCommandLineOptions.DoUniformityAnalysis,
                                                         entryPoints, nonUniformVars);
-            uniformityAnalyser.Analyse();
+            result.Analyse();
+            return result;
         }
 
         private void DoVariableDefinitionAnalysis()
@@ -1367,12 +1414,13 @@ namespace GPUVerify
             Debug.Assert(GlobalFence1 != null);
             Debug.Assert(GlobalFence2 != null);
 
-            Expr DivergenceCondition = Expr.Imp(ThreadsInSameGroup(), Expr.Eq(P1, P2));
-
-            Requires nonDivergenceRequires = new Requires(false, DivergenceCondition);
-            nonDivergenceRequires.Attributes = new QKeyValue(Token.NoToken, "barrier_divergence",
-              new List<object>(new object[] { }), null);
-            BarrierProcedure.Requires.Add(nonDivergenceRequires);
+            if(!QKeyValue.FindBoolAttribute(BarrierProcedure.Attributes, "safe_barrier")) {
+              Expr DivergenceCondition = Expr.Imp(ThreadsInSameGroup(), Expr.Eq(P1, P2));
+              Requires nonDivergenceRequires = new Requires(false, DivergenceCondition);
+              nonDivergenceRequires.Attributes = new QKeyValue(Token.NoToken, "barrier_divergence",
+                new List<object>(new object[] { }), null);
+              BarrierProcedure.Requires.Add(nonDivergenceRequires);
+            }
 
             if (!GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
