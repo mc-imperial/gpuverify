@@ -462,7 +462,7 @@ namespace GPUVerify
   private void AddBarrierDivergenceCandidates(HashSet<Variable> LocalVars, Implementation Impl, IRegion region)
   {
 
-   if (!verifier.ContainsBarrierCall(region))
+   if (!verifier.ContainsUnsafeBarrierCall(region))
    {
     return;
    }

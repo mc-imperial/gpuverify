@@ -1779,6 +1779,12 @@ namespace GPUVerify
           return loop.Cmds().OfType<CallCmd>().Where(Item => IsBarrier(Item.Proc)).Count() > 0;
         }
 
+        internal bool ContainsUnsafeBarrierCall(IRegion loop)
+        {
+          return loop.Cmds().OfType<CallCmd>().Where(Item => IsBarrier(Item.Proc)
+            && !QKeyValue.FindBoolAttribute(Item.Proc.Attributes, "safe_barrier")).Count() > 0;
+        }
+
         internal static bool IsBarrier(Procedure Proc)
         {
           return QKeyValue.FindBoolAttribute(Proc.Attributes, "barrier");

@@ -39,7 +39,7 @@ namespace GPUVerify
 
     internal static bool IsInterpreted(Function fun)
     {
-      return fun.Body != null || QKeyValue.FindStringAttribute(fun.Attributes, "bvbuiltin") != null;
+      return fun.Body != null || QKeyValue.FindStringAttribute(fun.Attributes, "bvbuiltin") != null || QKeyValue.FindBoolAttribute(fun.Attributes, "constructor");
     }
 
   }
