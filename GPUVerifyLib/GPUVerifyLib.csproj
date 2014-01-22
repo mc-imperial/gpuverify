@@ -80,6 +80,7 @@
     <Compile Include="GVCommandLineOptions.cs" />
     <Compile Include="Utilities.cs" />
     <Compile Include="VariablesOccurringInExpressionVisitor.cs" />
+    <Compile Include="AssignmentExpressionExpander.cs" />
   </ItemGroup>
   <Target Name="Clean">
     <RemoveDir Directories="$(ProjectDir)\bin" />
