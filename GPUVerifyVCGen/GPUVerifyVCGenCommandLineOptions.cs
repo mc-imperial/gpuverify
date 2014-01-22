@@ -255,6 +255,16 @@ namespace GPUVerify
           PruneInfeasibleEdges = false;
           break;
 
+          case "-noSafeBarrierIdentification":
+          case "/noSafeBarrierIdentification":
+          IdentifySafeBarriers = false;
+          break;
+
+          case "-nondeterminiseUninterpretedFunctions":
+          case "/nondeterminiseUninterpretedFunctions":
+          NonDeterminiseUninterpretedFunctions = true;
+          break;
+
           case "-watchdogRaceChecking":
           case "/watchdogRaceChecking":
           if (!hasColonArgument || (afterColon != "SINGLE" && afterColon != "MULTIPLE"))
