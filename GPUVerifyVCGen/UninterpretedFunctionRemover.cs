@@ -20,7 +20,7 @@ namespace GPUVerify
     {
       foreach(var impl in Program.Implementations()) {
         var CFG = Program.GraphFromImpl(impl);
-        var visitor = new UFRemoverVisitor();
+        var visitor = new UFRemoverVisitor(Program);
         foreach(var b in impl.Blocks) {
           visitor.NewBlock();
           b.Cmds = visitor.VisitCmdSeq(b.Cmds);
@@ -34,17 +34,38 @@ namespace GPUVerify
       }
 
       Program.TopLevelDeclarations = Program.TopLevelDeclarations.Where(
-        item => !(item is Function) || IsInterpreted(item as Function)).ToList();
+        item => !(item is Function) || IsInterpreted(item as Function, Program)).ToList();
     }
 
-    internal static bool IsInterpreted(Function fun)
+    internal static bool IsInterpreted(Function fun, Program prog)
     {
-      return fun.Body != null || QKeyValue.FindStringAttribute(fun.Attributes, "bvbuiltin") != null || QKeyValue.FindBoolAttribute(fun.Attributes, "constructor");
+      if(fun.Body != null ||
+         QKeyValue.FindStringAttribute(fun.Attributes, "bvbuiltin") != null ||
+         QKeyValue.FindBoolAttribute(fun.Attributes, "constructor")) {
+        return true;
+      }
+      if(fun.Name.Contains('#')) {
+        return true;
+      }
+      return prog.TopLevelDeclarations.OfType<Axiom>().Any(Item => UsesFun(Item, fun));
+    }
+
+    private static bool UsesFun(Axiom axiom, Function fun)
+    {
+      var visitor = new FunctionIsReferencedVisitor(fun);
+      visitor.VisitAxiom(axiom);
+      return visitor.Found();
     }
 
   }
 
   class UFRemoverVisitor : Duplicator {
+
+    private Program prog;
+
+    public UFRemoverVisitor(Program prog) {
+      this.prog = prog;
+    }
 
     public readonly 
       List<HashSet<LocalVariable>> UFTemps = new List<HashSet<LocalVariable>>();
@@ -58,7 +79,7 @@ namespace GPUVerify
     public override Expr VisitNAryExpr(NAryExpr node)
     {
       var FunCall = node.Fun as FunctionCall;
-      if(FunCall == null || UninterpretedFunctionRemover.IsInterpreted(FunCall.Func)) {
+      if(FunCall == null || UninterpretedFunctionRemover.IsInterpreted(FunCall.Func, prog)) {
         return base.VisitNAryExpr(node);
       }
       LocalVariable UFTemp = new LocalVariable(Token.NoToken,
@@ -69,5 +90,34 @@ namespace GPUVerify
     }
 
   }
+
+  class FunctionIsReferencedVisitor : StandardVisitor {
+
+    private Function fun;
+    private bool found;
+
+    public FunctionIsReferencedVisitor(Function fun)
+    {
+      this.fun = fun;
+      this.found = false;
+    }
+
+    internal bool Found()
+    {
+      return found;
+    }
+
+    public override Expr VisitNAryExpr(NAryExpr node)
+    {
+      if(node.Fun is FunctionCall) {
+        if(((FunctionCall)node.Fun).Func.Name.Equals(fun.Name)) {
+          found = true;
+        }
+      }
+      return base.VisitNAryExpr(node);
+    }
+
+  }
+
 
 }
