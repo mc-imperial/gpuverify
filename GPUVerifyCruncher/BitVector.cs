@@ -344,9 +344,16 @@ namespace GPUVerify
         
         public static BitVector LogicalShiftRight(BitVector a, int shift)
         {
-            string bits = a.Bits.Substring(0, a.Bits.Length - shift);
-            bits = bits.PadLeft(a.Bits.Length, '0');
-            return new BitVector(bits);
+            int endIndex =  a.Bits.Length - shift;
+            string bits;
+            if (endIndex > 0)
+            {
+             bits = a.Bits.Substring(0, endIndex);
+             bits = bits.PadLeft(a.Bits.Length, '0');
+             return new BitVector(bits);
+            }
+            else
+             return new BitVector(0, a.Bits.Length);
         }
         
         public static BitVector ZeroExtend (BitVector a, int width)

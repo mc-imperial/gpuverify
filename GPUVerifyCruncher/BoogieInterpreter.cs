@@ -1010,19 +1010,19 @@ namespace GPUVerify
                         unary.evaluations.Add(BitVector.True);
                 }
                 else if (unary.op.Equals("FABS32") ||
-                unary.op.Equals("FABS64") ||
-                unary.op.Equals("FCOS32") ||
-                unary.op.Equals("FCOS64") ||
-                unary.op.Equals("FEXP32") ||
-                unary.op.Equals("FEXP64") ||
-                unary.op.Equals("FLOG32") ||
-                unary.op.Equals("FLOG64") ||
-                unary.op.Equals("FPOW32") ||
-                unary.op.Equals("FPOW64") ||
-                unary.op.Equals("FSIN32") ||
-                unary.op.Equals("FSIN64") ||
-                unary.op.Equals("FSQRT32") ||
-                unary.op.Equals("FSQRT64"))
+                         unary.op.Equals("FABS64") ||
+                         unary.op.Equals("FCOS32") ||
+                         unary.op.Equals("FCOS64") ||
+                         unary.op.Equals("FEXP32") ||
+                         unary.op.Equals("FEXP64") ||
+                         unary.op.Equals("FLOG32") ||
+                         unary.op.Equals("FLOG64") ||
+                         unary.op.Equals("FPOW32") ||
+                         unary.op.Equals("FPOW64") ||
+                         unary.op.Equals("FSIN32") ||
+                         unary.op.Equals("FSIN64") ||
+                         unary.op.Equals("FSQRT32") ||
+                         unary.op.Equals("FSQRT64"))
                 {
                     Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.GetUniqueElement(), BitVector.Zero, unary.op);
                     if (!FPInterpretations.ContainsKey(FPTriple))
@@ -1054,7 +1054,19 @@ namespace GPUVerify
                     }
                 }
                 else if (RegularExpressions.CAST_TO_INT.IsMatch(unary.op))
-                    unary.evaluations.Add(child.GetUniqueElement());
+                {
+                    BitVector value = child.GetUniqueElement();
+                    MatchCollection matches = Regex.Matches(unary.op, @"\d+");
+                    Debug.Assert(matches.Count == 2);
+                    int sourceSize = Convert.ToInt32(matches[0].Value);
+                    int destinationSize = Convert.ToInt32(matches[1].Value);
+                    if (sourceSize == destinationSize)
+                        unary.evaluations.Add(value);
+                    else
+                    {
+                        unary.evaluations.Add(BitVector.ZeroExtend(value, destinationSize));
+                    }
+                }
                 else if (RegularExpressions.CAST_FP_TO_DOUBLE.IsMatch(unary.op))
                 {
                     BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
