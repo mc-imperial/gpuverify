@@ -95,7 +95,6 @@ namespace GPUVerify
         private BitVector[] GlobalID1 = new BitVector[3];
         private BitVector[] GlobalID2 = new BitVector[3];
         private GPU gpu = new GPU();
-        private Random Random = new Random();
         private Memory Memory = new Memory();
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
@@ -108,11 +107,12 @@ namespace GPUVerify
         private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
         private Dictionary<Block, HashSet<Block>> HeaderToLoopBody = new Dictionary<Block, HashSet<Block>>();
         private int Executions = 0;
+        private Random Random;
 
         public static void Start(Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
         {
             Stopwatch timer = new Stopwatch();
-            timer.Start();
+            timer.Start();            
             new BoogieInterpreter(program, threadID, groupID);
             timer.Stop();
             Print.VerboseMessage("Dynamic analysis consumed " + timer.Elapsed);
@@ -123,8 +123,11 @@ namespace GPUVerify
             // If there are no invariants to falsify, return
             if (program.TopLevelDeclarations.OfType<Constant>().Where(item => QKeyValue.FindBoolAttribute(item.Attributes, "existential")).Count() == 0)
                 return;
-              
+                           
             Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();
+            // Seed the random number generator so that it is deterministic
+            Random = new Random(impl.Name.Length);
+   
             // Build map from label to basic block
             foreach (Block block in impl.Blocks)
                 LabelToBlock[block.Label] = block;   
