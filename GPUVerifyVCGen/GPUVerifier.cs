@@ -414,7 +414,7 @@ namespace GPUVerify
             MaybeCreateAttributedConst(NUM_GROUPS_Y_STRING, ref _NUM_GROUPS_Y);
             MaybeCreateAttributedConst(NUM_GROUPS_Z_STRING, ref _NUM_GROUPS_Z);
 
-            if(GPUVerifyVCGenCommandLineOptions.OptimiseMemoryAccesses) {
+            if(GPUVerifyVCGenCommandLineOptions.EliminateRedundantReadInstrumentation) {
               ComputeReadOnlyArrays();
             }
 
@@ -466,7 +466,7 @@ namespace GPUVerify
                 GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks = false;
             }
 
-            if (GPUVerifyVCGenCommandLineOptions.OptimiseMemoryAccesses) {
+            if (GPUVerifyVCGenCommandLineOptions.RemovePrivateArrayAccesses) {
               EliminateLiteralIndexedPrivateArrays();
             }
 
@@ -578,8 +578,8 @@ namespace GPUVerify
             // global variables
             Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
 
-            if(GPUVerifyVCGenCommandLineOptions.OptimiseMemoryAccesses) {
-              OptimiseReads();
+            if(GPUVerifyVCGenCommandLineOptions.OptimiseBarrierIntervals) {
+              OptimiseBarrierIntervals();
             }
 
             GenerateStandardKernelContract();
@@ -742,32 +742,11 @@ namespace GPUVerify
           }
         }
 
-        private void OptimiseReads()
+        private void OptimiseBarrierIntervals()
         {
           var BarrierIntervalsAnalysis = new BarrierIntervalsAnalysis(this, BarrierStrength.GROUP_SHARED);
           BarrierIntervalsAnalysis.Compute();
           BarrierIntervalsAnalysis.RemoveRedundantReads();
-        }
-
-        internal void RemoveReads(IEnumerable<Block> blocks, IEnumerable<Variable> arrays) {
-          foreach(var b in blocks) {
-            List<Cmd> newCmds = new List<Cmd>();
-            foreach(var c in b.Cmds) {
-              CallCmd callCmd = c as CallCmd;
-              if(callCmd != null) {
-                Variable v;
-                TryGetArrayFromLogProcedure(callCmd.callee, AccessType.READ, out v);
-                if(v == null) {
-                  TryGetArrayFromCheckProcedure(callCmd.callee, AccessType.READ, out v);
-                }
-                if(v != null && arrays.Contains(v)) {
-                  continue;
-                }
-              }
-              newCmds.Add(c);
-            }
-            b.Cmds = newCmds;
-          }
         }
 
         private void DoMayBePowerOfTwoAnalysis()
