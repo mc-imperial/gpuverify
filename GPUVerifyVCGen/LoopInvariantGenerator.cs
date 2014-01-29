@@ -249,6 +249,7 @@ namespace GPUVerify
     if (controllingBlocks.Count > 0)
     {
      // If the loop is control dependent on other blocks
+     HashSet<Block> toKeep = new HashSet<Block>();
      foreach (Block controlling in controllingBlocks)
      {
       if (!controlNodeExprInfo.ContainsKey(controlling))
@@ -264,11 +265,19 @@ namespace GPUVerify
          tempVariables.UnionWith(visitor.GetVariables().ToList());
         }
        }
-       // There should be exactly one partition variable 
-       Debug.Assert(tempVariables.Count == 1);
-       controlNodeExprInfo[controlling] = new AssignmentExpressionExpander(cfg, tempVariables.Single()); 
+       
+       if (tempVariables.Count > 0)
+       {
+        toKeep.Add(controlling);
+        // There should be exactly one partition variable 
+        Debug.Assert(tempVariables.Count == 1);
+        controlNodeExprInfo[controlling] = new AssignmentExpressionExpander(cfg, tempVariables.Single());
+       }
       }
      }
+     
+     controllingBlocks.IntersectWith(toKeep);
+     
      // Build up the expressions on the LHS of the implication
      List<Expr> antecedentExprs = new List<Expr>();
      foreach (Block controlling in controllingBlocks)
