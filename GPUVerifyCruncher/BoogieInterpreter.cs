@@ -879,8 +879,8 @@ namespace GPUVerify
                     }
                     else if (RegularExpressions.BVULT.IsMatch(binary.op))
                     {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero(lhs.Bits.Length) ? lhs : lhs & BitVector.Max(lhs.Bits.Length); 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero(rhs.Bits.Length) ? rhs : rhs & BitVector.Max(rhs.Bits.Length); 
                         if (lhsUnsigned < rhsUnsigned)
                             binary.evaluations.Add(BitVector.True);
                         else
@@ -888,8 +888,8 @@ namespace GPUVerify
                     }
                     else if (RegularExpressions.BVULE.IsMatch(binary.op))
                     {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int;
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero(lhs.Bits.Length) ? lhs : lhs & BitVector.Max(lhs.Bits.Length); 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero(rhs.Bits.Length) ? rhs : rhs & BitVector.Max(rhs.Bits.Length);
                         if (lhsUnsigned <= rhsUnsigned)
                             binary.evaluations.Add(BitVector.True);
                         else
@@ -897,8 +897,8 @@ namespace GPUVerify
                     }
                     else if (RegularExpressions.BVUGT.IsMatch(binary.op))
                     {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero(lhs.Bits.Length) ? lhs : lhs & BitVector.Max(lhs.Bits.Length); 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero(rhs.Bits.Length) ? rhs : rhs & BitVector.Max(rhs.Bits.Length); 
                         if (lhsUnsigned > rhsUnsigned)
                             binary.evaluations.Add(BitVector.True);
                         else
@@ -906,8 +906,8 @@ namespace GPUVerify
                     }
                     else if (RegularExpressions.BVUGE.IsMatch(binary.op))
                     {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero(lhs.Bits.Length) ? lhs : lhs & BitVector.Max(lhs.Bits.Length); 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero(rhs.Bits.Length) ? rhs : rhs & BitVector.Max(rhs.Bits.Length); 
                         if (lhsUnsigned >= rhsUnsigned)
                             binary.evaluations.Add(BitVector.True);
                         else
@@ -939,8 +939,8 @@ namespace GPUVerify
                     }
                     else if (RegularExpressions.BVUREM.IsMatch(binary.op))
                     {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero(lhs.Bits.Length) ? lhs : lhs & BitVector.Max(lhs.Bits.Length); 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero(rhs.Bits.Length) ? rhs : rhs & BitVector.Max(rhs.Bits.Length); 
                         binary.evaluations.Add(lhsUnsigned % rhsUnsigned);
                     }
                     else if (RegularExpressions.BVSDIV.IsMatch(binary.op))
@@ -949,8 +949,8 @@ namespace GPUVerify
                     }
                     else if (RegularExpressions.BVUDIV.IsMatch(binary.op))
                     {
-                        BitVector lhsUnsigned = lhs >= BitVector.Zero ? lhs : lhs & BitVector.Max32Int; 
-                        BitVector rhsUnsigned = rhs >= BitVector.Zero ? rhs : rhs & BitVector.Max32Int; 
+                        BitVector lhsUnsigned = lhs >= BitVector.Zero(lhs.Bits.Length) ? lhs : lhs & BitVector.Max(lhs.Bits.Length); 
+                        BitVector rhsUnsigned = rhs >= BitVector.Zero(rhs.Bits.Length) ? rhs : rhs & BitVector.Max(rhs.Bits.Length); 
                         binary.evaluations.Add(lhsUnsigned / rhsUnsigned);
                     }
                     else if (binary.op.Equals("FEQ32") ||
@@ -1027,19 +1027,27 @@ namespace GPUVerify
                          unary.op.Equals("FSQRT32") ||
                          unary.op.Equals("FSQRT64"))
                 {
-                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.GetUniqueElement(), BitVector.Zero, unary.op);
+                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.GetUniqueElement(), child.GetUniqueElement(), unary.op);
                     if (!FPInterpretations.ContainsKey(FPTriple))
                         FPInterpretations[FPTriple] = new BitVector(Random.Next());
                     unary.evaluations.Add(FPInterpretations[FPTriple]);
                 }
                 else if (RegularExpressions.BVZEXT.IsMatch(unary.op))
                 {
-                    BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), 32);
+                    int width = 32;
+                    MatchCollection matches = Regex.Matches(unary.op, @"\d+");
+                    if (matches.Count == 2)
+                        width = Convert.ToInt32(matches[1].Value);
+                    BitVector ZeroExtended = BitVector.ZeroExtend(child.GetUniqueElement(), width);
                     unary.evaluations.Add(ZeroExtended);
                 }
                 else if (RegularExpressions.BVSEXT.IsMatch(unary.op))
                 {
-                    BitVector SignExtended = BitVector.SignExtend(child.GetUniqueElement(), 32);
+                    int width = 32;
+                    MatchCollection matches = Regex.Matches(unary.op, @"\d+");
+                    if (matches.Count == 2)
+                        width = Convert.ToInt32(matches[1].Value);
+                    BitVector SignExtended = BitVector.SignExtend(child.GetUniqueElement(), width);
                     unary.evaluations.Add(SignExtended);           
                 }
                 else if (RegularExpressions.CAST_TO_FP.IsMatch(unary.op))

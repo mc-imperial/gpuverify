@@ -8,20 +8,27 @@
 //===----------------------------------------------------------------------===//
 
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using Microsoft.Boogie;
 
 namespace GPUVerify
 {
     public class BitVector
     {
-        public static BitVector Zero = new BitVector(0);
+        private static Dictionary<int,BitVector> ZeroBVs = new Dictionary<int,BitVector>();
+        private static Dictionary<int,BitVector> MaxBVs = new Dictionary<int,BitVector>();
+
         public static BitVector False = new BitVector(0, 1);
         public static BitVector True = new BitVector(1, 1);
-        public static BitVector Max32Int = new BitVector((int)Math.Pow(2, 32) - 1);
         public string Bits;
 
-        public BitVector(int val, int width = 32)
+        public BitVector (int val, int width = 32)
+        {
+            Bits = Convert.ToString(val, 2);
+            Pad(width, '0');
+        }
+
+        public BitVector (long val, int width = 64)
         {
             Bits = Convert.ToString(val, 2);
             Pad(width, '0');
@@ -111,8 +118,19 @@ namespace GPUVerify
         {
            try
             {
-                int data = Convert.ToInt32(Bits, 2);
-                return data;
+                return Convert.ToInt32(Bits, 2);
+            }
+            catch (OverflowException)
+            {
+                throw;
+            }
+        }
+
+        public long ConvertToInt64 ()
+        {
+           try
+            {
+                return Convert.ToInt64(Bits, 2);
             }
             catch (OverflowException)
             {
@@ -140,179 +158,173 @@ namespace GPUVerify
             return Bits;
         }
 
+        public static BitVector Zero (int width)
+        {
+            if (!ZeroBVs.ContainsKey(width))
+            {
+                if (width <= 32)
+                    ZeroBVs[width] = new BitVector(0, width);
+                else
+                    ZeroBVs[width] = new BitVector((long) 0, width);
+            }
+            return ZeroBVs[width];
+        }
+
+        public static BitVector Max (int width)
+        {
+            if (!MaxBVs.ContainsKey(width))
+            {
+                if (width <= 32)
+                    MaxBVs[width] = new BitVector((int)Math.Pow(2, width) - 1, width);
+                else
+                    MaxBVs[width] = new BitVector((long)Math.Pow(2, width) - 1, width);
+            }
+            return MaxBVs[width];
+        }
+
         public static BitVector operator+(BitVector a, BitVector b)
         {
-            int aData = Convert.ToInt32(a.Bits, 2);
-            int bData = Convert.ToInt32(b.Bits, 2);
-            int val = aData + bData;
-            return new BitVector(val);
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "+ operator : Bit vectors must have equal widths");
+            int width = a.Bits.Length;
+            if (width <= 32)
+            {
+                int aData = Convert.ToInt32(a.Bits, 2);
+                int bData = Convert.ToInt32(b.Bits, 2);
+                return new BitVector(aData + bData, width);
+            }
+            else
+            {
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return new BitVector(aData + bData, width);
+            }
         }
 
         public static BitVector operator-(BitVector a, BitVector b)
         {
-            int aData = Convert.ToInt32(a.Bits, 2);
-            int bData = Convert.ToInt32(b.Bits, 2);
-            int val = aData - bData;
-            return new BitVector(val);
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "- operator : Bit vectors must have equal widths");
+            int width = a.Bits.Length;
+            if (width <= 32)
+            {
+                int aData = Convert.ToInt32(a.Bits, 2);
+                int bData = Convert.ToInt32(b.Bits, 2);
+                return new BitVector(aData - bData, width);
+            }
+            else
+            {
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return new BitVector(aData - bData, width);
+            }
         }
 
         public static BitVector operator*(BitVector a, BitVector b)
         {
-            int aData = Convert.ToInt32(a.Bits, 2);
-            int bData = Convert.ToInt32(b.Bits, 2);
-            int val = aData * bData;
-            return new BitVector(val);
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "* operator : Bit vectors must have equal widths");
+            int width = a.Bits.Length;
+            if (width <= 32)
+            {
+                int aData = Convert.ToInt32(a.Bits, 2);
+                int bData = Convert.ToInt32(b.Bits, 2);
+                return new BitVector(aData * bData, width);
+            }
+            else
+            {
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return new BitVector(aData * bData, width);
+            }
         }
 
         public static BitVector operator/(BitVector a, BitVector b)
         {
-            int val;
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "/ operator : Bit vectors must have equal widths");
+            int width = a.Bits.Length;
             try
             {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                val = checked(aData / bData);
+                if (width <= 32)
+                {
+                    int aData = Convert.ToInt32(a.Bits, 2);
+                    int bData = Convert.ToInt32(b.Bits, 2);
+                    return new BitVector(checked(aData / bData), width);
+                }
+                else
+                {
+                    long aData = Convert.ToInt64(a.Bits, 2);
+                    long bData = Convert.ToInt64(b.Bits, 2);
+                    return new BitVector(checked(aData / bData), width);
+                }
             }
             catch (DivideByZeroException)
             {
                 throw;
             }
-            return new BitVector(val);
         }
 
         public static BitVector operator%(BitVector a, BitVector b)
         {
-            int val;
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "% operator : Bit vectors must have equal widths");
+            int width = a.Bits.Length;
             try
             {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                val = checked(aData % bData);
+                if (width <= 32)
+                {
+                    int aData = Convert.ToInt32(a.Bits, 2);
+                    int bData = Convert.ToInt32(b.Bits, 2);
+                    return new BitVector(checked(aData % bData), width);
+                }
+                else
+                {
+                    long aData = Convert.ToInt64(a.Bits, 2);
+                    long bData = Convert.ToInt64(b.Bits, 2);
+                    return new BitVector(checked(aData % bData), width);
+                }
             }
             catch (DivideByZeroException)
             {
                 throw;
             }
-            return new BitVector(val);
         }
 
         public static BitVector operator&(BitVector a, BitVector b)
         {
-            int aData = Convert.ToInt32(a.Bits, 2);
-            int bData = Convert.ToInt32(b.Bits, 2);
-            int val = checked(aData & bData);
-            return new BitVector(val);
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "& operator : Bit vectors must have equal widths");
+            int width = a.Bits.Length;
+            if (width <= 32)
+            {
+                int aData = Convert.ToInt32(a.Bits, 2);
+                int bData = Convert.ToInt32(b.Bits, 2);
+                return new BitVector(aData & bData, width);
+            }
+            else
+            {
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return new BitVector(aData & bData, width);
+            }
         }
 
         public static BitVector operator|(BitVector a, BitVector b)
         {
-            int aData = Convert.ToInt32(a.Bits, 2);
-            int bData = Convert.ToInt32(b.Bits, 2);
-            int val = checked(aData | bData);
-            return new BitVector(val);
-        }
-
-        public static BitVector operator>>(BitVector a, int shift)
-        {
-            int val;
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                val = checked(aData >> shift);
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
-            return new BitVector(val);
-        }
-
-        public static BitVector operator<<(BitVector a, int shift)
-        {            
-            int val;
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                val = checked(aData << shift);
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
-            return new BitVector(val);
-        }
-
-        public static bool operator==(BitVector a, BitVector b)
-        {
-            if (object.ReferenceEquals(a, null))
-                return object.ReferenceEquals(b, null);
-            return a.Equals(b);
-        }
-
-        public static bool operator!=(BitVector a, BitVector b)
-        {
-            return !(a == b);
-        }
-
-        public static bool operator<(BitVector a, BitVector b)
-        {
-            try
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "| operator : Bit vectors must have equal widths");
+            int width = a.Bits.Length;
+            if (width <= 32)
             {
                 int aData = Convert.ToInt32(a.Bits, 2);
                 int bData = Convert.ToInt32(b.Bits, 2);
-                return aData < bData;
+                return new BitVector(aData | bData, width);
             }
-            catch (OverflowException)
+            else
             {
-                throw;
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return new BitVector(aData | bData, width);
             }
         }
-
-        public static bool operator<=(BitVector a, BitVector b)
-        {
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                return aData <= bData;
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
-        }
-
-        public static bool operator>(BitVector a, BitVector b)
-        {
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                return aData > bData;
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
-        }
-
-        public static bool operator>=(BitVector a, BitVector b)
-        {
-            try
-            {
-                int aData = Convert.ToInt32(a.Bits, 2);
-                int bData = Convert.ToInt32(b.Bits, 2);
-                return aData >= bData;
-            }
-            catch (OverflowException)
-            {
-                throw;
-            }
-        }
-        
+                
         public static BitVector operator^(BitVector a, BitVector b)
         {
-            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "The XOR operator requires bit vectors of equal width"); 
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "^ operator : Bit vectors must have equal widths"); 
             char[] bits = new char[a.Bits.Length];
             for (int i = 0; i < a.Bits.Length; ++i)
             {
@@ -324,6 +336,146 @@ namespace GPUVerify
                     bits[i] = '0';
             }
             return new BitVector(new string(bits));
+        }
+
+        public static BitVector operator>>(BitVector a, int shift)
+        {
+            int width = a.Bits.Length;
+            try
+            {
+                if (width <= 32)
+                {
+                    int aData = Convert.ToInt32(a.Bits, 2);
+                    return new BitVector(checked(aData >> shift), width);
+                }
+                else
+                {
+                    long aData = Convert.ToInt64(a.Bits, 2);
+                    return new BitVector(checked(aData >> shift), width);
+                }
+            }
+            catch (OverflowException)
+            {
+                throw;
+            }
+        }
+
+        public static BitVector LogicalShiftRight(BitVector a, int shift)
+        {
+            int endIndex = a.Bits.Length - shift;
+            string bits;
+            if (endIndex > 0)
+            {
+              bits = a.Bits.Substring(0, endIndex);
+              bits = bits.PadLeft(a.Bits.Length, '0');
+              return new BitVector(bits);
+            }
+            else
+              return new BitVector(0, a.Bits.Length);
+        }
+
+        public static BitVector operator<<(BitVector a, int shift)
+        {            
+            int width = a.Bits.Length;
+            try
+            {
+                if (width <= 32)
+                {
+                    int aData = Convert.ToInt32(a.Bits, 2);
+                    return new BitVector(checked(aData << shift), width);
+                }
+                else
+                {
+                    long aData = Convert.ToInt64(a.Bits, 2);
+                    return new BitVector(checked(aData << shift), width);
+                }
+            }
+            catch (OverflowException)
+            {
+                throw;
+            }
+        }
+
+        public static bool operator==(BitVector a, BitVector b)
+        {
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "== operator : Bit vectors must have equal widths");
+            if (object.ReferenceEquals(a, null))
+                return object.ReferenceEquals(b, null);
+            return a.Equals(b);
+        }
+
+        public static bool operator!=(BitVector a, BitVector b)
+        {
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "!= operator : Bit vectors must have equal widths");
+            return !(a == b);
+        }
+
+        public static bool operator<(BitVector a, BitVector b)
+        {
+            int width = a.Bits.Length;
+            if (width <= 32)
+            {
+                int aData = Convert.ToInt32(a.Bits, 2);
+                int bData = Convert.ToInt32(b.Bits, 2);
+                return aData < bData;
+            }
+            else
+            {
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return aData < bData;
+            }
+        }
+
+        public static bool operator<=(BitVector a, BitVector b)
+        {
+            int width = a.Bits.Length;
+            if (width <= 32)
+            {
+                int aData = Convert.ToInt32(a.Bits, 2);
+                int bData = Convert.ToInt32(b.Bits, 2);
+                return aData <= bData;
+            }
+            else
+            {
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return aData <= bData;
+            }
+        }
+
+        public static bool operator>(BitVector a, BitVector b)
+        {
+            int width = a.Bits.Length;
+            if (width <= 32)
+            {
+                int aData = Convert.ToInt32(a.Bits, 2);
+                int bData = Convert.ToInt32(b.Bits, 2);
+                return aData > bData;
+            }
+            else
+            {
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return aData > bData;
+            }
+        }
+
+        public static bool operator>=(BitVector a, BitVector b)
+        {
+            int width = a.Bits.Length;
+            if (width <= 32)
+            {
+                int aData = Convert.ToInt32(a.Bits, 2);
+                int bData = Convert.ToInt32(b.Bits, 2);
+                return aData >= bData;
+            }
+            else
+            {
+                long aData = Convert.ToInt64(a.Bits, 2);
+                long bData = Convert.ToInt64(b.Bits, 2);
+                return aData >= bData;
+            }
         }
         
         public static BitVector Slice (BitVector a, int high, int low)
@@ -340,20 +492,6 @@ namespace GPUVerify
         {
             string bits = a.Bits + b.Bits;
             return new BitVector(bits);
-        }
-        
-        public static BitVector LogicalShiftRight(BitVector a, int shift)
-        {
-            int endIndex =  a.Bits.Length - shift;
-            string bits;
-            if (endIndex > 0)
-            {
-             bits = a.Bits.Substring(0, endIndex);
-             bits = bits.PadLeft(a.Bits.Length, '0');
-             return new BitVector(bits);
-            }
-            else
-             return new BitVector(0, a.Bits.Length);
         }
         
         public static BitVector ZeroExtend (BitVector a, int width)
