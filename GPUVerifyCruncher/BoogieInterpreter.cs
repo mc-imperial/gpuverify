@@ -1018,6 +1018,8 @@ namespace GPUVerify
                          unary.op.Equals("FCOS64") ||
                          unary.op.Equals("FEXP32") ||
                          unary.op.Equals("FEXP64") ||
+                         unary.op.Equals("FFLOOR32") ||
+                         unary.op.Equals("FFLOOR64") ||
                          unary.op.Equals("FLOG32") ||
                          unary.op.Equals("FLOG64") ||
                          unary.op.Equals("FPOW32") ||
