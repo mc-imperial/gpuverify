@@ -1356,24 +1356,6 @@ namespace GPUVerify
             Expr offsetExpr = call.Ins[1];
             ExprTree offsetTree = GetExprTree(offsetExpr);
             EvaluateExprTree(offsetTree);
-            // Build the subscript expression
-            SubscriptExpr subscriptExpr = new SubscriptExpr();
-            subscriptExpr.AddIndex(offsetTree.evaluation);
-            // For now assume there is only one argument to the atomic function
-            Expr argExpr = QKeyValue.FindExprAttribute(call.Attributes, "arg1");
-            ExprTree argTree = GetExprTree(argExpr);
-            EvaluateExprTree(argTree);
-            string atomicFunction = QKeyValue.FindStringAttribute(call.Attributes, "atomic_function");
-            switch (atomicFunction)
-            {
-                case "__atomicAdd_unsigned_int":
-                    BitVector currentVal = Memory.GetValue(arrayName, subscriptExpr);
-                    BitVector updatedVal = currentVal + argTree.evaluation;
-                    Memory.Store(arrayName, subscriptExpr, updatedVal);
-                    break;
-                default:
-                    throw new UnhandledException("Unable to handle atomic function: " + atomicFunction);
-            }
         }
     }
 }
