@@ -204,9 +204,30 @@ namespace GPUVerify
 
       foreach(BarrierInterval interval in intervals.Values.SelectMany(Item => Item)) {
         var WrittenGroupSharedArrays = interval.FindWrittenGroupSharedArrays(verifier);
-        verifier.RemoveReads(interval.Blocks,
+        RemoveReads(interval.Blocks,
           verifier.KernelArrayInfo.getGroupSharedArrays().Where(Item =>
              !WrittenGroupSharedArrays.Contains(Item)));
+      }
+    }
+
+    internal void RemoveReads(IEnumerable<Block> blocks, IEnumerable<Variable> arrays) {
+      foreach(var b in blocks) {
+        List<Cmd> newCmds = new List<Cmd>();
+        foreach(var c in b.Cmds) {
+          CallCmd callCmd = c as CallCmd;
+          if(callCmd != null) {
+            Variable v;
+            verifier.TryGetArrayFromLogProcedure(callCmd.callee, AccessType.READ, out v);
+            if(v == null) {
+              verifier.TryGetArrayFromCheckProcedure(callCmd.callee, AccessType.READ, out v);
+            }
+            if(v != null && arrays.Contains(v)) {
+              continue;
+            }
+          }
+          newCmds.Add(c);
+        }
+        b.Cmds = newCmds;
       }
     }
 

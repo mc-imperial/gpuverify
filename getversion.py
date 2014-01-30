@@ -1,6 +1,7 @@
 # vim: set sw=2 ts=2 softtabstop=2 expandtab:
 import os
 import sys
+import gvfindtools
 import subprocess
 """ This module is responsible for trying to determine the GPUVerify version"""
 
@@ -24,6 +25,9 @@ def getsha(path, showLocalRev=False):
   elif os.path.isdir(os.path.join(path,'.svn')):
     # The revision number is global is svn
     sha = subprocess.check_output(['svnversion'])
+
+  elif path == getattr(gvfindtools, 'llvmSrcDir', None):
+    sha = subprocess.check_output([getattr(gvfindtools, 'llvmBinDir', None) + '/llvm-config', '--version'])
 
   else:
     sha = "Error [%s] path is not recognised as a git, mercurial or svn repository" % path
@@ -58,8 +62,8 @@ def getVersionStringFromRepos():
                                   repoTuple('local-revision', path=os.path.dirname(__file__), getLocalRev=True) # GPUVerifyRise4Fun depends on this
                                 ]:
       try:
-          vs.append(tool.ljust(15) + ": ") 
-          revision = getsha(path, localRev) 
+          vs.append(tool.ljust(15) + ": ")
+          revision = getsha(path, localRev)
       except Exception as e:
         revision = "No version information available ({0})".format(str(e))
 
@@ -82,7 +86,7 @@ def getVersionString():
   # Look for Mercurial
   if os.path.isdir(hgPath):
     vs += "Development version\n"
-    vs += getVersionStringFromRepos() 
+    vs += getVersionStringFromRepos()
   else:
     vs +="Deployment version\nBuilt from\n"
 
@@ -95,5 +99,5 @@ def getVersionString():
         except IOError:
           vs = errorMessage
     else:
-      vs = errorMessage 
+      vs = errorMessage
   return vs

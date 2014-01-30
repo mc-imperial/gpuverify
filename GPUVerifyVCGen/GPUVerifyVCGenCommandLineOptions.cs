@@ -47,7 +47,9 @@ namespace GPUVerify
     public static bool AtomicVsRead = true;
     public static bool AtomicVsWrite = true;
     public static bool RefinedAtomics = true;
-    public static bool OptimiseMemoryAccesses = true;
+    public static bool OptimiseBarrierIntervals = true;
+    public static bool EliminateRedundantReadInstrumentation = true;
+    public static bool RemovePrivateArrayAccesses = true;
     public static bool NonDeterminiseUninterpretedFunctions = false;
     public static bool IdentifySafeBarriers = true;
     public static bool CheckSingleNonInlinedImpl = false;
@@ -230,9 +232,19 @@ namespace GPUVerify
           RefinedAtomics = false;
           break;
 
-          case "-noOptimiseMemoryAccesses":
-          case "/noOptimiseMemoryAccesses":
-          OptimiseMemoryAccesses = false;
+          case "-noRemovePrivateArrayAccesses":
+          case "/noRemovePrivateArrayAccesses":
+          RemovePrivateArrayAccesses = false;
+          break;
+
+          case "-noEliminateRedundantReadInstrumentation":
+          case "/noEliminateRedundantReadInstrumentation":
+          EliminateRedundantReadInstrumentation = false;
+          break;
+
+          case "-noOptimiseBarrierIntervals":
+          case "/noOptimiseBarrierIntervals":
+          OptimiseBarrierIntervals = false;
           break;
 
           case "-checkSingleNonInlinedImpl":
