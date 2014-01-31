@@ -7,10 +7,10 @@ __device__ void multiplyByTwo(float *v, unsigned int index)
 {
     __requires(__ptr_offset(v) == 0);
     __requires(index == tid);
-    __requires(__read_implies(v, __read_offset(v) == index * sizeof(float)));
-    __requires(__write_implies(v, __write_offset(v) == index * sizeof(float)));
-    __ensures(__read_implies(v, __read_offset(v) == index * sizeof(float)));
-    __ensures(__write_implies(v, __write_offset(v) == index * sizeof(float)));
+    __requires(__read_implies(v, __read_offset(v)/sizeof(float) == index));
+    __requires(__write_implies(v, __write_offset(v)/sizeof(float) == index));
+    __ensures(__read_implies(v, __read_offset(v)/sizeof(float) == index));
+    __ensures(__write_implies(v, __write_offset(v)/sizeof(float) == index));
     v[index] = v[index] * 2.0f;
 }
 
@@ -18,10 +18,10 @@ __device__ void divideByTwo(float *v, unsigned int index)
 {
     __requires(__ptr_offset(v) == 0);
     __requires(index == tid);
-    __requires(__read_implies(v, __read_offset(v) == index * sizeof(float)));
-    __requires(__write_implies(v, __write_offset(v) == index * sizeof(float)));
-    __ensures(__read_implies(v, __read_offset(v) == index * sizeof(float)));
-    __ensures(__write_implies(v, __write_offset(v) == index * sizeof(float)));
+    __requires(__read_implies(v, __read_offset(v)/sizeof(float) == index));
+    __requires(__write_implies(v, __write_offset(v)/sizeof(float) == index));
+    __ensures(__read_implies(v, __read_offset(v)/sizeof(float) == index));
+    __ensures(__write_implies(v, __write_offset(v)/sizeof(float) == index));
     v[index] = v[index] * 0.5f;
 }
 
