@@ -29,6 +29,10 @@ namespace GPUVerify
       foreach(var b in Program.Blocks()) {
         b.Cmds = new EliminatorVisitor(Arrays).VisitCmdSeq(b.Cmds);
       }
+      foreach(var p in Program.TopLevelDeclarations.OfType<Procedure>()) {
+        p.Requires = new EliminatorVisitor(Arrays).VisitRequiresSeq(p.Requires);
+        p.Ensures = new EliminatorVisitor(Arrays).VisitEnsuresSeq(p.Ensures);
+      }
     }
 
     private void RemoveArraysFromProgram(Program Program, Dictionary<string, HashSet<string>> Arrays)
