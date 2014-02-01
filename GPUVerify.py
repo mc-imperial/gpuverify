@@ -268,6 +268,8 @@ class DefaultCmdLineOptions(object):
     self.callSiteAnalysis = False
     self.warpSync = False
     self.warpSize = 32
+    self.noWarp = False
+    self.onlyWarp = False
     self.atomic = "rw"
     self.sizeSizeT = 32
     self.sizeSizeTSet = False
@@ -474,6 +476,8 @@ def showHelpAndExit():
     --silent                Silent on success; only show errors/timing
     --time-as-csv=label     Print timing as CSV row with label
     --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32
+    --no-warp               Only check inter-warp. Requires --warp-sync
+    --only-warp             Only check inter-warp. Requires --warp-sync
     --atomic=X              Check atomics as racy against reads (r), writes(w), both(rw), or none(none)
                             (default is --atomic=rw)
     --no-refined-atomics    Don't do abstraction refinement on the return values from atomics
@@ -731,6 +735,10 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.warpSize = int(a)
       except ValueError:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --warp-sync")
+    if o == "--no-warp":
+      CommandLineOptions.noWarp = True
+    if o == "--only-warp":
+      CommandLineOptions.onlyWarp = True
     if o == "--atomic":
       if a.lower() in ("r","w","rw","none"):
         CommandLineOptions.atomic = a.lower()
@@ -880,7 +888,8 @@ def _main(argv):
               'boogie-file=', 'infer-config-file=',
               'staged-inference', 'parallel-inference',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
-              'warp-sync=', 'atomic=', 'no-refined-atomics',
+              'warp-sync=', 'no-warp', 'only-warp',
+              'atomic=', 'no-refined-atomics',
               'solver=', 'logic=', 'race-instrumenter=', 'omit-infer=',
               '32-bit', '64-bit'
              ])
@@ -985,6 +994,10 @@ def _main(argv):
   CommandLineOptions.gpuVerifyVCGenOptions += [ "/atomics:" + CommandLineOptions.atomic ]
   if CommandLineOptions.warpSync:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/doWarpSync:" + str(CommandLineOptions.warpSize) ]
+    if CommandLineOptions.noWarp:
+      CommandLineOptions.gpuVerifyVCGenOptions += [ "/noWarp" ]
+    if CommandLineOptions.onlyWarp:
+      CommandLineOptions.gpuVerifyVCGenOptions += [ "/onlyWarp" ]
   if CommandLineOptions.noRefinedAtomics:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noRefinedAtomics" ]
   if CommandLineOptions.adversarialAbstraction:
