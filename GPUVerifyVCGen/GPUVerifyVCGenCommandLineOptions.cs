@@ -44,6 +44,9 @@ namespace GPUVerify
     public static bool AbstractHoudini = false;
     public static bool WarpSync = false;
     public static int WarpSize = 32;
+    public static string WarpMethod = "resync";
+    public static bool NoWarp = false;
+    public static bool OnlyWarp = false;
     public static bool AtomicVsRead = true;
     public static bool AtomicVsWrite = true;
     public static bool RefinedAtomics = true;
@@ -197,6 +200,20 @@ namespace GPUVerify
           WarpSync = true;
           if (hasColonArgument)
             WarpSize = int.Parse(afterColon);
+          break;
+
+          case "-noWarp":
+          case "/noWarp":
+          WarpMethod = "twopass";
+          OnlyWarp = false;
+          NoWarp = true;
+          break;
+
+          case "-onlyWarp":
+          case "/onlyWarp":
+          WarpMethod = "twopass";
+          OnlyWarp = true;
+          NoWarp = false;
           break;
 
           case "-atomics":

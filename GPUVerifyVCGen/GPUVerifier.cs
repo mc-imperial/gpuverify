@@ -609,7 +609,10 @@ namespace GPUVerify
 
             if (GPUVerifyVCGenCommandLineOptions.WarpSync)
             {
-              AddWarpSyncs();
+              switch (GPUVerifyVCGenCommandLineOptions.WarpMethod) {
+                case "resync" : AddWarpSyncs(); break;
+                case "twopass" : if (GPUVerifyVCGenCommandLineOptions.NoWarp) DoNoWarp(); else DoOnlyWarp(); break;
+              }
             }
 
             EmitProgram(outputFilename);
@@ -2039,6 +2042,61 @@ namespace GPUVerify
           usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(new object [] {}), null);
           Program.TopLevelDeclarations.Add(usedMap);
           return usedMap;
+        }
+
+        private Expr FlattenedThreadId(int thread)
+        {
+          return IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",thread)), IntRep.MakeAdd(
+                IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",thread)), Expr.Ident(GetGroupSize("X"))), 
+                IntRep.MakeMul(Expr.Ident(MakeThreadId("Z",thread)), IntRep.MakeMul(Expr.Ident(GetGroupSize("X")),Expr.Ident(GetGroupSize("Y"))))));
+        }
+
+        private void DoOnlyWarp()
+        {
+          Expr group_guard = (new string[] {"X","Y","Z"}).Select(d => (Expr) Expr.Eq(Expr.Ident(MakeGroupId(d,1)), Expr.Ident(MakeGroupId(d,2)))).Aggregate(Expr.And);
+          Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
+          IEnumerable<Expr> tids = (new int[] {1,2}).Select(x => FlattenedThreadId(x));
+          Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
+          Expr condition = Expr.And(group_guard, Expr.Eq(sides[0], sides[1]));
+          Program.TopLevelDeclarations.Add(new Axiom(Token.NoToken, condition));
+
+          foreach (Implementation impl in Program.TopLevelDeclarations.OfType<Implementation>())
+          {
+            impl.Blocks = impl.Blocks.Select(WarpResets).ToList();
+          }
+        }
+
+        private Block WarpResets(Block b)
+        {
+          var result = new List<Cmd>();
+          foreach (Cmd c in b.Cmds)
+          {
+            result.Add(c);
+            if (c is CallCmd)
+            {
+              CallCmd call = c as CallCmd;
+              if (call.callee.StartsWith("_CHECK_WRITE"))
+              {
+                foreach (Variable v in KernelArrayInfo.getAllNonLocalArrays())
+                {
+                  if (v.Name.Equals(call.callee.Substring(13)) && (!ArrayModelledAdversarially(v) || v.Name.Contains("_NOT_ACCESSED")))
+                    result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr>(new IdentifierExpr[] {new IdentifierExpr(Token.NoToken,v)})));
+                }
+              }
+            }
+          }
+          b.Cmds = result;
+          return b;
+        }
+
+        private void DoNoWarp()
+        {
+          Expr group_guard = (new string[] {"X","Y","Z"}).Select(d => (Expr) Expr.Eq(Expr.Ident(MakeGroupId(d,1)), Expr.Ident(MakeGroupId(d,2)))).Aggregate(Expr.And);
+          Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
+          IEnumerable<Expr> tids = (new int[] {1,2}).Select(x => FlattenedThreadId(x));
+          Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
+          Expr condition = Expr.Imp(group_guard, Expr.Neq(sides[0], sides[1]));
+          Program.TopLevelDeclarations.Add(new Axiom(Token.NoToken, condition));
         }
 
         private void AddWarpSyncs()
