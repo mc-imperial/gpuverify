@@ -203,7 +203,7 @@ namespace GPUVerify
    else if (expr is IdentifierExpr)
    {
     IdentifierExpr identifier = expr as IdentifierExpr;
-    return new ScalarSymbolNode(identifier.Name);
+    return new ScalarSymbolNode(identifier.Name, identifier.Type);
    }
    else if (expr is LiteralExpr)
    {
@@ -319,10 +319,12 @@ namespace GPUVerify
  public class ScalarSymbolNode : ExprNode
  {
   public string symbol;
+  public Microsoft.Boogie.Type type;
 
-  public ScalarSymbolNode(string symbol)
+  public ScalarSymbolNode(string symbol, Microsoft.Boogie.Type type)
   {
    this.symbol = symbol;
+   this.type = type;
   }
 
   public override string ToString()
