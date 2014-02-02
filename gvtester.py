@@ -746,7 +746,7 @@ def main(arg):
         kernelFiles = list(set(kernelFiles) - set(kernelFilesIgnored))
 
       logging.info("Found    {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount,cudaCount,miscCount))
-      logging.info("Ignoring {0} OpenCL kernels, {1} CUDA kernels and {2] miscellaneous tests".format(openCLCountIgnored,cudaCountIgnored,miscCountIgnored))
+      logging.info("Ignoring {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCountIgnored,cudaCountIgnored,miscCountIgnored))
       logging.info("Running  {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount-openCLCountIgnored,cudaCount-cudaCountIgnored,miscCount-miscCountIgnored))
     else:
       logging.info("Found {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount,cudaCount,miscCount))
