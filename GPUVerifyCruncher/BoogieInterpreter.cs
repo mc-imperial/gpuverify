@@ -424,8 +424,9 @@ namespace GPUVerify
    {
     // Put formal parameters into a state matching the requires clauses
     foreach (Requires requires in impl.Proc.Requires)
+    {
      EvaluateRequires(requires);
-    Memory.Dump();
+    }
     // Initialise any formal parameters not constrained by requires clauses
     InitialiseFormalParams(impl.InParams);
     // Start intrepreting at the entry basic block
