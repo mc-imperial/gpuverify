@@ -35,6 +35,7 @@ namespace GPUVerify
         public ResolutionContext ResContext;
 
         public Dictionary<Procedure, Implementation> KernelProcedures;
+        public Dictionary<string, string> GlobalArrayOriginalNames;
 
         private HashSet<Procedure> BarrierProcedures = new HashSet<Procedure>();
         public string BarrierProcedureLocalFenceArgName;
@@ -111,6 +112,15 @@ namespace GPUVerify
             Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
 
             CheckWellFormedness();
+
+            var globalVariables = Program.TopLevelDeclarations.Where(Item => Item is GlobalVariable)
+                                                              .Select(Item => Item as GlobalVariable).ToList();
+            GlobalArrayOriginalNames = new Dictionary<string,string>();
+            foreach(var variable in globalVariables) {
+                string originalName = QKeyValue.FindStringAttribute(variable.Attributes, "original_name");
+                if (originalName != null)
+                  GlobalArrayOriginalNames[variable.Name] = originalName;
+            }
 
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
             {
