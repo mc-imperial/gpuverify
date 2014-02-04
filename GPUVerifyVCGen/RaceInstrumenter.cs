@@ -1117,9 +1117,12 @@ namespace GPUVerify {
 
       Requires NoAccessRaceRequires = new Requires(false, AccessGuard);
 
+      string originalName = verifier.GlobalArrayOriginalNames[v.Name];
+
       NoAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, attribute, new List<object>(), null);
       NoAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), NoAccessRaceRequires.Attributes);
       NoAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "array", new List<object>() { v.Name }, NoAccessRaceRequires.Attributes);
+      NoAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "original_name", new List<object>() { originalName }, NoAccessRaceRequires.Attributes);
       CheckAccessProcedure.Requires.Add(NoAccessRaceRequires);
     }
 

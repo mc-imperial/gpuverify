@@ -125,7 +125,10 @@ namespace GPUVerify {
         return;
       }
 
-      Console.Error.WriteLine("Bitwise values of parameters of '" + DemangleName(impl.Name.TrimStart(new char[] { '$' })) + "':");
+      string funName = QKeyValue.FindStringAttribute(impl.Attributes, "original_name");
+      Debug.Assert(funName != null);
+
+      Console.Error.WriteLine("Bitwise values of parameters of '" + funName + "':");
       PopulateModelWithStatesIfNecessary(error);
 
       string thread1, thread2, group1, group2;
@@ -173,6 +176,8 @@ namespace GPUVerify {
 
       string RaceyArrayName = GetArrayName(CallCex.FailingRequires);
       Debug.Assert(RaceyArrayName != null);
+      string RaceyArrayOriginalName = GetArrayOriginalName(CallCex.FailingRequires);
+      Debug.Assert(RaceyArrayOriginalName != null);
 
       IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, RaceyArrayName, AccessType.Create(access1),
         GetStateName(CallCex));
@@ -180,8 +185,8 @@ namespace GPUVerify {
 
       ulong RaceyOffset = GetOffsetInBytes(CallCex);
 
-      ErrorWriteLine("\n" + SourceInfoForSecondAccess.Top().GetFile() + ":", "possible " + raceName + " race on ((char*)" + 
-        CleanUpArrayName(DemangleName(RaceyArrayName)) + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
+      ErrorWriteLine("\n" + SourceInfoForSecondAccess.Top().GetFile() + ":", "possible " + raceName + " race on ((char*)" +
+        RaceyArrayOriginalName + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
@@ -220,30 +225,6 @@ namespace GPUVerify {
     private static string GetSourceFileName()
     {
       return CommandLineOptions.Clo.Files[CommandLineOptions.Clo.Files.Count() - 1];
-    }
-
-    private string CleanUpArrayName(string name)
-    {
-      // The purpose of this method is to take a demangled array name
-      // and turn it into a more readable form.
-      // The issue motivating this is that in CUDA, __shared__ arrays
-      // declared in functions get mangled to include the enclosing
-      // function.  The demangled name contains the whole of the
-      // function signature, which is not easy to read.
-
-      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.OpenCL) {
-        return name;
-      }
-
-      // Check to see whether the name includes a function open parenthesis
-      if(!name.Contains(":")) {
-        return name;
-      }
-      
-      return String.Join("::",
-        Regex.Replace(Regex.Replace(name.Split(new char[] { ' ' }).Last(), "'", ""), "`", "").
-          Split(new string[] { "::" }, StringSplitOptions.RemoveEmptyEntries).
-            Where(Item => !Regex.IsMatch(Item, @"^\d+$")).ToArray());
     }
 
     private static void PopulateModelWithStatesIfNecessary(Counterexample Cex)
@@ -700,11 +681,17 @@ namespace GPUVerify {
       }
     }
 
-    private static string GetArrayName(Requires requires) {
+    private string GetArrayName(Requires requires) {
       string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "array");
       Debug.Assert(arrName != null);
       Debug.Assert(arrName.StartsWith("$$"));
       return arrName.Substring("$$".Length);
+    }
+
+    private string GetArrayOriginalName(Requires requires) {
+      string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "original_name");
+      Debug.Assert(arrName != null);
+      return arrName;
     }
 
     private static string SpecificNameForGroup() {
@@ -721,29 +708,6 @@ namespace GPUVerify {
       } else {
         return "work item";
       }
-    }
-
-    private static string DemangleName(string name) {
-      var gvClo = CommandLineOptions.Clo as GVCommandLineOptions;
-      if(gvClo.SourceLanguage == SourceLanguage.CUDA && gvClo.DemanglerPath != null) {
-        try {
-          name = name.Replace('~','@');
-          Process demangler = new Process();
-          demangler.StartInfo = new ProcessStartInfo(gvClo.DemanglerPath, "-l cu " + name);
-          demangler.StartInfo.UseShellExecute = false;
-          demangler.StartInfo.RedirectStandardOutput = true;
-          string demangled = "";
-          demangler.OutputDataReceived += (sender, args) => demangled += args.Data;
-          demangler.Start();
-          demangler.BeginOutputReadLine();
-          demangler.WaitForExit();
-          return demangled;
-        } catch(Exception e) {
-          Console.Error.WriteLine("warning: name demangling failed with: " + e.Message);
-          return name;
-        }
-      }
-      return name;
     }
 
   }

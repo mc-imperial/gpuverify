@@ -200,7 +200,7 @@ clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
                    ]
 
 if os.name == "nt":
-  clangCUDAOptions += ["-Xclang", "-cxx-abi", "-Xclang", "microsoft"]
+  clangCUDAOptions += ["-Xclang" ]
 
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
@@ -830,8 +830,8 @@ def processOpenCLOptions(opts, args):
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "number of work groups must be specified via --num_groups=...")
 
 def processCUDAOptions(opts, args):
-  CommandLineOptions.gpuVerifyCruncherOptions += [ "/sourceLanguage:cu", "/demanglerPath:" + gvfindtools.bugleBinDir + os.sep + "bugle-demangle" ];
-  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/sourceLanguage:cu", "/demanglerPath:" + gvfindtools.bugleBinDir + os.sep + "bugle-demangle" ];
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/sourceLanguage:cu" ];
+  CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/sourceLanguage:cu" ];
   for o, a in opts:
     if o == "--blockDim":
       if CommandLineOptions.groupSize != []:

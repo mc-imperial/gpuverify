@@ -29,20 +29,12 @@ namespace GPUVerify {
     // Dimensionality of grid = GridHighestDim + 1
     public int GridHighestDim = 2;
     public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
-    public string DemanglerPath = null;
 
     public GVCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser") {
     }
 
     protected override bool ParseOption(string name, CommandLineOptionEngine.CommandLineParseState ps) {
-
-      if (name == "demanglerPath") {
-        if (ps.ConfirmArgumentCount(1)) {
-          DemanglerPath = ps.args[ps.i];
-        }
-        return true;
-      }
 
       if (name == "sourceLanguage") {
         if (ps.ConfirmArgumentCount(1)) {
