@@ -113,13 +113,11 @@ namespace GPUVerify
 
             CheckWellFormedness();
 
-            var globalVariables = Program.TopLevelDeclarations.Where(Item => Item is GlobalVariable)
-                                                              .Select(Item => Item as GlobalVariable).ToList();
             GlobalArrayOriginalNames = new Dictionary<string,string>();
-            foreach(var variable in globalVariables) {
-                string originalName = QKeyValue.FindStringAttribute(variable.Attributes, "original_name");
+            foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
+                string originalName = QKeyValue.FindStringAttribute(g.Attributes, "original_name");
                 if (originalName != null)
-                  GlobalArrayOriginalNames[variable.Name] = originalName;
+                  GlobalArrayOriginalNames[g.Name] = originalName;
             }
 
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)

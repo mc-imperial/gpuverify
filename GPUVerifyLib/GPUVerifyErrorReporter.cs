@@ -291,8 +291,8 @@ namespace GPUVerify {
 
     private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample CallCex, string ArrayName, AccessType AccessType, string RaceyState)
     {
-      string AccessHasOccurred = RaceInstrumentationUtil.MakeHasOccurredVariableName("$$" + ArrayName, AccessType);
-      string AccessOffset = RaceInstrumentationUtil.MakeOffsetVariableName("$$" + ArrayName, AccessType);
+      string AccessHasOccurred = RaceInstrumentationUtil.MakeHasOccurredVariableName(ArrayName, AccessType);
+      string AccessOffset = RaceInstrumentationUtil.MakeOffsetVariableName(ArrayName, AccessType);
 
       AssumeCmd ConflictingAction = DetermineConflictingAction(CallCex, RaceyState, AccessHasOccurred, AccessOffset);
 
@@ -333,10 +333,10 @@ namespace GPUVerify {
         HashSet<Block> LoopNodes = new HashSet<Block>(
           blockGraph.BackEdgeNodes(header).Select(Item => blockGraph.NaturalLoops(header, Item)).SelectMany(Item => Item)
         );
-        return GetSourceLocationsFromBlocks("_CHECK_" + AccessType + "_$$" + ArrayName, LoopNodes);
+        return GetSourceLocationsFromBlocks("_CHECK_" + AccessType + "_" + ArrayName, LoopNodes);
       }
       else if(ConflictingState.Contains("call_return_state")  ) {
-        return GetSourceLocationsFromCall("_CHECK_" + AccessType + "_$$" + ArrayName, 
+        return GetSourceLocationsFromCall("_CHECK_" + AccessType + "_" + ArrayName, 
           QKeyValue.FindStringAttribute(ConflictingAction.Attributes, "procedureName"));
       } else {
         Debug.Assert(ConflictingState.Contains("check_state"));
@@ -685,7 +685,7 @@ namespace GPUVerify {
       string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "array");
       Debug.Assert(arrName != null);
       Debug.Assert(arrName.StartsWith("$$"));
-      return arrName.Substring("$$".Length);
+      return arrName;
     }
 
     private string GetArrayOriginalName(Requires requires) {
