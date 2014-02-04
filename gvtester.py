@@ -207,19 +207,10 @@ class GPUVerifyTestKernel(object):
             logging.info(threadStr + "Running test " + self.path)
             logging.debug(self) # show pre test information
 
-            # On POSIX systems put GPUVerify in its own process group.
-            # If GPUVerify tries to do something crazy like kill everything
-            # in its process group then we will be killed if we don't call
-            # use os.setsid()
-            _posixSession=None;
-            if os.name == 'posix':
-              _posixSession = os.setsid
-
             processInstance=subprocess.Popen(cmdLine,
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE,
-                                             cwd=os.path.dirname(self.path),
-                                             preexec_fn=_posixSession
+                                             cwd=os.path.dirname(self.path)
                                             )
             stdout, stderr = processInstance.communicate() #Allow program to run and wait for it to exit.
 

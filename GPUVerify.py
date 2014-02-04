@@ -12,6 +12,13 @@ import multiprocessing # Only for determining number of CPU cores available
 import getversion
 import pprint
 
+# To properly kill child processes cross platform
+try:
+  import psutil
+  psutilPresent = True
+except ImportError:
+  psutilPresent = False
+
 class GPUVerifyException(Exception):
   """
     These exceptions are used as a replacement
@@ -310,7 +317,12 @@ class ToolWatcher(object):
     if self.popenObject.poll() == None :
       # Program is still running, let's kill it
       self.__killed=True
+      if psutilPresent:
+        children = psutil.Process(self.popenObject.pid).get_children(True)
       self.popenObject.terminate()
+      if psutilPresent:
+        for child in children:
+          child.terminate()
 
   """ Create a ToolWatcher instance with an existing "subprocess.Popen" instance
       and timeout.
@@ -1217,17 +1229,6 @@ def showTiming(exitCode):
     else:
       print("- no tools ran")
 
-def killChildrenPosix():
-  # Kill child processes that might not have been killed, e.g., Z3
-  if os.name != 'posix':
-    return
-
-  def handler(signal,frame):
-    return
-
-  signal.signal(signal.SIGINT, handler)
-  os.killpg(0,signal.SIGINT)
-
 def handleTiming(exitCode):
   if CommandLineOptions.time:
     showTiming(exitCode)
@@ -1278,7 +1279,6 @@ def main(argv):
       cleanUpHandler.register(_cleanUpGlobals)
 
     # We should call this last.
-    cleanUpHandler.register(killChildrenPosix)
     cleanUpHandler.call()
     cleanUpHandler.clear() # Clean up for next use
 
