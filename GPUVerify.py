@@ -206,9 +206,6 @@ clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
                      "-include", "cuda.h"
                    ]
 
-if os.name == "nt":
-  clangCUDAOptions += ["-Xclang" ]
-
 clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangCUDADefines = [ "__CUDA_ARCH__" ]
 
