@@ -29,6 +29,20 @@ which is equivalent to::
 
   gpuverify --num_groups=[1] --local_size=[32,32] kernel.cl 
 
+An alternative to specifying the grid of workgroups using ``--num-groups=`` is
+to use the ``--global_size=`` argument instead. This allows the size of the
+global NDRange to be specified instead of the number of workgroups. The
+``--global_size=`` and ``--local_size`` arguments have a direct correspondance
+to the ``global_work_size`` and ``local_work_size`` parameters to the OpenCL
+Runtime function ``clEnqueueNDRangeKernel()`` respectively.
+
+Here is an example using ``--global_size=``::
+
+  gpuverify --local_size=[32,32] --global_size=[512,512] kernel.cl
+
+Which is equivilant to the following using ``--num_groups=`` instead of ``--global_size=``::
+
+  gpuverify --local_size=[32,32] --num_groups=[16,16] kernel.cl
 
 CUDA
 ----
