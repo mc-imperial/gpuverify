@@ -630,7 +630,7 @@ This corresponds to the `local_work_size` parameter of clEnqueueNDRangeKernel().
 ``--num_groups=...``
 ^^^^^^^^^^^^^^^^^^^^
 
-Specify whether grid of work-groups is 1D, 2D or 3D and specify size for each dimension.  Use X, [X,Y] and [X,Y,Z] for a !D, 2D and 3D grid, respectively.
+Specify whether grid of work-groups is 1D, 2D or 3D and specify size for each dimension.  Use X, [X,Y] and [X,Y,Z] for a 1D, 2D and 3D grid, respectively.
 This argument and ``--global_size=`` are mutually exclusive.
 
 ``--global_size=...``
