@@ -537,10 +537,22 @@ def showHelpAndExit():
   OPENCL OPTIONS:
     --local_size=X          Specify whether work-group is 1D, 2D
                 =[X,Y]      or 3D and specify size for each
-                =[X,Y,Z]    dimension
+                =[X,Y,Z]    dimension. This corresponds to the
+                            `local_work_size` parameter of
+                            clEnqueueNDRangeKernel().
+                
+    To specify the size of the NDRange one of the following two
+    mutually exclusive options can be used.
+
     --num_groups=X          Specify whether grid of work-groups is
                 =[X,Y]      1D, 2D or 3D and specify size for each
                 =[X,Y,Z]    dimension
+
+    --global_size=X         Specifiy whether the NDRange is 1D, 2D
+                 =[X,Y]     or 3D and specify size for each
+                 =[X,Y,Z]   dimension. This corresponds to the 
+                            `global_work_size` parameter of
+                            clEnqueueNDRangeKernel(). 
 
   CUDA OPTIONS
     --blockDim=X            Specify whether thread block is 1D, 2D
@@ -602,6 +614,13 @@ def showVersionIfRequested(opts):
   for o, a in opts:
     if o == "--version":
       showVersionAndExit()
+
+def optionIsSet(arg,opts):
+  """
+    Returns true if 'arg' is in
+    the 'opts' parameter (produced by getopt)
+  """
+  return any( [arg in o for (o,__) in opts] )
 
 def processGeneralOptions(opts, args):
   # All options that can be processed without resulting in an error go
@@ -807,6 +826,12 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.invInferConfigFile = a
 
 def processOpenCLOptions(opts, args):
+  if optionIsSet('--num_groups', opts) and optionIsSet('--global_size',opts):
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "--num_groups and --global_size are mutually exclusive. Only use one to specify NDRange")
+
+  deferNumGroupCalc = False
+  global_size = None
+
   for o, a in opts:
     if o == "--local_size":
       if CommandLineOptions.groupSize != []:
@@ -832,11 +857,43 @@ def processOpenCLOptions(opts, args):
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] <= 0:
           raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for num_groups dimensions must be positive")
+    if o == "--global_size":
+      if CommandLineOptions.numGroups != []:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define global_size multiple times")
+      try:
+        global_size = processVector(a)
+        for i in range(0, len(global_size)):
+          if global_size[i] <= 0:
+            raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for global_size dimensions must be positive")
+
+        # We can't calculate CommandLineOptions.numGroups yet
+        # because --local_size might not of been parsed yet.
+        # We defer calculation until we've finished parsing
+        # the OpenCL option.
+        deferNumGroupCalc = True
+      except ValueError:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --global_size must be a (vector of) positive integer(s), found '" + a + "'")
+
+
+  if deferNumGroupCalc:
+    if len(global_size) != len(CommandLineOptions.groupSize):
+      raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "Dimensions of --local_size and --global_size must match")
+
+    for (index,value) in enumerate(global_size):
+      if value % CommandLineOptions.groupSize[index] != 0:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "Dimension {} of global_size does not divide by the same dimension in local_size".format(index))
+
+    # It should be safe to calculate numGroups now
+    CommandLineOptions.numGroups = list( map(lambda ndrange, gs: int(ndrange/gs),global_size, CommandLineOptions.groupSize) )
+    if optionIsSet('verbose',opts): print("Calculated number of workgroups: {}".format(CommandLineOptions.numGroups))
+
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
+    CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
 
   if CommandLineOptions.groupSize == []:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "work group size must be specified via --local_size=...")
   if CommandLineOptions.numGroups == []:
-    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "number of work groups must be specified via --num_groups=...")
+    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "number of work groups must be specified directly via --num_groups=... or indirectly via --global_size=")
 
 def processCUDAOptions(opts, args):
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/sourceLanguage:cu" ];
@@ -890,7 +947,7 @@ def _main(argv):
               'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication',
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
               'vcgen-opt=', 'cruncher-opt=', 'boogie-opt=', 'bugle-opt=', 'opt-opt=',
-              'local_size=', 'num_groups=', 'blockDim=', 'gridDim=', 'math-int',
+              'local_size=', 'num_groups=', 'global_size=', 'blockDim=', 'gridDim=', 'math-int',
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-cbpl', 'stop-at-bpl',
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'bugle-lang=','timeout=',
