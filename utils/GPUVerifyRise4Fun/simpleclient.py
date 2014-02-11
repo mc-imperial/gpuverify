@@ -39,6 +39,8 @@ def main(argv):
         except urllib2.URLError as e:
             logging.error("URLError: {0}".format(e))
             return 1
+        except KeyboardInterrupt:
+            return 1
 
         if 'help' in md:
             print(md['help'])
@@ -90,6 +92,8 @@ def main(argv):
         except urllib2.URLError as e:
             logging.error("URLError: {0}".format(e))
             return 1
+        except KeyboardInterrupt:
+            return 1
 
         logging.info("Fetched meta data:\n{0}".format(pprint.pformat(md)))
 
@@ -118,6 +122,8 @@ def main(argv):
         return 1
     except urllib2.URLError as e:
         logging.error("URLError: {0}".format(e))
+        return 1
+    except KeyboardInterrupt:
         return 1
 
     logging.info("Response:\n{0}".format(responce["Outputs"][0]["Value"]))
