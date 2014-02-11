@@ -10,36 +10,8 @@ import json
 import pprint
 import logging
 from socket import gethostname
-from time import time
-
+from clientutil import *
 width=80
-
-def getJSON(url):
-    start = time()
-    logging.info('Grabbing url:' + url)
-    response = urllib2.urlopen(url,None,20)
-    end = time()
-    rj = json.loads(response.read())
-    logging.info('Run time {0} seconds'.format(end - start))
-    logging.debug('Responce:' + pprint.pformat(rj))
-    return rj
-
-def postJSON(url, data):
-    logging.info('Posting to url:' + url)
-    logging.debug('Data to post:' + pprint.pformat(data))
-    start = time()
-    request = urllib2.Request(url, json.dumps(data),{'Content-Type': 'application/json'} ) 
-    response = urllib2.urlopen(request)
-    end = time()
-
-    rj = json.loads(response.read())
-    print(end - start)
-    logging.info('Run time {0} seconds'.format(end - start))
-    logging.debug('Responce:' + pprint.pformat(rj))
-    return rj
-
-def genURL(server, port,lang,query):
-    return 'http://'+ server  + ':' + str(port) + '/' + lang + '/' + query
 
 def test(lang, server, port):
     # Grab meta-data

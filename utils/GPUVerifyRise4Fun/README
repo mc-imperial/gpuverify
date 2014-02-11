@@ -43,6 +43,22 @@ $ python production_server.py
 
 To see each server's options use "--help" as the first argument.
 
+CLIENTS
+
+Right now there are two clients for GPUVerifyRise4Fun
+
+* simpleclient.py script. This script can be used to load a kernel
+  on your machine and use the GPUVerifyRise4Fun service to verify it.
+
+* The web clients http://rise4fun.com/GPUVerify-OpenCL and
+  http://rise4fun.com/GPUVerify-CUDA
+
+TESTING
+
+A small test script (tester.py) is included which stress tests the service by
+loading all the sample kernels and asking the GPUVerifyRise4Fun service to
+verify these kernels.
+
 EDITING/ADDING SAMPLES
 
 CUDA kernels live in cuda/samples and OpenCL kernels live in opencl/samples.
