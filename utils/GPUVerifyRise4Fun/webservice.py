@@ -109,35 +109,26 @@ def runGpuverify(lang):
   returnCode=None
   toolMessage=None
   dimMessage=""
-  safeArgs=[]
   ignoredArgs=[]
+  safeArgs=[]
   try:
-    _tool.extractOtherCmdArgs(source, safeArgs, ignoredArgs, app.config['GPUVERIFY_DEFAULT_ARGS'])
+    _tool.filterCmdArgs(source, safeArgs, ignoredArgs, app.config['GPUVERIFY_DEFAULT_ARGS'])
 
     if lang == CUDAMetaData.folderName:
-      blockDim=[]
-      gridDim=[]
-      _tool.extractGridSizeFromSource(source, blockDim, gridDim)
-
       returnMessage['Version'] = cudaMetaData.metadata['Version']
       (returnCode, toolMessage) = _tool.runCUDA(source, 
-                                                blockDim=blockDim, 
-                                                gridDim=gridDim,
-                                                timeout=app.config['GPUVERIFY_TIMEOUT'],
-                                                extraCmdLineArgs=safeArgs)
+                                                safeArgs,
+                                                timeout=app.config['GPUVERIFY_TIMEOUT']
+                                               )
+                                               
 
     else:
       returnMessage['Version'] = openclMetaData.metadata['Version']
 
-      localSize=[]
-      numOfGroups=[]
-      _tool.extractNDRangeFromSource(source,localSize, numOfGroups)
-
       (returnCode, toolMessage) = _tool.runOpenCL(source, 
-                                                  localSize=localSize, 
-                                                  numOfGroups=numOfGroups,
-                                                  timeout=app.config['GPUVERIFY_TIMEOUT'],
-                                                  extraCmdLineArgs=safeArgs)
+                                                  safeArgs,
+                                                  timeout=app.config['GPUVERIFY_TIMEOUT']
+                                                 )
 
     # We might have an extra message to show.
     extraHelpMessage=""
