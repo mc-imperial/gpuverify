@@ -128,7 +128,11 @@ class GPUVerifyTool(object):
                  '--only-divergence',
                  '--only-intra-group',
                  '--only-requires',
+<<<<<<< local
                  # '--parallel-inference', # Might bog down machine completely
+=======
+                 #'--parallel-inference', Might make DDOS easier, disable
+>>>>>>> other
                  '--time',
                  '--staged-inference',
                  # r'--scheduling=[a-z-]+', # Not sure if safe
