@@ -1,4 +1,4 @@
-//--local_size=1024 --num_groups=1
+//--local_size=1024 --global_size=1024
 
 /*
  * A single group of work items collaborates to

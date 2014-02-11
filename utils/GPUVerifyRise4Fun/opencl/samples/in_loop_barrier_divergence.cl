@@ -1,4 +1,4 @@
-//--local_size=4 --num_groups=1
+//--local_size=4 --global_size=4
 
 /*
  * This kernel suffers from barrier divergence.

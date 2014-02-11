@@ -1,4 +1,4 @@
-//--local_size=1024 --num_groups=1024 
+//--local_size=1024 --global_size=1048576
 
 /*
  * A kernel that exhibits barrier divergence.

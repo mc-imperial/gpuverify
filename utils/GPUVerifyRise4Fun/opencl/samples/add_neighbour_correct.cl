@@ -1,4 +1,4 @@
-//--local_size=1024 --num_groups=1
+//--local_size=1024 --global_size=1024
 
 /* 
  * The intention of this kernel is to increment each
