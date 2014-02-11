@@ -152,6 +152,14 @@ def runGpuverify(lang):
   return jsonify(returnMessage)
     
 
+@app.route('/help', methods=['GET'])
+def getGPUVerifyHelp():
+  (returnCode, toolMessage) = _tool.runOpenCL("",["--help"]);
+
+  response = {'help': toolMessage.decode('utf8') }
+  return jsonify(response)
+
+
 def checkLang(lang):
   if lang in BasicMetaData.registeredLanguage:
     return True

@@ -21,12 +21,32 @@ def main(argv):
     parser.add_argument('-s', '--server', default='localhost', 
                         help='Server to query. Default "%(default)s"')
     parser.add_argument('--metadata', action='store_true', help="Request server's meta data before executing")
+    parser.add_argument('--gvhelp', action='store_true', help="Show GPUVerify help information and exit. You need to pass a kernel filename even though it won't be used")
     parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])
 
     parser.add_argument('kernel', help='Kernel to verify')
     (knownArgs, otherArgs) = parser.parse_known_args(argv)
 
     logging.basicConfig(level=getattr(logging,knownArgs.log_level))
+
+    if knownArgs.gvhelp:
+        logging.debug("Fetching help information")
+        try:
+            md = clientutil.getJSON( clientutil.genURL(knownArgs.server, knownArgs.port, None , 'help') )
+        except urllib2.HTTPError as e:
+            logging.error("HTTPError: {0}".format(e))
+            return 1
+        except urllib2.URLError as e:
+            logging.error("URLError: {0}".format(e))
+            return 1
+
+        if 'help' in md:
+            print(md['help'])
+            return 0
+        else:
+            logging.error('Recieved invalid data.')
+            return 1
+        
 
     if len(otherArgs) < 2:
         logging.error("There must be at least two arguments passed to GPUVerifyRise4Fun (pass after the kernel filename)")

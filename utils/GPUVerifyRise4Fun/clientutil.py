@@ -32,4 +32,15 @@ def postJSON(url, data):
 
 
 def genURL(server, port,lang,query):
-    return 'http://'+ server  + ':' + str(port) + '/' + lang + '/' + query
+    url='http://'+ server
+    
+    if port != None:
+        url+=':' + str(port) + '/' 
+    else:
+        url += '/'
+        
+    if lang != None:
+        url +=  lang + '/' 
+        
+    url += query
+    return url
