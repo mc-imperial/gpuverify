@@ -523,6 +523,10 @@ namespace GPUVerify
                 ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
             }
 
+            if (GPUVerifyVCGenCommandLineOptions.Params.Count > 0) {
+              AddParamsAsPreconditions();
+            }
+
             RaceInstrumenter.AddRaceCheckingInstrumentation();
 
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
@@ -631,6 +635,52 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private void AddParamsAsPreconditions()
+        {
+          List<string> param_values =
+            GPUVerifyVCGenCommandLineOptions.Params;
+          // Todo: work out how to locate the "original name",
+          // rather than prepending the "$" like this.
+          string target_name = "$" + param_values[0];
+
+          // Locate the kernel with the given name
+          bool found_flag = false;
+          Procedure proc = null;
+          foreach(KeyValuePair<Procedure, Implementation> entry 
+                  in KernelProcedures) {
+            if (target_name == entry.Key.Name) {
+              // Console.WriteLine("Found kernel " + target_name + ".");
+              found_flag = true;
+              proc = entry.Key;
+              break;
+            }
+          }
+          if (found_flag == false) {
+            Console.WriteLine("Error: Couldn't find kernel " 
+                              + target_name + ".");
+            Environment.Exit(1);
+          }
+
+          // Fail if too many params given (note that first
+          // element of param_values is the name of the kernel)
+          if (param_values.Count - 1 > proc.InParams.Count) {
+            Console.WriteLine("Error: Too many parameter values.");
+            Environment.Exit(1);
+          }
+       
+          // Create requires clauses
+          for (int ctr = 1; ctr < param_values.Count; ctr++) {
+            Variable v = proc.InParams[ctr-1];
+            Expr v_expr = new IdentifierExpr(v.tok, v);
+            string val = param_values[ctr];
+            Expr val_expr = 
+              IntRep.GetLiteral(Convert.ToInt32(val), id_size_bits);
+            Expr v_eq_val = Expr.Eq(v_expr, val_expr);  
+            proc.Requires.Add(new Requires(false, v_eq_val));
+            // Console.WriteLine("__requires(" + v.Name + "==" + val + ")");
+          }          
         }
 
         private void IdentifySafeBarriers()

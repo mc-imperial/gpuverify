@@ -88,25 +88,17 @@ namespace GPUVerify
           }
           if (!afterColon.StartsWith("[") || !afterColon.EndsWith("]")) 
           {
-            Console.WriteLine("Error: parameter list must be enclosed in [...].");
+            Console.WriteLine("Error: parameter list must be enclosed in square brackets.");
             Environment.Exit(1);
           }
           afterColon = afterColon.Trim();
           afterColon = afterColon.Substring(1,afterColon.Length-2);
           Params = new List<string>(afterColon.Split(','));
-          if (Params.Count == 0)
+          if (Params.Count == 0 || Params[0].Length == 0)
           {
             Console.WriteLine("Error: first parameter must be kernel name.");
             Environment.Exit(1);
           }
-          // Temporary, for debugging:
-          // for (int ctr = 0; ctr < Params.Count; ctr++) {
-          // if (ctr == 0)
-          //   Console.WriteLine("Kernel name: "       + Params[ctr]);
-          // else
-          //   Console.WriteLine("Param " + ctr + ": " + Params[ctr]);
-          // }
-          // End temporary
           break;
 
           case "-help":
