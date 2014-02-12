@@ -59,6 +59,7 @@ namespace GPUVerify
     public static bool DoCallSiteAnalysis = false;
     public static bool PruneInfeasibleEdges = true;
     public static List<string> DoNotGenerateCandidates = new List<string>();
+    public static List<string> Params = new List<string>();
 
     public static int Parse(string[] args)
     {
@@ -78,6 +79,36 @@ namespace GPUVerify
 
         switch (beforeColon)
         {
+          case "-params":
+          case "/params":
+          if (!hasColonArgument)
+          {
+            Console.WriteLine("Error: parameter list expected after " + beforeColon + " argument");
+            Environment.Exit(1);
+          }
+          if (!afterColon.StartsWith("[") || !afterColon.EndsWith("]")) 
+          {
+            Console.WriteLine("Error: parameter list must be enclosed in [...].");
+            Environment.Exit(1);
+          }
+          afterColon = afterColon.Trim();
+          afterColon = afterColon.Substring(1,afterColon.Length-2);
+          Params = new List<string>(afterColon.Split(','));
+          if (Params.Count == 0)
+          {
+            Console.WriteLine("Error: first parameter must be kernel name.");
+            Environment.Exit(1);
+          }
+          // Temporary, for debugging:
+          // for (int ctr = 0; ctr < Params.Count; ctr++) {
+          // if (ctr == 0)
+          //   Console.WriteLine("Kernel name: "       + Params[ctr]);
+          // else
+          //   Console.WriteLine("Param " + ctr + ": " + Params[ctr]);
+          // }
+          // End temporary
+          break;
+
           case "-help":
           case "/help":
           case "-?":
@@ -334,6 +365,13 @@ namespace GPUVerify
 
   /help                         : this message
   /print:file                   : output bpl file
+
+  /params:[K,v1,...,vn]         : If K is a kernel whose non-array parameters 
+                                    are (x1,...,xn), then add the following 
+                                    precondition:
+                                    __requires(x1==v1 && ... && xn==vn)
+                                    An asterisk can be used to denote an 
+                                    unconstrained parameter 
 
   Debugging GPUVerifyVCGen
   ------------------------

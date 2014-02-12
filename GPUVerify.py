@@ -482,6 +482,10 @@ def showHelpAndExit():
     --no-uniformity-analysis  Turn off uniformity analysis
     --only-log              Log accesses to arrays, but do not check for races.  This
                             can be useful for determining access pattern invariants
+    --params=[K,v1,...,vn]  If K is a kernel whose non-array parameters are (x1,...,xn),
+                            then add the following precondition:
+                            __requires(x1==v1 && ... && xn==vn)
+                            An asterisk can be used to denote an unconstrained parameter
     --silent                Silent on success; only show errors/timing
     --time-as-csv=label     Print timing as CSV row with label
     --warp-sync=X           Synchronize threads within warps, sized X, defaulting to 32
@@ -681,6 +685,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.optOptions += str(a).split(" ")
     if o == "--vcgen-opt":
       CommandLineOptions.gpuVerifyVCGenOptions += str(a).split(" ")
+    if o == "--params":
+      CommandLineOptions.gpuVerifyVCGenOptions.append('/params:' + a)
     # Cruncher and Boogie driver opts now separated to allow configuration of dynamic analysis options
     if o == "--cruncher-opt":
       CommandLineOptions.gpuVerifyCruncherOptions += str(a).split(" ")
@@ -942,7 +948,7 @@ def _main(argv):
     opts, args = getopt.gnu_getopt(argv,'D:I:h',
              ['help', 'version', 'debug', 'findbugs', 'verify', 'noinfer', 'no-infer', 'verbose', 'silent',
               'loop-unwind=', 'k-induction-depth=', 'memout=', 'no-benign', 'only-divergence', 'only-intra-group',
-              'only-log', 'adversarial-abstraction', 'equality-abstraction',
+              'only-log', 'params=', 'adversarial-abstraction', 'equality-abstraction',
               'no-annotations', 'only-requires', 'no-barrier-access-checks', 'no-constant-write-checks',
               'no-inline', 'no-loop-predicate-invariants', 'no-smart-predication',
               'no-uniformity-analysis', 'call-site-analysis', 'clang-opt=',
