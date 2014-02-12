@@ -1,5 +1,6 @@
 #include <map>
 #include <vector>
+#include <algorithm>
 #include <iostream>
 #include <string.h>
 #include <stdio.h>
@@ -29,6 +30,7 @@ class Col_Logger {
 		std::map<cl_program, std::vector<std::string> > programs;
 		std::map<cl_program, std::string> options;
 		std::map<cl_kernel, struct kernel_data> kernels;
+		std::vector<cl_mem> buffers;
 
 		void dump(cl_kernel karnol)
 		{
@@ -51,12 +53,28 @@ class Col_Logger {
 			std::cerr << " --params=[" << kernel.name;
 			for (int i = 0; i < kernel.args.size(); i++)
 			{
-				std::cerr << ",";
-				if (kernel.args[i].data != NULL)
-					for (int j = kernel.args[i].size - 1; j >= 0 ; j--)
-						fprintf(stderr, "%02X", ((unsigned char*) kernel.args[i].data)[j]);
-				else
-					fprintf(stderr, "%hhX", 0);
+				if (kernel.args[i].data != NULL && kernel.args[i].size < sizeof(cl_mem) || (std::find(buffers.begin(), buffers.end(), (cl_mem)kernel.args[i].data) != buffers.end())) { // We assume that a cl_mem pointer is unlikely to be aliased by any of the scalar parameters
+					std::cerr << ",";
+					switch (kernel.args[i].size) {
+						case 1:
+							std::cerr << (uint8_t) kernel.args[i].size;
+							break;
+						case 2:
+							std::cerr << (uint16_t) kernel.args[i].size;
+							break;
+						case 4:
+							std::cerr << (uint32_t) kernel.args[i].size;
+							break;
+						case 8:
+							std::cerr << (uint64_t) kernel.args[i].size;
+							break;
+						default:
+							std::cerr << "0x";
+							for (int j = kernel.args[i].size - 1; j >= 0 ; j--)
+								fprintf(stderr, "%02X", ((unsigned char*) kernel.args[i].data)[j]);
+							break;
+					}
+				}
 			}
 			std::cerr << "]";
 
@@ -112,12 +130,7 @@ cl_mem clCreateBuffer_hook (cl_context context,
                             cl_int *errcode_ret)
 {
 	cl_mem mem = clCreateBuffer(context, flags, size, host_ptr, errcode_ret);
-	/*
-	struct mem_data data;
-	data.size = size;
-	data.flags = flags;
-	mem_datas[mem] = data;
-	*/
+	singleton().buffers.push_back(mem);
   return mem;
 }
 
