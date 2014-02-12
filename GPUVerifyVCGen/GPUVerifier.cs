@@ -549,7 +549,7 @@ namespace GPUVerify
                 EmitProgram(outputFilename + "_merged_pre_predication");
             }
 
-            if (GPUVerifyVCGenCommandLineOptions.WarpSync)
+            if (GPUVerifyVCGenCommandLineOptions.WarpSync && GPUVerifyVCGenCommandLineOptions.WarpMethod.Equals("resync"))
             {
               AddWarpSyncs();
             }
