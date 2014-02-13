@@ -543,28 +543,30 @@ def showHelpAndExit():
                 =[X,Y]      or 3D and specify size for each
                 =[X,Y,Z]    dimension. This corresponds to the
                             `local_work_size` parameter of
-                            clEnqueueNDRangeKernel().
+                            clEnqueueNDRangeKernel(). Use 0 for an
+                            unconstrained value.
                 
     To specify the size of the NDRange one of the following two
     mutually exclusive options can be used.
 
     --num_groups=X          Specify whether grid of work-groups is
                 =[X,Y]      1D, 2D or 3D and specify size for each
-                =[X,Y,Z]    dimension
+                =[X,Y,Z]    dimension. Use 0 for an unconstrained value.
 
     --global_size=X         Specifiy whether the NDRange is 1D, 2D
                  =[X,Y]     or 3D and specify size for each
                  =[X,Y,Z]   dimension. This corresponds to the 
                             `global_work_size` parameter of
-                            clEnqueueNDRangeKernel(). 
+                            clEnqueueNDRangeKernel(). Use 0 for an
+                            unconstrained value.
 
   CUDA OPTIONS
     --blockDim=X            Specify whether thread block is 1D, 2D
-                =[X,Y]      or 3D and specify size for each
-                =[X,Y,Z]    dimension
+              =[X,Y]        or 3D and specify size for each
+              =[X,Y,Z]      dimension. Use 0 for an unconstrained value.
     --gridDim=X             Specify whether grid of thread blocks is
-                =[X,Y]      1D, 2D or 3D and specify size for each
-                =[X,Y,Z]    dimension
+              =[X,Y]        1D, 2D or 3D and specify size for each
+              =[X,Y,Z]      dimension. Use 0 for an unconstrained value.
   """.format(**stringReplacements))
   raise GPUVerifyException(ErrorCodes.SUCCESS)
 
@@ -849,8 +851,8 @@ def processOpenCLOptions(opts, args):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
-        if CommandLineOptions.groupSize[i] <= 0:
-          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for local_size dimensions must be positive")
+        if CommandLineOptions.groupSize[i] < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for local_size dimensions must be non-negative (0 = unconstrained)")
     if o == "--num_groups":
       if CommandLineOptions.numGroups != []:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define num_groups multiple times")
@@ -861,16 +863,16 @@ def processOpenCLOptions(opts, args):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
-        if CommandLineOptions.numGroups[i] <= 0:
-          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for num_groups dimensions must be positive")
+        if CommandLineOptions.numGroups[i] < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for num_groups dimensions must be non-negative (0 = unconstrained)")
     if o == "--global_size":
-      if CommandLineOptions.numGroups != []:
+      if CommandLineOptions.numGroups != [] or deferNumGroupCalc:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define global_size multiple times")
       try:
         global_size = processVector(a)
         for i in range(0, len(global_size)):
-          if global_size[i] <= 0:
-            raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for global_size dimensions must be positive")
+          if global_size[i] < 0:
+            raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for global_size dimensions must be non-negative (0 = unconstrained)")
 
         # We can't calculate CommandLineOptions.numGroups yet
         # because --local_size might not of been parsed yet.
@@ -915,8 +917,8 @@ def processCUDAOptions(opts, args):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
-        if CommandLineOptions.groupSize[i] <= 0:
-          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for blockDim must be positive")
+        if CommandLineOptions.groupSize[i] < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for blockDim must be non-negative (0 = unconstrained)")
     if o == "--gridDim":
       if CommandLineOptions.numGroups != []:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define gridDim multiple times")
@@ -927,8 +929,8 @@ def processCUDAOptions(opts, args):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
-        if CommandLineOptions.numGroups[i] <= 0:
-          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for gridDim must be positive")
+        if CommandLineOptions.numGroups[i] < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for gridDim must be non-negative (0 = unconstrained)")
 
   if CommandLineOptions.groupSize == []:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "thread block size must be specified via --blockDim=...")
