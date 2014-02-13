@@ -53,20 +53,20 @@ class Col_Logger {
 			std::cerr << " --params=[" << kernel.name;
 			for (int i = 0; i < kernel.args.size(); i++)
 			{
-				if (kernel.args[i].data != NULL && kernel.args[i].size < sizeof(cl_mem) || (std::find(buffers.begin(), buffers.end(), (cl_mem)kernel.args[i].data) != buffers.end())) { // We assume that a cl_mem pointer is unlikely to be aliased by any of the scalar parameters
+				if (kernel.args[i].data != NULL && kernel.args[i].size < sizeof(cl_mem) || (std::find(buffers.begin(), buffers.end(), *(cl_mem*)kernel.args[i].data) == buffers.end())) { // We assume that a cl_mem pointer is unlikely to be aliased by any of the scalar parameters
 					std::cerr << ",";
 					switch (kernel.args[i].size) {
 						case 1:
-							std::cerr << (uint8_t) kernel.args[i].size;
+							std::cerr << *(uint8_t*) kernel.args[i].data;
 							break;
 						case 2:
-							std::cerr << (uint16_t) kernel.args[i].size;
+							std::cerr << *(uint16_t*) kernel.args[i].data;
 							break;
 						case 4:
-							std::cerr << (uint32_t) kernel.args[i].size;
+							std::cerr << *(uint32_t*) kernel.args[i].data;
 							break;
 						case 8:
-							std::cerr << (uint64_t) kernel.args[i].size;
+							std::cerr << *(uint64_t*) kernel.args[i].data;
 							break;
 						default:
 							std::cerr << "0x";
