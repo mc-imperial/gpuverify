@@ -2,14 +2,21 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <string.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #else
 #include <CL/cl.h>
 #endif
+
+using namespace std;
 
 struct arg_data {
 	size_t size;
@@ -31,63 +38,74 @@ class Col_Logger {
 		std::map<cl_program, std::string> options;
 		std::map<cl_kernel, struct kernel_data> kernels;
 		std::vector<cl_mem> buffers;
+		unsigned int counter;
 
 		void dump(cl_kernel karnol)
 		{
 			struct kernel_data kernel = kernels[karnol];
-			std::cerr << "GPUVerify args:" << std::endl;
-			std::cerr << " --local_size=[";
-			std::cerr << kernel.local_size[0];
+			struct stat st = {0};
+			if (stat(".gpuverify", &st) == -1) {
+				mkdir(".gpuverify",0700);
+			}
+
+			string num = static_cast<ostringstream*>( &(ostringstream() << counter) )->str();
+			counter++;
+			ofstream fs;
+			fs.open((string(".gpuverify/") + kernel.name + num).c_str(), ofstream::out);
+
+			fs << "GPUVerify args:" << std::endl;
+			fs << "--local_size=[";
+			fs << kernel.local_size[0];
 			if (kernel.dimension > 1)
 				for (int i = 1; i < kernel.dimension; i++)
-					std::cerr << "," << kernel.local_size[i];
-			std::cerr << "]";
+					fs << "," << kernel.local_size[i];
+			fs << "]";
 
-			std::cerr << " --num_groups=[";
-			std::cerr << kernel.global_size[0]/kernel.local_size[0];
+			fs << " --num_groups=[";
+			fs << kernel.global_size[0]/kernel.local_size[0];
 			if (kernel.dimension > 1)
 				for (int i = 1; i < kernel.dimension; i++)
-					std::cerr << "," << kernel.global_size[i]/kernel.local_size[i];
-			std::cerr << "]";
+					fs << "," << kernel.global_size[i]/kernel.local_size[i];
+			fs << "]";
 
-			std::cerr << " --params=[" << kernel.name;
+			fs << " --params=[" << kernel.name;
 			for (int i = 0; i < kernel.args.size(); i++)
 			{
 				if (kernel.args[i].data != NULL && kernel.args[i].size < sizeof(cl_mem) || (std::find(buffers.begin(), buffers.end(), *(cl_mem*)kernel.args[i].data) == buffers.end())) { // We assume that a cl_mem pointer is unlikely to be aliased by any of the scalar parameters
-					std::cerr << ",";
+					fs << ",";
 					switch (kernel.args[i].size) {
 						case 1:
-							std::cerr << *(uint8_t*) kernel.args[i].data;
+							fs << *(uint8_t*) kernel.args[i].data;
 							break;
 						case 2:
-							std::cerr << *(uint16_t*) kernel.args[i].data;
+							fs << *(uint16_t*) kernel.args[i].data;
 							break;
 						case 4:
-							std::cerr << *(uint32_t*) kernel.args[i].data;
+							fs << *(uint32_t*) kernel.args[i].data;
 							break;
 						case 8:
-							std::cerr << *(uint64_t*) kernel.args[i].data;
+							fs << *(uint64_t*) kernel.args[i].data;
 							break;
 						default:
-							std::cerr << "0x";
+							fs << "0x";
 							for (int j = kernel.args[i].size - 1; j >= 0 ; j--)
 								fprintf(stderr, "%02X", ((unsigned char*) kernel.args[i].data)[j]);
 							break;
 					}
 				}
 			}
-			std::cerr << "]";
+			fs << "]";
 
-			std::cerr << std::endl;
+			fs << std::endl;
 
-			std::cerr << "options:" << std::endl;
-			std::cerr << options[kernel.program];
-			std::cerr << std::endl;
+			fs << "options:" << std::endl;
+			fs << options[kernel.program];
+			fs << std::endl;
 
-			std::cerr << "code:" << std::endl;
+			fs << "code:" << std::endl;
 			std::vector<std::string> code = programs[kernel.program];
 			for (int i = 0; i < code.size(); i++)
-				std::cerr << code[i];
+				fs << code[i];
 		}
 
 		void dump(void)

@@ -1,0 +1,50 @@
+#!/usr/bin/python
+
+import os
+import sys
+import subprocess
+import re
+
+host = sys.argv[1:]
+
+kernels = {}
+
+class KernelInterceptorRun(object):
+	def __init__(self,args,options):
+		self.args = args
+		self.options = options
+
+	def __eq__(self,other):
+		return self.options == other.options and set(self.args) == set(other.args)
+
+	def __hash__(self):
+		return (hash(tuple(self.args)) ^ hash(self.options))
+
+def parse(text):
+		args_offset = text.index('GPUVerify args:')
+		options_offset = text.index('options:')
+		code_offset = text.index('code:')
+
+		args = text[args_offset+1].split(' ')
+		options = ' '.join(text[options_offset+1:code_offset])
+		code = '\n'.join(text[code_offset+1:])
+
+		return (code,KernelInterceptorRun(args,options))
+
+p = subprocess.Popen(host)
+p.wait()
+
+for path, subdirs, files in os.walk(".gpuverify"):
+	for file in files:
+		code,run = parse([x.rstrip() for x in open(path + "/" + file).readlines()])
+		if code not in kernels:
+			kernels[code] = []
+		kernels[code].append(run)
+
+for k, v in kernels.iteritems():
+	print "For kernel:"
+	print k
+	print "Invoked ", len(v), " times, got:"
+	for i in set(v):
+		print i.options
+		print i.args
