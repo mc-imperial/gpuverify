@@ -239,11 +239,6 @@ Replace as appropriate or setup an environment variable.::
 
      $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
 
-   You can also check that your CVC4 test run matches the current CVC4 baseline.
-   ::
-
-     $ ./gvtester.py --compare-pickle testsuite/baseline_cvc4.pickle run.pickle
-
    You should expect the last line of output to be.::
 
      INFO:testsuite/baseline.pickle = new.pickle
@@ -452,11 +447,6 @@ Replace as appropriate or setup an environment variable.::
 
      $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
 
-   You can also check that your CVC4 test run matches the current CVC4 baseline.
-   ::
-
-     $ ./gvtester.py --compare-pickle testsuite/baseline_cvc4.pickle run.pickle
-
    You should expect the last line of output to be.::
 
      INFO:testsuite/baseline.pickle = new.pickle
@@ -653,11 +643,6 @@ drives.
 
      $ .\gvtester.py --compare-pickle testsuite\baseline.pickle run.pickle
 
-   You can also check that your CVC4 test run matches the current CVC4 baseline.
-   ::
-
-     $ .\gvtester.py --compare-pickle testsuite\baseline_cvc4.pickle run.pickle
-
    You should expect the last line of output to be::
 
      INFO:testsuite/baseline.pickle = new.pickle
@@ -783,7 +768,6 @@ Here is a more concrete example
     {
       //...
     }
-
 
 
 Pickle format
