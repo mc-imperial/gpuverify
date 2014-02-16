@@ -88,7 +88,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --prefix=${BUILD_ROOT}/libclc/install \
-                      nvptx--bugle
+                      nvptx-- nvptx64--
      $ make
      $ make install
 
@@ -289,26 +289,15 @@ Replace as appropriate or setup an environment variable.::
 
    where ``N`` is the number of jobs to run in parallel.
 
-#. Get libclc::
+#. Get libclc and build::
 
      $ cd ${BUILD_ROOT}
      $ git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}/libclc/src
      $ cd libclc/src
-
-   It is necessary to patch the ``configure.py`` file. Find the line::
-
-     'nvptx--nvidiacl'   : { 'devices' : [{'gpu' : '', 'aliases' : []}] },
-
-   and insert after it the following new line::
-
-     'nvptx--bugle'      : { 'devices' : [{'gpu' : '', 'aliases' : []}] },
-
-   Now build libclc::
-
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --with-cxx-compiler=c++ \
                       --prefix=${BUILD_ROOT}/libclc/install \
-                      nvptx--bugle
+                      nvptx-- nvptx64--
      $ make
      $ make install
 
