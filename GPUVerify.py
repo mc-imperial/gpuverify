@@ -1231,7 +1231,7 @@ def _main(argv):
   if not CommandLineOptions.skip["vcgen"]:
     RunTool("gpuverifyvcgen",
             (["mono"] if os.name == "posix" else []) +
-            [gvfindtools.gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
+            [gvfindtools.gpuVerifyBinDir + "/GPUVerifyVCGen.exe"] +
             CommandLineOptions.gpuVerifyVCGenOptions,
             ErrorCodes.GPUVERIFYVCGEN_ERROR,
             CommandLineOptions.componentTimeout)
@@ -1243,7 +1243,7 @@ def _main(argv):
     if not CommandLineOptions.skip["cruncher"]:
       RunTool("gpuverifycruncher",
               (["mono"] if os.name == "posix" else []) +
-              [gvfindtools.gpuVerifyCruncherBinDir + os.sep + "GPUVerifyCruncher.exe"] +
+              [gvfindtools.gpuVerifyBinDir + os.sep + "GPUVerifyCruncher.exe"] +
               CommandLineOptions.gpuVerifyCruncherOptions,
               ErrorCodes.BOOGIE_ERROR,
               CommandLineOptions.componentTimeout)
@@ -1253,7 +1253,7 @@ def _main(argv):
   """ RUN GPUVERIFYBOOGIEDRIVER """
   RunTool("gpuverifyboogiedriver",
           (["mono"] if os.name == "posix" else []) +
-          [gvfindtools.gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver.exe"] +
+          [gvfindtools.gpuVerifyBinDir + "/GPUVerifyBoogieDriver.exe"] +
           CommandLineOptions.gpuVerifyBoogieDriverOptions,
           ErrorCodes.BOOGIE_ERROR,
           CommandLineOptions.componentTimeout)

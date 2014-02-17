@@ -174,46 +174,44 @@ Replace as appropriate or setup an environment variable.::
 
       rootDir = "${BUILD_ROOT}" #< CHANGE THIS PATH
 
-      #The path to the Bugle Source directory. The include-blang/ folder should be in there
+      # The path to the Bugle Source directory.
+      # The include-blang/ folder should be there
       bugleSrcDir = rootDir + "/bugle/src"
 
-      #The Path to the directory where the "bugle" executable can be found.
+      # The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
 
-      #The path to the libclc Source directory.
+      # The path to the libclc Source directory.
       libclcSrcDir = rootDir + "/libclc/src"
 
-      #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
+      # The path to the libclc install directory.
+      # The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + "/libclc/install"
 
-      #The path to the llvm Source directory.
+      # The path to the llvm Source directory.
       llvmSrcDir = rootDir + "/llvm_and_clang/src"
 
-      #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
+      # The path to the directory containing the llvm binaries.
+      # llvm-nm, clang and opt should be there
       llvmBinDir = rootDir + "/llvm_and_clang/build/bin"
 
-      #The path containing the llvm libraries
+      # The path containing the llvm libraries
       llvmLibDir = rootDir + "/llvm_and_clang/build/lib"
 
-      #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
+      # The path to the directory containing the GPUVerify binaries.
+      # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
+      gpuVerifyBinDir = rootDir + "/gpuverify/Binaries"
 
-      #The path to the directory containing GPUVerifyCruncher.exe
-      gpuVerifyCruncherBinDir = rootDir + "/gpuverify/Binaries"
-
-      #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
-
-      #The path to the z3 Source directory.
+      # The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
 
-      #The path to the directory containing z3.exe
+      # The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
 
-      #The path to the cvc4 Source directory.
+      # The path to the cvc4 Source directory.
       cvc4SrcDir = rootDir + "/CVC4/src"
 
-      #The path to the directory containing cvc4.exe
+      # The path to the directory containing cvc4.exe
       cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
@@ -382,46 +380,44 @@ Replace as appropriate or setup an environment variable.::
 
       rootDir = "${BUILD_ROOT}" #< CHANGE THIS PATH
 
-      #The path to the Bugle Source directory. The include-blang/ folder should be in there
+      # The path to the Bugle Source directory.
+      # The include-blang/ folder should be there
       bugleSrcDir = rootDir + "/bugle/src"
 
-      #The Path to the directory where the "bugle" executable can be found.
+      # The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + "/bugle/build"
 
-      #The path to the libclc Source directory.
+      # The path to the libclc Source directory.
       libclcSrcDir = rootDir + "/libclc/src"
 
-      #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
+      # The path to the libclc install directory.
+      # The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + "/libclc/install"
 
-      #The path to the llvm Source directory.
+      # The path to the llvm Source directory.
       llvmSrcDir = rootDir + "/llvm_and_clang/src"
 
-      #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
+      # The path to the directory containing the llvm binaries.
+      # llvm-nm, clang and opt should be there
       llvmBinDir = rootDir + "/llvm_and_clang/build/bin"
 
-      #The path containing the llvm libraries
+      # The path containing the llvm libraries
       llvmLibDir = rootDir + "/llvm_and_clang/build/lib"
 
-      #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + "/gpuverify/Binaries"
+      # The path to the directory containing the GPUVerify binaries.
+      # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
+      gpuVerifyBinDir = rootDir + "/gpuverify/Binaries"
 
-      #The path to the directory containing GPUVerifyCruncher.exe
-      gpuVerifyCruncherBinDir = rootDir + "/gpuverify/Binaries"
-
-      #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + "/gpuverify/Binaries"
-
-      #The path to the z3 Source directory.
+      # The path to the z3 Source directory.
       z3SrcDir = rootDir + "/z3"
 
-      #The path to the directory containing z3.exe
+      # The path to the directory containing z3.exe
       z3BinDir = rootDir + "/z3/build"
 
-      #The path to the cvc4 Source directory.
+      # The path to the cvc4 Source directory.
       cvc4SrcDir = rootDir + "/CVC4/src"
 
-      #The path to the directory containing cvc4.exe
+      # The path to the directory containing cvc4.exe
       cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
@@ -581,43 +577,41 @@ drives.
 
       rootDir = r"${BUILD_ROOT}" #< CHANGE THIS PATH
 
-      #The path to the Bugle Source directory. The include-blang/ folder should be in there
+      # The path to the Bugle Source directory.
+      # The include-blang/ folder should be there
       bugleSrcDir = rootDir + r"\bugle\src"
 
-      #The Path to the directory where the "bugle" executable can be found.
+      # The Path to the directory where the "bugle" executable can be found.
       bugleBinDir = rootDir + r"\bugle\build\Release"
 
-      #The path to the libclc Source directory.
+      # The path to the libclc Source directory.
       libclcSrcDir = rootDir + r"\libclc\src"
 
-      #The path to the libclc install directory. The include/ and lib/clc/ folders should be there
+      # The path to the libclc install directory.
+      # The include/ and lib/clc/ folders should be there
       libclcInstallDir = rootDir + r"\libclc\install"
 
-      #The path to the llvm Source directory.
+      # The path to the llvm Source directory.
       llvmSrcDir = rootDir + r"\llvm_and_clang\src"
 
-      #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
+      # The path to the directory containing the llvm binaries.
+      # llvm-nm, clang and opt should be there
       llvmBinDir = rootDir + r"\llvm_and_clang\build\bin\Release"
 
-      #The path containing the llvm libraries
+      # The path containing the llvm libraries
       llvmLibDir = rootDir + r"\llvm_and_clang\build\lib"
 
-      #The path to the directory containing GPUVerifyVCGen.exe
-      gpuVerifyVCGenBinDir = rootDir + r"\gpuverify\Binaries"
+      # The path to the directory containing the GPUVerify binaries.
+      # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
+      gpuVerifyBinDir = rootDir + r"\gpuverify\Binaries"
 
-      #The path to the directory containing GPUVerifyCruncher.exe
-      gpuVerifyCruncherBinDir = rootDir + r"\gpuverify\Binaries"
-
-      #The path to the directory containing GPUVerifyBoogieDriver.exe
-      gpuVerifyBoogieDriverBinDir = rootDir + r"\gpuverify\Binaries"
-
-      #The path to the z3 Source directory.
+      # The path to the z3 Source directory.
       z3SrcDir = rootDir + r"\z3"
 
-      #The path to the directory containing z3.exe
+      # The path to the directory containing z3.exe
       z3BinDir = rootDir + r"\z3\build"
 
-      #The path to the directory containing cvc4.exe
+      # The path to the directory containing cvc4.exe
       cvc4BinDir = rootDir + r"\cvc4\build"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
@@ -769,7 +763,6 @@ Here is a more concrete example
       //...
     }
 
-
 Pickle format
 -------------
 ``gvtester.py`` is capable of storing information about executed tests in the
@@ -784,19 +777,15 @@ A pickle file ``testsuite/baseline.pickle`` is provided which should record
 ``gvtester.py`` being run on ``testsuite`` in the repository. It is intended
 to be a point of reference for developers so they can see if their changes have
 broken anything. If you modify something in GPUVerify or add a new test you
-should re-generate the baseline.
+should re-generate the baseline.::
 
-::
-
-  $ ./gvtester.py --write-pickle ./new-baseline testsuite
-  $ ./gvtester.py -c testsuite/baseline.pickle ./new-baseline
+  $ ./gvtester.py --write-pickle ./new-baseline.pickle testsuite
+  $ ./gvtester.py -c testsuite/baseline.pickle ./new-baseline.pickle
 
 If the comparison looks good and you haven't broken anything then go ahead and
-replace the baseline pickle file.
+replace the baseline pickle file.::
 
-::
-
-  $ mv ./new-baseline testsuite/baseline.pickle
+  $ mv ./new-baseline.pickle testsuite/baseline.pickle
 
 Canonical path prefix
 ---------------------
