@@ -22,6 +22,7 @@ namespace GPUVerify
   {
     public static List<string> inputFiles = new List<string>();
     public static string outputFile = null;
+    public static bool InvertedTracking = false;
     public static bool DebugGPUVerify = false;
     public static bool OnlyDivergence = false;
     public static bool AdversarialAbstraction = false;
@@ -99,6 +100,11 @@ namespace GPUVerify
             Console.WriteLine("Error: first parameter must be kernel name.");
             Environment.Exit(1);
           }
+          break;
+          
+          case "-invertedTracking":
+        case "/invertedTracking":
+            InvertedTracking = true;
           break;
 
           case "-help":

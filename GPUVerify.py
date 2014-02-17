@@ -235,6 +235,7 @@ class DefaultCmdLineOptions(object):
     self.silent = False
     self.groupSize = []
     self.numGroups = []
+    self.invertedTracking = False
     self.adversarialAbstraction = False
     self.equalityAbstraction = False
     self.loopUnwindDepth = 2
@@ -471,6 +472,8 @@ def showHelpAndExit():
                             threads, at barriers
     --math-int              Represent integer types using mathematical integers
                             instead of bit-vectors
+    --inverted-tracking     Use do_not_track instead of track. This may result in
+                            faster detection of races
     --no-annotations        Ignore all source-level annotations
     --only-requires         Ignore all source-level annotations except for requires
     --no-barrier-access-checks      Turn off access checks for barrier invariants
@@ -654,6 +657,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.silent = True
     if o == "--no-benign":
       CommandLineOptions.noBenign = True
+    if o == "--inverted-tracking":
+      CommandLineOptions.invertedTracking = True
     if o == "--only-divergence":
       CommandLineOptions.onlyDivergence = True
     if o == "--only-intra-group":
@@ -978,7 +983,7 @@ def _main(argv):
               'warp-sync=', 'no-warp', 'only-warp',
               'atomic=', 'no-refined-atomics',
               'solver=', 'logic=', 'race-instrumenter=', 'omit-infer=',
-              '32-bit', '64-bit'
+              '32-bit', '64-bit', 'inverted-tracking'
              ])
   except getopt.GetoptError as getoptError:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, getoptError.msg + ".  Try --help for list of options")
@@ -1113,6 +1118,8 @@ def _main(argv):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSmartPredication" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
+  if CommandLineOptions.invertedTracking:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/invertedTracking" ]
   if CommandLineOptions.asymmetricAsserts:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/asymmetricAsserts" ]
   if CommandLineOptions.stagedInference:
