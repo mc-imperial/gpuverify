@@ -38,7 +38,7 @@ namespace Microsoft.Boogie
     public bool IsTrusted { get { return this.isTrusted; } }
     public Houdini.ConcurrentHoudini Houdini { get { return this.houdini; } }
 
-    public StaticRefutationEngine(int id, string name, string solver, string errorLimit, string disableLEI,
+    public StaticRefutationEngine(int id, string name, string errorLimit, string disableLEI,
                                   string disableLMI, string modifyTSO, string loopUnroll)
     {
       this.id = id;
@@ -56,14 +56,10 @@ namespace Microsoft.Boogie
       CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
       
-      if (solver.Equals("option-defined")) {
-        if (CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4"))
-          this.solver = "cvc4";
-        else
-          this.solver = "Z3";
-      } else if (solver.Equals("cvc4")) {
-        CommandLineOptions.Clo.Cho[id].ProverOptions.Add("SOLVER=cvc4");
-      }
+      if (CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4"))
+        this.solver = "cvc4";
+      else
+        this.solver = "Z3";
 
       foreach (var opt in CommandLineOptions.Clo.ProverOptions) {
         if ((this.solver.Equals("Z3") && !opt.Contains("LOGIC=")) ||
@@ -197,7 +193,7 @@ namespace Microsoft.Boogie
     }
 
     /// <summary>
-    /// Prints the configuration options of the Static Refutation Engine.
+        /// Prints the configuration options of the Dynamic Refutation Engine.
     /// </summary>
     public override void printConfig()
     {

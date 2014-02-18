@@ -49,7 +49,6 @@ namespace Microsoft.Boogie
       // Initialise static refutation engines
       foreach (KeyValuePair<string, string> kvp in staticEngines) {
         refutationEngines.Add(new StaticRefutationEngine(idCounter, kvp.Value,
-                                                         config.getValue(kvp.Value, "Solver"),
                                                          config.getValue(kvp.Value, "ErrorLimit"),
                                                          config.getValue(kvp.Value, "DisableLEI"),
                                                          config.getValue(kvp.Value, "DisableLMI"),
@@ -314,9 +313,6 @@ namespace Microsoft.Boogie
           value = info[key1][key2];
         } else {
           switch (key2) {
-          case "Solver":
-            value = "option-defined";
-            break;
           case "ErrorLimit":
             value = "20";
             break;
