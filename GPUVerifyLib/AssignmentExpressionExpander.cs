@@ -20,7 +20,7 @@ namespace GPUVerify
 
  public class AssignmentExpressionExpander
  {
-  private static Regex TEMP_VARIABLE = new Regex("v[0-9]+$");
+  private static Regex TEMP_VARIABLE = new Regex("^v[0-9]+$");
   private static Regex GPU_VARIABLE = new Regex("(local|global)_id_(x|y|z)$");
   
   private Graph<Block> cfg;

@@ -17,9 +17,7 @@ libclcInstallDir = None
 llvmSrcDir = None
 llvmBinDir = None
 llvmLibDir = None
-gpuVerifyVCGenBinDir = None
-gpuVerifyCruncherBinDir = None
-gpuVerifyBoogieDriverBinDir = None
+gpuVerifyBinDir = None
 z3SrcDir = None
 z3BinDir = None
 cvc4SrcDir=None
@@ -30,46 +28,44 @@ def init(pathPrefix):
 
   global bugleSrcDir, bugleBinDir, libclcSrcDir, libclcInstallDir
   global llvmSrcDir, llvmBinDir, llvmLibDir
-  global gpuVerifyVCGenBinDir, gpuVerifyCruncherBinDir, gpuVerifyBoogieDriverBinDir
+  global gpuVerifyBinDir
   global z3SrcDir, z3BinDir, cvc4SrcDir, cvc4BinDir
-  #The path to the Bugle Source directory. The include-blang/ folder should be in there
+  # The path to the Bugle Source directory.
+  # The include-blang/ folder should be there
   bugleSrcDir = pathPrefix + os.sep + "bugle"
 
-  #The Path to the directory where the "bugle" executable can be found.
+  # The Path to the directory where the "bugle" executable can be found.
   bugleBinDir = pathPrefix + os.sep + "bin"
 
-  #The path to the libclc Source directory. Not used in the deployed setting
+  # The path to the libclc Source directory. Not used in the deployed setting
   libclcInstallDir = pathPrefix + os.sep + "libclc"
 
-  #The path to the directory where libclc can be found. The include/ and lib/clc/ folders should be there
+  # The path to the directory where libclc can be found.
+  # The include/ and lib/clc/ folders should be there
   libclcInstallDir = pathPrefix + os.sep + "libclc"
 
-  #The path to the llvm Source directory. Not used in the deployed setting
+  # The path to the llvm Source directory. Not used in the deployed setting
   llvmSrcDir = pathPrefix + os.sep + "llvm"
 
-  #The path to the directory containing the llvm binaries. llvm-nm, clang and opt should be in there
+  # The path to the directory containing the llvm binaries.
+  # llvm-nm, clang and opt should be there
   llvmBinDir = pathPrefix + os.sep + "bin"
 
-  #The path containing the llvm libraries
+  # The path containing the llvm libraries
   llvmLibDir = pathPrefix + os.sep + "lib"
 
-  #The path to the directory containing GPUVerifyVCGen.exe
-  gpuVerifyVCGenBinDir = pathPrefix + os.sep + "bin"
-  
-  #The path to the directory containing gpuVerifyCruncher.exe
-  gpuVerifyCruncherBinDir = pathPrefix + os.sep + "bin"
+  # The path to the directory containing the GPUVerify binaries.
+  # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
+  gpuVerifyBinDir = pathPrefix + os.sep + "bin"
 
-  #The path to the directory containing GPUVerifyBoogieDriver.exe
-  gpuVerifyBoogieDriverBinDir = pathPrefix + os.sep + "bin"
-
-  #The path to the z3 Source directory. Not used in the deployed setting
+  # The path to the z3 Source directory. Not used in the deployed setting
   z3SrcDir = pathPrefix + os.sep + "z3"
 
-  #The path to the directory containing z3.exe
+  # The path to the directory containing z3.exe
   z3BinDir = pathPrefix + os.sep + "bin"
 
-  #The path to the cvc4 Source directory. Not used in the deployed setting
+  # The path to the cvc4 Source directory. Not used in the deployed setting
   cvc4SrcDir = pathPrefix + os.sep + "cvc4"
 
-  #The path to the directory containing cvc4.exe
+  # The path to the directory containing cvc4.exe
   cvc4BinDir = pathPrefix + os.sep + "bin"

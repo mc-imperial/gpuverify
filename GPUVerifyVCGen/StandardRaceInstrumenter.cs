@@ -32,7 +32,10 @@ namespace GPUVerify
       Debug.Assert(!(mt.Result is MapType));
 
       List<Variable> locals = new List<Variable>();
-      Variable TrackVariable = new LocalVariable(v.tok, new TypedIdent(v.tok, "track", Microsoft.Boogie.Type.Bool));
+      string TrackName = (GPUVerifyVCGenCommandLineOptions.InvertedTracking ?
+                              "do_not_track" : "track");
+      Variable TrackVariable = new LocalVariable(v.tok, 
+        new TypedIdent(v.tok, TrackName, Microsoft.Boogie.Type.Bool));
       locals.Add(TrackVariable);
 
       List<BigBlock> bigblocks = new List<BigBlock>();
@@ -40,13 +43,21 @@ namespace GPUVerify
       List<Cmd> simpleCmds = new List<Cmd>();
 
       if (GPUVerifyVCGenCommandLineOptions.OnlyWarp) {
-        simpleCmds.Add(AssignCmd.SimpleAssign(v.tok, Expr.Ident(TrackVariable), Expr.True));
+        // track := true
+        // Or equivalently: do_not_track := false
+        Expr rhs = (GPUVerifyVCGenCommandLineOptions.InvertedTracking ? 
+                    Expr.False : Expr.True);
+        simpleCmds.Add(AssignCmd.SimpleAssign(v.tok, Expr.Ident(TrackVariable), rhs));
       }
       else {
+        // Havoc tracking variable
         simpleCmds.Add(new HavocCmd(v.tok, new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
       }
 
-      Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter), new IdentifierExpr(v.tok, TrackVariable));
+      Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter),
+        (GPUVerifyVCGenCommandLineOptions.InvertedTracking ? 
+         Expr.Not(new IdentifierExpr(v.tok, TrackVariable)) : 
+                  new IdentifierExpr(v.tok, TrackVariable)));
 
       simpleCmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable,
           Condition, Expr.True));

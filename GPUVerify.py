@@ -235,6 +235,7 @@ class DefaultCmdLineOptions(object):
     self.silent = False
     self.groupSize = []
     self.numGroups = []
+    self.invertedTracking = False
     self.adversarialAbstraction = False
     self.equalityAbstraction = False
     self.loopUnwindDepth = 2
@@ -471,6 +472,8 @@ def showHelpAndExit():
                             threads, at barriers
     --math-int              Represent integer types using mathematical integers
                             instead of bit-vectors
+    --inverted-tracking     Use do_not_track instead of track. This may result in
+                            faster detection of races
     --no-annotations        Ignore all source-level annotations
     --only-requires         Ignore all source-level annotations except for requires
     --no-barrier-access-checks      Turn off access checks for barrier invariants
@@ -539,37 +542,31 @@ def showHelpAndExit():
     --k-induction-depth=X   Applies k-induction with k=X to all loops.
 
   OPENCL OPTIONS:
-    --local_size=X          Specify whether work-group is 1D, 2D
-                =[X,Y]      or 3D and specify size for each
-                =[X,Y,Z]    dimension. This corresponds to the
-                            `local_work_size` parameter of
-                            clEnqueueNDRangeKernel(). Use 0 for an
-                            unconstrained value.
-                
-    To specify the size of the NDRange one of the following two
-    mutually exclusive options can be used.
-
-    --num_groups=X          Specify whether grid of work-groups is
-                =[X,Y]      1D, 2D or 3D and specify size for each
-                =[X,Y,Z]    dimension. Use * for an unconstrained
+    --local_size=X          Specify whether work-group is 1D, 2D or 3D and
+                =[X,Y]      specify size for each dimension. This corresponds
+                =[X,Y,Z]    to the 'local_work_size` parameter of
+                            clEnqueueNDRangeKernel. Use * for an unconstrained
                             value.
 
-    --global_size=X         Specifiy whether the NDRange is 1D, 2D
-                 =[X,Y]     or 3D and specify size for each
-                 =[X,Y,Z]   dimension. This corresponds to the 
-                            `global_work_size` parameter of
-                            clEnqueueNDRangeKernel(). Use * for an
-                            unconstrained value.
+    To specify the size of the NDRange one of the following two mutually
+    exclusive options can be used.
+
+    --num_groups=X          Specify whether grid of work-groups is 1D, 2D or 3D
+                =[X,Y]      and specify size for each dimension. Use * for an
+                =[X,Y,Z]    unconstrained value.
+    --global_size=X         Specifiy whether the NDRange is 1D, 2D or 3D and
+                 =[X,Y]     specify size for each dimension. This corresponds
+                 =[X,Y,Z]   to the 'global_work_size' parameter of
+                            clEnqueueNDRangeKernel. Use * for an unconstrained
+                            value.
 
   CUDA OPTIONS
-    --blockDim=X            Specify whether thread block is 1D, 2D
-              =[X,Y]        or 3D and specify size for each
-              =[X,Y,Z]      dimension. Use * for an unconstrained
-                            value.
-    --gridDim=X             Specify whether grid of thread blocks is
-              =[X,Y]        1D, 2D or 3D and specify size for each
-              =[X,Y,Z]      dimension. Use * for an unconstrained
-                            value.
+    --blockDim=X            Specify whether thread block is 1D, 2D or 3D and
+              =[X,Y]        specify size for each dimension. Use * for an
+              =[X,Y,Z]      unconstrained value.
+    --gridDim=X             Specify whether grid of thread blocks is 1D, 2D or
+              =[X,Y]        3D and specify size for each dimension. Use * for
+              =[X,Y,Z]      an unconstrained value.
   """.format(**stringReplacements))
   raise GPUVerifyException(ErrorCodes.SUCCESS)
 
@@ -583,10 +580,8 @@ def processVector(vector):
   vector = vector.strip()
   if vector[0] == '[' and vector[-1] == ']':
     return list(map(parseAsIntOrAsterisk, vector[1:-1].split(",")))
-    # return list(vector[1:-1].split(","))
   else:
     return list(map(parseAsIntOrAsterisk, vector.split(",")))
-    # return list(vector.split(","))
 
 def GPUVerifyWarn(msg):
   print("GPUVerify: warning: " + msg)
@@ -662,6 +657,8 @@ def processGeneralOptions(opts, args):
       CommandLineOptions.silent = True
     if o == "--no-benign":
       CommandLineOptions.noBenign = True
+    if o == "--inverted-tracking":
+      CommandLineOptions.invertedTracking = True
     if o == "--only-divergence":
       CommandLineOptions.onlyDivergence = True
     if o == "--only-intra-group":
@@ -986,7 +983,7 @@ def _main(argv):
               'warp-sync=', 'no-warp', 'only-warp',
               'atomic=', 'no-refined-atomics',
               'solver=', 'logic=', 'race-instrumenter=', 'omit-infer=',
-              '32-bit', '64-bit'
+              '32-bit', '64-bit', 'inverted-tracking'
              ])
   except getopt.GetoptError as getoptError:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, getoptError.msg + ".  Try --help for list of options")
@@ -1006,9 +1003,9 @@ def _main(argv):
 
   CommandLineOptions.defines += [ '__BUGLE_' + str(CommandLineOptions.sizeSizeT) + '__' ]
   if (CommandLineOptions.sizeSizeT == 32):
-    CommandLineOptions.clangOptions += [ "-target", "nvptx--bugle" ]
+    CommandLineOptions.clangOptions += [ "-target", "nvptx--" ]
   elif (CommandLineOptions.sizeSizeT == 64):
-    CommandLineOptions.clangOptions += [ "-target", "nvptx64--bugle" ]
+    CommandLineOptions.clangOptions += [ "-target", "nvptx64--" ]
   else:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "unknown size_t size '" + str(CommandLineOptions.sizeSizeT) + "'")
 
@@ -1023,10 +1020,10 @@ def _main(argv):
     CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
     if (CommandLineOptions.sizeSizeT == 32):
       CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
-                                           "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--bugle.bc" ]
+                                           "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--.bc" ]
     elif (CommandLineOptions.sizeSizeT == 64):
       CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
-                                           "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx64--bugle.bc" ]
+                                           "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx64--.bc" ]
 
   elif ext == ".cu":
     CommandLineOptions.clangOptions += clangCUDAOptions
@@ -1121,6 +1118,8 @@ def _main(argv):
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noSmartPredication" ]
   if CommandLineOptions.noUniformityAnalysis:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/noUniformityAnalysis" ]
+  if CommandLineOptions.invertedTracking:
+    CommandLineOptions.gpuVerifyVCGenOptions += [ "/invertedTracking" ]
   if CommandLineOptions.asymmetricAsserts:
     CommandLineOptions.gpuVerifyVCGenOptions += [ "/asymmetricAsserts" ]
   if CommandLineOptions.stagedInference:
@@ -1238,7 +1237,7 @@ def _main(argv):
   if not CommandLineOptions.skip["vcgen"]:
     RunTool("gpuverifyvcgen",
             (["mono"] if os.name == "posix" else []) +
-            [gvfindtools.gpuVerifyVCGenBinDir + "/GPUVerifyVCGen.exe"] +
+            [gvfindtools.gpuVerifyBinDir + "/GPUVerifyVCGen.exe"] +
             CommandLineOptions.gpuVerifyVCGenOptions,
             ErrorCodes.GPUVERIFYVCGEN_ERROR,
             CommandLineOptions.componentTimeout)
@@ -1250,7 +1249,7 @@ def _main(argv):
     if not CommandLineOptions.skip["cruncher"]:
       RunTool("gpuverifycruncher",
               (["mono"] if os.name == "posix" else []) +
-              [gvfindtools.gpuVerifyCruncherBinDir + os.sep + "GPUVerifyCruncher.exe"] +
+              [gvfindtools.gpuVerifyBinDir + os.sep + "GPUVerifyCruncher.exe"] +
               CommandLineOptions.gpuVerifyCruncherOptions,
               ErrorCodes.BOOGIE_ERROR,
               CommandLineOptions.componentTimeout)
@@ -1260,7 +1259,7 @@ def _main(argv):
   """ RUN GPUVERIFYBOOGIEDRIVER """
   RunTool("gpuverifyboogiedriver",
           (["mono"] if os.name == "posix" else []) +
-          [gvfindtools.gpuVerifyBoogieDriverBinDir + "/GPUVerifyBoogieDriver.exe"] +
+          [gvfindtools.gpuVerifyBinDir + "/GPUVerifyBoogieDriver.exe"] +
           CommandLineOptions.gpuVerifyBoogieDriverOptions,
           ErrorCodes.BOOGIE_ERROR,
           CommandLineOptions.componentTimeout)

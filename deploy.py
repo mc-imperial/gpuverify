@@ -307,8 +307,7 @@ def main(argv):
   IfUsing('nt',FileCopy(GPUVerifyRoot, 'GPUVerify.bat', deployDir)),
   FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir),
   MoveFile(deployDir + os.sep + 'gvfindtoolsdeploy.py', deployDir + os.sep + 'gvfindtools.py'),
-  RegexFileCopy(gvfindtools.gpuVerifyBoogieDriverBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBoogieDriverBinDir),
-  RegexFileCopy(gvfindtools.gpuVerifyVCGenBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyVCGenBinDir),
+  RegexFileCopy(gvfindtools.gpuVerifyBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBinDir),
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
   DirCopy(os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite')),
   # llvm, clang
@@ -328,6 +327,7 @@ def main(argv):
   CreateFileFromString(licenseString, os.path.join(deployDir, "LICENSE.TXT"))
   ]
 
+  # solvers
   if args.solver in ['all','z3']:
     deployActions.extend([
       FileCopy(gvfindtools.z3SrcDir, 'LICENSE.txt', licenseDest),
@@ -339,7 +339,7 @@ def main(argv):
       FileCopy(gvfindtools.cvc4SrcDir, 'COPYING', licenseDest),
       MoveFile(licenseDest + os.sep + 'COPYING', licenseDest + os.sep + 'cvc4.txt'),
       FileCopy(gvfindtools.cvc4BinDir, 'cvc4.exe', gvfindtoolsdeploy.cvc4BinDir),
-      IfUsing('posix',StripFile(gvfindtoolsdeploy.cvc4BinDir + os.sep + 'cvc4.exe'))
+      IfUsing('posix', StripFile(gvfindtoolsdeploy.cvc4BinDir + os.sep + 'cvc4.exe'))
     ])
 
   for action in deployActions:

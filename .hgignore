@@ -66,3 +66,4 @@ utils/GPUVerifyRise4Fun/*-counter.pickle
 
 # GPUVerify error report dump
 __gvdump.txt
+Makefile
