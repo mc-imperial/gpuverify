@@ -110,6 +110,11 @@ namespace GPUVerify
             this.size_t_bits = GetSizeTBits();
             this.id_size_bits = GetIdSizeBits();
 
+            if (this.size_t_bits < this.id_size_bits) {
+              Console.WriteLine("GPUVerify: error: _SIZE_T_TYPE size cannot be smaller than group_size_x size");
+              Environment.Exit(1);
+            }
+
             Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
 
             CheckWellFormedness();
