@@ -391,6 +391,21 @@ def run(command,timeout=0):
   # We do not return stderr, as it was redirected to stdout
   return stdout, proc.returncode
 
+def getMonoCmdLine():
+  if os.name == 'posix':
+    # Check mono in path
+    import distutils.spawn
+    if distutils.spawn.find_executable('mono') == None:
+      raise GPUVerifyException(ErrorCodes.CONFIGURATION_ERROR, "Could not find the mono executable in your PATH")
+
+    if CommandLineOptions.debugging:
+      return [ 'mono' , '--debug' ]
+    else:
+      return ['mono']
+  else:
+    return [] # Presumably using Windows so don't need mono
+
+
 def RunTool(ToolName, Command, ErrorCode, timeout=0):
   """ Run a tool.
       If the timeout is set to 0 then there will be no timeout.
@@ -1236,7 +1251,7 @@ def _main(argv):
   """ RUN GPUVERIFYVCGEN """
   if not CommandLineOptions.skip["vcgen"]:
     RunTool("gpuverifyvcgen",
-            (["mono"] if os.name == "posix" else []) +
+            getMonoCmdLine() +
             [gvfindtools.gpuVerifyBinDir + "/GPUVerifyVCGen.exe"] +
             CommandLineOptions.gpuVerifyVCGenOptions,
             ErrorCodes.GPUVERIFYVCGEN_ERROR,
@@ -1248,7 +1263,7 @@ def _main(argv):
     """ RUN GPUVERIFYCRUNCHER """
     if not CommandLineOptions.skip["cruncher"]:
       RunTool("gpuverifycruncher",
-              (["mono"] if os.name == "posix" else []) +
+              getMonoCmdLine() +
               [gvfindtools.gpuVerifyBinDir + os.sep + "GPUVerifyCruncher.exe"] +
               CommandLineOptions.gpuVerifyCruncherOptions,
               ErrorCodes.BOOGIE_ERROR,
@@ -1258,7 +1273,7 @@ def _main(argv):
 
   """ RUN GPUVERIFYBOOGIEDRIVER """
   RunTool("gpuverifyboogiedriver",
-          (["mono"] if os.name == "posix" else []) +
+          getMonoCmdLine() +
           [gvfindtools.gpuVerifyBinDir + "/GPUVerifyBoogieDriver.exe"] +
           CommandLineOptions.gpuVerifyBoogieDriverOptions,
           ErrorCodes.BOOGIE_ERROR,
