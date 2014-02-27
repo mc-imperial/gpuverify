@@ -342,7 +342,9 @@ namespace GPUVerify
     verifier.ResContext.AddVariable(enabledVariable, true);
    }
    Expr invariantEnabled = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, enabledVariable)));
-   header.Cmds.Insert(0, verifier.Program.CreateCandidateInvariant(invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE));
+   PredicateCmd enabledPredicate = verifier.Program.CreateCandidateInvariant(invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
+   enabledPredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, enabledPredicate.Attributes);
+   header.Cmds.Insert(0, enabledPredicate);
    
    // Retrieve the variables read and written in the loop body
    var readVisitor = new VariablesOccurringInExpressionVisitor();
@@ -372,7 +374,9 @@ namespace GPUVerify
     Variable writeHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_WRITE_HAS_OCCURRED_" + found.Name);
     Debug.Assert(writeHasOccurredVariable != null);
     Expr writeHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, writeHasOccurredVariable)));
-    header.Cmds.Insert(0, verifier.Program.CreateCandidateInvariant(writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE));
+    PredicateCmd writePredicate = verifier.Program.CreateCandidateInvariant(writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
+    writePredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, writePredicate.Attributes);
+    header.Cmds.Insert(0, writePredicate);
    }
      
    // Invariant #3: Arrays in global or group-shared memory are not read
@@ -382,7 +386,9 @@ namespace GPUVerify
     Variable readHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_READ_HAS_OCCURRED_" + found.Name);
     Debug.Assert(readHasOccurredVariable != null);
     Expr readHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, readHasOccurredVariable)));
-    header.Cmds.Insert(0, verifier.Program.CreateCandidateInvariant(readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE));
+    PredicateCmd readPredicate = verifier.Program.CreateCandidateInvariant(readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
+    readPredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, readPredicate.Attributes);
+    header.Cmds.Insert(0, readPredicate);
    }
   }
 
