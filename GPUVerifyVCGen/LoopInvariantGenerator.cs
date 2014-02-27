@@ -176,16 +176,27 @@ namespace GPUVerify
 
   private static void GenerateCandidateForLoopBounds(GPUVerifier verifier, Implementation impl, IRegion region)
   {
+   HashSet<Variable> modifiedVariables = GetModifiedVariables(region);
+   // Get the partition variables associated with the header
    HashSet<Variable> partitionVars = region.PartitionVariablesOfHeader();
    foreach (Variable v in partitionVars)
    {
+    // Find the expression which defines a particular partition variable.
+    // Visit the expression and rip out any variable in the mod set of the loop.
+    // We assume that any variable satisfying these conditions is a loop counter
     Expr partitionDefExpr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
     var visitor = new VariablesOccurringInExpressionVisitor();
     visitor.Visit(partitionDefExpr);
-    List<Variable> variableList = visitor.GetVariables().ToList();
-    if (variableList.Count == 1)
+    HashSet<Variable> loopCounters = new HashSet<Variable>();
+    foreach (Variable variable in visitor.GetVariables())
     {
-     Variable loopCounter = variableList[0];
+        if (modifiedVariables.Contains(variable))
+            loopCounters.Add(variable);
+    }
+
+    if (loopCounters.Count == 1)
+    {
+     Variable loopCounter = loopCounters.ToList()[0];
      foreach (Block preheader in region.PreHeaders())
      {
       foreach (AssignCmd cmd in preheader.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
@@ -195,10 +206,10 @@ namespace GPUVerify
        {
         if (LhsRhs.Item1.DeepAssignedVariable.Name == loopCounter.Name)
         {
-         var inv = verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2);
-         verifier.AddCandidateInvariant(region, inv, "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
-         var inv2 = verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2);
-         verifier.AddCandidateInvariant(region, inv2, "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
         }
        }
       }
