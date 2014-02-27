@@ -34,25 +34,22 @@ namespace GPUVerify.InvariantGenerationRules
             foreach (Variable v in Impl.LocVars)
             {
                 string basicName = GVUtil.StripThreadIdentifier(v.Name);
-                if (verifier.uniformityAnalyser.IsUniform(Impl.Name, basicName))
+                if (verifier.mayBePowerOfTwoAnalyser.MayBePowerOfTwo(Impl.Name, basicName))
                 {
-                    if (verifier.mayBePowerOfTwoAnalyser.MayBePowerOfTwo(Impl.Name, basicName))
+                    if (verifier.ContainsNamedVariable(modset, basicName))
                     {
-                        if (verifier.ContainsNamedVariable(modset, basicName))
-                        {
-                            var bitwiseInv = Expr.Or(
-                                Expr.Eq(new IdentifierExpr(v.tok,v), verifier.IntRep.GetLiteral(0,32)),
-                                Expr.Eq(verifier.IntRep.MakeAnd(
-                                    new IdentifierExpr(v.tok,v),
-                                    verifier.IntRep.MakeSub(new IdentifierExpr(v.tok,v), verifier.IntRep.GetLiteral(1,32))
-                                    ), verifier.IntRep.GetLiteral(0,32)));
-                            verifier.AddCandidateInvariant(region, bitwiseInv, "pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
+                        var bitwiseInv = Expr.Or(
+                            Expr.Eq(new IdentifierExpr(v.tok,v), verifier.IntRep.GetLiteral(0,32)),
+                            Expr.Eq(verifier.IntRep.MakeAnd(
+                                new IdentifierExpr(v.tok,v),
+                                verifier.IntRep.MakeSub(new IdentifierExpr(v.tok,v), verifier.IntRep.GetLiteral(1,32))
+                                ), verifier.IntRep.GetLiteral(0,32)));
+                        verifier.AddCandidateInvariant(region, bitwiseInv, "pow2", InferenceStages.BASIC_CANDIDATE_STAGE);
 
-                            verifier.AddCandidateInvariant(region,
-                                Expr.Neq(new IdentifierExpr(v.tok, v),
-                                verifier.IntRep.GetLiteral(0, 32)),
-                                "pow2NotZero", InferenceStages.BASIC_CANDIDATE_STAGE);
-                        }
+                        verifier.AddCandidateInvariant(region,
+                            Expr.Neq(new IdentifierExpr(v.tok, v),
+                            verifier.IntRep.GetLiteral(0, 32)),
+                            "pow2NotZero", InferenceStages.BASIC_CANDIDATE_STAGE);
                     }
                 }
             }

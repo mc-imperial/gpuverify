@@ -14,6 +14,7 @@ using System.Diagnostics.Contracts;
 using System.Linq;
 using System.Reflection;
 using System.IO;
+using System.Text.RegularExpressions;
 using Microsoft.Boogie;
 
 using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
@@ -296,6 +297,14 @@ namespace GPUVerify
 
         return copiedObject;
       } else throw new ArgumentException("Unknown type");
+    }
+
+    public static bool StripSsaNumber(string v, out string root)
+    {
+      Regex r = new Regex(@"(.+)\.\d+$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+      Match m = r.Match(v);
+      root = m.Success ? m.Groups[1].Value : null;
+      return m.Success;
     }
 
     public static string StripThreadIdentifier(string p, out int id)
