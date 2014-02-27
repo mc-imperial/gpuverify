@@ -235,8 +235,6 @@ namespace GPUVerify
 
 
   internal class BarrierInterval {
-    private Block start;
-    private Block end;
     private IEnumerable<Block> blocks;
 
     public IEnumerable<Block> Blocks {
@@ -245,8 +243,6 @@ namespace GPUVerify
 
     public BarrierInterval(Block start, Block end, DomRelation<Block> dom, DomRelation<Block> pdom, Implementation impl)
     {
-      this.start = start;
-      this.end = end;
       blocks = impl.Blocks.Where(Item =>
         Item != end &&
         dom.DominatedBy(Item, start) &&

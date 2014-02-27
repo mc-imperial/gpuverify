@@ -468,8 +468,6 @@ namespace GPUVerify
         {
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
-            RemoveAxiomsForUnconstrainedDims();
-
             CheckUserSuppliedLoopInvariants();
 
             DuplicateBarriers();
@@ -644,34 +642,6 @@ namespace GPUVerify
 
         }
 
-        private void RemoveAxiomsForUnconstrainedDims()
-        // Removes all axioms of the form
-        //   (if _ == 0bv_ then _ else _) != _
-        {
-          // We loop backwards through the list of declarations, because we will
-          // be removing elements as we go.
-          for (int ctr = Program.TopLevelDeclarations.Count - 1; ctr >= 0; ctr--) {
-            if (!(Program.TopLevelDeclarations[ctr] is Axiom)) continue;
-            Axiom candidate_axiom = (Program.TopLevelDeclarations[ctr] as Axiom);
-            // Console.WriteLine("Found an axiom: " + candidate_axiom.Expr);
-            if (!(candidate_axiom.Expr is NAryExpr)) continue;
-            NAryExpr e = (candidate_axiom.Expr as NAryExpr);
-            if (e.Fun.FunctionName != "!=") continue;
-            if (!(e.Args[0] is NAryExpr)) continue;
-            e = (e.Args[0] as NAryExpr);
-            if (e.Fun.FunctionName != "if-then-else") continue;
-            if (!(e.Args[0] is NAryExpr)) continue;
-            e = (e.Args[0] as NAryExpr);
-            if (e.Fun.FunctionName != "==") continue;
-            if (!(e.Args[1] is LiteralExpr)) continue;
-            LiteralExpr v = (e.Args[1] as LiteralExpr);
-            if ((v.Val is BvConst) && (v.Val as BvConst).Value != BigNum.FromInt(0))
-              continue;
-            // Console.WriteLine("Removing this axiom.");
-            Program.TopLevelDeclarations.RemoveAt(ctr);
-          }
-        }
-
         private void AddParamsAsPreconditions()
         {
           List<string> param_values =
@@ -683,7 +653,7 @@ namespace GPUVerify
           // Locate the kernel with the given name
           bool found_flag = false;
           Procedure proc = null;
-          foreach(KeyValuePair<Procedure, Implementation> entry 
+          foreach(KeyValuePair<Procedure, Implementation> entry
                   in KernelProcedures) {
             if (target_name == entry.Key.Name) {
               // Console.WriteLine("Found kernel " + target_name + ".");
@@ -693,7 +663,7 @@ namespace GPUVerify
             }
           }
           if (found_flag == false) {
-            Console.WriteLine("Error: Couldn't find kernel " 
+            Console.WriteLine("Error: Couldn't find kernel "
                               + target_name + ".");
             Environment.Exit(1);
           }
@@ -704,7 +674,7 @@ namespace GPUVerify
             Console.WriteLine("Error: Too many parameter values.");
             Environment.Exit(1);
           }
-       
+
           // Create requires clauses
           for (int ctr = 1; ctr < param_values.Count; ctr++) {
             Variable v = proc.InParams[ctr-1];
@@ -716,12 +686,12 @@ namespace GPUVerify
             // Todo: I'm assuming each parameter value is an
             // integer here, but that's probably not the right
             // way to go about things.
-            Expr val_expr = 
+            Expr val_expr =
               IntRep.GetLiteral(Convert.ToInt32(val), id_size_bits);
-            Expr v_eq_val = Expr.Eq(v_expr, val_expr);  
+            Expr v_eq_val = Expr.Eq(v_expr, val_expr);
             proc.Requires.Add(new Requires(false, v_eq_val));
             // Console.WriteLine("__requires(" + v.Name + "==" + val + ")");
-          }          
+          }
         }
 
         private void IdentifySafeBarriers()

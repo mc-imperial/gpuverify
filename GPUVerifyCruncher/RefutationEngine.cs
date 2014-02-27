@@ -43,7 +43,6 @@ namespace Microsoft.Boogie
     {
       this.id = id;
       this.name = name;
-      this.solver = solver;
       this.errorLimit = int.Parse(errorLimit);
       this.disableLEI = bool.Parse(disableLEI);
       this.disableLMI = bool.Parse(disableLMI);
@@ -55,7 +54,7 @@ namespace Microsoft.Boogie
       CommandLineOptions.Clo.Cho[id].DisableLoopInvEntryAssert = this.disableLEI;
       CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
       CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
-      
+
       if (CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4"))
         this.solver = "cvc4";
       else
