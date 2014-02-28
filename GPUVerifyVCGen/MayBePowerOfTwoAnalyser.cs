@@ -109,7 +109,7 @@ namespace GPUVerify
                             {
                                 if (isPowerOfTwoOperation(v, assign.Rhss[i]))
                                 {
-                                    string ssaRoot; 
+                                    string ssaRoot;
                                     if (GVUtil.StripSsaNumber(v.Name, out ssaRoot)) {
                                         foreach (var w in ssaInfo[impl.Name][ssaRoot]) {
                                             mayBePowerOfTwoInfo[impl.Name][w] = true;

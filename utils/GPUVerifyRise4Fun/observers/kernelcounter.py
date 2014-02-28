@@ -15,7 +15,7 @@ _logging = logging.getLogger(__name__)
   execution.
 
   The class assumes that there will be multiple instances
-  running in different processes with the same parent 
+  running in different processes with the same parent
   (i.e. forking behaviour of tornado). Each instance
   will get a unique file name to log its counter variable.
 
@@ -23,7 +23,7 @@ _logging = logging.getLogger(__name__)
   these counters to check the current count.
 """
 class KernelCounterObserver(gvapi.GPUVerifyObserver):
-  counterFile = '-counter.pickle' # Will later be ammended
+  counterFile = '-counter.pickle' # Will later be amended
 
   def __init__(self, dirForPickles):
     self.counter = 0
@@ -38,7 +38,7 @@ class KernelCounterObserver(gvapi.GPUVerifyObserver):
   def loadCounter(self):
     _logging.debug('Performing loadCounter()')
 
-    # It is assumed that multiple instance of this class are each in their
+    # It is assumed that multiple instances of this class are each in their
     # own process spawned by Tornado. We need to associate a number with
     # each process that is preserved across executions (so cannot use PID).
     # Instead we generate a list of all child PIDs of our parent (these should
@@ -65,7 +65,7 @@ class KernelCounterObserver(gvapi.GPUVerifyObserver):
     self.counterFile = prefix + self.counterFile
     self.counterFile = os.path.join(self.pickleDir, self.counterFile)
     _logging.info('Trying to load counter from {0}'.format(self.counterFile))
-      
+
     # Try to load counter form pickle file
     if os.path.exists(self.counterFile):
       _logging.info('Counter pickle file exists. Trying to load counter from it')
