@@ -106,6 +106,8 @@ namespace GPUVerify
   private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
   private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
   private Dictionary<Block, HashSet<Block>> HeaderToLoopBody = new Dictionary<Block, HashSet<Block>>();
+  private Dictionary<Block, HashSet<Variable>> HeaderToWriteSet = new Dictionary<Block, HashSet<Variable>>();
+  private Dictionary<Block, HashSet<Variable>> HeaderToReadSet = new Dictionary<Block, HashSet<Variable>>();
   private int Executions = 0;
   private Random Random;
 
@@ -132,7 +134,9 @@ namespace GPUVerify
    foreach (Block block in impl.Blocks)
     LabelToBlock[block.Label] = block;   
 
-   // Compute loop-exit edges of each natural loop
+   // For each natural loop:
+   // 1) Compute loop-exit edges
+   // 2) Compute read/write sets of loop body
    Graph<Block> loopInfo = program.ProcessLoops(impl);
    foreach (Block header in loopInfo.Headers)
    {
@@ -140,6 +144,22 @@ namespace GPUVerify
     foreach (Block tail in loopInfo.BackEdgeNodes(header))
      HeaderToLoopBody[header].UnionWith(loopInfo.NaturalLoops(header, tail));
     ComputeLoopExitBlocks(header, HeaderToLoopBody[header]);
+    ComputeWriteAndReadSets(header, HeaderToLoopBody[header]);
+   }
+   
+   foreach (Block header1 in loopInfo.Headers)
+   {
+     foreach (Block header2 in loopInfo.Headers)
+     {
+         if (header1 != header2)
+         {
+            Console.WriteLine(header1 + " " + header2);
+            foreach (var Variable in HeaderToWriteSet[header1].Intersect(HeaderToReadSet[header2]))
+              Console.WriteLine("WRITE THEN READ " + Variable);
+            foreach (var Variable in HeaderToWriteSet[header2].Intersect(HeaderToReadSet[header1]))
+              Console.WriteLine(Variable);
+         }
+      }
    }
 
    Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
@@ -201,6 +221,42 @@ namespace GPUVerify
         HeaderToLoopExitBlocks[header].Add(succ);
       }
      }
+    }
+   }
+  }
+
+  private void ComputeWriteAndReadSets(Block header, HashSet<Block> loopBody)
+  {
+   HeaderToWriteSet[header] = new HashSet<Variable>();
+   HeaderToReadSet[header] = new HashSet<Variable>();
+   var writeVisitor = new VariablesOccurringInExpressionVisitor();
+   var readVisitor = new VariablesOccurringInExpressionVisitor();
+   
+   foreach (Block block in loopBody)
+   {
+    foreach (AssignCmd assignment in block.Cmds.OfType<AssignCmd>())
+    {
+     var mapLhss = assignment.Lhss.OfType<MapAssignLhs>();
+     foreach (var LhsRhs in mapLhss.Zip(assignment.Rhss))
+     {
+      writeVisitor.Visit(LhsRhs.Item1);
+      readVisitor.Visit(LhsRhs.Item2);
+     }
+     foreach (Variable variable in writeVisitor.GetVariables())
+       HeaderToWriteSet[header].Add(variable);
+     foreach (Variable variable in readVisitor.GetVariables())
+       HeaderToReadSet[header].Add(variable);
+       
+     var simpleLhss = assignment.Lhss.OfType<SimpleAssignLhs>();
+     foreach (var LhsRhs in simpleLhss.Zip(assignment.Rhss))
+     {
+      writeVisitor.Visit(LhsRhs.Item1);
+      readVisitor.Visit(LhsRhs.Item2);
+     }
+     foreach (Variable variable in writeVisitor.GetVariables())
+       HeaderToWriteSet[header].Add(variable);
+     foreach (Variable variable in readVisitor.GetVariables())
+       HeaderToReadSet[header].Add(variable);
     }
    }
   }
