@@ -874,7 +874,7 @@ def processOpenCLOptions(opts, args):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/blockHighestDim:" + str(len(CommandLineOptions.groupSize) - 1) ]
       for i in range(0, len(CommandLineOptions.groupSize)):
-        if CommandLineOptions.groupSize[i] == "*" and CommandLineOptions.groupSize[i] <= 0:
+        if CommandLineOptions.groupSize[i] != "*" and CommandLineOptions.groupSize[i] <= 0:
           raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for local_size dimensions must be positive")
     if o == "--num_groups":
       if CommandLineOptions.numGroups != []:
@@ -886,7 +886,7 @@ def processOpenCLOptions(opts, args):
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       CommandLineOptions.gpuVerifyBoogieDriverOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
       for i in range(0, len(CommandLineOptions.numGroups)):
-        if CommandLineOptions.numGroups[i] == "*" and CommandLineOptions.numGroups[i] <= 0:
+        if CommandLineOptions.numGroups[i] != "*" and CommandLineOptions.numGroups[i] <= 0:
           raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for num_groups dimensions must be positive")
     if o == "--global_size":
       if CommandLineOptions.numGroups != [] or deferNumGroupCalc:
