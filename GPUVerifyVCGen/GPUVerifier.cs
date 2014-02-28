@@ -38,7 +38,7 @@ namespace GPUVerify
         public Dictionary<string, string> GlobalArrayOriginalNames;
 
         private HashSet<Procedure> BarrierProcedures = new HashSet<Procedure>();
-        private Dictionary<Tuple<Variable,AccessType>,Procedure> WarpSyncs = new Dictionary<Tuple<Variable,AccessType>,Procedure>();
+        private Dictionary<Tuple<Variable,AccessType,bool>,Procedure> WarpSyncs = new Dictionary<Tuple<Variable,AccessType,bool>,Procedure>();
         public string BarrierProcedureLocalFenceArgName;
         public string BarrierProcedureGlobalFenceArgName;
 
@@ -2176,7 +2176,6 @@ namespace GPUVerify
 
         private void AddWarpSyncs()
         {
-          // Append warp-syncs after log_writes
           foreach (Declaration d in Program.TopLevelDeclarations)
           {
             if (d is Implementation)
@@ -2197,6 +2196,32 @@ namespace GPUVerify
           var result = new List<Cmd>();
           foreach (Cmd c in b.Cmds)
           {
+            if (c is CallCmd)
+            {
+              CallCmd call = c as CallCmd;
+              if (call.callee.StartsWith("_LOG_"))
+              {
+                string array;
+                AccessType kind;
+                if (call.callee.StartsWith("_LOG_ATOMIC")) {
+                  kind = AccessType.ATOMIC;
+                  array = call.callee.Substring(12); // "_LOG_ATOMIC_" is 14 characters
+                } else if (call.callee.StartsWith("_LOG_READ")) {
+                  kind = AccessType.READ;
+                  array = call.callee.Substring(10); // "_LOG_READ_" is 12 characters
+                } else {
+                  Debug.Assert(call.callee.StartsWith("_LOG_WRITE"));
+                  kind = AccessType.WRITE;
+                  array = call.callee.Substring(11); // "_LOG_WRITE_" is 13 characters
+                }
+                // Manual resolving yaey!
+                Variable arrayVar = KernelArrayInfo.getAllArrays().Where(v => v.Name.Equals(array)).First();
+                Procedure proto = FindOrCreateWarpSync(arrayVar,kind,true);
+                CallCmd wsCall = new CallCmd(Token.NoToken,proto.Name,new List<Expr>(),new List<IdentifierExpr>());
+                wsCall.Proc = proto;
+                result.Add(wsCall);
+              }
+            }
             result.Add(c);
             if (c is CallCmd)
             {
@@ -2217,8 +2242,8 @@ namespace GPUVerify
                   array = call.callee.Substring(13); // "_CHECK_WRITE_" is 13 characters
                 }
                 // Manual resolving yaey!
-                Variable arrayVar = KernelArrayInfo.getAllNonLocalArrays().Where(v => v.Name.Equals(array)).First();
-                Procedure proto = FindOrCreateWarpSync(arrayVar,kind);
+                Variable arrayVar = KernelArrayInfo.getAllArrays().Where(v => v.Name.Equals(array)).First();
+                Procedure proto = FindOrCreateWarpSync(arrayVar,kind,false);
                 CallCmd wsCall = new CallCmd(Token.NoToken,proto.Name,new List<Expr>(),new List<IdentifierExpr>());
                 wsCall.Proc = proto;
                 result.Add(wsCall);
@@ -2229,10 +2254,10 @@ namespace GPUVerify
           return b;
         }
 
-        private Procedure FindOrCreateWarpSync(Variable array, AccessType kind) {
-          Tuple<Variable,AccessType> key = new Tuple<Variable,AccessType>(array,kind);
+        private Procedure FindOrCreateWarpSync(Variable array, AccessType kind, bool pre) {
+          Tuple<Variable,AccessType,bool> key = new Tuple<Variable,AccessType,bool>(array,kind,pre);
           if (!WarpSyncs.ContainsKey(key)) {
-            Procedure proto = new Procedure (Token.NoToken, "_WARP_SYNC_" + array.Name + "_" + kind, new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
+            Procedure proto = new Procedure (Token.NoToken, (pre?"_PRE":"_POST") + "_WARP_SYNC_" + array.Name + "_" + kind, new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
             WarpSyncs[key] = proto;
           }
           return WarpSyncs[key];
@@ -2240,10 +2265,11 @@ namespace GPUVerify
 
         private void GenerateWarpSyncs()
         {
-          foreach (Tuple<Variable,AccessType> pair in WarpSyncs.Keys)
+          foreach (Tuple<Variable,AccessType,bool> pair in WarpSyncs.Keys)
           {
             Variable v = pair.Item1;
             AccessType kind = pair.Item2;
+            bool pre = pair.Item3;
             Procedure SyncProcedure = WarpSyncs[pair];
 
             Expr P1 = null;
@@ -2260,8 +2286,20 @@ namespace GPUVerify
 
             // Implementation
             List<Cmd> then = new List<Cmd>();
-            Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,kind);
-            then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
+            if (pre) {
+              var reset_needs = new[] { new {Kind = AccessType.READ,   Resets = new[] {AccessType.WRITE, AccessType.ATOMIC}}
+                                      , new {Kind = AccessType.WRITE,  Resets = new[] {AccessType.READ, AccessType.WRITE, AccessType.ATOMIC}}
+                                      , new {Kind = AccessType.ATOMIC, Resets = new[] {AccessType.READ, AccessType.WRITE}}
+              };
+              foreach (AccessType a in reset_needs.Where(x => x.Kind == kind).First().Resets) {
+                Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,a);
+                then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
+              }
+            }
+            else {
+              Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,kind);
+              then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
+            }
             List<BigBlock> thenblocks = new List<BigBlock>();
             thenblocks.Add(new BigBlock(Token.NoToken, "reset_warps", then, null, null));
 
