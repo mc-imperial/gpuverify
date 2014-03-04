@@ -309,7 +309,7 @@ namespace GPUVerify {
         } else {
           ConflictingStatePrefix = ConflictingState;
         }
-        Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, false);
+        Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, true, false);
         Implementation originalImplementation = originalProgram.Implementations().Where(Item => Item.Name.Equals(impl.Name)).ToList()[0];
         var blockGraph = originalProgram.ProcessLoops(originalImplementation);
         Block header = null;
@@ -403,7 +403,7 @@ namespace GPUVerify {
 
     private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromCall(string CheckProcedureName, string CalleeName)
     {
-      Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, false);
+      Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, true, false);
       var Bodies =  originalProgram.Implementations().Where(Item => Item.Name.Equals(CalleeName)).ToList();
       if(Bodies.Count == 0) {
         return new HashSet<SourceLocationInfo>();

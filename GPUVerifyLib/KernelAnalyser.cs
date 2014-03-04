@@ -11,6 +11,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.Linq;
 using Microsoft.Boogie;
 using VC;
 
@@ -161,6 +162,18 @@ namespace GPUVerify
           }
         }
         block.Cmds = newCmds;
+      }
+    }
+
+    public static void DisableBarrierDivergenceChecking(Program program)
+    {
+      foreach (var proc in program.TopLevelDeclarations.OfType<Procedure>()) {
+        List<Requires> newRequires = new List<Requires>();
+        foreach (Requires r in proc.Requires) {
+          if (!QKeyValue.FindBoolAttribute(r.Attributes, "barrier_divergence"))
+            newRequires.Add(r);
+        }
+        proc.Requires = newRequires;
       }
     }
 
