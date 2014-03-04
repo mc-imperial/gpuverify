@@ -81,7 +81,7 @@ namespace Microsoft.Boogie
     /// Schedules refutation engines for sequential or concurrent execution.
     /// </summary>
     public int inferInvariants(List<string> fileNames)
-    {   
+    {
       Houdini.HoudiniOutcome outcome = null;
       this.fileNames = fileNames;
 
@@ -156,7 +156,7 @@ namespace Microsoft.Boogie
 
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo) {
         // build map from invariant id (_b[0-9]+) to tag variable (e.g., accessBreak)
-        var tagMap = new Dictionary<string, string>(); 
+        var tagMap = new Dictionary<string, string>();
         Program p = getFreshProgram(false, false);
         foreach (Block block in p.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).SelectMany(item => item)) {
           foreach (AssertCmd cmd in block.Cmds.Where(x => x is AssertCmd)) {
@@ -202,7 +202,7 @@ namespace Microsoft.Boogie
         directoryContainingFiles = Directory.GetCurrentDirectory ();
       var annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);
-      
+
       Program program = getFreshProgram(true, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
 
@@ -213,7 +213,7 @@ namespace Microsoft.Boogie
       if (refutationEngines != null && refutationEngines[engineIdx] != null) {
         ((StaticRefutationEngine) refutationEngines[engineIdx]).Houdini.ApplyAssignment(program);
       }
-      
+
       GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile, "cbpl");
     }
 
