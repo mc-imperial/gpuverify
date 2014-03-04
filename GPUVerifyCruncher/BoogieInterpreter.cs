@@ -190,7 +190,6 @@ namespace GPUVerify
             }
             finally
             {
-                Memory.Dump();
                 SummarizeKilledInvariants();
                 Print.VerboseMessage("Dynamic analysis done");
             }
@@ -524,7 +523,6 @@ namespace GPUVerify
         private void EvaluateRequires(Requires requires)
         {
             // The following code currently ignores requires which are implications
-            Console.WriteLine(requires.Condition);
             ExprTree tree = new ExprTree(requires.Condition); 
             EvaluateExprTree(tree);
             foreach (HashSet<Node> nodes in tree)
@@ -656,7 +654,7 @@ namespace GPUVerify
             // Execute all the statements
             foreach (Cmd cmd in block.Cmds)
             {
-                Console.WriteLine(cmd);
+                //Console.WriteLine(cmd);
                 //Memory.Dump();
                 if (cmd is AssignCmd)
                 {
@@ -720,38 +718,47 @@ namespace GPUVerify
                             AssertStatus[assert] = BitVector.True;
                         if (AssertStatus[assert].Equals(BitVector.True))
                         {
+                            // Does the expression tree have offset variables?
                             if (tree.offsetVariables.Count > 0)
                             {
-                                List<List<BitVector>> input = new List<List<BitVector>>();
+                                // If so, evaluate the expression tree using the Cartesian product of all
+                                // distinct offset values 
+                                
+                                // The 'indices' list contains indices into a offset variable set, thus providing a concrete offset value 
+                                // The 'sizes' list is the number of offset values currently being analysed
+                                List<int> indices = new List<int>();
+                                List<int> sizes = new List<int>();
+                                List<Tuple<string, List<BitVector>>> offsetVariableValues = new List<Tuple<string, List<BitVector>>>();
                                 foreach (string offsetVariable in tree.offsetVariables)
                                 {
-                                    input.Add(Memory.GetRaceArrayOffsets(offsetVariable).ToList<BitVector>());
+                                    HashSet<BitVector> offsets = Memory.GetRaceArrayOffsets(offsetVariable);
+                                    if (offsets.Count > 0)
+                                    {
+                                        indices.Add(0);
+                                        sizes.Add(offsets.Count);
+                                        offsetVariableValues.Add(Tuple.Create(offsetVariable, offsets.ToList()));
+                                    }
+                                }
+                                if (indices.Count > 0)
+                                {
+                                    do
+                                    {
+                                        // Set up the memory correctly for the selected offset variable
+                                        for (int i = 0; i < indices.Count; ++i)
+                                        {
+                                            Tuple<string, List<BitVector>> offsets = offsetVariableValues[i];
+                                            BitVector offset = offsets.Item2[indices[i]];
+                                            Memory.Store(offsets.Item1, offset);
+                                        }
+                                        EvaluateAssert(program, impl, tree, assert);
+                                        if (AssertStatus[assert] == BitVector.False)
+                                            break;
+                                    }
+                                    while (CartesianProduct(indices, sizes));
                                 }
                             }
                             else
-                            {                        
-                                EvaluateExprTree(tree);
-                                if (tree.initialised && tree.evaluation.Equals(BitVector.False))
-                                {
-                                    Print.VerboseMessage("==========> FALSE " + assert.ToString());
-                                    Memory.Dump();
-                                    Console.WriteLine(tree.ToString());
-                                    AssertStatus[assert] = BitVector.False;
-                                    MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
-                                    string BoogieVariable = null;
-                                    foreach (Match match in matches)
-                                    {
-                                        foreach (Capture capture in match.Captures)
-                                        {
-                                            BoogieVariable = capture.Value;
-                                        }
-                                    }
-                                    KilledAsserts.Add(BoogieVariable);
-                                    // Kill the assert in Houdini, which will be invoked after the dynamic analyser
-                                    ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
-                                    ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
-                                }
-                            }
+                                EvaluateAssert(program, impl, tree, assert);
                         }
                     }
                 }
@@ -791,24 +798,45 @@ namespace GPUVerify
             }
         }
         
-        private void CartesianProduct(List<List<BitVector>> input, List<BitVector> current, int k)
+        private void EvaluateAssert (Program program, Implementation impl, ExprTree tree, AssertCmd assert)
         {
-            if (k == input.Count)
+            EvaluateExprTree(tree);
+            if (tree.initialised && tree.evaluation.Equals(BitVector.False))
             {
-                for (int i = 0; i < k; ++i)
+                Print.VerboseMessage("==========> FALSE " + assert.ToString());
+                AssertStatus[assert] = BitVector.False;
+                MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
+                string BoogieVariable = null;
+                foreach (Match match in matches)
                 {
-                    Console.Write(current[i] + " ");
+                    foreach (Capture capture in match.Captures)
+                    {
+                        BoogieVariable = capture.Value;
+                    }
                 }
-                Console.WriteLine();
+                KilledAsserts.Add(BoogieVariable);
+                // Kill the assert in Houdini, which will be invoked after the dynamic analyser
+                ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
+                ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
             }
-            else
+        }
+        
+        private bool CartesianProduct (List<int> indices, List<int> sizes)
+        {
+            bool changed = false;
+            bool finished = false;
+            for (int i = indices.Count - 1; !changed && !finished; --i)
             {
-                for (int j = 0; j < input[k].Count; ++j)
+                if (indices[i] < sizes[i] - 1)
                 {
-                    current[k] = input[k][j];
-                    CartesianProduct(input, current, k + 1);
+                    indices[i]++;
+                    changed = true;
                 }
+                else
+                    indices[i] = 0;
+                finished = i == 0;
             }
+            return changed;
         }
 
         private Block TransferControl(Block block)
@@ -1231,6 +1259,11 @@ namespace GPUVerify
                     if (node is ScalarSymbolNode)
                     {
                         ScalarSymbolNode _node = node as ScalarSymbolNode;
+                        if (Memory.Contains(_node.symbol))
+                          _node.evaluation = Memory.GetValue(_node.symbol);
+                        else
+                            _node.initialised = false;
+                        
                         if (RegularExpressions.WATCHDOG_VARIABLE.IsMatch(_node.symbol))
                         {
                             var visitor = new VariablesOccurringInExpressionVisitor();
@@ -1257,19 +1290,6 @@ namespace GPUVerify
                                 // _node.evaluations.Add(offset);
                             }
                         }
-                        else if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
-                        {                            
-                            foreach (BitVector offset in Memory.GetRaceArrayOffsets(_node.symbol))
-                            {  // _node.evaluations.Add(offset);
-                            }
-                        }
-                        else
-                        {
-                            if (Memory.Contains(_node.symbol))
-                              _node.evaluation = Memory.GetValue(_node.symbol);
-                            else
-                                _node.initialised = false;
-                        }
                     }
                     else if (node is MapSymbolNode)
                     {
@@ -1288,7 +1308,7 @@ namespace GPUVerify
                         
                         if (node.initialised)
                         {
-                            if (!Memory.Contains(_node.basename, subscriptExpr))
+                            if (Memory.Contains(_node.basename, subscriptExpr))
                                 _node.evaluation = Memory.GetValue(_node.basename, subscriptExpr);
                             else
                                 node.initialised = false;
