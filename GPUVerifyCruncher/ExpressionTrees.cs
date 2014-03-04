@@ -25,8 +25,9 @@ namespace GPUVerify
   protected Node root = null;
   protected int height = 0;
   public BitVector evaluation;
-  public bool uninitialised = false;
+  public bool initialised = true;
   public Expr expr;
+  public HashSet<string> offsetVariables = new HashSet<string>();
 
   public ExprTree(Expr expr)
   {
@@ -35,6 +36,18 @@ namespace GPUVerify
    levels[0] = new HashSet<Node>();
    levels[0].Add(root);
    SetLevels(root, 0);
+   // Set node IDs
+   int nodeID = 0;
+   foreach (Node node in nodes)
+   {
+     node.ID = nodeID++;
+     if (node is ScalarSymbolNode)
+     {
+       ScalarSymbolNode _node = node as ScalarSymbolNode;
+       if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
+        offsetVariables.Add(_node.symbol);
+     }
+   }
   }
 
   private void SetLevels(Node parent, int level)
@@ -58,7 +71,7 @@ namespace GPUVerify
     if (!(node is LiteralNode))
      node.ClearState();
    }
-   uninitialised = false;
+   initialised = true;
   }
 
   public Node Root()
@@ -79,12 +92,22 @@ namespace GPUVerify
    StringBuilder builder = new StringBuilder();
    for (int i = 0; i < height; ++i)
    {
-    builder.Append(String.Format("Level {0}", i)).Append(Environment.NewLine).Append(" : ");
+    builder.Append(String.Format("Level {0}", i)).Append(Environment.NewLine);
     foreach (Node node in levels[i])
     {
-     builder.Append(node.ToString()).Append(" : ");
+     builder.Append(node.ID);
+     if (i > 0)
+       builder.Append(String.Format(" (parent = {0})  ", node.GetParent().ID));
     }
     builder.Append(Environment.NewLine);
+   }
+   for (int i = 0; i < height; ++i)
+   {
+    foreach (Node node in levels[i])
+    {
+      builder.Append(node.ID + " " + node.ToString());
+      builder.Append(Environment.NewLine);
+    }
    }
    return builder.ToString();
   }
@@ -94,7 +117,8 @@ namespace GPUVerify
  {
   protected List<Node> children = new List<Node>();
   protected Node parent = null;
-  public bool uninitialised = false;
+  public bool initialised = true;
+  public int ID = -1;
 
   public Node()
   {
@@ -254,19 +278,12 @@ namespace GPUVerify
 
  public class ExprNode : Node
  {
-  public HashSet<BitVector> evaluations = new HashSet<BitVector>();
+  public BitVector evaluation = null;
 
   public override void ClearState()
   {
-   evaluations.Clear();
-   uninitialised = false;
-  }
-
-  public BitVector GetUniqueElement()
-  {
-   if (evaluations.Count != 1)
-    throw new UnhandledException("There is no unique element in the evaluation set");
-   return evaluations.First();
+   evaluation = null;
+   initialised = true;
   }
  }
 
@@ -282,7 +299,7 @@ namespace GPUVerify
 
   public override string ToString()
   {
-   return op + " (" + typeof(BitVector).ToString() + ")";
+   return op;
   }
  }
 
@@ -320,11 +337,13 @@ namespace GPUVerify
  {
   public string symbol;
   public Microsoft.Boogie.Type type;
+  public bool isOffsetVariable;
 
   public ScalarSymbolNode(string symbol, Microsoft.Boogie.Type type)
   {
    this.symbol = symbol;
    this.type = type;
+   this.isOffsetVariable = RegularExpressions.OFFSET_VARIABLE.IsMatch(symbol); 
   }
 
   public override string ToString()
@@ -379,12 +398,12 @@ namespace GPUVerify
  {
   public LiteralNode(BitVector val)
   {
-   evaluations.Add(val);
+   evaluation = val;
   }
 
   public override string ToString()
   {
-   return GetUniqueElement().ToString();
+   return evaluation.ToString();
   }
  }
 }
