@@ -330,7 +330,7 @@ namespace GPUVerify
       return StripThreadIdentifier(p, out id);
     }
 
-    public static Program GetFreshProgram(List<string> fileNames, bool raceCheck, bool inline)
+    public static Program GetFreshProgram(List<string> fileNames, bool raceCheck, bool divergenceCheck, bool inline)
     {
       KernelAnalyser.PipelineOutcome oc;
       Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
@@ -339,6 +339,7 @@ namespace GPUVerify
       if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) Environment.Exit(1);
 
       if (!raceCheck) KernelAnalyser.DisableRaceChecking(program);
+      if (!divergenceCheck) KernelAnalyser.DisableBarrierDivergenceChecking(program);
       KernelAnalyser.EliminateDeadVariables(program);
       if (inline) KernelAnalyser.Inline(program);
 

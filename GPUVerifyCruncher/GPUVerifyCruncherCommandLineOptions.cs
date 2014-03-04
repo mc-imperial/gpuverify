@@ -26,6 +26,8 @@ namespace GPUVerify
     public bool InferInfo = false;
     public int DynamicAnalysisLoopHeaderLimit = 1000;
     public int DynamicAnalysisLoopEscapeFactor = 0;
+    public bool ReplaceLoopInvariantAssertions = false;
+    public bool DisableBarrierDivergenceChecks = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -76,6 +78,16 @@ namespace GPUVerify
 
       if (name == "inferInfo") {
         InferInfo = true;
+        return true;
+      }
+
+      if (name == "replaceLoopInvariantAssertions") {
+        ReplaceLoopInvariantAssertions = true;
+        return true;
+      }
+
+      if (name == "disableBarrierDivergenceChecks") {
+        DisableBarrierDivergenceChecks = true;
         return true;
       }
 

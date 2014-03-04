@@ -101,7 +101,7 @@ namespace Microsoft.Boogie
             if (engine is DynamicRefutationEngine) {
               unsoundTasks.Add(Task.Factory.StartNew(
                 () => {
-                ((DynamicRefutationEngine) engine).start(getFreshProgram(false, false));
+                ((DynamicRefutationEngine) engine).start(getFreshProgram(false, false, false));
               }, tokenSource.Token
               ));
             }
@@ -117,7 +117,7 @@ namespace Microsoft.Boogie
           if (engine is StaticRefutationEngine && !((StaticRefutationEngine) engine).IsTrusted) {
             unsoundTasks.Add(Task.Factory.StartNew(
               () => {
-              ((StaticRefutationEngine) engine).start(getFreshProgram(false, true), ref outcome);
+              ((StaticRefutationEngine) engine).start(getFreshProgram(false, false, true), ref outcome);
             }, tokenSource.Token
             ));
           }
@@ -133,7 +133,7 @@ namespace Microsoft.Boogie
           if (engine is StaticRefutationEngine && ((StaticRefutationEngine) engine).IsTrusted) {
             soundTasks.Add(Task.Factory.StartNew(
               () => {
-              engineIdx = ((StaticRefutationEngine) engine).start(getFreshProgram(false, true), ref outcome);
+              engineIdx = ((StaticRefutationEngine) engine).start(getFreshProgram(false, false, true), ref outcome);
             }, tokenSource.Token
             ));
           }
@@ -146,18 +146,18 @@ namespace Microsoft.Boogie
         if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysis) {
           ((DynamicRefutationEngine) refutationEngines.
            FirstOrDefault( engine => engine is DynamicRefutationEngine )).
-            start(getFreshProgram(false, false));
+            start(getFreshProgram(false, false, false));
         }
 
         engineIdx = ((StaticRefutationEngine) refutationEngines.
          FirstOrDefault( engine => engine is StaticRefutationEngine )).
-          start(getFreshProgram(false, true), ref outcome);
+          start(getFreshProgram(false, false, true), ref outcome);
       }
 
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo) {
         // build map from invariant id (_b[0-9]+) to tag variable (e.g., accessBreak)
         var tagMap = new Dictionary<string, string>();
-        Program p = getFreshProgram(false, false);
+        Program p = getFreshProgram(false, false, false);
         foreach (Block block in p.TopLevelDeclarations.OfType<Implementation>().Select(item => item.Blocks).SelectMany(item => item)) {
           foreach (AssertCmd cmd in block.Cmds.Where(x => x is AssertCmd)) {
             string tag = QKeyValue.FindStringAttribute(cmd.Attributes, "tag");
@@ -179,7 +179,7 @@ namespace Microsoft.Boogie
         int outOfMemories = 0;
 
         foreach (var implOutcome in outcome.implementationOutcomes) {
-          KernelAnalyser.ProcessOutcome(getFreshProgram(false, false), implOutcome.Key, implOutcome.Value.outcome, implOutcome.Value.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+          KernelAnalyser.ProcessOutcome(getFreshProgram(false, false, false), implOutcome.Key, implOutcome.Value.outcome, implOutcome.Value.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
         }
 
         GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
@@ -203,7 +203,7 @@ namespace Microsoft.Boogie
       var annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);
 
-      Program program = getFreshProgram(true, false);
+      Program program = getFreshProgram(true, true, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
 
       if (CommandLineOptions.Clo.Trace) {
@@ -212,6 +212,8 @@ namespace Microsoft.Boogie
 
       if (refutationEngines != null && refutationEngines[engineIdx] != null) {
         ((StaticRefutationEngine) refutationEngines[engineIdx]).Houdini.ApplyAssignment(program);
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ReplaceLoopInvariantAssertions)
+          replaceLoopInvariantAssertions(program);
       }
 
       GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile, "cbpl");
@@ -227,9 +229,12 @@ namespace Microsoft.Boogie
       return true;
     }
 
-    private Program getFreshProgram(bool raceCheck, bool inline)
+    private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
     {
-      return GVUtil.GetFreshProgram(fileNames, raceCheck, inline);
+      divergenceCheck = divergenceCheck ||
+                        !((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DisableBarrierDivergenceChecks;
+
+      return GVUtil.GetFreshProgram(fileNames, raceCheck, divergenceCheck, inline);
     }
 
     private void printOutcome(Houdini.HoudiniOutcome outcome, Dictionary<string, string> tagMap=null)
@@ -282,6 +287,31 @@ namespace Microsoft.Boogie
         CommandLineOptions.Clo.ProverOptions.Add("LOGIC=QF_ALL_SUPPORTED");
       }
     }
+
+
+    /// <summary>
+    /// Replace user supplied loop invariants by assumptions.
+    /// </summary>
+    private void replaceLoopInvariantAssertions(Program program)
+    {
+      foreach (Block block in program.Blocks()) {
+        List<Cmd> newCmds = new List<Cmd>();
+        foreach (Cmd cmd in block.Cmds) {
+          AssertCmd assertion = cmd as AssertCmd;
+          if (assertion != null &&
+              QKeyValue.FindBoolAttribute(assertion.Attributes,
+                                          "originated_from_invariant")) {
+            AssumeCmd assumption = new AssumeCmd(assertion.tok, assertion.Expr,
+                                                 assertion.Attributes);
+            newCmds.Add(assumption);
+          } else {
+            newCmds.Add(cmd);
+          }
+        }
+        block.Cmds = newCmds;
+      }
+    }
+
 
     /// <summary>
     /// Configuration for sequential and parallel inference.
@@ -379,6 +409,7 @@ namespace Microsoft.Boogie
           .ToList().ForEach(Console.WriteLine);
         Console.WriteLine("################################################");
       }
+
     }
   }
 }
