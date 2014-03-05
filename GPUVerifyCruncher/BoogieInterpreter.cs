@@ -558,7 +558,8 @@ namespace GPUVerify
                         // If we have exceeded the user-set loop escape factor then go to an exit block
                         block = HeaderToLoopExitBlocks[block][0];
                     }
-                    else if (headers.Contains(block)
+                    else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisSoundLoopEscaping 
+                        && headers.Contains(block)
                         && HeadersFromWhichToExitEarly.Contains(block)
                         && HeaderExecutionCounts[block] > 1)
                     {

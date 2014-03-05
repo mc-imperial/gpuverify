@@ -26,6 +26,7 @@ namespace GPUVerify
     public bool InferInfo = false;
     public int DynamicAnalysisLoopHeaderLimit = 1000;
     public int DynamicAnalysisLoopEscapeFactor = 0;
+    public bool DynamicAnalysisSoundLoopEscaping = false;
     public bool ReplaceLoopInvariantAssertions = false;
     public bool DisableBarrierDivergenceChecks = false;
 
@@ -55,6 +56,11 @@ namespace GPUVerify
 
       if (name == "dynamicAnalysis") {
         DynamicAnalysis = true;
+        return true;
+      }
+            
+      if (name == "dynamicAnalysisSoundLoopEscaping") {
+        DynamicAnalysisSoundLoopEscaping = true;
         return true;
       }
 
