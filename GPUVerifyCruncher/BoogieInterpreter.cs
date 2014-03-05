@@ -86,6 +86,51 @@ namespace GPUVerify
         public static Regex CAST_TO_INT = new Regex("FP[0-9]+_TO_(U|S)I[0-9]+", RegexOptions.IgnoreCase);
         public static Regex CAST_FP_TO_DOUBLE = new Regex("FP[0-9]+_CONV[0-9]+", RegexOptions.IgnoreCase);
     }
+    
+    internal class DepthFirstSearch
+    {
+        enum COLOR {WHITE, GREY, BLACK};
+        
+        private Block start;
+        private Graph<Block> cfg;
+        private HashSet<Block> allHeaders;
+        private HashSet<Block> visitedHeaders = new HashSet<Block>();
+        private Dictionary<Block, COLOR> visited = new Dictionary<Block, COLOR>();
+        
+        public DepthFirstSearch (Block start, Graph<Block> cfg, HashSet<Block> allHeaders)
+        {
+            this.start = start;
+            this.cfg = cfg;
+            this.allHeaders = allHeaders;
+            foreach (Block block in cfg.Nodes)
+            {
+                visited[block] = COLOR.WHITE;
+            }
+            DoDFS(start);
+        }
+        
+        private void DoDFS (Block block)
+        {
+            visited[block] = COLOR.GREY;
+            if (allHeaders.Contains(block) && block != start)
+            {
+                visitedHeaders.Add(block);
+            }
+            foreach (Block succ in cfg.Successors(block))
+            {
+                if (visited[succ] == COLOR.WHITE)
+                {
+                    DoDFS(succ);   
+                }
+            }
+            visited[block] = COLOR.BLACK;
+        }
+        
+        public HashSet<Block> VisitedHeaders ()
+        {
+            return visitedHeaders;
+        }
+    }
 
     public class BoogieInterpreter
     {
@@ -107,6 +152,8 @@ namespace GPUVerify
         private Dictionary<Block, HashSet<Block>> HeaderToLoopBody = new Dictionary<Block, HashSet<Block>>();
         private Dictionary<Block, HashSet<Variable>> HeaderToWriteSet = new Dictionary<Block, HashSet<Variable>>();
         private Dictionary<Block, HashSet<Variable>> HeaderToReadSet = new Dictionary<Block, HashSet<Variable>>();
+        private Dictionary<Block, HashSet<Variable>> HeaderToAssertReadSet = new Dictionary<Block, HashSet<Variable>>();
+        private HashSet<Block> HeadersFromWhichToExitEarly = new HashSet<Block>();
         private int Executions = 0;
         private Random Random;
 
@@ -143,23 +190,10 @@ namespace GPUVerify
                 foreach (Block tail in loopInfo.BackEdgeNodes(header))
                     HeaderToLoopBody[header].UnionWith(loopInfo.NaturalLoops(header, tail));
                 ComputeLoopExitBlocks(header, HeaderToLoopBody[header]);
-                ComputeWriteAndReadSets(header, HeaderToLoopBody[header]);
             }
-   
-            foreach (Block header1 in loopInfo.Headers)
-            {
-                foreach (Block header2 in loopInfo.Headers)
-                {
-                    if (header1 != header2)
-                    {
-                        Console.WriteLine(header1 + " " + header2);
-                        foreach (var Variable in HeaderToWriteSet[header1].Intersect(HeaderToReadSet[header2]))
-                            Console.WriteLine("WRITE THEN READ " + Variable);
-                        foreach (var Variable in HeaderToWriteSet[header2].Intersect(HeaderToReadSet[header1]))
-                            Console.WriteLine(Variable);
-                    }
-                }
-            }
+            
+            // Determine whether there are loops that could be executed indepedently
+            ComputeDisjointLoops(impl, loopInfo);
 
             Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
             try
@@ -168,6 +202,10 @@ namespace GPUVerify
                 {
                     // Reset the memory in readiness for the next execution
                     Memory.Clear();
+                    foreach (Block header in loopInfo.Headers)
+                    {
+                        HeaderExecutionCounts[header] = 0;   
+                    }
                     EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
                     EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
                     Print.DebugMessage(gpu.ToString(), 1);
@@ -223,39 +261,63 @@ namespace GPUVerify
                 }
             }
         }
+        
+        private void ComputeDisjointLoops(Implementation impl, Graph<Block> loopInfo)
+        {
+            Graph<Block> cfg = Program.GraphFromImpl(impl);
+            foreach (Block header in loopInfo.Headers)
+            {
+                ComputeWriteAndReadSets(header, HeaderToLoopBody[header]);
+            }
+            foreach (Block header in loopInfo.Headers)
+            {
+                DepthFirstSearch dfs = new DepthFirstSearch(header, cfg, new HashSet<Block>(loopInfo.Headers));
+                bool earlyExitPermitted = true;
+                foreach (Block reachable in dfs.VisitedHeaders())
+                {
+                    if (HeaderToWriteSet[header].Intersect(HeaderToAssertReadSet[reachable]).Any())
+                        earlyExitPermitted = false;
+                }
+                if (earlyExitPermitted)
+                {
+                    Print.VerboseMessage("Early exit permitted from " + header);
+                    HeadersFromWhichToExitEarly.Add(header);
+                }
+            }
+        }
 
         private void ComputeWriteAndReadSets(Block header, HashSet<Block> loopBody)
         {
             HeaderToWriteSet[header] = new HashSet<Variable>();
             HeaderToReadSet[header] = new HashSet<Variable>();
-            var writeVisitor = new VariablesOccurringInExpressionVisitor();
+            HeaderToAssertReadSet[header] = new HashSet<Variable>();
             var readVisitor = new VariablesOccurringInExpressionVisitor();
-   
+            var assertReadVisitor = new VariablesOccurringInExpressionVisitor();
+            
             foreach (Block block in loopBody)
             {
                 foreach (AssignCmd assignment in block.Cmds.OfType<AssignCmd>())
                 {
-                    var mapLhss = assignment.Lhss.OfType<MapAssignLhs>();
-                    foreach (var LhsRhs in mapLhss.Zip(assignment.Rhss))
+                    List<Variable> written = new List<Variable>();
+                    assignment.AddAssignedVariables(written);
+                    foreach (Variable variable in written)
                     {
-                        writeVisitor.Visit(LhsRhs.Item1);
-                        readVisitor.Visit(LhsRhs.Item2);
-                    }
-                    foreach (Variable variable in writeVisitor.GetVariables())
                         HeaderToWriteSet[header].Add(variable);
-                    foreach (Variable variable in readVisitor.GetVariables())
-                        HeaderToReadSet[header].Add(variable);
-       
-                    var simpleLhss = assignment.Lhss.OfType<SimpleAssignLhs>();
-                    foreach (var LhsRhs in simpleLhss.Zip(assignment.Rhss))
+                    }
+                    foreach (Expr rhs in assignment.Rhss)
                     {
-                        writeVisitor.Visit(LhsRhs.Item1);
-                        readVisitor.Visit(LhsRhs.Item2);
+                        readVisitor.Visit(rhs);
                     }
-                    foreach (Variable variable in writeVisitor.GetVariables())
-                        HeaderToWriteSet[header].Add(variable);
                     foreach (Variable variable in readVisitor.GetVariables())
+                    {
                         HeaderToReadSet[header].Add(variable);
+                    }
+                }
+                foreach (AssertCmd assert in header.Cmds.OfType<AssertCmd>())
+                {
+                    assertReadVisitor.Visit(assert);
+                    foreach (Variable variable in assertReadVisitor.GetVariables())
+                        HeaderToAssertReadSet[header].Add(variable);
                 }
             }
         }
@@ -496,13 +558,17 @@ namespace GPUVerify
                         // If we have exceeded the user-set loop escape factor then go to an exit block
                         block = HeaderToLoopExitBlocks[block][0];
                     }
+                    else if (headers.Contains(block)
+                        && HeadersFromWhichToExitEarly.Contains(block)
+                        && HeaderExecutionCounts[block] > 1)
+                    {
+                        block = HeaderToLoopExitBlocks[block][0];
+                    }
                     else
                     {
                         if (headers.Contains(block))
                         {
                             GlobalHeaderCount++;
-                            if (!HeaderExecutionCounts.ContainsKey(block))
-                                HeaderExecutionCounts[block] = 0;
                             HeaderExecutionCounts[block]++;
                         }
 
