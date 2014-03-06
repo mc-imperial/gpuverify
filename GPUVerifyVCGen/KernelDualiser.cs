@@ -586,7 +586,7 @@ namespace GPUVerify {
         return InstantiationExpr.Clone() as Expr;
       }
 
-      if(node.Decl is Constant ||
+      if (node.Decl is Constant ||
           QKeyValue.FindBoolAttribute(node.Decl.Attributes, "global") ||
           QKeyValue.FindBoolAttribute(node.Decl.Attributes, "group_shared") ||
           (Uni != null && Uni.IsUniform(ProcName, node.Decl.Name))) {
@@ -629,11 +629,18 @@ namespace GPUVerify {
         return InstantiationExprs.Item1.Clone() as Expr;
       }
 
-      Debug.Assert(node.Decl is Constant ||
-        verifier.KernelArrayInfo.getGroupSharedArrays().Contains(node.Decl) ||
-        verifier.KernelArrayInfo.getGlobalArrays().Contains(node.Decl));
+      if (node.Decl is Constant ||
+          verifier.KernelArrayInfo.getGroupSharedArrays().Contains(node.Decl) ||
+          verifier.KernelArrayInfo.getGlobalArrays().Contains(node.Decl)) {
+        return base.VisitIdentifierExpr(node);
+      }
 
-      return base.VisitIdentifierExpr(node);
+      Console.WriteLine("Expression " + node + " is not valid as part of a barrier invariant: it cannot be instantiated by arbitrary threads.");
+      Console.WriteLine("Check that it is not a thread local variable, or a thread local (rather than __local or __global) array.");
+      Console.WriteLine("In particular, if you have a local variable called tid, which you initialise to e.g. get_local_id(0), this will not work:");
+      Console.WriteLine("  you need to use get_local_id(0) directly.");
+      Environment.Exit(1);
+      return null;
     }
 
     public override Expr VisitNAryExpr(NAryExpr node) {
