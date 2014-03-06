@@ -22,7 +22,6 @@ namespace GPUVerify {
         QKeyValue SourceLocationInfo, KernelDualiser Dualiser, string ProcName,
         GPUVerifier Verifier) :
       base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName, Verifier) {
-Console.WriteLine(BarrierInvariant);
       InstantiationExprs = new List<Expr>();
     }
 
