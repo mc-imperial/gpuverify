@@ -22,6 +22,7 @@ namespace GPUVerify {
         QKeyValue SourceLocationInfo, KernelDualiser Dualiser, string ProcName,
         GPUVerifier Verifier) :
       base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName, Verifier) {
+Console.WriteLine(BarrierInvariant);
       InstantiationExprs = new List<Expr>();
     }
 
@@ -34,17 +35,16 @@ namespace GPUVerify {
       foreach (var Instantiation in InstantiationExprs) {
         foreach (var Thread in new int[] { 1, 2 }) {
           var vd = new VariableDualiser(Thread, Dualiser.verifier.uniformityAnalyser, ProcName);
-          var ThreadInstantiationExpr = vd.VisitExpr(Instantiation);
-          var ti = new ThreadInstantiator(ThreadInstantiationExpr, Thread,
+          var ti = new ThreadInstantiator(Instantiation, Thread,
             Dualiser.verifier.uniformityAnalyser, ProcName);
 
-          result.Add(new AssumeCmd(
-            Token.NoToken,
+          var Assume = new AssumeCmd(Token.NoToken,
             Expr.Imp(vd.VisitExpr(Predicate),
               Expr.Imp(Expr.And(
-                NonNegative(ThreadInstantiationExpr),
-                NotTooLarge(ThreadInstantiationExpr)),
-              ti.VisitExpr(BarrierInvariant)))));
+                NonNegative(Instantiation),
+                NotTooLarge(Instantiation)),
+              ti.VisitExpr(BarrierInvariant))));
+          result.Add(vd.VisitAssumeCmd(Assume) as AssumeCmd);
         }
       }
       return result;

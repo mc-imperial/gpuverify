@@ -98,14 +98,14 @@ namespace GPUVerify
 
       if(!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name)) {
         // We may be able to do better in this case, but for now we conservatively say no
-        return false;  
+        return false;
       }
 
       if(BarrierHasNonUniformArgument(BarrierProcedure)) {
         // Also we may be able to do better in this case, but for now we conservatively say no
         return false;
       }
-      
+
       Debug.Assert(c.Ins.Count() == 2);
       if(strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL) {
         if(!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1))) {
