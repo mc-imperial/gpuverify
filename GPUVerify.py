@@ -876,8 +876,6 @@ def processOpenCLOptions(opts, args):
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] != "*" and CommandLineOptions.groupSize[i] <= 0:
           raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for local_size dimensions must be positive")
-        if CommandLineOptions.groupSize[i] == "*":
-          CommandLineOptions.groupSize[i] = 0
     if o == "--num_groups":
       if CommandLineOptions.numGroups != []:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define num_groups multiple times")
@@ -890,8 +888,6 @@ def processOpenCLOptions(opts, args):
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] != "*" and CommandLineOptions.numGroups[i] <= 0:
           raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for num_groups dimensions must be positive")
-        if CommandLineOptions.numGroups[i] == "*":
-          CommandLineOptions.numGroups[i] = 0
     if o == "--global_size":
       if CommandLineOptions.numGroups != [] or deferNumGroupCalc:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define global_size multiple times")
@@ -900,8 +896,6 @@ def processOpenCLOptions(opts, args):
         for i in range(0, len(global_size)):
           if global_size[i] != "*" and global_size[i] <= 0:
             raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for global_size dimensions must be positive")
-          if global_size[i] == "*":
-            global_size[i] = 0
 
         # We can't calculate CommandLineOptions.numGroups yet
         # because --local_size might not of been parsed yet.
@@ -916,12 +910,17 @@ def processOpenCLOptions(opts, args):
     if len(global_size) != len(CommandLineOptions.groupSize):
       raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "Dimensions of --local_size and --global_size must match")
 
+    CommandLineOptions.numGroups = []
     for (index,value) in enumerate(global_size):
-      if value % CommandLineOptions.groupSize[index] != 0:
+      if value == '*':
+        CommandLineOptions.numGroups.append('*');
+      elif CommandLineOptions.groupSize[index] == '*':
+        CommandLineOptions.numGroups.append(('*', value))
+      elif value % CommandLineOptions.groupSize[index] == 0:
+        CommandLineOptions.numGroups.append(value/CommandLineOptions.groupSize[index])
+      else:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "Dimension {} of global_size does not divide by the same dimension in local_size".format(index))
 
-    # It should be safe to calculate numGroups now
-    CommandLineOptions.numGroups = list( map(lambda ndrange, gs: int(ndrange/gs),global_size, CommandLineOptions.groupSize) )
     if optionIsSet('verbose',opts): print("Calculated number of workgroups: {}".format(CommandLineOptions.numGroups))
 
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/gridHighestDim:" + str(len(CommandLineOptions.numGroups) - 1) ]
@@ -948,8 +947,6 @@ def processCUDAOptions(opts, args):
       for i in range(0, len(CommandLineOptions.groupSize)):
         if CommandLineOptions.groupSize[i] != "*" and CommandLineOptions.groupSize[i] <= 0:
           raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for blockDim must be positive")
-        if CommandLineOptions.groupSize[i] == "*":
-          CommandLineOptions.groupSize[i] = 0
     if o == "--gridDim":
       if CommandLineOptions.numGroups != []:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "illegal to define gridDim multiple times")
@@ -962,8 +959,6 @@ def processCUDAOptions(opts, args):
       for i in range(0, len(CommandLineOptions.numGroups)):
         if CommandLineOptions.numGroups[i] != "*" and CommandLineOptions.numGroups[i] <= 0:
           raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "values specified for gridDim must be positive")
-        if CommandLineOptions.numGroups[i] == "*":
-          CommandLineOptions.numGroups[i] = 0
 
   if CommandLineOptions.groupSize == []:
     raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "thread block size must be specified via --blockDim=...")
@@ -1031,8 +1026,19 @@ def _main(argv):
     CommandLineOptions.defines += clangOpenCLDefines
     CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_WORK_GROUP")
     CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-    CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-    CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    for (index, value) in enumerate(CommandLineOptions.groupSize):
+      if value == '*':
+        CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(index) + "_FREE" ]
+      else:
+        CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(index) + "=" + str(value) ]
+    for (index, value) in enumerate(CommandLineOptions.numGroups):
+      if value == '*':
+        CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(index) + "_FREE" ]
+      elif type(value) is tuple:
+        CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(index) + "_FREE" ]
+        CommandLineOptions.defines += [ "__GLOBAL_SIZE_" + str(index) + "=" + str(value[1]) ]
+      else:
+        CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(index) + "=" + str(value) ]
     if (CommandLineOptions.sizeSizeT == 32):
       CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
                                            "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--.bc" ]
@@ -1046,8 +1052,16 @@ def _main(argv):
     CommandLineOptions.defines += clangCUDADefines
     CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.groupSize)) + "D_THREAD_BLOCK")
     CommandLineOptions.defines.append("__" + str(len(CommandLineOptions.numGroups)) + "D_GRID")
-    CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(i) + "=" + str(CommandLineOptions.groupSize[i]) for i in range(0, len(CommandLineOptions.groupSize))]
-    CommandLineOptions.defines += [ "__GRID_DIM_" + str(i) + "=" + str(CommandLineOptions.numGroups[i]) for i in range(0, len(CommandLineOptions.numGroups))]
+    for (index, value) in enumerate(CommandLineOptions.groupSize):
+      if value == '*':
+        CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(index) + "_FREE" ]
+      else:
+        CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(index) + "=" + str(value) ]
+    for (index, value) in enumerate(CommandLineOptions.numGroups):
+      if value == '*':
+        CommandLineOptions.defines += [ "__GRID_DIM_" + str(index) + "_FREE" ]
+      else:
+        CommandLineOptions.defines += [ "__GRID_DIM_" + str(index) + "=" + str(value) ]
 
   # Intermediate filenames
   bcFilename = filename + '.bc'

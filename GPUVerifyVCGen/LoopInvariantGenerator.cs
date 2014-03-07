@@ -176,16 +176,27 @@ namespace GPUVerify
 
   private static void GenerateCandidateForLoopBounds(GPUVerifier verifier, Implementation impl, IRegion region)
   {
+   HashSet<Variable> modifiedVariables = GetModifiedVariables(region);
+   // Get the partition variables associated with the header
    HashSet<Variable> partitionVars = region.PartitionVariablesOfHeader();
    foreach (Variable v in partitionVars)
    {
+    // Find the expression which defines a particular partition variable.
+    // Visit the expression and rip out any variable in the mod set of the loop.
+    // We assume that any variable satisfying these conditions is a loop counter
     Expr partitionDefExpr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
     var visitor = new VariablesOccurringInExpressionVisitor();
     visitor.Visit(partitionDefExpr);
-    List<Variable> variableList = visitor.GetVariables().ToList();
-    if (variableList.Count == 1)
+    HashSet<Variable> loopCounters = new HashSet<Variable>();
+    foreach (Variable variable in visitor.GetVariables())
     {
-     Variable loopCounter = variableList[0];
+        if (modifiedVariables.Contains(variable))
+            loopCounters.Add(variable);
+    }
+
+    if (loopCounters.Count == 1)
+    {
+     Variable loopCounter = loopCounters.ToList()[0];
      foreach (Block preheader in region.PreHeaders())
      {
       foreach (AssignCmd cmd in preheader.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
@@ -195,10 +206,10 @@ namespace GPUVerify
        {
         if (LhsRhs.Item1.DeepAssignedVariable.Name == loopCounter.Name)
         {
-         var inv = verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2);
-         verifier.AddCandidateInvariant(region, inv, "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
-         var inv2 = verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2);
-         verifier.AddCandidateInvariant(region, inv2, "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
         }
        }
       }
@@ -342,7 +353,9 @@ namespace GPUVerify
     verifier.ResContext.AddVariable(enabledVariable, true);
    }
    Expr invariantEnabled = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, enabledVariable)));
-   header.Cmds.Insert(0, verifier.Program.CreateCandidateInvariant(invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE));
+   PredicateCmd enabledPredicate = verifier.Program.CreateCandidateInvariant(invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
+   enabledPredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, enabledPredicate.Attributes);
+   header.Cmds.Insert(0, enabledPredicate);
    
    // Retrieve the variables read and written in the loop body
    var readVisitor = new VariablesOccurringInExpressionVisitor();
@@ -372,7 +385,9 @@ namespace GPUVerify
     Variable writeHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_WRITE_HAS_OCCURRED_" + found.Name);
     Debug.Assert(writeHasOccurredVariable != null);
     Expr writeHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, writeHasOccurredVariable)));
-    header.Cmds.Insert(0, verifier.Program.CreateCandidateInvariant(writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE));
+    PredicateCmd writePredicate = verifier.Program.CreateCandidateInvariant(writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
+    writePredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, writePredicate.Attributes);
+    header.Cmds.Insert(0, writePredicate);
    }
      
    // Invariant #3: Arrays in global or group-shared memory are not read
@@ -382,7 +397,9 @@ namespace GPUVerify
     Variable readHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_READ_HAS_OCCURRED_" + found.Name);
     Debug.Assert(readHasOccurredVariable != null);
     Expr readHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, readHasOccurredVariable)));
-    header.Cmds.Insert(0, verifier.Program.CreateCandidateInvariant(readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE));
+    PredicateCmd readPredicate = verifier.Program.CreateCandidateInvariant(readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
+    readPredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, readPredicate.Attributes);
+    header.Cmds.Insert(0, readPredicate);
    }
   }
 
@@ -471,7 +488,7 @@ namespace GPUVerify
   private void AddBarrierDivergenceCandidates(HashSet<Variable> LocalVars, Implementation Impl, IRegion region)
   {
 
-   if (!verifier.ContainsUnsafeBarrierCall(region))
+   if (!verifier.ContainsBarrierCall(region))
    {
     return;
    }

@@ -38,7 +38,7 @@ namespace GPUVerify
         public Dictionary<string, string> GlobalArrayOriginalNames;
 
         private HashSet<Procedure> BarrierProcedures = new HashSet<Procedure>();
-        private Dictionary<Tuple<Variable,AccessType>,Procedure> WarpSyncs = new Dictionary<Tuple<Variable,AccessType>,Procedure>();
+        private Dictionary<Tuple<Variable,AccessType,bool>,Procedure> WarpSyncs = new Dictionary<Tuple<Variable,AccessType,bool>,Procedure>();
         public string BarrierProcedureLocalFenceArgName;
         public string BarrierProcedureGlobalFenceArgName;
 
@@ -468,8 +468,6 @@ namespace GPUVerify
         {
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
-            RemoveAxiomsForUnconstrainedDims();
-
             CheckUserSuppliedLoopInvariants();
 
             DuplicateBarriers();
@@ -644,34 +642,6 @@ namespace GPUVerify
 
         }
 
-        private void RemoveAxiomsForUnconstrainedDims()
-        // Removes all axioms of the form
-        //   (if _ == 0bv_ then _ else _) != _
-        {
-          // We loop backwards through the list of declarations, because we will
-          // be removing elements as we go.
-          for (int ctr = Program.TopLevelDeclarations.Count - 1; ctr >= 0; ctr--) {
-            if (!(Program.TopLevelDeclarations[ctr] is Axiom)) continue;
-            Axiom candidate_axiom = (Program.TopLevelDeclarations[ctr] as Axiom);
-            // Console.WriteLine("Found an axiom: " + candidate_axiom.Expr);
-            if (!(candidate_axiom.Expr is NAryExpr)) continue;
-            NAryExpr e = (candidate_axiom.Expr as NAryExpr);
-            if (e.Fun.FunctionName != "!=") continue;
-            if (!(e.Args[0] is NAryExpr)) continue;
-            e = (e.Args[0] as NAryExpr);
-            if (e.Fun.FunctionName != "if-then-else") continue;
-            if (!(e.Args[0] is NAryExpr)) continue;
-            e = (e.Args[0] as NAryExpr);
-            if (e.Fun.FunctionName != "==") continue;
-            if (!(e.Args[1] is LiteralExpr)) continue;
-            LiteralExpr v = (e.Args[1] as LiteralExpr);
-            if ((v.Val is BvConst) && (v.Val as BvConst).Value != BigNum.FromInt(0))
-              continue;
-            // Console.WriteLine("Removing this axiom.");
-            Program.TopLevelDeclarations.RemoveAt(ctr);
-          }
-        }
-
         private void AddParamsAsPreconditions()
         {
           List<string> param_values =
@@ -683,7 +653,7 @@ namespace GPUVerify
           // Locate the kernel with the given name
           bool found_flag = false;
           Procedure proc = null;
-          foreach(KeyValuePair<Procedure, Implementation> entry 
+          foreach(KeyValuePair<Procedure, Implementation> entry
                   in KernelProcedures) {
             if (target_name == entry.Key.Name) {
               // Console.WriteLine("Found kernel " + target_name + ".");
@@ -693,7 +663,7 @@ namespace GPUVerify
             }
           }
           if (found_flag == false) {
-            Console.WriteLine("Error: Couldn't find kernel " 
+            Console.WriteLine("Error: Couldn't find kernel "
                               + target_name + ".");
             Environment.Exit(1);
           }
@@ -704,7 +674,7 @@ namespace GPUVerify
             Console.WriteLine("Error: Too many parameter values.");
             Environment.Exit(1);
           }
-       
+
           // Create requires clauses
           for (int ctr = 1; ctr < param_values.Count; ctr++) {
             Variable v = proc.InParams[ctr-1];
@@ -716,12 +686,12 @@ namespace GPUVerify
             // Todo: I'm assuming each parameter value is an
             // integer here, but that's probably not the right
             // way to go about things.
-            Expr val_expr = 
+            Expr val_expr =
               IntRep.GetLiteral(Convert.ToInt32(val), id_size_bits);
-            Expr v_eq_val = Expr.Eq(v_expr, val_expr);  
+            Expr v_eq_val = Expr.Eq(v_expr, val_expr);
             proc.Requires.Add(new Requires(false, v_eq_val));
             // Console.WriteLine("__requires(" + v.Name + "==" + val + ")");
-          }          
+          }
         }
 
         private void IdentifySafeBarriers()
@@ -2105,8 +2075,10 @@ namespace GPUVerify
                         offset = call.Ins[1];
                         parts = QKeyValue.FindIntAttribute(call.Attributes, "parts", 0);
                       }
-                      else
+                      else {
                         variables = new BvConcatExpr(Token.NoToken,call.Outs[0], variables);
+                        variables.Type = variables.ShallowType;
+                      }
                       if (QKeyValue.FindIntAttribute(call.Attributes, "part", -1) == parts)
                       {
                         AssumeCmd assume = new AssumeCmd(Token.NoToken, Expr.True);
@@ -2206,7 +2178,6 @@ namespace GPUVerify
 
         private void AddWarpSyncs()
         {
-          // Append warp-syncs after log_writes
           foreach (Declaration d in Program.TopLevelDeclarations)
           {
             if (d is Implementation)
@@ -2227,6 +2198,32 @@ namespace GPUVerify
           var result = new List<Cmd>();
           foreach (Cmd c in b.Cmds)
           {
+            if (c is CallCmd)
+            {
+              CallCmd call = c as CallCmd;
+              if (call.callee.StartsWith("_LOG_"))
+              {
+                string array;
+                AccessType kind;
+                if (call.callee.StartsWith("_LOG_ATOMIC")) {
+                  kind = AccessType.ATOMIC;
+                  array = call.callee.Substring(12); // "_LOG_ATOMIC_" is 14 characters
+                } else if (call.callee.StartsWith("_LOG_READ")) {
+                  kind = AccessType.READ;
+                  array = call.callee.Substring(10); // "_LOG_READ_" is 12 characters
+                } else {
+                  Debug.Assert(call.callee.StartsWith("_LOG_WRITE"));
+                  kind = AccessType.WRITE;
+                  array = call.callee.Substring(11); // "_LOG_WRITE_" is 13 characters
+                }
+                // Manual resolving yaey!
+                Variable arrayVar = KernelArrayInfo.getAllArrays().Where(v => v.Name.Equals(array)).First();
+                Procedure proto = FindOrCreateWarpSync(arrayVar,kind,true);
+                CallCmd wsCall = new CallCmd(Token.NoToken,proto.Name,new List<Expr>(),new List<IdentifierExpr>());
+                wsCall.Proc = proto;
+                result.Add(wsCall);
+              }
+            }
             result.Add(c);
             if (c is CallCmd)
             {
@@ -2247,8 +2244,8 @@ namespace GPUVerify
                   array = call.callee.Substring(13); // "_CHECK_WRITE_" is 13 characters
                 }
                 // Manual resolving yaey!
-                Variable arrayVar = KernelArrayInfo.getAllNonLocalArrays().Where(v => v.Name.Equals(array)).First();
-                Procedure proto = FindOrCreateWarpSync(arrayVar,kind);
+                Variable arrayVar = KernelArrayInfo.getAllArrays().Where(v => v.Name.Equals(array)).First();
+                Procedure proto = FindOrCreateWarpSync(arrayVar,kind,false);
                 CallCmd wsCall = new CallCmd(Token.NoToken,proto.Name,new List<Expr>(),new List<IdentifierExpr>());
                 wsCall.Proc = proto;
                 result.Add(wsCall);
@@ -2259,10 +2256,10 @@ namespace GPUVerify
           return b;
         }
 
-        private Procedure FindOrCreateWarpSync(Variable array, AccessType kind) {
-          Tuple<Variable,AccessType> key = new Tuple<Variable,AccessType>(array,kind);
+        private Procedure FindOrCreateWarpSync(Variable array, AccessType kind, bool pre) {
+          Tuple<Variable,AccessType,bool> key = new Tuple<Variable,AccessType,bool>(array,kind,pre);
           if (!WarpSyncs.ContainsKey(key)) {
-            Procedure proto = new Procedure (Token.NoToken, "_WARP_SYNC_" + array.Name + "_" + kind, new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
+            Procedure proto = new Procedure (Token.NoToken, (pre?"_PRE":"_POST") + "_WARP_SYNC_" + array.Name + "_" + kind, new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
             WarpSyncs[key] = proto;
           }
           return WarpSyncs[key];
@@ -2270,10 +2267,11 @@ namespace GPUVerify
 
         private void GenerateWarpSyncs()
         {
-          foreach (Tuple<Variable,AccessType> pair in WarpSyncs.Keys)
+          foreach (Tuple<Variable,AccessType,bool> pair in WarpSyncs.Keys)
           {
             Variable v = pair.Item1;
             AccessType kind = pair.Item2;
+            bool pre = pair.Item3;
             Procedure SyncProcedure = WarpSyncs[pair];
 
             Expr P1 = null;
@@ -2290,8 +2288,20 @@ namespace GPUVerify
 
             // Implementation
             List<Cmd> then = new List<Cmd>();
-            Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,kind);
-            then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
+            if (pre) {
+              var reset_needs = new[] { new {Kind = AccessType.READ,   Resets = new[] {AccessType.WRITE, AccessType.ATOMIC}}
+                                      , new {Kind = AccessType.WRITE,  Resets = new[] {AccessType.READ, AccessType.WRITE, AccessType.ATOMIC}}
+                                      , new {Kind = AccessType.ATOMIC, Resets = new[] {AccessType.READ, AccessType.WRITE}}
+              };
+              foreach (AccessType a in reset_needs.Where(x => x.Kind == kind).First().Resets) {
+                Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,a);
+                then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
+              }
+            }
+            else {
+              Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name,kind);
+              then.Add(new AssumeCmd (Token.NoToken, Expr.Not(Expr.Ident(accessVariable))));
+            }
             List<BigBlock> thenblocks = new List<BigBlock>();
             thenblocks.Add(new BigBlock(Token.NoToken, "reset_warps", then, null, null));
 

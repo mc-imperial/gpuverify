@@ -25,6 +25,10 @@ namespace GPUVerify
 
     Expr MakeSub(Expr lhs, Expr rhs);
     Expr MakeAnd(Expr lhs, Expr rhs);
+    Expr MakeUlt(Expr lhs, Expr rhs);
+    Expr MakeUle(Expr lhs, Expr rhs);
+    Expr MakeUgt(Expr lhs, Expr rhs);
+    Expr MakeUge(Expr lhs, Expr rhs);
     Expr MakeSlt(Expr lhs, Expr rhs);
     Expr MakeSle(Expr lhs, Expr rhs);
     Expr MakeSgt(Expr lhs, Expr rhs);
@@ -110,6 +114,22 @@ namespace GPUVerify
 
     public Expr MakeAnd(Expr lhs, Expr rhs) {
       return MakeBitVectorBinaryBitVector("AND", "bvand", lhs, rhs);
+    }
+
+    public Expr MakeUge(Expr lhs, Expr rhs) {
+      return MakeBitVectorBinaryBoolean("UGE", "bvuge", lhs, rhs);
+    }
+
+    public Expr MakeUlt(Expr lhs, Expr rhs) {
+      return MakeBitVectorBinaryBoolean("ULT", "bvult", lhs, rhs);
+    }
+
+    public Expr MakeUle(Expr lhs, Expr rhs) {
+      return MakeBitVectorBinaryBoolean("ULE", "bvule", lhs, rhs);
+    }
+
+    public Expr MakeUgt(Expr lhs, Expr rhs) {
+      return MakeBitVectorBinaryBoolean("UGT", "bvugt", lhs, rhs);
     }
 
     public Expr MakeSge(Expr lhs, Expr rhs) {
@@ -229,6 +249,22 @@ namespace GPUVerify
 
     public Expr MakeAnd(Expr lhs, Expr rhs) {
       return MakeIntBinaryIntUF("AND", lhs, rhs);
+    }
+
+    public Expr MakeUgt(Expr lhs, Expr rhs) {
+      return MakeIntBinaryBool("UGT", BinaryOperator.Opcode.Gt, lhs, rhs);
+    }
+
+    public Expr MakeUge(Expr lhs, Expr rhs) {
+      return MakeIntBinaryBool("UGE", BinaryOperator.Opcode.Ge, lhs, rhs);
+    }
+
+    public Expr MakeUlt(Expr lhs, Expr rhs) {
+      return MakeIntBinaryBool("ULT", BinaryOperator.Opcode.Lt, lhs, rhs);
+    }
+
+    public Expr MakeUle(Expr lhs, Expr rhs) {
+      return MakeIntBinaryBool("ULE", BinaryOperator.Opcode.Le, lhs, rhs);
     }
 
     public Expr MakeSgt(Expr lhs, Expr rhs) {

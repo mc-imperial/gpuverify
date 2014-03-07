@@ -119,18 +119,6 @@ namespace GPUVerify {
       return result;
     }
 
-    private StmtList MakeDual(StmtList stmtList) {
-      Contract.Requires(stmtList != null);
-
-      StmtList result = new StmtList(new List<BigBlock>(), stmtList.EndCurly);
-
-      foreach (BigBlock bodyBlock in stmtList.BigBlocks) {
-        result.BigBlocks.Add(MakeDual(bodyBlock));
-      }
-
-      return result;
-    }
-
     private void MakeDual(List<Cmd> cs, Cmd c) {
       if (c is CallCmd) {
         CallCmd Call = c as CallCmd;
@@ -140,7 +128,7 @@ namespace GPUVerify {
           Debug.Assert(Call.Ins.Count >= (2 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1)));
           var BIDescriptor = new UnaryBarrierInvariantDescriptor(
             verifier.uniformityAnalyser.IsUniform(Call.callee) ? Expr.True : Call.Ins[0],
-            Expr.Neq(Call.Ins[verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1], 
+            Expr.Neq(Call.Ins[verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1],
               verifier.IntRep.GetLiteral(0, 1)),
               Call.Attributes,
               this, procName, verifier);
@@ -391,49 +379,6 @@ namespace GPUVerify {
       }
     }
 
-    private BigBlock MakeDual(BigBlock bb) {
-      // Not sure what to do about the transfer command
-
-      BigBlock result = new BigBlock(bb.tok, bb.LabelName, new List<Cmd>(), null, bb.tc);
-
-      foreach (Cmd c in bb.simpleCmds) {
-        MakeDual(result.simpleCmds, c);
-      }
-
-      if (bb.ec is WhileCmd) {
-        Expr NewGuard;
-        if (verifier.uniformityAnalyser.IsUniform(procName, (bb.ec as WhileCmd).Guard)) {
-          NewGuard = (bb.ec as WhileCmd).Guard;
-        }
-        else {
-          NewGuard = Expr.Or(Dualise((bb.ec as WhileCmd).Guard, 1),
-                  Dualise((bb.ec as WhileCmd).Guard, 2)
-          );
-        }
-        result.ec = new WhileCmd(bb.ec.tok,
-            NewGuard,
-            MakeDualInvariants((bb.ec as WhileCmd).Invariants), MakeDual((bb.ec as WhileCmd).Body));
-      }
-      else if (bb.ec is IfCmd) {
-        Debug.Assert(verifier.uniformityAnalyser.IsUniform(procName, (bb.ec as IfCmd).Guard));
-        result.ec = new IfCmd(bb.ec.tok,
-            (bb.ec as IfCmd).Guard,
-                     MakeDual((bb.ec as IfCmd).thn),
-                     null,
-                     (bb.ec as IfCmd).elseBlock == null ? null : MakeDual((bb.ec as IfCmd).elseBlock));
-
-      }
-      else if (bb.ec is BreakCmd) {
-        result.ec = bb.ec;
-      }
-      else {
-        Debug.Assert(bb.ec == null);
-      }
-
-      return result;
-
-    }
-
     private Block MakeDual(Block b) {
       var newCmds = new List<Cmd>();
       foreach (Cmd c in b.Cmds) {
@@ -641,15 +586,11 @@ namespace GPUVerify {
         return InstantiationExpr.Clone() as Expr;
       }
 
-      if(node.Decl is Constant ||
+      if (node.Decl is Constant ||
           QKeyValue.FindBoolAttribute(node.Decl.Attributes, "global") ||
           QKeyValue.FindBoolAttribute(node.Decl.Attributes, "group_shared") ||
           (Uni != null && Uni.IsUniform(ProcName, node.Decl.Name))) {
         return base.VisitIdentifierExpr(node);
-      }
-
-      if (InstantiationExprIsThreadId()) {
-        return new VariableDualiser(Thread, Uni, ProcName).VisitIdentifierExpr(node);
       }
 
       Console.WriteLine("Expression " + node + " is not valid as part of a barrier invariant: it cannot be instantiated by arbitrary threads.");
@@ -661,25 +602,9 @@ namespace GPUVerify {
     }
 
     private bool InstantiationExprIsThreadId() {
-      return (InstantiationExpr is IdentifierExpr) && 
+      return (InstantiationExpr is IdentifierExpr) &&
         ((IdentifierExpr)InstantiationExpr).Decl.Name.Equals(GPUVerifier.MakeThreadId("X", Thread).Name);
     }
-
-    public override Expr VisitNAryExpr(NAryExpr node) {
-      if (node.Fun is MapSelect) {
-        Debug.Assert((node.Fun as MapSelect).Arity == 1);
-        Debug.Assert(node.Args[0] is IdentifierExpr);
-        var v = (node.Args[0] as IdentifierExpr).Decl;
-        if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
-          return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-            new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
-              new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(Thread) })), VisitExpr(node.Args[1]) }));
-        }
-      }
-      return base.VisitNAryExpr(node);
-    }
-
-
   }
 
 
@@ -704,26 +629,21 @@ namespace GPUVerify {
         return InstantiationExprs.Item1.Clone() as Expr;
       }
 
-      Debug.Assert(node.Decl is Constant ||
-        verifier.KernelArrayInfo.getGroupSharedArrays().Contains(node.Decl) ||
-        verifier.KernelArrayInfo.getGlobalArrays().Contains(node.Decl));
+      if (node.Decl is Constant ||
+          verifier.KernelArrayInfo.getGroupSharedArrays().Contains(node.Decl) ||
+          verifier.KernelArrayInfo.getGlobalArrays().Contains(node.Decl)) {
+        return base.VisitIdentifierExpr(node);
+      }
 
-      return base.VisitIdentifierExpr(node);
+      Console.WriteLine("Expression " + node + " is not valid as part of a barrier invariant: it cannot be instantiated by arbitrary threads.");
+      Console.WriteLine("Check that it is not a thread local variable, or a thread local (rather than __local or __global) array.");
+      Console.WriteLine("In particular, if you have a local variable called tid, which you initialise to e.g. get_local_id(0), this will not work:");
+      Console.WriteLine("  you need to use get_local_id(0) directly.");
+      Environment.Exit(1);
+      return null;
     }
 
     public override Expr VisitNAryExpr(NAryExpr node) {
-      if (node.Fun is MapSelect) {
-        Debug.Assert((node.Fun as MapSelect).Arity == 1);
-        Debug.Assert(node.Args[0] is IdentifierExpr);
-        var v = (node.Args[0] as IdentifierExpr).Decl;
-
-        if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
-          return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-            new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
-              new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(Thread) })), VisitExpr(node.Args[1]) }));
-        }
-      }
-
       if (node.Fun is FunctionCall) {
         FunctionCall call = node.Fun as FunctionCall;
 

@@ -98,14 +98,14 @@ namespace GPUVerify
 
       if(!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name)) {
         // We may be able to do better in this case, but for now we conservatively say no
-        return false;  
+        return false;
       }
 
       if(BarrierHasNonUniformArgument(BarrierProcedure)) {
         // Also we may be able to do better in this case, but for now we conservatively say no
         return false;
       }
-      
+
       Debug.Assert(c.Ins.Count() == 2);
       if(strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL) {
         if(!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1))) {
@@ -235,8 +235,6 @@ namespace GPUVerify
 
 
   internal class BarrierInterval {
-    private Block start;
-    private Block end;
     private IEnumerable<Block> blocks;
 
     public IEnumerable<Block> Blocks {
@@ -245,8 +243,6 @@ namespace GPUVerify
 
     public BarrierInterval(Block start, Block end, DomRelation<Block> dom, DomRelation<Block> pdom, Implementation impl)
     {
-      this.start = start;
-      this.end = end;
       blocks = impl.Blocks.Where(Item =>
         Item != end &&
         dom.DominatedBy(Item, start) &&

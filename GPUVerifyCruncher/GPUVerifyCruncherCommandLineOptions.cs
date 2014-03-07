@@ -26,6 +26,9 @@ namespace GPUVerify
     public bool InferInfo = false;
     public int DynamicAnalysisLoopHeaderLimit = 1000;
     public int DynamicAnalysisLoopEscapeFactor = 0;
+    public bool DynamicAnalysisSoundLoopEscaping = false;
+    public bool ReplaceLoopInvariantAssertions = false;
+    public bool DisableBarrierDivergenceChecks = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -55,6 +58,11 @@ namespace GPUVerify
         DynamicAnalysis = true;
         return true;
       }
+            
+      if (name == "dynamicAnalysisSoundLoopEscaping") {
+        DynamicAnalysisSoundLoopEscaping = true;
+        return true;
+      }
 
       if (name == "dynamicAnalysisLoopHeaderLimit") {
          if (ps.ConfirmArgumentCount(1))
@@ -76,6 +84,16 @@ namespace GPUVerify
 
       if (name == "inferInfo") {
         InferInfo = true;
+        return true;
+      }
+
+      if (name == "replaceLoopInvariantAssertions") {
+        ReplaceLoopInvariantAssertions = true;
+        return true;
+      }
+
+      if (name == "disableBarrierDivergenceChecks") {
+        DisableBarrierDivergenceChecks = true;
         return true;
       }
 
