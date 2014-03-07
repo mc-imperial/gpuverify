@@ -56,7 +56,7 @@ namespace GPUVerify {
         new VariableDualiser(1, Dualiser.verifier.uniformityAnalyser, ProcName).VisitExpr(
           Expr.Imp(Predicate, BarrierInvariant)),
         Dualiser.MakeThreadSpecificAttributes(SourceLocationInfo, 1));
-      result.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant", new List<object> { Expr.True}, result.Attributes);
+      result.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant", new List<object> { Expr.True }, result.Attributes);
       return result;
     }
 

@@ -2075,8 +2075,10 @@ namespace GPUVerify
                         offset = call.Ins[1];
                         parts = QKeyValue.FindIntAttribute(call.Attributes, "parts", 0);
                       }
-                      else
+                      else {
                         variables = new BvConcatExpr(Token.NoToken,call.Outs[0], variables);
+                        variables.Type = variables.ShallowType;
+                      }
                       if (QKeyValue.FindIntAttribute(call.Attributes, "part", -1) == parts)
                       {
                         AssumeCmd assume = new AssumeCmd(Token.NoToken, Expr.True);

@@ -42,25 +42,21 @@ namespace GPUVerify {
         foreach (var Thread in new int[] { 1, 2 }) {
 
           var vd = new VariableDualiser(Thread, Dualiser.verifier.uniformityAnalyser, ProcName);
+          var ti = new ThreadPairInstantiator(Dualiser.verifier, Instantiation.Item1, Instantiation.Item2, Thread);
 
-          var ThreadInstantiationExpr = vd.VisitExpr(Instantiation.Item1);
-          var OtherThreadInstantiationExpr = vd.VisitExpr(Instantiation.Item2);
-
-          var ti = new ThreadPairInstantiator(Dualiser.verifier, ThreadInstantiationExpr, OtherThreadInstantiationExpr, Thread);
-
-          result.Add(new AssumeCmd(
-            Token.NoToken,
+          var Assume = new AssumeCmd(Token.NoToken,
             Expr.Imp(vd.VisitExpr(Predicate),
               Expr.Imp(
                 Expr.And(
                   Expr.And(
-                    Expr.And(NonNegative(ThreadInstantiationExpr),
-                             NotTooLarge(ThreadInstantiationExpr)),
-                    Expr.And(NonNegative(OtherThreadInstantiationExpr),
-                             NotTooLarge(OtherThreadInstantiationExpr))
+                    Expr.And(NonNegative(Instantiation.Item1),
+                             NotTooLarge(Instantiation.Item1)),
+                    Expr.And(NonNegative(Instantiation.Item2),
+                             NotTooLarge(Instantiation.Item2))
                   ),
-                  Expr.Neq(ThreadInstantiationExpr, OtherThreadInstantiationExpr)),
-              ti.VisitExpr(BarrierInvariant)))));
+                  Expr.Neq(Instantiation.Item1, Instantiation.Item2)),
+              ti.VisitExpr(BarrierInvariant))));
+          result.Add(vd.VisitAssumeCmd(Assume) as AssumeCmd);
         }
       }
       return result;
