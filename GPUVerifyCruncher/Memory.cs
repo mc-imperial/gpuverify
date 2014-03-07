@@ -215,7 +215,7 @@ namespace GPUVerify
 
     class SubscriptExpr
     {
-        private List<BitVector> indices = new List<BitVector>();
+        public List<BitVector> indices = new List<BitVector>();
 
         public static bool Matches(SubscriptExpr expr1, SubscriptExpr expr2)
         {
@@ -241,11 +241,6 @@ namespace GPUVerify
 
         public SubscriptExpr()
         {
-        }
-
-        public void AddIndex(BitVector index)
-        {
-            indices.Add(index);
         }
 
         public override string ToString()

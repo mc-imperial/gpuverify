@@ -651,10 +651,7 @@ namespace GPUVerify
                                     MapSymbolNode _left = left as MapSymbolNode;
                                     SubscriptExpr subscriptExpr = new SubscriptExpr();
                                     foreach (ExprNode child in _left.GetChildren())
-                                    {
-                                        BitVector subscript = child.evaluation;
-                                        subscriptExpr.AddIndex(subscript);
-                                    }
+                                        subscriptExpr.indices.Add(child.evaluation);
                                     Memory.Store(_left.basename, subscriptExpr, right.evaluation);
                                 }
                             }
@@ -686,7 +683,6 @@ namespace GPUVerify
                 // and which can influence control flow
                 if (!Memory.Contains(v.Name))
                 {
-                    Print.WarningMessage(String.Format("Formal parameter '{0}' not initialised", v.Name));
                     int width;
                     if (v.TypedIdent.Type is BvType)
                     {
@@ -742,14 +738,17 @@ namespace GPUVerify
                             SubscriptExpr subscriptExpr = new SubscriptExpr();
                             foreach (Expr index in lhs.Indexes)
                             {
-                                ExprTree exprTree = GetExprTree(index);
-                                EvaluateExprTree(exprTree);
-                                BitVector subscript = exprTree.evaluation;
-                                subscriptExpr.AddIndex(subscript);
+                                ExprTree tree = GetExprTree(index);
+                                EvaluateExprTree(tree);
+                                if (tree.initialised)
+                                    subscriptExpr.indices.Add(tree.evaluation);
                             }
-                            ExprTree tree = LhsEval.Item2;
-                            if (tree.initialised)
-                                Memory.Store(lhs.DeepAssignedVariable.Name, subscriptExpr, tree.evaluation);
+                            if (subscriptExpr.indices.Count > 0)
+                            {
+                                ExprTree tree2 = LhsEval.Item2;
+                                if (tree2.initialised)
+                                    Memory.Store(lhs.DeepAssignedVariable.Name, subscriptExpr, tree2.evaluation);
+                            }
                         }
                         else
                         {
@@ -1346,10 +1345,7 @@ namespace GPUVerify
                         foreach (ExprNode child in _node.GetChildren())
                         {
                             if (child.initialised)
-                            {
-                                BitVector subscript = child.evaluation;
-                                subscriptExpr.AddIndex(subscript);
-                            }
+                                subscriptExpr.indices.Add(child.evaluation);
                             else
                                 _node.initialised = false;
                         }
