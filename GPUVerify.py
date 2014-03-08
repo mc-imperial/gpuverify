@@ -917,7 +917,7 @@ def processOpenCLOptions(opts, args):
       elif CommandLineOptions.groupSize[index] == '*':
         CommandLineOptions.numGroups.append(('*', value))
       elif value % CommandLineOptions.groupSize[index] == 0:
-        CommandLineOptions.numGroups.append(value/CommandLineOptions.groupSize[index])
+        CommandLineOptions.numGroups.append(value // CommandLineOptions.groupSize[index]) # Use '//' to ensure flooring division for Python3
       else:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "Dimension {} of global_size does not divide by the same dimension in local_size".format(index))
 
