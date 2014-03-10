@@ -194,9 +194,8 @@ namespace GPUVerify
             loopCounters.Add(variable);
     }
 
-    if (loopCounters.Count == 1)
+    foreach (Variable loopCounter in loopCounters)
     {
-     Variable loopCounter = loopCounters.ToList()[0];
      foreach (Block preheader in region.PreHeaders())
      {
       foreach (AssignCmd cmd in preheader.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
@@ -253,7 +252,7 @@ namespace GPUVerify
       // at least once
       foreach (Block ctrlDepBlock in ctrlDep[block].Where(x => x == header))
       {
-       controllingBlocks.Add(block);
+        controllingBlocks.Add(block);
       }
      }
     }
