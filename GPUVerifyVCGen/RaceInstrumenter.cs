@@ -77,6 +77,12 @@ namespace GPUVerify {
       verifier.AddCandidateInvariant(region, candidate, "no" + Access.ToString().ToLower(), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
     }
 
+    private void AddSameWarpNoAccessCandidateInvariant(IRegion region, Variable v, AccessType Access) {
+      if (!GPUVerifyVCGenCommandLineOptions.WarpSync) return;
+      Expr candidate = Expr.Imp(Expr.And(GPUVerifier.ThreadsInSameGroup(), verifier.ThreadsInSameWarp()), NoAccessExpr(v, Access));
+      verifier.AddCandidateInvariant(region, candidate, "sameWarpNoAccess", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+    }
+
     public void AddRaceCheckingCandidateInvariants(Implementation impl, IRegion region) {
       List<Expr> offsetPredicatesRead = new List<Expr>();
       List<Expr> offsetPredicatesWrite = new List<Expr>();
@@ -84,6 +90,9 @@ namespace GPUVerify {
 
       foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
         AddNoAccessCandidateInvariants(region, v);
+        AddSameWarpNoAccessCandidateInvariant(region, v, AccessType.READ);
+        AddSameWarpNoAccessCandidateInvariant(region, v, AccessType.WRITE);
+        // Same group and same warp does *not* imply no atomic accesses
         AddOffsetIsBlockBoundedCandidateInvariants(impl, region, v, AccessType.READ);
         AddOffsetIsBlockBoundedCandidateInvariants(impl, region, v, AccessType.WRITE);
         AddOffsetIsBlockBoundedCandidateInvariants(impl, region, v, AccessType.ATOMIC);
