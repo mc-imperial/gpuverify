@@ -7,7 +7,6 @@ import pprint
 import traceback
 import pprint
 
-import observers.kernelcounter
 
 app = Flask(__name__)
 
@@ -39,7 +38,11 @@ def init():
   _tool = gvapi.GPUVerifyTool(app.config['GPUVERIFY_ROOT_DIR'], app.config['GPUVERIFY_TEMP_DIR'])
 
   #Register observers
-  _tool.registerObserver( observers.kernelcounter.KernelCounterObserver(app.config['KERNEL_COUNTER_PATH']) )
+  from observers.kernelcounter import KernelCounterObserver
+  from observers.kernelrecorder import KernelRecorderObserver
+  _tool.registerObserver( KernelCounterObserver(app.config['KERNEL_COUNTER_PATH']) )
+  if app.config['LOGGED_KERNELS_DIR'] != None:
+    _tool.registerObserver( KernelRecorderObserver(app.config['LOGGED_KERNELS_DIR']) )
 
 #Setup routing
 @app.errorhandler(404)

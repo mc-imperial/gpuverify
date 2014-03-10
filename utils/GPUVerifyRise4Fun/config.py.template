@@ -22,3 +22,6 @@ INCLUDE_VERSION_FROM_LOCAL=False
 # Note you should not pass --blockDim= , --gridDim=, --local_size or --num_groups=
 # These arguments are filtered and may be blocked (see extractOtherCmdArgs() )
 GPUVERIFY_DEFAULT_ARGS= ['--verbose']
+
+# The directory to log recieved kernels. Set to None to disable
+LOGGED_KERNELS_DIR = None
