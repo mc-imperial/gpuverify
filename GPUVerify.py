@@ -1073,6 +1073,8 @@ def _main(argv):
       else:
         CommandLineOptions.defines += [ "__GRID_DIM_" + str(index) + "=" + str(value) ]
 
+  if CommandLineOptions.refutationEngine != "": CommandLineOptions.stopAtCbpl = True
+
   # Intermediate filenames
   bcFilename = filename + '.bc'
   optFilename = filename + '.opt.bc'
