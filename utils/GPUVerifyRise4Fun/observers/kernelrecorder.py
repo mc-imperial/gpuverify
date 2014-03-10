@@ -1,12 +1,13 @@
 # vim: set sw=2 ts=2 softtabstop=2 expandtab:
 import gvapi
 import logging
+import os
 import tempfile
 
 _logging = logging.getLogger(__name__)
 
 # This observer records GPUVerify run information
-class ExampleObserver(gvapi.GPUVerifyObserver):
+class KernelRecorderObserver(gvapi.GPUVerifyObserver):
   def __init__(self, dirForKernels):
     self.kernelDir = os.path.abspath(dirForKernels)
 
@@ -18,7 +19,7 @@ class ExampleObserver(gvapi.GPUVerifyObserver):
       f.write("=== Command Line Arguments ===\n\n" + str(args)       + "\n\n")
       f.write("======= Kernel Source ========\n\n" + source          + "\n\n")
       f.write("======== Return Code =========\n\n" + str(returnCode) + "\n\n")
-      f.write("=========== Output ===========\n\n" + output          + "\n\n")
+      f.write("=========== Output ===========\n\n" + output)
       f.close()
 
     _logging.debug('Logging kernel done')
