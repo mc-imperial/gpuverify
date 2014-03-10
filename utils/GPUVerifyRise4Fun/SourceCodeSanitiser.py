@@ -24,23 +24,23 @@ class SourceCodeSanitiser(object):
     matcher = re.compile(pattern)
 
     splitSource = source.splitlines()
+    newSource = [ ]
     for (index, line) in enumerate(splitSource): 
-      if matcher.match(line):
+      if matcher.search(line):
         lineNumber = index +1
         msg = 'Removing line containing {thing} on line {line}'.format(line=lineNumber,
                                                                        thing=thingToRemoveAsString
                                                                       )
         _logger.warning(msg)
         self.warnings.append(msg)
+      else:
+        newSource.append(line)
 
-        # Remove the line
-        splitSource.pop(index)
-
-    if len(splitSource) == 0:
+    if len(newSource) == 0:
       return ''
     else:
       return reduce(lambda lineA, lineB: lineA + '\n' + lineB,
-                    splitSource)
+                    newSource)
 
   def sanitise(self, source):
     # Dynamically find all sanitise methods in this object and run them
@@ -59,7 +59,7 @@ class SourceCodeSanitiser(object):
     return transformedSource
 
   def sanitise_includes(self, source):
-    pattern = r'^\s*#include'
+    pattern = r'#include'
     return self._common_regex_sanitise(source, pattern, '#include')
 
   def sanitise_includenext(self, source):
@@ -67,7 +67,7 @@ class SourceCodeSanitiser(object):
       #include_next is a GNU gcc extension to C standard
       http://gcc.gnu.org/onlinedocs/cpp/Wrapper-Headers.html#Wrapper-Headers
     """
-    pattern = r'^\s*#include_next'
+    pattern = r'#include_next'
     return self._common_regex_sanitise(source, pattern, '#include_next')
 
   def sanitise_import(self, source):
@@ -76,7 +76,7 @@ class SourceCodeSanitiser(object):
       supports it but lets just be safe and remove anyway
       http://gcc.gnu.org/onlinedocs/cpp/Alternatives-to-Wrapper-_0023ifndef.html
     """
-    pattern = r'^\s*#import'
+    pattern = r'#import'
     return self._common_regex_sanitise(source, pattern, '#import')
 
 
@@ -84,12 +84,19 @@ class SourceCodeSanitiser(object):
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
   s = SourceCodeSanitiser()
-  reduced = s.sanitise("""#include <iostream>\nint a=5;\nin b=6;\n    #include \"Something\"\n
-  #include_next something
+  reduced = s.sanitise("""
+  #include <iostream>
+  int a=5;
+  int b=6;
+  #include /* HACK */ "Something"
+  #include_next "something"
   foo
-  #import something
+  #import "something"
   bar
   #include something
+  /* HACK */ #include "hahah i got through"
+  /* HACK */ #include <hahah i got through.h>
+  // XXX
   """)
   print(s.getWarnings())
   print("Reduced form:")
