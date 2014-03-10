@@ -1221,6 +1221,14 @@ namespace GPUVerify
           return QKeyValue.FindIntAttribute(Proc.Attributes, "inline", -1) == 1;
         }
 
+        internal Expr ThreadsInSameWarp()
+        {
+            Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv" + id_size_bits, new BvType(id_size_bits));
+            IEnumerable<Expr> tids = (new int[] {1,2}).Select(x => FlattenedThreadId(x));
+            Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
+            return Expr.Eq(sides[0], sides[1]);
+        }
+
         internal static Expr ThreadsInSameGroup()
         {
             if(GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
@@ -2130,11 +2138,7 @@ namespace GPUVerify
 
         private void DoOnlyWarp()
         {
-          Expr group_guard = (new string[] {"X","Y","Z"}).Select(d => (Expr) Expr.Eq(Expr.Ident(MakeGroupId(d,1)), Expr.Ident(MakeGroupId(d,2)))).Aggregate(Expr.And);
-          Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
-          IEnumerable<Expr> tids = (new int[] {1,2}).Select(x => FlattenedThreadId(x));
-          Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
-          Expr condition = Expr.And(group_guard, Expr.Eq(sides[0], sides[1]));
+          Expr condition = Expr.And(ThreadsInSameGroup(), ThreadsInSameWarp());
           Program.TopLevelDeclarations.Add(new Axiom(Token.NoToken, condition));
 
           foreach (Implementation impl in Program.TopLevelDeclarations.OfType<Implementation>())
@@ -2168,11 +2172,7 @@ namespace GPUVerify
 
         private void DoNoWarp()
         {
-          Expr group_guard = (new string[] {"X","Y","Z"}).Select(d => (Expr) Expr.Eq(Expr.Ident(MakeGroupId(d,1)), Expr.Ident(MakeGroupId(d,2)))).Aggregate(Expr.And);
-          Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv32", new BvType(32));
-          IEnumerable<Expr> tids = (new int[] {1,2}).Select(x => FlattenedThreadId(x));
-          Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
-          Expr condition = Expr.Imp(group_guard, Expr.Neq(sides[0], sides[1]));
+          Expr condition = Expr.Imp(ThreadsInSameGroup(), Expr.Not(ThreadsInSameWarp()));
           Program.TopLevelDeclarations.Add(new Axiom(Token.NoToken, condition));
         }
 
@@ -2309,17 +2309,7 @@ namespace GPUVerify
               thenblocks.AddRange(MakeHavocBlocks(new Variable[] {v}));
             }
 
-            Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv" + id_size_bits, new BvType(id_size_bits));
-
-            Expr[] tids = (new int[] {1,2}).Select(x =>
-                IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",x)),IntRep.MakeAdd(
-                IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",x)),Expr.Ident(GetGroupSize("X"))),
-                IntRep.MakeMul(Expr.Ident(MakeThreadId("Z",x)),IntRep.MakeMul(Expr.Ident(GetGroupSize("X")),Expr.Ident(GetGroupSize("Y"))))))).ToArray();
-
-            // sides = {lhs,rhs};
-            Expr[] sides = tids.Select(x => IntRep.MakeDiv(x,warpsize)).ToArray();
-
-            Expr condition = Expr.And(Expr.Eq(P1,P2),Expr.And(ThreadsInSameGroup(),Expr.Eq(sides[0],sides[1])));
+            Expr condition = Expr.And(Expr.Eq(P1,P2),Expr.And(ThreadsInSameGroup(), ThreadsInSameWarp()));
 
             IfCmd ifcmd = new IfCmd (Token.NoToken, condition, new StmtList (thenblocks,Token.NoToken), /* another IfCmd for elsif */ null, /* then branch */ null);
 
