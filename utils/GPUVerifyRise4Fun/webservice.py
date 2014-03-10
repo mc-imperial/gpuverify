@@ -4,6 +4,7 @@ from flask import Flask, jsonify, url_for, request, abort
 from socket import gethostname
 import logging
 import pprint
+from SourceCodeSanitiser import SourceCodeSanitiser
 import traceback
 import pprint
 
@@ -19,6 +20,7 @@ _logging = logging.getLogger(__name__)
 cudaMetaData = {}
 openclMetaData = {} 
 _tool = None
+_sourceCodeSanitiser = None
 
 # This is not ideal, we delay initialisation
 # until the first request which could slow
@@ -30,12 +32,15 @@ _tool = None
 @app.before_first_request
 def init():
   # Pre-compute metadata information
-  global cudaMetaData , openclMetaData, _gpuverifyObservers, _tool
+  global cudaMetaData , openclMetaData, _gpuverifyObservers, _tool, _sourceCodeSanitiser
   cudaMetaData = CUDAMetaData(app.config['SRC_ROOT'])
   openclMetaData = OpenCLMetaData(app.config['SRC_ROOT'])
 
   # Create GPUVerify tool instance
   _tool = gvapi.GPUVerifyTool(app.config['GPUVERIFY_ROOT_DIR'], app.config['GPUVERIFY_TEMP_DIR'])
+
+  # Create Source code sanitiser
+  _sourceCodeSanitiser = SourceCodeSanitiser()
 
   #Register observers
   from observers.kernelcounter import KernelCounterObserver
@@ -95,9 +100,13 @@ def runGpuverify(lang):
   if not request.json:
     abort(400)
 
-  #FIXME: Sanitise source code
+
   source = request.json['Source']
   _logging.debug('Received request:\n' + pprint.pformat(request.json))
+
+  # Sanitise the source code
+  assert _sourceCodeSanitiser != None
+  source = _sourceCodeSanitiser.sanitise( source )
 
   # Assume _tool already initialised
   assert _tool != None
@@ -140,10 +149,20 @@ def runGpuverify(lang):
 
     toolMessage = filterToolOutput(toolMessage)
 
+    # If the source code sanitiser issued warnings show them.
+    if len(_sourceCodeSanitiser.getWarnings()) != 0:
+      warnings = reduce( lambda lineA, lineB: lineA + '\n' + lineB + '\n',
+                         map( lambda m : 'Warning: ' + m,
+                              _sourceCodeSanitiser.getWarnings()
+                            )
+                       )
+      toolMessage = warnings + '\n\n' + toolMessage
+
     # If we have ignored command line arguments warn the user about this
     if len(ignoredArgs) != 0:
       warning = 'Warning ignored command line option(s):\n{0}\n\n'.format(pprint.pformat(ignoredArgs))
       toolMessage = warning + toolMessage
+
 
     returnMessage['Outputs'][0]['Value'] = (extraHelpMessage + toolMessage).decode('utf8')
 
@@ -151,6 +170,7 @@ def runGpuverify(lang):
     returnMessage['Outputs'][0]['Value'] = 'Web service error:' + str(e)
     _logging.error('Exception occured:\n' + traceback.format_exc())
 
+  _sourceCodeSanitiser.removeWarnings() # Do not hold on to warnings
   _logging.debug('Sending responce:\n' + pprint.pformat(returnMessage))
   return jsonify(returnMessage)
     
