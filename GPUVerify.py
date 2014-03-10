@@ -253,6 +253,7 @@ class DefaultCmdLineOptions(object):
     self.parallelInference = False
     self.dynamicAnalysis = False
     self.scheduling = "default"
+    self.refutationEngine = ""
     self.inferInfo = False
     self.debuggingHoudini = False
     self.stopAtOpt = False
@@ -555,6 +556,10 @@ def showHelpAndExit():
                             during invariant inference
     --infer-info            Prints information about the inference process.
     --k-induction-depth=X   Applies k-induction with k=X to all loops.
+    --refutation-engine=    Choose a refutation engine from the following: 'houdini', 'dynamic',
+                            'lmi' (ignore loop maintained invariants), 'lei' (ignore loop entry
+                            invariants) or 'lu' (loop-unrolling). If an unsound refutation engine
+                            is chosen, the result cannot be trusted.
 
   OPENCL OPTIONS:
     --local_size=X          Specify whether work-group is 1D, 2D or 3D and
@@ -827,7 +832,12 @@ def processGeneralOptions(opts, args):
       if a.lower() in ("all-together","unsound-first","dynamic-first","phased"):
         CommandLineOptions.scheduling = a.lower()
       else:
-        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --scheduling must be 'all-together', 'unsound-first', 'dynamic-first' or'phased'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --scheduling must be 'all-together', 'unsound-first', 'dynamic-first' or 'phased'")
+    if o == "--refutation-engine":
+      if a.lower() in ("houdini","dynamic","lmi","lei","lu"):
+        CommandLineOptions.refutationEngine = a.lower()
+      else:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --refutation-engine must be 'houdini', 'dynamic', 'lmi', 'lei' or 'lu'")
     if o == "--logic":
       if a.upper() in ("ALL_SUPPORTED","QF_ALL_SUPPORTED"):
         CommandLineOptions.logic = a.upper()
@@ -988,7 +998,7 @@ def _main(argv):
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
-              'staged-inference', 'parallel-inference',
+              'staged-inference', 'parallel-inference', 'refutation-engine=',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'no-warp', 'only-warp',
               'atomic=', 'no-refined-atomics',
@@ -1175,6 +1185,7 @@ def _main(argv):
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/noinfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/contractInfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
+  CommandLineOptions.gpuVerifyCruncherOptions += [ "/refutationEngine:" + CommandLineOptions.refutationEngine ]
   if CommandLineOptions.inferInfo:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferInfo" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]

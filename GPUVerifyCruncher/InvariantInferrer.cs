@@ -89,6 +89,11 @@ namespace Microsoft.Boogie
         Console.WriteLine("Computing invariants without race checking...");
       }
 
+      if (!((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("")) {
+        runSingleRefutationEngine();
+        return 0;
+      }
+
       // Concurrent invariant inference
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelInference) {
         List<Task> unsoundTasks = new List<Task>();
@@ -227,6 +232,56 @@ namespace Microsoft.Boogie
         }
       }
       return true;
+    }
+
+    private void runSingleRefutationEngine()
+    {
+      Houdini.HoudiniOutcome outcome = null;
+      RefutationEngine engine = null;
+
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("houdini"))
+      {
+        engine = new StaticRefutationEngine(0, "houdini",
+          CommandLineOptions.Clo.ProverCCLimit.ToString(), "False", "False", "False", "-1");
+      }
+      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lmi"))
+      {
+        engine = new StaticRefutationEngine(0, "lmi",
+          CommandLineOptions.Clo.ProverCCLimit.ToString(), "False", "True", "False", "-1");
+      }
+      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lei"))
+      {
+        engine = new StaticRefutationEngine(0, "lei",
+          CommandLineOptions.Clo.ProverCCLimit.ToString(), "True", "False", "False", "-1");
+      }
+      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lu"))
+      {
+        engine = new StaticRefutationEngine(0, "lu",
+          CommandLineOptions.Clo.ProverCCLimit.ToString(), "False", "False", "False", "2");
+      }
+      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("dynamic"))
+      {
+        engine = new DynamicRefutationEngine(0, "dynamic", "-1", "-1", "-1", "-1", "-1", "-1");
+      }
+       
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("dynamic"))
+      {
+        ((DynamicRefutationEngine)engine).start(getFreshProgram(false, false, false));
+      }
+      else
+      {
+        ((StaticRefutationEngine)engine).start(getFreshProgram(false, false, true), ref outcome);
+        int numTrueAssigns = 0;
+
+        Console.WriteLine("Assignment computed by Houdini:");
+        foreach (var x in outcome.assignment) {
+            if (x.Value) numTrueAssigns++;
+            Console.WriteLine(x.Key + " = " + x.Value);
+        }
+
+        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
+        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+      }
     }
 
     private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)

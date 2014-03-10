@@ -21,6 +21,7 @@ namespace GPUVerify
   {
     public string ConfigFile = "inference.cfg";
     public string ParallelInferenceScheduling = "default";
+    public string RefutationEngine = "";
     public bool ParallelInference = false;
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;
@@ -45,6 +46,13 @@ namespace GPUVerify
       if (name == "parallelInferenceScheduling") {
         if (ps.ConfirmArgumentCount(1)) {
           ParallelInferenceScheduling = ps.args[ps.i];
+        }
+        return true;
+      }
+
+      if (name == "refutationEngine") {
+        if (ps.ConfirmArgumentCount(1)) {
+           RefutationEngine = ps.args[ps.i];
         }
         return true;
       }
