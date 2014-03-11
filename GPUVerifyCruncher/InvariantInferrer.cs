@@ -266,21 +266,18 @@ namespace Microsoft.Boogie
        
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("dynamic"))
       {
-        ((DynamicRefutationEngine)engine).start(getFreshProgram(false, false, false));
+        DynamicRefutationEngine _engine = engine as DynamicRefutationEngine;
+        _engine.start(getFreshProgram(false, false, false));
+        Console.WriteLine("Number of false assignments = " + _engine.Interpreter.NumberOfKilledCandidates());
       }
       else
       {
         ((StaticRefutationEngine)engine).start(getFreshProgram(false, false, true), ref outcome);
-        int numTrueAssigns = 0;
-
-        Console.WriteLine("Assignment computed by Houdini:");
+        int numFalseAssigns = 0;
         foreach (var x in outcome.assignment) {
-            if (x.Value) numTrueAssigns++;
-            Console.WriteLine(x.Key + " = " + x.Value);
+            if (!x.Value) numFalseAssigns++;
         }
-
-        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+        Console.WriteLine("Number of false assignments = " + numFalseAssigns);
       }
     }
 

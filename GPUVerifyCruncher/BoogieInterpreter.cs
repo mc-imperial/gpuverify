@@ -175,14 +175,16 @@ namespace GPUVerify
         private int Executions = 0;
         private Dictionary<System.Type, System.TimeSpan> NodeToTime = new Dictionary<System.Type, System.TimeSpan>();  
         private Random Random;
-
-        public static void Start(Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
+        
+        public int NumberOfKilledCandidates()
         {
-            Stopwatch timer = new Stopwatch();
-            timer.Start();            
-            new BoogieInterpreter(program, threadID, groupID);
-            timer.Stop();
-            Print.VerboseMessage("Dynamic analysis consumed " + timer.Elapsed);
+            int numFalseAssigns = 0;
+            foreach (KeyValuePair<string, BitVector> pair in AssertStatus)
+            {
+                if (pair.Value.Equals(BitVector.False))
+                    numFalseAssigns++;
+            }
+            return numFalseAssigns;
         }
 
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)

@@ -233,6 +233,7 @@ namespace GPUVerify
    ctrlDep.TransitiveClosure();
    Graph<Block> loopInfo = verifier.Program.ProcessLoops(impl);
    Dictionary<Block, AssignmentExpressionExpander> controlNodeExprInfo = new Dictionary<Block, AssignmentExpressionExpander>();
+   HashSet<Block> controllingNodeIsPredicated = new HashSet<Block>();
    
    foreach (Block header in loopInfo.Headers)
    {
@@ -249,16 +250,15 @@ namespace GPUVerify
      {
       // Loop headers are always control dependent on themselves. Ignore this control dependence
       // as we want to compute the set of basic blocks whose conditions lead to execution of the loop header
-      // at least once
-      foreach (Block ctrlDepBlock in ctrlDep[block].Where(x => x == header))
+      if (ctrlDep[block].Where(x => x == header).ToList().Count > 0)
       {
+        // If the header is control dependent on this block, remember the block
         controllingBlocks.Add(block);
       }
      }
     }
     if (controllingBlocks.Count > 0)
     {
-     // If the loop is control dependent on other blocks
      HashSet<Block> toKeep = new HashSet<Block>();
      foreach (Block controlling in controllingBlocks)
      {
@@ -278,12 +278,16 @@ namespace GPUVerify
        
        if (tempVariables.Count > 0)
        {
-        toKeep.Add(controlling);
+        controllingNodeIsPredicated.Add(controlling);
         // There should be exactly one partition variable 
         Debug.Assert(tempVariables.Count == 1);
         controlNodeExprInfo[controlling] = new AssignmentExpressionExpander(cfg, tempVariables.Single());
        }
       }
+      
+      // Only keep blocks which have partition variables
+      if (controllingNodeIsPredicated.Contains(controlling))
+        toKeep.Add(controlling);
      }
      
      controllingBlocks.IntersectWith(toKeep);
