@@ -83,7 +83,11 @@ namespace GPUVerify
 
       int exitCode = inferrer.inferInvariants(fileNames);
       if (exitCode != 0) return exitCode;
-      inferrer.applyInvariantsAndEmitProgram();
+
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals(""))
+      {
+        inferrer.applyInvariantsAndEmitProgram();
+      }
 
       return 0;
     }

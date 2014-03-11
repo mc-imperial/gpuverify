@@ -134,28 +134,49 @@ namespace GPUVerify
 
     public class BoogieInterpreter
     {
+        // Local and global IDs of the 2 threads modelled in GPUverify
         private BitVector[] LocalID1 = new BitVector[3];
         private BitVector[] LocalID2 = new BitVector[3];
         private BitVector[] GlobalID1 = new BitVector[3];
         private BitVector[] GlobalID2 = new BitVector[3];
+        
+        // The GPU configuration
         private GPU gpu = new GPU();
+        
+        // The memory for the interpreter
         private Memory Memory = new Memory();
+        
+        // The expression trees used internally to evaluate Boogie expressions
         private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
+        
+        // A basic block label to basic block mapping
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
+        
+        // The current status of the assert - is it true or false?
         private Dictionary<AssertCmd, BitVector> AssertStatus = new Dictionary<AssertCmd, BitVector>();
+        
+        // Has the assert been killed?
         private HashSet<string> KilledAsserts = new HashSet<string>();
+        
+        // Our FP interpretrations
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
+        
+        // Which basic blocks have been covered
         private HashSet<Block> Covered = new HashSet<Block>();
+        
+        // Keeping trace of header execution counts
         private int GlobalHeaderCount = 0;
         private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
-        private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
+        
+        // Loop bodies and loop-exit destinations
         private Dictionary<Block, HashSet<Block>> HeaderToLoopBody = new Dictionary<Block, HashSet<Block>>();
-        private Dictionary<Block, HashSet<Variable>> HeaderToWriteSet = new Dictionary<Block, HashSet<Variable>>();
-        private Dictionary<Block, HashSet<Variable>> HeaderToReadSet = new Dictionary<Block, HashSet<Variable>>();
-        private Dictionary<Block, HashSet<Variable>> HeaderToAssertReadSet = new Dictionary<Block, HashSet<Variable>>();
+        private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
+        
+        // Headers whose loops are independent from other loops
         private HashSet<Block> HeadersFromWhichToExitEarly = new HashSet<Block>();
+        
         private int Executions = 0;
-        private Dictionary<System.Type, System.TimeSpan> nodeToTime = new Dictionary<System.Type, System.TimeSpan>();  
+        private Dictionary<System.Type, System.TimeSpan> NodeToTime = new Dictionary<System.Type, System.TimeSpan>();  
         private Random Random;
 
         public static void Start(Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
@@ -179,92 +200,51 @@ namespace GPUVerify
    
             // Build map from label to basic block
             foreach (Block block in impl.Blocks)
-                LabelToBlock[block.Label] = block;   
-
-            // For each natural loop:
-            // 1) Compute loop-exit edges
-            // 2) Compute read/write sets of loop body
+                LabelToBlock[block.Label] = block;
+           
             Graph<Block> loopInfo = program.ProcessLoops(impl);
+            // Compute targets of loop exits
+            ComputeLoopExits(loopInfo);            
+            // Determine whether there are loops that could be executed indepedently
+            ComputeDisjointLoops(impl, loopInfo);
+            
+            DoInterpretation(program, impl, localIDSpecification, globalIDSpecification);
+        }
+        
+        private void ComputeLoopExits(Graph<Block> loopInfo)
+        { 
+            // Compute loop-exit edges for each natural loop
             foreach (Block header in loopInfo.Headers)
             {
                 HeaderToLoopBody[header] = new HashSet<Block>();
+                HeaderToLoopExitBlocks[header] = new List<Block>();
+                // Build loop body
                 foreach (Block tail in loopInfo.BackEdgeNodes(header))
+                {
                     HeaderToLoopBody[header].UnionWith(loopInfo.NaturalLoops(header, tail));
-                ComputeLoopExitBlocks(header, HeaderToLoopBody[header]);
-            }
-            
-            // Determine whether there are loops that could be executed indepedently
-            ComputeDisjointLoops(impl, loopInfo);
-
-            Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
-            try
-            {  
-                do
+                }
+                // Now find edges (u, v) where u is in the loop body but v is not
+                foreach (Block block in HeaderToLoopBody[header])
                 {
-//                    nodeToTime[typeof(UnaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BinaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(TernaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BVExtractNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BVConcatenationNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(MapSymbolNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(ScalarSymbolNode)] = System.TimeSpan.Zero;
-                
-                    // Reset the memory in readiness for the next execution
-                    Memory.Clear();
-                    foreach (Block header in loopInfo.Headers)
+                    TransferCmd transfer = block.TransferCmd;
+                    if (transfer is GotoCmd)
                     {
-                        HeaderExecutionCounts[header] = 0;   
-                    }
-                    EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
-                    EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
-                    Print.DebugMessage(gpu.ToString(), 1);
-                    // Set the local thread IDs and group IDs
-                    SetLocalIDs(localIDSpecification);
-                    SetGlobalIDs(globalIDSpecification);
-                    Print.DebugMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
-                    Print.DebugMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
-                    Print.DebugMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
-                    Print.DebugMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
-                    EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
-                    InterpretKernel(program, impl, loopInfo.Headers);
-                    Executions++;
-                } while (GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit
-                         && !AllBlocksCovered(impl)
-                         && Executions < 5);
-                // The condition states: try to kill invariants while we have not exhausted a global loop header limit 
-                // AND not every basic block has been covered
-                // AND the number of re-invocations of the kernel does not exceed 5
-            }
-            finally
-            {
-                SummarizeKilledInvariants();
-                Print.VerboseMessage("Dynamic analysis done");
-            }
-        }
-
-        private void ComputeLoopExitBlocks(Block header, HashSet<Block> loopBody)
-        {
-            HeaderToLoopExitBlocks[header] = new List<Block>();
-            foreach (Block block in loopBody)
-            {
-                TransferCmd transfer = block.TransferCmd;
-                if (transfer is GotoCmd)
-                {
-                    GotoCmd goto_ = transfer as GotoCmd;
-                    if (goto_.labelNames.Count == 1)
-                    {
-                        string succLabel = goto_.labelNames[0];
-                        Block succ = LabelToBlock[succLabel];
-                        if (!loopBody.Contains(succ))
-                            HeaderToLoopExitBlocks[header].Add(succ);
-                    }
-                    else
-                    {
-                        foreach (string succLabel in goto_.labelNames)
+                        GotoCmd goto_ = transfer as GotoCmd;
+                        if (goto_.labelNames.Count == 1)
                         {
+                            string succLabel = goto_.labelNames[0];
                             Block succ = LabelToBlock[succLabel];
-                            if (!loopBody.Contains(succ))
+                            if (!HeaderToLoopBody[header].Contains(succ))
                                 HeaderToLoopExitBlocks[header].Add(succ);
+                        }
+                        else
+                        {
+                            foreach (string succLabel in goto_.labelNames)
+                            {
+                                Block succ = LabelToBlock[succLabel];
+                                if (!HeaderToLoopBody[header].Contains(succ))
+                                    HeaderToLoopExitBlocks[header].Add(succ);
+                            }
                         }
                     }
                 }
@@ -273,10 +253,17 @@ namespace GPUVerify
         
         private void ComputeDisjointLoops(Implementation impl, Graph<Block> loopInfo)
         {
+            Dictionary<Block, HashSet<Variable>> HeaderToWriteSet = new Dictionary<Block, HashSet<Variable>>();
+            Dictionary<Block, HashSet<Variable>> HeaderToReadSet = new Dictionary<Block, HashSet<Variable>>();
+            Dictionary<Block, HashSet<Variable>> HeaderToAssertReadSet = new Dictionary<Block, HashSet<Variable>>();
+        
             Graph<Block> cfg = Program.GraphFromImpl(impl);
             foreach (Block header in loopInfo.Headers)
             {
-                ComputeWriteAndReadSets(header, HeaderToLoopBody[header]);
+                Tuple<HashSet<Variable>, HashSet<Variable>, HashSet<Variable>> theSets = ComputeWriteAndReadSets(header, HeaderToLoopBody[header]);
+                HeaderToWriteSet[header] = theSets.Item1;
+                HeaderToReadSet[header] = theSets.Item2;
+                HeaderToAssertReadSet[header] = theSets.Item3;
             }
             foreach (Block header in loopInfo.Headers)
             {
@@ -295,14 +282,13 @@ namespace GPUVerify
             }
         }
 
-        private void ComputeWriteAndReadSets(Block header, HashSet<Block> loopBody)
+        private Tuple<HashSet<Variable>, HashSet<Variable>, HashSet<Variable>> ComputeWriteAndReadSets(Block header, HashSet<Block> loopBody)
         {
-            HeaderToWriteSet[header] = new HashSet<Variable>();
-            HeaderToReadSet[header] = new HashSet<Variable>();
-            HeaderToAssertReadSet[header] = new HashSet<Variable>();
+            HashSet<Variable> writeSet = new HashSet<Variable>();
+            HashSet<Variable> readSet = new HashSet<Variable>();
+            HashSet<Variable> assertReadSet = new HashSet<Variable>();
             var readVisitor = new VariablesOccurringInExpressionVisitor();
             var assertReadVisitor = new VariablesOccurringInExpressionVisitor();
-            
             foreach (Block block in loopBody)
             {
                 foreach (AssignCmd assignment in block.Cmds.OfType<AssignCmd>())
@@ -311,7 +297,7 @@ namespace GPUVerify
                     assignment.AddAssignedVariables(written);
                     foreach (Variable variable in written)
                     {
-                        HeaderToWriteSet[header].Add(variable);
+                        writeSet.Add(variable);
                     }
                     foreach (Expr rhs in assignment.Rhss)
                     {
@@ -319,16 +305,65 @@ namespace GPUVerify
                     }
                     foreach (Variable variable in readVisitor.GetVariables())
                     {
-                        HeaderToReadSet[header].Add(variable);
+                        readSet.Add(variable);
                     }
                 }
                 foreach (AssertCmd assert in header.Cmds.OfType<AssertCmd>())
                 {
                     assertReadVisitor.Visit(assert);
                     foreach (Variable variable in assertReadVisitor.GetVariables())
-                        HeaderToAssertReadSet[header].Add(variable);
+                        assertReadSet.Add(variable);
                 }
             }
+            return Tuple.Create(writeSet, readSet, assertReadSet);
+        }
+        
+        private void DoInterpretation (Program program, Implementation impl, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
+        {
+            Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
+            try
+            {  
+                do
+                {
+//                    nodeToTime[typeof(UnaryNode)] = System.TimeSpan.Zero;
+//                    nodeToTime[typeof(BinaryNode)] = System.TimeSpan.Zero;
+//                    nodeToTime[typeof(TernaryNode)] = System.TimeSpan.Zero;
+//                    nodeToTime[typeof(BVExtractNode)] = System.TimeSpan.Zero;
+//                    nodeToTime[typeof(BVConcatenationNode)] = System.TimeSpan.Zero;
+//                    nodeToTime[typeof(MapSymbolNode)] = System.TimeSpan.Zero;
+//                    nodeToTime[typeof(ScalarSymbolNode)] = System.TimeSpan.Zero;
+                
+                    // Reset the memory in readiness for the next execution
+                    Memory.Clear();
+                    foreach (Block header in HeaderToLoopBody.Keys)
+                    {
+                        HeaderExecutionCounts[header] = 0;   
+                    }
+                    EvaulateAxioms(program.TopLevelDeclarations.OfType<Axiom>());
+                    EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
+                    Print.DebugMessage(gpu.ToString(), 1);
+                    // Set the local thread IDs and group IDs
+                    SetLocalIDs(localIDSpecification);
+                    SetGlobalIDs(globalIDSpecification);
+                    Print.DebugMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 2 global ID = " + String.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());  
+                    InterpretKernel(program, impl);
+                    Executions++;
+                } while (GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit
+                         && !AllBlocksCovered(impl)
+                         && Executions < 5);
+                // The condition states: try to kill invariants while we have not exhausted a global loop header limit 
+                // AND not every basic block has been covered
+                // AND the number of re-invocations of the kernel does not exceed 5
+            }
+            finally
+            {
+                SummarizeKilledInvariants();
+                Print.VerboseMessage("Dynamic analysis done");
+            } 
         }
 
         private bool AllBlocksCovered(Implementation impl)
@@ -542,7 +577,7 @@ namespace GPUVerify
             }
         }
 
-        private void InterpretKernel(Program program, Implementation impl, IEnumerable<Block> headers)
+        private void InterpretKernel(Program program, Implementation impl)
         {
             Print.DebugMessage(String.Format("Interpreting implementation '{0}'", impl.Name), 1);
             try
@@ -557,10 +592,11 @@ namespace GPUVerify
                 // Start intrepreting at the entry basic block
                 Block block = impl.Blocks[0];
                 // Continue until the exit basic block is reached or we exhaust the loop header count
-                while (block != null && GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit)
+                while (block != null 
+                    && GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit)
                 {
                     if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor > 0
-                        && headers.Contains(block)
+                        && HeaderToLoopBody.Keys.Contains(block)
                         && HeaderExecutionCounts.ContainsKey(block)
                         && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor)
                     {
@@ -568,7 +604,7 @@ namespace GPUVerify
                         block = HeaderToLoopExitBlocks[block][0];
                     }
                     else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisSoundLoopEscaping 
-                        && headers.Contains(block)
+                        && HeaderToLoopBody.Keys.Contains(block)
                         && HeadersFromWhichToExitEarly.Contains(block)
                         && HeaderExecutionCounts[block] > 1)
                     {
@@ -576,12 +612,11 @@ namespace GPUVerify
                     }
                     else
                     {
-                        if (headers.Contains(block))
+                        if (HeaderToLoopBody.Keys.Contains(block))
                         {
                             GlobalHeaderCount++;
                             HeaderExecutionCounts[block]++;
                         }
-
                         InterpretBasicBlock(program, impl, block);
                         block = TransferControl(block);
                     }
