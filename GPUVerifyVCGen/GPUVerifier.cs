@@ -1819,12 +1819,16 @@ namespace GPUVerify
             return name.Equals(_GROUP_X.Name) || name.Equals(_GROUP_Y.Name) || name.Equals(_GROUP_Z.Name);
         }
 
-        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId)
+        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId, bool isGlobal=false)
         {
             if (GPUVerifyVCGenCommandLineOptions.DoNotGenerateCandidates.Contains(tag)) {
                 return; // candidate *not* generated
             }
-            region.AddInvariant(Program.CreateCandidateInvariant(e, tag, StageId));
+            var invariant = Program.CreateCandidateInvariant(e, tag, StageId);
+            if (isGlobal) {
+                invariant.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, invariant.Attributes);
+            }
+            region.AddInvariant(invariant);
         }
 
         internal Implementation GetImplementation(string procedureName)

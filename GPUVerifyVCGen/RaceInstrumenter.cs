@@ -151,6 +151,10 @@ namespace GPUVerify {
       foreach (Expr inv in invariants) {
         verifier.AddCandidateInvariant(region, inv, "accessBreak", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
       }
+      if (GPUVerifyVCGenCommandLineOptions.ShowAccessBreaking) {
+        Console.WriteLine("Access breaking of [{0}]", def);
+        component.Dump();
+      }
     }
 
     class FunctionsOccurringInExpressionVisitor : StandardVisitor {

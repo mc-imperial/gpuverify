@@ -34,6 +34,7 @@ namespace GPUVerify
     public static bool ShowStages = false;
     public static bool ShowUniformityAnalysis = false;
     public static bool DoUniformityAnalysis = true;
+    public static bool ShowAccessBreaking = false;
     public static bool ShowMayBePowerOfTwoAnalysis = false;
     public static bool ShowArrayControlFlowAnalysis = false;
     public static bool SmartPredication = true;
@@ -167,6 +168,11 @@ namespace GPUVerify
           case "-noUniformityAnalysis":
           case "/noUniformityAnalysis":
           DoUniformityAnalysis = false;
+          break;
+
+          case "-showAccessBreaking":
+          case "/showAccessBreaking":
+          ShowAccessBreaking = true;
           break;
 
           case "-showMayBePowerOfTwoAnalysis":
