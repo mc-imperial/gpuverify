@@ -117,7 +117,7 @@ class UnstructuredRegion : IRegion {
       if (backedges.Count() != 1)
         return null;
       var assumes = backedges.Single().Cmds.Cast<Cmd>().OfType<AssumeCmd>().Where(x =>
-            QKeyValue.FindBoolAttribute(x.Attributes, "partition") || 
+            QKeyValue.FindBoolAttribute(x.Attributes, "partition") ||
             QKeyValue.FindBoolAttribute(x.Attributes, "backedge")
       );
       if (assumes.Count() != 1)
@@ -128,7 +128,7 @@ class UnstructuredRegion : IRegion {
   }
 
   public void AddInvariant(PredicateCmd pc) {
-    header.Cmds = new List<Cmd>((new Cmd[] {pc}.Concat(header.Cmds.Cast<Cmd>())).ToArray());
+    header.Cmds.Insert(0, pc);
   }
 
   public List<PredicateCmd> RemoveInvariants() {

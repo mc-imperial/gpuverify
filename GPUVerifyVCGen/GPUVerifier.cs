@@ -1819,13 +1819,34 @@ namespace GPUVerify
             return name.Equals(_GROUP_X.Name) || name.Equals(_GROUP_Y.Name) || name.Equals(_GROUP_Z.Name);
         }
 
-        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId)
+        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId, string attribute = null)
         {
             if (GPUVerifyVCGenCommandLineOptions.DoNotGenerateCandidates.Contains(tag)) {
                 return; // candidate *not* generated
             }
-            region.AddInvariant(Program.CreateCandidateInvariant(e, tag, StageId));
+
+            PredicateCmd predicate = Program.CreateCandidateInvariant(e, tag, StageId);
+
+            if (attribute != null)
+              predicate.Attributes = new QKeyValue(Token.NoToken, attribute, new List<object>() { }, predicate.Attributes);
+
+            region.AddInvariant(predicate);
         }
+
+        internal void AddCandidateInvariant(Block block, Expr e, string tag, int StageId, string attribute = null)
+        {
+            if (GPUVerifyVCGenCommandLineOptions.DoNotGenerateCandidates.Contains(tag)) {
+                return; // candidate *not* generated
+            }
+
+            PredicateCmd predicate = Program.CreateCandidateInvariant(e, tag, StageId);
+
+            if (attribute != null)
+              predicate.Attributes = new QKeyValue(Token.NoToken, attribute, new List<object>() { }, predicate.Attributes);
+
+            block.Cmds.Insert(0, predicate);
+        }
+
 
         internal Implementation GetImplementation(string procedureName)
         {

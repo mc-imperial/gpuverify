@@ -1,5 +1,5 @@
 //===-----------------------------------------------------------------------==//
-//GetAssumeCmd
+//
 //                GPUVerify - a Verifier for GPU Kernels
 //
 // This file is distributed under the Microsoft Public License.  See
