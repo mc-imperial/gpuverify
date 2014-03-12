@@ -1006,7 +1006,7 @@ def _main(argv):
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
-              'staged-inference', 'parallel-inference', 'refutation-engine=',
+              'staged-inference', 'parallel-inference', 'refutation-engine=', 'infer-sliding=',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'no-warp', 'only-warp',
               'atomic=', 'no-refined-atomics',
@@ -1197,8 +1197,6 @@ def _main(argv):
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
   if CommandLineOptions.refutationEngine != "":
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/refutationEngine:" + CommandLineOptions.refutationEngine ]
-  if CommandLineOptions.inferSlide > 0:
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferenceSliding:" + CommandLineOptions.inferSlide ]
   if CommandLineOptions.inferInfo:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferInfo" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
@@ -1206,7 +1204,11 @@ def _main(argv):
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugConcurrentHoudini" ]
   if CommandLineOptions.parallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
+    if CommandLineOptions.inferSlide > 0:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferenceSliding:" + str(CommandLineOptions.inferSlide) ]
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:all-together" ]
+    else:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
   if CommandLineOptions.dynamicAnalysis:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicAnalysis" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
