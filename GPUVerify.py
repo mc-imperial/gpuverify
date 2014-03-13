@@ -254,6 +254,7 @@ class DefaultCmdLineOptions(object):
     self.dynamicAnalysis = False
     self.scheduling = "default"
     self.refutationEngine = ""
+    self.inferSlide = 0
     self.inferInfo = False
     self.debuggingHoudini = False
     self.stopAtOpt = False
@@ -262,8 +263,8 @@ class DefaultCmdLineOptions(object):
     self.stopAtCbpl = False
     self.time = False
     self.timeCSVLabel = None
-    self.boogieMemout=0
-    self.componentTimeout=300
+    self.boogieMemout = 0
+    self.componentTimeout = 300
     self.keepTemps = False
     self.mathInt = False
     self.asymmetricAsserts = False
@@ -545,18 +546,18 @@ def showHelpAndExit():
     --parallel-inference    Use multiple solver instances in parallel to accelerate invariant
                             inference (but this is not guaranteed)
     --dynamic-analysis      Use dynamic analysis to falsify invariants.
-    --scheduling=X          Choose a parallel scheduling strategy from the following: 'default',
-                            'unsound-first' or 'brute-force'. The 'default' strategy executes
-                            first any dynamic engines, then any unsound static engines and then
-                            the sound static engines. The 'unsound-first' strategy executes any
-                            unsound engines (either static or dynamic) together before the sound
-                            engines. The 'brute-force' strategy executes all engines together but
-                            performance is highly non-deterministic.
+    --scheduling=X          Choose a parallel scheduling strategy from the following: 'unsound-first'
+                            or 'all-together'. By default the scheduler executes first any dynamic
+                            engines, then any unsound static engines and then the sound static engines.
+                            The 'unsound-first' strategy executes any unsound engines (either static
+                            or dynamic) together before the sound engines. The 'all-together' strategy
+                            executes all engines together.
+    --infer-sliding=X       Potentially launches a new refutation engine every X seconds.
     --infer-config-file=X.cfg       Specify a custom configuration file to be used
                             during invariant inference
     --infer-info            Prints information about the inference process.
     --k-induction-depth=X   Applies k-induction with k=X to all loops.
-    --refutation-engine=    Choose a refutation engine from the following: 'houdini', 'dynamic',
+    --refutation-engine=X   Choose a refutation engine from the following: 'houdini', 'dynamic',
                             'lmi' (ignore loop maintained invariants), 'lei' (ignore loop entry
                             invariants) or 'lu' (loop-unrolling). If an unsound refutation engine
                             is chosen, the result cannot be trusted.
@@ -829,10 +830,17 @@ def processGeneralOptions(opts, args):
       else:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --race-instrumenter must be one of 'standard', 'watchdog-single' or 'watchdog-multiple'")
     if o == "--scheduling":
-      if a.lower() in ("all-together","unsound-first","dynamic-first","phased"):
+      if a.lower() in ("all-together","unsound-first"):
         CommandLineOptions.scheduling = a.lower()
       else:
-        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --scheduling must be 'all-together', 'unsound-first', 'dynamic-first' or 'phased'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --scheduling must be 'all-together' or 'unsound-first'")
+    if o == "--infer-sliding":
+      try:
+        if int(a) < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --infer-sliding")
+        CommandLineOptions.inferSlide = int(a)
+      except ValueError:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --infer-sliding")
     if o == "--refutation-engine":
       if a.lower() in ("houdini","dynamic","lmi","lei","lu"):
         CommandLineOptions.refutationEngine = a.lower()
@@ -998,7 +1006,7 @@ def _main(argv):
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'bugle-lang=','timeout=',
               'boogie-file=', 'infer-config-file=',
-              'staged-inference', 'parallel-inference', 'refutation-engine=',
+              'staged-inference', 'parallel-inference', 'refutation-engine=', 'infer-sliding=',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'no-warp', 'only-warp',
               'atomic=', 'no-refined-atomics',
@@ -1187,7 +1195,8 @@ def _main(argv):
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/noinfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/contractInfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
-  CommandLineOptions.gpuVerifyCruncherOptions += [ "/refutationEngine:" + CommandLineOptions.refutationEngine ]
+  if CommandLineOptions.refutationEngine != "":
+    CommandLineOptions.gpuVerifyCruncherOptions += [ "/refutationEngine:" + CommandLineOptions.refutationEngine ]
   if CommandLineOptions.inferInfo:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferInfo" ]
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
@@ -1195,7 +1204,11 @@ def _main(argv):
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugConcurrentHoudini" ]
   if CommandLineOptions.parallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
-    CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
+    if CommandLineOptions.inferSlide > 0:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferenceSliding:" + str(CommandLineOptions.inferSlide) ]
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:all-together" ]
+    else:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
   if CommandLineOptions.dynamicAnalysis:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicAnalysis" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]

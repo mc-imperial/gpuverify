@@ -143,8 +143,40 @@ namespace Microsoft.Boogie
             ));
           }
         }
-        Task.WaitAny(soundTasks.ToArray());
-        tokenSource.Cancel();
+
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding > 0) {
+          Task.Factory.StartNew(
+            () =>
+          {
+            int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+
+            while (true) {
+              if (refutationEngines.Count >= Environment.ProcessorCount) break;
+              Thread.Sleep(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding * 1000);
+              if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) {
+                numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+
+                refutationEngines.Add(new StaticRefutationEngine(refutationEngines.Count, "slided_houdini",
+                    CommandLineOptions.Clo.ProverCCLimit.ToString(), "false", "false", "false", "-1"));
+
+                soundTasks.Add(Task.Factory.StartNew(
+                  () => {
+                  engineIdx = ((StaticRefutationEngine) refutationEngines[refutationEngines.Count -1]).
+                    start(getFreshProgram(false, false, true), ref outcome);
+                  tokenSource.Cancel(false);
+                }, tokenSource.Token
+                ));
+              }
+            }
+          }, tokenSource.Token
+          );
+        }
+        try {
+          Task.WaitAny(soundTasks.ToArray(), tokenSource.Token);
+          tokenSource.Cancel(false);
+        } catch (OperationCanceledException e) {
+          // Should not do anything.
+        }
       }
       // Sequential invariant inference
       else {

@@ -22,6 +22,7 @@ namespace GPUVerify
     public string ConfigFile = "inference.cfg";
     public string ParallelInferenceScheduling = "default";
     public string RefutationEngine = "";
+    public int InferenceSliding = 0;
     public bool ParallelInference = false;
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;
@@ -54,6 +55,12 @@ namespace GPUVerify
         if (ps.ConfirmArgumentCount(1)) {
            RefutationEngine = ps.args[ps.i];
         }
+        return true;
+      }
+
+      if (name == "inferenceSliding") {
+        if (ps.ConfirmArgumentCount(1))
+            ps.GetNumericArgument(ref InferenceSliding);
         return true;
       }
 
