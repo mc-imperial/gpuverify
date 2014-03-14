@@ -176,15 +176,9 @@ namespace GPUVerify
         private Dictionary<System.Type, System.TimeSpan> NodeToTime = new Dictionary<System.Type, System.TimeSpan>();  
         private Random Random;
         
-        public int NumberOfKilledCandidates()
+        public IEnumerable<string> KilledCandidates()
         {
-            int numFalseAssigns = 0;
-            foreach (KeyValuePair<string, BitVector> pair in AssertStatus)
-            {
-                if (pair.Value.Equals(BitVector.False))
-                    numFalseAssigns++;
-            }
-            return numFalseAssigns;
+            return AssertStatus.Where(x => x.Value.Equals(BitVector.False)).Select(x => x.Key);
         }
 
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
