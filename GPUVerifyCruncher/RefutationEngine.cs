@@ -153,6 +153,8 @@ namespace Microsoft.Boogie
 
     public override int ID { get { return this.id; } }
     public override string Name { get { return this.name; } }
+    
+    public BoogieInterpreter Interpreter;
 
     public DynamicRefutationEngine(int id, string name, string threadId_X, string threadId_Y, string threadId_Z,
                                    string groupId_X, string groupId_Y, string groupId_Z)
@@ -177,7 +179,7 @@ namespace Microsoft.Boogie
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
         printConfig();
 
-      BoogieInterpreter.Start(program, 
+      Interpreter = new BoogieInterpreter(program, 
                               Tuple.Create(threadId_X, threadId_Y, threadId_Z), 
                               Tuple.Create(groupId_X, groupId_Y, groupId_Z));
 

@@ -42,6 +42,7 @@ Replace as appropriate or setup an environment variable.::
      $ export MONO_VERSION=3.0.7
      $ wget http://download.mono-project.com/sources/mono/mono-${MONO_VERSION}.tar.bz2
      $ tar jxf mono-${MONO_VERSION}.tar.bz2
+     $ rm mono-${MONO_VERSION}.tar.bz2
      $ cd ${BUILD_ROOT}/mono-${MONO_VERSION}
      $ ./configure --prefix=${BUILD_ROOT}/local --with-large-heap=yes --enable-nls=no
      $ make
@@ -138,6 +139,7 @@ Replace as appropriate or setup an environment variable.::
     $ export ANTLR=${BUILD_ROOT}/CVC4/src/antlr-3.4/bin/antlr3
     $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/src/antlr-3.4 \
                   --prefix=${BUILD_ROOT}/CVC4/install \
+                  --best --enable-gpl \
                   --disable-shared --enable-static
     $ make
     $ make install
@@ -340,6 +342,7 @@ Replace as appropriate or setup an environment variable.::
     $ export ANTLR=${BUILD_ROOT}/CVC4/src/antlr-3.4/bin/antlr3
     $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/src/antlr-3.4 \
                   --prefix=${BUILD_ROOT}/CVC4/install \
+                  --best --enable-gpl \
                   --disable-shared --enable-static
     $ make
     $ make install

@@ -153,11 +153,8 @@ namespace GPUVerify
         private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
         
         // The current status of the assert - is it true or false?
-        private Dictionary<AssertCmd, BitVector> AssertStatus = new Dictionary<AssertCmd, BitVector>();
-        
-        // Has the assert been killed?
-        private HashSet<string> KilledAsserts = new HashSet<string>();
-        
+        private Dictionary<string, BitVector> AssertStatus = new Dictionary<string, BitVector>();
+ 
         // Our FP interpretrations
         private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
         
@@ -178,14 +175,16 @@ namespace GPUVerify
         private int Executions = 0;
         private Dictionary<System.Type, System.TimeSpan> NodeToTime = new Dictionary<System.Type, System.TimeSpan>();  
         private Random Random;
-
-        public static void Start(Program program, Tuple<int, int, int> threadID, Tuple<int, int, int> groupID)
+        
+        public int NumberOfKilledCandidates()
         {
-            Stopwatch timer = new Stopwatch();
-            timer.Start();            
-            new BoogieInterpreter(program, threadID, groupID);
-            timer.Stop();
-            Print.VerboseMessage("Dynamic analysis consumed " + timer.Elapsed);
+            int numFalseAssigns = 0;
+            foreach (KeyValuePair<string, BitVector> pair in AssertStatus)
+            {
+                if (pair.Value.Equals(BitVector.False))
+                    numFalseAssigns++;
+            }
+            return numFalseAssigns;
         }
 
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
@@ -379,11 +378,11 @@ namespace GPUVerify
 
         private void SummarizeKilledInvariants()
         {
-            if (KilledAsserts.Count > 0)
+            Print.VerboseMessage("Dynamic analysis removed the following candidates:");
+            foreach (KeyValuePair<string, BitVector> pair in AssertStatus)
             {
-                Print.VerboseMessage("Dynamic analysis removed " + KilledAsserts.Count.ToString() + " invariants:");
-                foreach (string BoogieVariable in KilledAsserts)
-                    Print.VerboseMessage(BoogieVariable);
+                if (pair.Value.Equals(BitVector.False))
+                    Print.VerboseMessage(pair.Key);
             }
         }
 
@@ -818,67 +817,36 @@ namespace GPUVerify
                 else if (cmd is AssertCmd)
                 {
                     AssertCmd assert = cmd as AssertCmd;
-                    // Only check asserts which have attributes as these are the conjectured invariants
+                    // Only check asserts which have attributes as these are the candidate invariants
                     string tag = QKeyValue.FindStringAttribute(assert.Attributes, "tag");
                     if (tag != null)
                     {
+                        MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
+                        string assertBoolean = null;
+                        foreach (Match match in matches)
+                        {
+                            foreach (Capture capture in match.Captures)
+                            {
+                                assertBoolean = capture.Value;
+                            }
+                        }
                         ExprTree tree = GetExprTree(assert.Expr);
-                        if (!AssertStatus.ContainsKey(assert))
-                            AssertStatus[assert] = BitVector.True;
-                        if (AssertStatus[assert].Equals(BitVector.True))
+                        if (!AssertStatus.ContainsKey(assertBoolean))
+                            AssertStatus[assertBoolean] = BitVector.True;
+                        if (AssertStatus[assertBoolean].Equals(BitVector.True))
                         {
                             // Does the expression tree have offset variables?
                             if (tree.offsetVariables.Count > 0)
                             {
                                 // If so, evaluate the expression tree using the Cartesian product of all
                                 // distinct offset values 
-                                
-                                // The 'indices' list contains indices into a offset variable set, thus providing a concrete offset value 
-                                // The 'sizes' list is the number of offset values currently being analysed
-                                List<int> indices = new List<int>();
-                                List<int> sizes = new List<int>();
-                                List<Tuple<string, List<BitVector>>> offsetVariableValues = new List<Tuple<string, List<BitVector>>>();
-                                foreach (string offsetVariable in tree.offsetVariables)
-                                {
-                                    HashSet<BitVector> offsets = Memory.GetRaceArrayOffsets(offsetVariable);
-                                    if (offsets.Count > 0)
-                                    {
-                                        indices.Add(0);
-                                        sizes.Add(offsets.Count);
-                                        offsetVariableValues.Add(Tuple.Create(offsetVariable, offsets.ToList()));
-                                    }
-                                }
-                                if (indices.Count > 0)
-                                {
-                                    do
-                                    {
-                                        // Set up the memory correctly for the selected offset variable
-                                        for (int i = 0; i < indices.Count; ++i)
-                                        {
-                                            Tuple<string, List<BitVector>> offsets = offsetVariableValues[i];
-                                            BitVector offset = offsets.Item2[indices[i]];
-                                            if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD)                
-                                                Memory.Store(offsets.Item1, offset);
-                                            else if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE)
-                                                Memory.Store("_WATCHED_OFFSET_", offset);
-                                            else if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE)
-                                            {
-                                                int index = offsets.Item1.IndexOf('$');
-                                                string arrayName = offsets.Item1.Substring(index);
-                                                Memory.Store("_WATCHED_OFFSET_" + arrayName, offset);
-                                            }
-                                            else
-                                                throw new UnhandledException("Race instrumentation " + RaceInstrumentationUtil.RaceCheckingMethod + " not supported");
-                                        }
-                                        EvaluateAssert(program, impl, tree, assert);
-                                        if (AssertStatus[assert] == BitVector.False)
-                                            break;
-                                    }
-                                    while (CartesianProduct(indices, sizes));
-                                }
+                                EvaluateAssertWithOffsets(program, impl, tree, assert, assertBoolean);
                             }
                             else
-                                EvaluateAssert(program, impl, tree, assert);
+                            {
+                                // If not, it's a straightforward evaluation
+                                EvaluateAssert(program, impl, tree, assert, assertBoolean);
+                            }
                         }
                     }
                 }
@@ -915,27 +883,66 @@ namespace GPUVerify
                     throw new UnhandledException("Unhandled command: " + cmd.ToString());
             }
         }
+        
+        private void EvaluateAssertWithOffsets (Program program, Implementation impl, ExprTree tree, AssertCmd assert, string assertBoolean)
+        {
+            // The 'indices' list contains indices into a offset variable set, thus providing a concrete offset value 
+            // The 'sizes' list is the number of offset values currently being analysed
+            List<int> indices = new List<int>();
+            List<int> sizes = new List<int>();
+            List<Tuple<string, List<BitVector>>> offsetVariableValues = new List<Tuple<string, List<BitVector>>>();
+            foreach (string offsetVariable in tree.offsetVariables)
+            {
+                HashSet<BitVector> offsets = Memory.GetRaceArrayOffsets(offsetVariable);
+                if (offsets.Count > 0)
+                {
+                    indices.Add(0);
+                    sizes.Add(offsets.Count);
+                    offsetVariableValues.Add(Tuple.Create(offsetVariable, offsets.ToList()));
+                }
+            }
+            if (indices.Count > 0)
+            {
+                int exprEvaluations = 0;
+                do
+                {
+                    // Set up the memory correctly for the selected offset variable
+                    for (int i = 0; i < indices.Count; ++i)
+                    {
+                        Tuple<string, List<BitVector>> offsets = offsetVariableValues[i];
+                        BitVector offset = offsets.Item2[indices[i]];
+                        if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD)                
+                            Memory.Store(offsets.Item1, offset);
+                        else if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE)
+                            Memory.Store("_WATCHED_OFFSET_", offset);
+                        else if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE)
+                        {
+                            int index = offsets.Item1.IndexOf('$');
+                            string arrayName = offsets.Item1.Substring(index);
+                            Memory.Store("_WATCHED_OFFSET_" + arrayName, offset);
+                        }
+                        else
+                            throw new UnhandledException("Race instrumentation " + RaceInstrumentationUtil.RaceCheckingMethod + " not supported");
+                    }
+                    exprEvaluations++;
+                    EvaluateAssert(program, impl, tree, assert, assertBoolean);
+                    if (AssertStatus[assertBoolean] == BitVector.False)
+                        break;
+                }
+                while (CartesianProduct(indices, sizes) && exprEvaluations < 5);
+            }
+        }
 
-        private void EvaluateAssert(Program program, Implementation impl, ExprTree tree, AssertCmd assert)
+        private void EvaluateAssert(Program program, Implementation impl, ExprTree tree, AssertCmd assert, string assertBoolean)
         {
             EvaluateExprTree(tree);
             if (tree.initialised && tree.evaluation.Equals(BitVector.False))
             {
                 Print.VerboseMessage("==========> FALSE " + assert.ToString());
-                AssertStatus[assert] = BitVector.False;
-                MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
-                string BoogieVariable = null;
-                foreach (Match match in matches)
-                {
-                    foreach (Capture capture in match.Captures)
-                    {
-                        BoogieVariable = capture.Value;
-                    }
-                }
-                KilledAsserts.Add(BoogieVariable);
-                // Kill the assert in Houdini, which will be invoked after the dynamic analyser
-                ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, BoogieVariable, impl.Name);
-                ConcurrentHoudini.RefutedSharedAnnotations[BoogieVariable] = annotation;
+                AssertStatus[assertBoolean] = BitVector.False;
+                // Tell Houdini about the killed assert
+                ConcurrentHoudini.RefutedAnnotation annotation = GPUVerify.GVUtil.getRefutedAnnotation(program, assertBoolean, impl.Name);
+                ConcurrentHoudini.RefutedSharedAnnotations[assertBoolean] = annotation;
             }
         }
 

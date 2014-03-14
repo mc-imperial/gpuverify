@@ -143,8 +143,40 @@ namespace Microsoft.Boogie
             ));
           }
         }
-        Task.WaitAny(soundTasks.ToArray());
-        tokenSource.Cancel();
+
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding > 0) {
+          Task.Factory.StartNew(
+            () =>
+          {
+            int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+
+            while (true) {
+              if (refutationEngines.Count >= Environment.ProcessorCount) break;
+              Thread.Sleep(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding * 1000);
+              if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) {
+                numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+
+                refutationEngines.Add(new StaticRefutationEngine(refutationEngines.Count, "slided_houdini",
+                    CommandLineOptions.Clo.ProverCCLimit.ToString(), "false", "false", "false", "-1"));
+
+                soundTasks.Add(Task.Factory.StartNew(
+                  () => {
+                  engineIdx = ((StaticRefutationEngine) refutationEngines[refutationEngines.Count -1]).
+                    start(getFreshProgram(false, false, true), ref outcome);
+                  tokenSource.Cancel(false);
+                }, tokenSource.Token
+                ));
+              }
+            }
+          }, tokenSource.Token
+          );
+        }
+        try {
+          Task.WaitAny(soundTasks.ToArray(), tokenSource.Token);
+          tokenSource.Cancel(false);
+        } catch (OperationCanceledException e) {
+          // Should not do anything.
+        }
       }
       // Sequential invariant inference
       else {
@@ -266,21 +298,18 @@ namespace Microsoft.Boogie
        
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("dynamic"))
       {
-        ((DynamicRefutationEngine)engine).start(getFreshProgram(false, false, false));
+        DynamicRefutationEngine _engine = engine as DynamicRefutationEngine;
+        _engine.start(getFreshProgram(false, false, false));
+        Console.WriteLine("Number of false assignments = " + _engine.Interpreter.NumberOfKilledCandidates());
       }
       else
       {
         ((StaticRefutationEngine)engine).start(getFreshProgram(false, false, true), ref outcome);
-        int numTrueAssigns = 0;
-
-        Console.WriteLine("Assignment computed by Houdini:");
+        int numFalseAssigns = 0;
         foreach (var x in outcome.assignment) {
-            if (x.Value) numTrueAssigns++;
-            Console.WriteLine(x.Key + " = " + x.Value);
+            if (!x.Value) numFalseAssigns++;
         }
-
-        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
+        Console.WriteLine("Number of false assignments = " + numFalseAssigns);
       }
     }
 

@@ -220,27 +220,28 @@ namespace GPUVerify
   private static void GenerateCandidateForLoopsWhichAreControlDependentOnThreadOrGroupIDs(GPUVerifier verifier, Implementation impl)
   {
    // We use control dependence information to determine whether a loop is always uniformly executed.
-   // If a loop is control dependent on a conditional statement involving thread or group IDs then the following 
+   // If a loop is control dependent on a conditional statement involving thread or group IDs then the following
    // candidate invariants are produced:
    // 1) If the conditional expression causes control flow to avoid the loop, the thread is disabled
-   // 2) If the conditional expression causes control flow to avoid the loop, the thread does not read or write 
+   // 2) If the conditional expression causes control flow to avoid the loop, the thread does not read or write
    //    to any array within the loop
    // Note that, if the loop is control dependent on multiple nodes in the CFG, the LHS of these implications will be
    // a disjunction of the conditional expressions
-   
+
    Graph<Block> cfg = Program.GraphFromImpl(impl);
    var ctrlDep = cfg.ControlDependence();
    ctrlDep.TransitiveClosure();
    Graph<Block> loopInfo = verifier.Program.ProcessLoops(impl);
    Dictionary<Block, AssignmentExpressionExpander> controlNodeExprInfo = new Dictionary<Block, AssignmentExpressionExpander>();
-   
+   HashSet<Block> controllingNodeIsPredicated = new HashSet<Block>();
+
    foreach (Block header in loopInfo.Headers)
    {
     // Extract the body associated with this loop
     HashSet<Block> loopBody = new HashSet<Block>();
     foreach (Block tail in loopInfo.BackEdgeNodes(header))
      loopBody.UnionWith(loopInfo.NaturalLoops(header, tail));
-   
+
     // Go through every loop in the CFG and determine the distinct basic blocks on which it is control dependent
     HashSet<Block> controllingBlocks = new HashSet<Block>();
     foreach (Block block in cfg.Nodes)
@@ -249,16 +250,15 @@ namespace GPUVerify
      {
       // Loop headers are always control dependent on themselves. Ignore this control dependence
       // as we want to compute the set of basic blocks whose conditions lead to execution of the loop header
-      // at least once
-      foreach (Block ctrlDepBlock in ctrlDep[block].Where(x => x == header))
+      if (ctrlDep[block].Where(x => x == header).ToList().Count > 0)
       {
+        // If the header is control dependent on this block, remember the block
         controllingBlocks.Add(block);
       }
      }
     }
     if (controllingBlocks.Count > 0)
     {
-     // If the loop is control dependent on other blocks
      HashSet<Block> toKeep = new HashSet<Block>();
      foreach (Block controlling in controllingBlocks)
      {
@@ -275,19 +275,23 @@ namespace GPUVerify
          tempVariables.UnionWith(visitor.GetVariables().ToList());
         }
        }
-       
+
        if (tempVariables.Count > 0)
        {
-        toKeep.Add(controlling);
-        // There should be exactly one partition variable 
+        controllingNodeIsPredicated.Add(controlling);
+        // There should be exactly one partition variable
         Debug.Assert(tempVariables.Count == 1);
         controlNodeExprInfo[controlling] = new AssignmentExpressionExpander(cfg, tempVariables.Single());
        }
       }
+
+      // Only keep blocks which have partition variables
+      if (controllingNodeIsPredicated.Contains(controlling))
+        toKeep.Add(controlling);
      }
-     
+
      controllingBlocks.IntersectWith(toKeep);
-     
+
      // Build up the expressions on the LHS of the implication
      List<Expr> antecedentExprs = new List<Expr>();
      foreach (Block controlling in controllingBlocks)
@@ -314,14 +318,14 @@ namespace GPUVerify
          {
           Expr negatedExpr = Expr.Not(controlNodeExprInfo[controlling].GetUnexpandedExpr());
           antecedentExprs.Add(negatedExpr);
-         }         
+         }
         }
        }
       }
      }
      if (antecedentExprs.Count > 0)
      {
-      // Create the set of implications which state that, if one of the antecedent expressions holds, 
+      // Create the set of implications which state that, if one of the antecedent expressions holds,
       // the thread is not enabled and does not read or write to an array location in the loop body
       Expr lhsOfImplication;
       if (antecedentExprs.Count > 1)
@@ -342,7 +346,7 @@ namespace GPUVerify
 
   private static void AddInvariantsForLoopsWhichAreControlDependentOnThreadOrGroupIDs(GPUVerifier verifier, Block header, HashSet<Block> loopBody, Expr lhsOfImplication)
   {
-   // Invariant #1: The thread is not enabled 
+   // Invariant #1: The thread is not enabled
    string enabledVariableName = "__enabled";
    Variable enabledVariable = (Variable)verifier.ResContext.LookUpVariable(enabledVariableName);
    if (enabledVariable == null)
@@ -352,10 +356,8 @@ namespace GPUVerify
     verifier.ResContext.AddVariable(enabledVariable, true);
    }
    Expr invariantEnabled = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, enabledVariable)));
-   PredicateCmd enabledPredicate = verifier.Program.CreateCandidateInvariant(invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
-   enabledPredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, enabledPredicate.Attributes);
-   header.Cmds.Insert(0, enabledPredicate);
-   
+   verifier.AddCandidateInvariant(header, invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+
    // Retrieve the variables read and written in the loop body
    var readVisitor = new VariablesOccurringInExpressionVisitor();
    var writeVisitor = new VariablesOccurringInExpressionVisitor();
@@ -376,29 +378,25 @@ namespace GPUVerify
      }
     }
    }
-     
+
    // Invariant #2: Arrays in global or group-shared memory are not written
-   foreach (Variable found in writeVisitor.GetVariables().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "global") 
+   foreach (Variable found in writeVisitor.GetVariables().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "global")
       || QKeyValue.FindBoolAttribute(x.Attributes, "group_shared")))
    {
     Variable writeHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_WRITE_HAS_OCCURRED_" + found.Name);
     Debug.Assert(writeHasOccurredVariable != null);
     Expr writeHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, writeHasOccurredVariable)));
-    PredicateCmd writePredicate = verifier.Program.CreateCandidateInvariant(writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
-    writePredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, writePredicate.Attributes);
-    header.Cmds.Insert(0, writePredicate);
+    verifier.AddCandidateInvariant(header, writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
    }
-     
+
    // Invariant #3: Arrays in global or group-shared memory are not read
-   foreach (Variable found in readVisitor.GetVariables().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "global") 
+   foreach (Variable found in readVisitor.GetVariables().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "global")
       || QKeyValue.FindBoolAttribute(x.Attributes, "group_shared")))
    {
     Variable readHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_READ_HAS_OCCURRED_" + found.Name);
     Debug.Assert(readHasOccurredVariable != null);
     Expr readHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, readHasOccurredVariable)));
-    PredicateCmd readPredicate = verifier.Program.CreateCandidateInvariant(readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE);
-    readPredicate.Attributes = new QKeyValue(Token.NoToken,"do_not_predicate", new List<object>() { }, readPredicate.Attributes);
-    header.Cmds.Insert(0, readPredicate);
+    verifier.AddCandidateInvariant(header, readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
    }
   }
 
@@ -515,7 +513,7 @@ namespace GPUVerify
 
     Dictionary<string, int> assignmentCounts = GetAssignmentCounts(Impl);
 
-    HashSet<string> alreadyConsidered = new HashSet<String>();  
+    HashSet<string> alreadyConsidered = new HashSet<String>();
 
     foreach (var v in LocalVars)
     {
