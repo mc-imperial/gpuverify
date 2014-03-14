@@ -286,7 +286,12 @@ namespace Microsoft.Boogie
         engine = new StaticRefutationEngine(0, "lei",
           CommandLineOptions.Clo.ProverCCLimit.ToString(), "True", "False", "False", "-1");
       }
-      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lu"))
+      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lu1"))
+      {
+        engine = new StaticRefutationEngine(0, "lu",
+        CommandLineOptions.Clo.ProverCCLimit.ToString(), "False", "False", "False", "1");
+      }
+      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lu2"))
       {
         engine = new StaticRefutationEngine(0, "lu",
           CommandLineOptions.Clo.ProverCCLimit.ToString(), "False", "False", "False", "2");

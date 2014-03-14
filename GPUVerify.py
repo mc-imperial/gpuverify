@@ -842,10 +842,10 @@ def processGeneralOptions(opts, args):
       except ValueError:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --infer-sliding")
     if o == "--refutation-engine":
-      if a.lower() in ("houdini","dynamic","lmi","lei","lu"):
+      if a.lower() in ("houdini","dynamic","lmi","lei","lu1","lu2"):
         CommandLineOptions.refutationEngine = a.lower()
       else:
-        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --refutation-engine must be 'houdini', 'dynamic', 'lmi', 'lei' or 'lu'")
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "argument to --refutation-engine must be 'houdini', 'dynamic', 'lmi', 'lei', 'lu1' or 'lu2'")
     if o == "--logic":
       if a.upper() in ("ALL_SUPPORTED","QF_ALL_SUPPORTED"):
         CommandLineOptions.logic = a.upper()
