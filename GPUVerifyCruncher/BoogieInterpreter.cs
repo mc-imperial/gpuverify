@@ -1267,19 +1267,25 @@ namespace GPUVerify
                     binary.evaluation = (FPInterpretations[FPTriple]);
                 }
                 else if (binary.op.Equals("FADD32") ||
-                         binary.op.Equals("FADD64") ||
                          binary.op.Equals("FSUB32") ||
-                         binary.op.Equals("FSUB64") ||
                          binary.op.Equals("FMUL32") ||
-                         binary.op.Equals("FMUL64") ||
                          binary.op.Equals("FDIV32") ||
+                         binary.op.Equals("FPOW32"))
+                {
+                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
+                    if (!FPInterpretations.ContainsKey(FPTriple))
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next(), 32);
+                    binary.evaluation = (FPInterpretations[FPTriple]);
+                }
+                else if (binary.op.Equals("FADD64") ||
+                         binary.op.Equals("FSUB64") ||
+                         binary.op.Equals("FMUL64") ||
                          binary.op.Equals("FDIV64") ||
-                         binary.op.Equals("FPOW32") ||
                          binary.op.Equals("FPOW64"))
                 {
                     Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
                     if (!FPInterpretations.ContainsKey(FPTriple))
-                        FPInterpretations[FPTriple] = new BitVector(Random.Next());
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next(), 64);
                     binary.evaluation = (FPInterpretations[FPTriple]);
                 }
                 else
@@ -1301,25 +1307,31 @@ namespace GPUVerify
                         unary.evaluation = BitVector.True;
                 }
                 else if (unary.op.Equals("FABS32") ||
-                         unary.op.Equals("FABS64") ||
                          unary.op.Equals("FCOS32") ||
-                         unary.op.Equals("FCOS64") ||
                          unary.op.Equals("FEXP32") ||
-                         unary.op.Equals("FEXP64") ||
                          unary.op.Equals("FFLOOR32") ||
-                         unary.op.Equals("FFLOOR64") ||
                          unary.op.Equals("FLOG32") ||
-                         unary.op.Equals("FLOG64") ||
                          unary.op.Equals("FPOW32") ||
-                         unary.op.Equals("FPOW64") ||
                          unary.op.Equals("FSIN32") ||
+                         unary.op.Equals("FSQRT32"))
+                {
+                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
+                    if (!FPInterpretations.ContainsKey(FPTriple))
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next(), 32);
+                    unary.evaluation = FPInterpretations[FPTriple];   
+                }
+                else if (unary.op.Equals("FABS64") ||
+                         unary.op.Equals("FCOS64") ||
+                         unary.op.Equals("FEXP64") ||
+                         unary.op.Equals("FFLOOR64") ||
+                         unary.op.Equals("FLOG64") ||
+                         unary.op.Equals("FPOW64") ||
                          unary.op.Equals("FSIN64") ||
-                         unary.op.Equals("FSQRT32") ||
                          unary.op.Equals("FSQRT64"))
                 {
                     Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
                     if (!FPInterpretations.ContainsKey(FPTriple))
-                        FPInterpretations[FPTriple] = new BitVector(Random.Next());
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next(), 64);
                     unary.evaluation = FPInterpretations[FPTriple];
                 }
                 else if (RegularExpressions.BVZEXT.IsMatch(unary.op))
