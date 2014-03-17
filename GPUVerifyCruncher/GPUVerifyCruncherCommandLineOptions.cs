@@ -23,6 +23,9 @@ namespace GPUVerify
     public string ParallelInferenceScheduling = "default";
     public string RefutationEngine = "";
     public int InferenceSliding = 0;
+    public int InferenceSlidingLimit = 1;
+    public int DynamicErrorLimit = 0;
+    public int DelayHoudini = 0;
     public bool ParallelInference = false;
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;
@@ -64,8 +67,26 @@ namespace GPUVerify
         return true;
       }
 
+      if (name == "inferenceSlidingLimit") {
+        if (ps.ConfirmArgumentCount(1))
+            ps.GetNumericArgument(ref InferenceSlidingLimit);
+        return true;
+      }
+
       if (name == "parallelInference") {
         ParallelInference = true;
+        return true;
+      }
+
+      if (name == "dynamicErrorLimit") {
+        if (ps.ConfirmArgumentCount(1))
+            ps.GetNumericArgument(ref DynamicErrorLimit);
+        return true;
+      }
+
+      if (name == "delayHoudini") {
+        if (ps.ConfirmArgumentCount(1))
+            ps.GetNumericArgument(ref DelayHoudini);
         return true;
       }
 
@@ -73,7 +94,7 @@ namespace GPUVerify
         DynamicAnalysis = true;
         return true;
       }
-            
+      
       if (name == "dynamicAnalysisSoundLoopEscaping") {
         DynamicAnalysisSoundLoopEscaping = true;
         return true;
