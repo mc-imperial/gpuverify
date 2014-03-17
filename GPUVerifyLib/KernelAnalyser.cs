@@ -140,8 +140,9 @@ namespace GPUVerify
         foreach (Cmd c in block.Cmds) {
           CallCmd callCmd = c as CallCmd;
           // TODO: refine into proper check
-          if(callCmd == null || !(callCmd.callee.Contains("_CHECK_READ") || 
-                                  callCmd.callee.Contains("_CHECK_WRITE"))) {
+          if(callCmd == null || !(callCmd.callee.Contains("_CHECK_READ") ||
+                                  callCmd.callee.Contains("_CHECK_WRITE") ||
+                                  callCmd.callee.Contains("_CHECK_ATOMIC"))) {
             newCmds.Add(c);
           }
         }
@@ -157,7 +158,8 @@ namespace GPUVerify
           CallCmd callCmd = c as CallCmd;
           // TODO: refine into proper check
           if (callCmd == null || !(callCmd.callee.Contains("_LOG_READ") ||
-                                   callCmd.callee.Contains("_LOG_WRITE"))) {
+                                   callCmd.callee.Contains("_LOG_WRITE") ||
+                                   callCmd.callee.Contains("_LOG_ATOMIC"))) {
             newCmds.Add(c);
           }
         }

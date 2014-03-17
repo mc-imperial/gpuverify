@@ -30,7 +30,7 @@ namespace GPUVerify
     public int DynamicAnalysisLoopEscapeFactor = 0;
     public bool DynamicAnalysisSoundLoopEscaping = false;
     public bool ReplaceLoopInvariantAssertions = false;
-    public bool DisableBarrierDivergenceChecks = false;
+    public bool EnableBarrierDivergenceChecks = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -107,8 +107,8 @@ namespace GPUVerify
         return true;
       }
 
-      if (name == "disableBarrierDivergenceChecks") {
-        DisableBarrierDivergenceChecks = true;
+      if (name == "enableBarrierDivergenceChecks") {
+        EnableBarrierDivergenceChecks = true;
         return true;
       }
 

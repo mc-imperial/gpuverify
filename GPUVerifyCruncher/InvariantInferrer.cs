@@ -330,7 +330,7 @@ namespace Microsoft.Boogie
     private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
     {
       divergenceCheck = divergenceCheck ||
-                        !((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DisableBarrierDivergenceChecks;
+                        ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).EnableBarrierDivergenceChecks;
 
       return GVUtil.GetFreshProgram(fileNames, raceCheck, divergenceCheck, inline);
     }
