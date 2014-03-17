@@ -251,10 +251,13 @@ class DefaultCmdLineOptions(object):
     self.invInferConfigFile = "inference.cfg"
     self.stagedInference = False
     self.parallelInference = False
+    self.delayHoudini = 0
+    self.dynamicErrorLimit = 0
     self.dynamicAnalysis = False
     self.scheduling = "default"
     self.refutationEngine = ""
     self.inferSlide = 0
+    self.inferSlideLimit = 0
     self.inferInfo = False
     self.debuggingHoudini = False
     self.stopAtOpt = False
@@ -841,6 +844,27 @@ def processGeneralOptions(opts, args):
         CommandLineOptions.inferSlide = int(a)
       except ValueError:
         raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --infer-sliding")
+    if o == "--infer-sliding-limit":
+      try:
+        if int(a) < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --infer-sliding-limit")
+        CommandLineOptions.inferSlideLimit = int(a)
+      except ValueError:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --infer-sliding-limit")
+    if o == "--delay-houdini":
+      try:
+        if int(a) < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --delay-houdini")
+        CommandLineOptions.delayHoudini = int(a)
+      except ValueError:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --delay-houdini")    
+    if o == "--dynamic-error-limit":
+      try:
+        if int(a) < 0:
+          raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "negative value " + a + " provided as argument to --dynamic-error-limit")
+        CommandLineOptions.dynamicErrorLimit = int(a)
+      except ValueError:
+        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "non integer value '" + a + "' provided as argument to --dynamic-error-limit")
     if o == "--refutation-engine":
       if a.lower() in ("houdini","dynamic","lmi","lei","lu1","lu2"):
         CommandLineOptions.refutationEngine = a.lower()
@@ -1005,8 +1029,9 @@ def _main(argv):
               'stop-at-opt', 'stop-at-gbpl', 'stop-at-cbpl', 'stop-at-bpl',
               'time', 'time-as-csv=', 'keep-temps',
               'asymmetric-asserts', 'gen-smt2', 'bugle-lang=','timeout=',
-              'boogie-file=', 'infer-config-file=',
-              'staged-inference', 'parallel-inference', 'refutation-engine=', 'infer-sliding=',
+              'boogie-file=', 'infer-config-file=', 'delay-houdini=',
+              'dynamic-error-limit=', 'staged-inference', 'parallel-inference', 'refutation-engine=',
+              'infer-sliding=', 'infer-sliding-limit=',
               'dynamic-analysis', 'scheduling=', 'infer-info', 'debug-houdini',
               'warp-sync=', 'no-warp', 'only-warp',
               'atomic=', 'no-refined-atomics',
@@ -1195,6 +1220,7 @@ def _main(argv):
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/noinfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/contractInfer" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/concurrentHoudini" ]
+  
   if CommandLineOptions.refutationEngine != "":
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/refutationEngine:" + CommandLineOptions.refutationEngine ]
   if CommandLineOptions.inferInfo:
@@ -1202,13 +1228,24 @@ def _main(argv):
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/trace" ]
   if CommandLineOptions.debuggingHoudini:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/debugConcurrentHoudini" ]
+  
   if CommandLineOptions.parallelInference:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInference" ]
     if CommandLineOptions.inferSlide > 0:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferenceSliding:" + str(CommandLineOptions.inferSlide) ]
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:all-together" ]
+      if CommandLineOptions.inferSlideLimit > 0:
+        CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferenceSlidingLimit:" + str(CommandLineOptions.inferSlideLimit) ]
+      else:
+        CommandLineOptions.gpuVerifyCruncherOptions += [ "/inferenceSlidingLimit:1" ]
+    elif CommandLineOptions.delayHoudini > 0:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/delayHoudini:" + str(CommandLineOptions.delayHoudini) ]
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:all-together" ]
     else:
       CommandLineOptions.gpuVerifyCruncherOptions += [ "/parallelInferenceScheduling:" + CommandLineOptions.scheduling ]
+    if CommandLineOptions.dynamicErrorLimit > 0:
+      CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicErrorLimit:" + str(CommandLineOptions.dynamicErrorLimit) ]
+  
   if CommandLineOptions.dynamicAnalysis:
     CommandLineOptions.gpuVerifyCruncherOptions += [ "/dynamicAnalysis" ]
   CommandLineOptions.gpuVerifyCruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]

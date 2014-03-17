@@ -71,6 +71,9 @@ namespace Microsoft.Boogie
         this.isTrusted = false;
       else
         this.isTrusted = true;
+
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicErrorLimit > 0 && this.isTrusted)
+        CommandLineOptions.Clo.Cho[id].ProverCCLimit = 1;
     }
 
     /// <summary>

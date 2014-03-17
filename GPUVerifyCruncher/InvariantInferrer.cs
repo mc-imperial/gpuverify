@@ -133,6 +133,12 @@ namespace Microsoft.Boogie
           Task.WaitAll(unsoundTasks.ToArray());
         }
 
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DelayHoudini > 0)
+        {
+          Task.WaitAll(unsoundTasks.ToArray(),
+            ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DelayHoudini * 1000);
+        }
+
         // Schedule the sound refutation engines for execution
         foreach (RefutationEngine engine in refutationEngines) {
           if (engine is StaticRefutationEngine && ((StaticRefutationEngine) engine).IsTrusted) {
@@ -144,32 +150,52 @@ namespace Microsoft.Boogie
           }
         }
 
-        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding > 0) {
-          Task.Factory.StartNew(
-            () =>
-          {
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicErrorLimit > 0)
+        {
             int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+            bool done = false;
 
-            while (true) {
-              if (refutationEngines.Count >= Environment.ProcessorCount) break;
-              Thread.Sleep(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding * 1000);
-              if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) {
+            while (!done) {
+                if (refutationEngines.Count >= Environment.ProcessorCount) break;
+                Thread.Sleep(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicErrorLimit * 1000);
+                if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) {
+                    numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+
+                    foreach (RefutationEngine engine in refutationEngines)
+                    {
+                        if (engine is StaticRefutationEngine && ((StaticRefutationEngine)engine).IsTrusted)
+                        {
+                            CommandLineOptions.Clo.Cho[engine.ID].ProverCCLimit = 20;
+                            done = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding > 0) {
+          int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+          int spawnedEngines = 0;
+          
+          while (true) {
+            if (spawnedEngines >= ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSlidingLimit) break;
+            Thread.Sleep(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding * 1000);
+            if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) {
                 numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
 
                 refutationEngines.Add(new StaticRefutationEngine(refutationEngines.Count, "slided_houdini",
                     CommandLineOptions.Clo.ProverCCLimit.ToString(), "false", "false", "false", "-1"));
 
                 soundTasks.Add(Task.Factory.StartNew(
-                  () => {
-                  engineIdx = ((StaticRefutationEngine) refutationEngines[refutationEngines.Count -1]).
-                    start(getFreshProgram(false, false, true), ref outcome);
-                  tokenSource.Cancel(false);
+                    () => {
+                    engineIdx = ((StaticRefutationEngine) refutationEngines[refutationEngines.Count -1]).
+                        start(getFreshProgram(false, false, true), ref outcome);
+                    tokenSource.Cancel(false);
                 }, tokenSource.Token
                 ));
-              }
+                spawnedEngines++;
             }
-          }, tokenSource.Token
-          );
+          }
         }
         try {
           Task.WaitAny(soundTasks.ToArray(), tokenSource.Token);
