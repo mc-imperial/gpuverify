@@ -271,7 +271,7 @@ class GPUVerifyTestKernel(object):
 
         if self.timeAsCSV:
             #Print csv output for user to see
-            self.csvFile.write(stdout)
+            self.csvFile.write(stdout.split('\n')[-2] + '\n')
             self.csvFile.flush()
         del self.csvFile # We cannot serialise this object so we need to remove it from this class!
 
