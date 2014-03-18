@@ -332,21 +332,27 @@ namespace Microsoft.Boogie
         DynamicRefutationEngine _engine = engine as DynamicRefutationEngine;
         _engine.start(getFreshProgram(false, false, false));
         int numFalseAssigns = 0;
-        foreach (string x in _engine.Interpreter.KilledCandidates()) {
-            Console.WriteLine("FALSE: " + x);
-            numFalseAssigns++;
+        using (StreamWriter fs = File.CreateText("killed-da.txt"))
+        {
+            foreach (string x in _engine.Interpreter.KilledCandidates()) {
+                fs.WriteLine("FALSE: " + x);
+                numFalseAssigns++;
+            }
         }
-        Console.WriteLine("Number of false assignments = " + numFalseAssigns);
+        //Console.WriteLine("Number of false assignments = " + numFalseAssigns);
       }
       else
       {
         ((StaticRefutationEngine)engine).start(getFreshProgram(false, false, true), ref outcome);
         int numFalseAssigns = 0;
-        foreach (var x in outcome.assignment) {
-            if (!x.Value) 
-            {
-                Console.WriteLine("FALSE: " + x.Key);
-                numFalseAssigns++;
+        using (StreamWriter fs = File.CreateText("killed-" + engine.Name + ".txt"))
+        {
+            foreach (var x in outcome.assignment) {
+                if (!x.Value) 
+                {
+                    fs.WriteLine("FALSE: " + x.Key);
+                    numFalseAssigns++;
+                }
             }
         }
         Console.WriteLine("Number of false assignments = " + numFalseAssigns);

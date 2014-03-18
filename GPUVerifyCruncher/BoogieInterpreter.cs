@@ -888,7 +888,6 @@ namespace GPUVerify
             }
             if (indices.Count > 0)
             {
-                int exprEvaluations = 0;
                 do
                 {
                     // Set up the memory correctly for the selected offset variable
@@ -909,12 +908,11 @@ namespace GPUVerify
                         else
                             throw new UnhandledException("Race instrumentation " + RaceInstrumentationUtil.RaceCheckingMethod + " not supported");
                     }
-                    exprEvaluations++;
                     EvaluateAssert(program, impl, tree, assert, assertBoolean);
                     if (AssertStatus[assertBoolean] == BitVector.False)
                         break;
                 }
-                while (CartesianProduct(indices, sizes) && exprEvaluations < 5);
+                while (CartesianProduct(indices, sizes));
             }
         }
 
