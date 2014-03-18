@@ -30,7 +30,7 @@ namespace GPUVerify
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;
     public int DynamicAnalysisLoopHeaderLimit = 1000;
-    public int DynamicAnalysisLoopEscapeFactor = 0;
+    public int DynamicAnalysisUnsoundLoopEscaping = 0;
     public bool DynamicAnalysisSoundLoopEscaping = false;
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
@@ -99,22 +99,16 @@ namespace GPUVerify
         DynamicAnalysisSoundLoopEscaping = true;
         return true;
       }
+      
+      if (name == "dynamicAnalysisUnsoundLoopEscaping") {
+         if (ps.ConfirmArgumentCount(1))
+           ps.GetNumericArgument(ref DynamicAnalysisUnsoundLoopEscaping);
+         return true;
+      }
 
       if (name == "dynamicAnalysisLoopHeaderLimit") {
          if (ps.ConfirmArgumentCount(1))
            ps.GetNumericArgument(ref DynamicAnalysisLoopHeaderLimit);
-         return true;
-      }
-
-      if (name == "dynamicAnalysisLoopEscapeFactor") {
-         if (ps.ConfirmArgumentCount(1))
-           ps.GetNumericArgument(ref DynamicAnalysisLoopEscapeFactor);
-         return true;
-      }
-
-      if (name == "debugLevel") {
-         if (ps.ConfirmArgumentCount(1))
-           ps.GetNumericArgument(ref Print.debug);
          return true;
       }
 

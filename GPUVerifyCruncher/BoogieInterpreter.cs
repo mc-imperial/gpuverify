@@ -173,7 +173,6 @@ namespace GPUVerify
         private HashSet<Block> HeadersFromWhichToExitEarly = new HashSet<Block>();
         
         private int Executions = 0;
-        private Dictionary<System.Type, System.TimeSpan> NodeToTime = new Dictionary<System.Type, System.TimeSpan>();  
         private Random Random;
         
         public IEnumerable<string> KilledCandidates()
@@ -317,15 +316,7 @@ namespace GPUVerify
             try
             {  
                 do
-                {
-//                    nodeToTime[typeof(UnaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BinaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(TernaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BVExtractNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BVConcatenationNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(MapSymbolNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(ScalarSymbolNode)] = System.TimeSpan.Zero;
-                
+                {                
                     // Reset the memory in readiness for the next execution
                     Memory.Clear();
                     foreach (Block header in HeaderToLoopBody.Keys)
@@ -588,10 +579,10 @@ namespace GPUVerify
                 while (block != null 
                     && GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit)
                 {
-                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor > 0
+                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisUnsoundLoopEscaping > 0
                         && HeaderToLoopBody.Keys.Contains(block)
                         && HeaderExecutionCounts.ContainsKey(block)
-                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor)
+                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisUnsoundLoopEscaping)
                     {
                         // If we have exceeded the user-set loop escape factor then go to an exit block
                         block = HeaderToLoopExitBlocks[block][0];
@@ -1383,7 +1374,6 @@ namespace GPUVerify
 
         private void EvaluateExprTree(ExprTree tree)
         {            
-            Stopwatch timer = new Stopwatch();
             foreach (HashSet<Node> nodes in tree)
             {
                 foreach (Node node in nodes)
@@ -1395,7 +1385,6 @@ namespace GPUVerify
                             _node.evaluation = Memory.GetValue(_node.symbol);
                         else
                             _node.initialised = false;
-                        //nodeToTime[typeof(ScalarSymbolNode)] += timer.Elapsed;
                     }
                     else if (node is MapSymbolNode)
                     {
@@ -1416,7 +1405,6 @@ namespace GPUVerify
                             else
                                 _node.initialised = false;
                         }
-                        //nodeToTime[typeof(MapSymbolNode)] += timer.Elapsed;
                     }
                     else if (node is BVExtractNode)
                     {
@@ -1426,7 +1414,6 @@ namespace GPUVerify
                             _node.evaluation = BitVector.Slice(child.evaluation, _node.high, _node.low);
                         else
                             _node.initialised = false;
-                        //nodeToTime[typeof(BVExtractNode)] += timer.Elapsed;
                     }
                     else if (node is BVConcatenationNode)
                     {
@@ -1437,15 +1424,11 @@ namespace GPUVerify
                             _node.evaluation = BitVector.Concatenate(one.evaluation, two.evaluation);
                         else
                             _node.initialised = false;
-                        //nodeToTime[typeof(BVConcatenationNode)] += timer.Elapsed;
                     }
                     else if (node is UnaryNode)
                     {
                         UnaryNode _node = node as UnaryNode;
-                        timer.Start();  
                         EvaluateUnaryNode(_node);
-                        timer.Stop();
-                        //nodeToTime[typeof(UnaryNode)] += timer.Elapsed;
                     }
                     else if (node is BinaryNode)
                     {
@@ -1454,7 +1437,6 @@ namespace GPUVerify
                             EvaluateBinaryBoolNode(_node);
                         else
                             EvaluateBinaryNonBoolNode(_node);
-                        //nodeToTime[typeof(BinaryNode)] += timer.Elapsed;
                     }
                     else if (node is TernaryNode)
                     {
@@ -1481,7 +1463,6 @@ namespace GPUVerify
                                     _node.initialised = false;
                             }
                         }
-                        //nodeToTime[typeof(TernaryNode)] += timer.Elapsed;
                     }
                 } 
             }
