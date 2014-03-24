@@ -294,6 +294,16 @@ namespace Microsoft.Boogie
 
     private void runSingleRefutationEngine()
     {
+    
+      List<string> filesToProcess = new List<string>();
+      filesToProcess.Add(fileNames[fileNames.Count - 1]);
+      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
+      if (string.IsNullOrEmpty (directoryContainingFiles))
+        directoryContainingFiles = Directory.GetCurrentDirectory ();
+      var annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
+        Path.GetFileNameWithoutExtension(filesToProcess[0]);
+        Console.WriteLine(annotatedFile);
+        
       Houdini.HoudiniOutcome outcome = null;
       RefutationEngine engine = null;
 
@@ -332,7 +342,7 @@ namespace Microsoft.Boogie
         DynamicRefutationEngine _engine = engine as DynamicRefutationEngine;
         _engine.start(getFreshProgram(false, false, false));
         int numFalseAssigns = 0;
-        using (StreamWriter fs = File.CreateText("killed-da.txt"))
+        using (StreamWriter fs = File.CreateText(annotatedFile + "-killed-da.txt"))
         {
             foreach (string x in _engine.Interpreter.KilledCandidates()) {
                 fs.WriteLine("FALSE: " + x);
@@ -345,7 +355,7 @@ namespace Microsoft.Boogie
       {
         ((StaticRefutationEngine)engine).start(getFreshProgram(false, false, true), ref outcome);
         int numFalseAssigns = 0;
-        using (StreamWriter fs = File.CreateText("killed-" + engine.Name + ".txt"))
+        using (StreamWriter fs = File.CreateText(annotatedFile + "-killed-" + engine.Name + ".txt"))
         {
             foreach (var x in outcome.assignment) {
                 if (!x.Value) 
