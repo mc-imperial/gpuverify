@@ -888,6 +888,7 @@ namespace GPUVerify
             }
             if (indices.Count > 0)
             {
+                int evaluations = 0;
                 do
                 {
                     // Set up the memory correctly for the selected offset variable
@@ -911,8 +912,9 @@ namespace GPUVerify
                     EvaluateAssert(program, impl, tree, assert, assertBoolean);
                     if (AssertStatus[assertBoolean] == BitVector.False)
                         break;
+                    evaluations++;
                 }
-                while (CartesianProduct(indices, sizes));
+                while (CartesianProduct(indices, sizes) && evaluations < 5);
             }
         }
 
