@@ -468,6 +468,10 @@ namespace GPUVerify
         {
             Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
 
+            if(GPUVerifyVCGenCommandLineOptions.PrintLoopStatistics) {
+              PrintLoopStatistics();
+            }
+
             CheckUserSuppliedLoopInvariants();
 
             DuplicateBarriers();
@@ -640,6 +644,26 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private int DeepestSubregion(IRegion r) {
+          if(r.SubRegions().Where(Item => Item.Identifier() != r.Identifier()).Count() == 0) {
+            return 0;
+          }
+          return 1 + r.SubRegions().Where(Item => Item.Identifier() != r.Identifier()).Select(Item => DeepestSubregion(Item)).Max();
+        }
+
+        private void PrintLoopStatistics() {
+          // For each implementation, dump the number of loops and the depth of the deepest loop nest to a file
+          var loopsOutputFile = Path.GetFileNameWithoutExtension(GPUVerifyVCGenCommandLineOptions.inputFiles[0]) + ".loops";
+          using (TokenTextWriter writer = new TokenTextWriter(loopsOutputFile)) {
+            foreach(var impl in Program.Implementations()) {
+              writer.WriteLine("Implementation: " + impl.Name);
+              writer.WriteLine("Number of loops: " + RootRegion(impl).SubRegions().Count());
+              writer.WriteLine("Depth of deepest loop nest: " + DeepestSubregion(RootRegion(impl)));
+              writer.WriteLine("");
+            }
+          }
         }
 
         private void AddParamsAsPreconditions()

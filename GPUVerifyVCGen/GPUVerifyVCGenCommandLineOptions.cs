@@ -60,6 +60,7 @@ namespace GPUVerify
     public static bool CheckSingleNonInlinedImpl = false;
     public static bool DoCallSiteAnalysis = false;
     public static bool PruneInfeasibleEdges = true;
+    public static bool PrintLoopStatistics = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
     public static List<string> KernelInterceptorParams = new List<string>();
 
@@ -341,6 +342,11 @@ namespace GPUVerify
           } else {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
           }
+          break;
+
+          case "-printLoopStatistics":
+          case "/printLoopStatistics":
+          PrintLoopStatistics = true;
           break;
 
           default:
