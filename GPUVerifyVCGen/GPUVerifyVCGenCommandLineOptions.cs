@@ -61,7 +61,7 @@ namespace GPUVerify
     public static bool DoCallSiteAnalysis = false;
     public static bool PruneInfeasibleEdges = true;
     public static List<string> DoNotGenerateCandidates = new List<string>();
-    public static List<string> Params = new List<string>();
+    public static List<string> KernelInterceptorParams = new List<string>();
 
     public static int Parse(string[] args)
     {
@@ -95,8 +95,8 @@ namespace GPUVerify
           }
           afterColon = afterColon.Trim();
           afterColon = afterColon.Substring(1,afterColon.Length-2);
-          Params = new List<string>(afterColon.Split(','));
-          if (Params.Count == 0 || Params[0].Length == 0)
+          KernelInterceptorParams = new List<string>(afterColon.Split(','));
+          if (KernelInterceptorParams.Count == 0 || KernelInterceptorParams[0].Length == 0)
           {
             Console.WriteLine("Error: first parameter must be kernel name.");
             Environment.Exit(1);

@@ -528,7 +528,7 @@ namespace GPUVerify
                 ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
             }
 
-            if (GPUVerifyVCGenCommandLineOptions.Params.Count > 0) {
+            if (GPUVerifyVCGenCommandLineOptions.KernelInterceptorParams.Count > 0) {
               AddParamsAsPreconditions();
             }
 
@@ -645,7 +645,7 @@ namespace GPUVerify
         private void AddParamsAsPreconditions()
         {
           List<string> param_values =
-            GPUVerifyVCGenCommandLineOptions.Params;
+            GPUVerifyVCGenCommandLineOptions.KernelInterceptorParams;
           // Todo: work out how to locate the "original name",
           // rather than prepending the "$" like this.
           string target_name = "$" + param_values[0];
