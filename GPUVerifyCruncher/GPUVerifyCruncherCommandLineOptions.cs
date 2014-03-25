@@ -23,14 +23,17 @@ namespace GPUVerify
     public string ParallelInferenceScheduling = "default";
     public string RefutationEngine = "";
     public int InferenceSliding = 0;
+    public int InferenceSlidingLimit = 1;
+    public int DynamicErrorLimit = 0;
+    public int DelayHoudini = 0;
     public bool ParallelInference = false;
     public bool DynamicAnalysis = false;
     public bool InferInfo = false;
     public int DynamicAnalysisLoopHeaderLimit = 1000;
-    public int DynamicAnalysisLoopEscapeFactor = 0;
+    public int DynamicAnalysisUnsoundLoopEscaping = 0;
     public bool DynamicAnalysisSoundLoopEscaping = false;
     public bool ReplaceLoopInvariantAssertions = false;
-    public bool DisableBarrierDivergenceChecks = false;
+    public bool EnableBarrierDivergenceChecks = false;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -64,8 +67,26 @@ namespace GPUVerify
         return true;
       }
 
+      if (name == "inferenceSlidingLimit") {
+        if (ps.ConfirmArgumentCount(1))
+            ps.GetNumericArgument(ref InferenceSlidingLimit);
+        return true;
+      }
+
       if (name == "parallelInference") {
         ParallelInference = true;
+        return true;
+      }
+
+      if (name == "dynamicErrorLimit") {
+        if (ps.ConfirmArgumentCount(1))
+            ps.GetNumericArgument(ref DynamicErrorLimit);
+        return true;
+      }
+
+      if (name == "delayHoudini") {
+        if (ps.ConfirmArgumentCount(1))
+            ps.GetNumericArgument(ref DelayHoudini);
         return true;
       }
 
@@ -73,27 +94,21 @@ namespace GPUVerify
         DynamicAnalysis = true;
         return true;
       }
-            
+      
       if (name == "dynamicAnalysisSoundLoopEscaping") {
         DynamicAnalysisSoundLoopEscaping = true;
         return true;
+      }
+      
+      if (name == "dynamicAnalysisUnsoundLoopEscaping") {
+         if (ps.ConfirmArgumentCount(1))
+           ps.GetNumericArgument(ref DynamicAnalysisUnsoundLoopEscaping);
+         return true;
       }
 
       if (name == "dynamicAnalysisLoopHeaderLimit") {
          if (ps.ConfirmArgumentCount(1))
            ps.GetNumericArgument(ref DynamicAnalysisLoopHeaderLimit);
-         return true;
-      }
-
-      if (name == "dynamicAnalysisLoopEscapeFactor") {
-         if (ps.ConfirmArgumentCount(1))
-           ps.GetNumericArgument(ref DynamicAnalysisLoopEscapeFactor);
-         return true;
-      }
-
-      if (name == "debugLevel") {
-         if (ps.ConfirmArgumentCount(1))
-           ps.GetNumericArgument(ref Print.debug);
          return true;
       }
 
@@ -107,8 +122,8 @@ namespace GPUVerify
         return true;
       }
 
-      if (name == "disableBarrierDivergenceChecks") {
-        DisableBarrierDivergenceChecks = true;
+      if (name == "enableBarrierDivergenceChecks") {
+        EnableBarrierDivergenceChecks = true;
         return true;
       }
 

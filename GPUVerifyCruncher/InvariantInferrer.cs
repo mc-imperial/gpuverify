@@ -133,6 +133,12 @@ namespace Microsoft.Boogie
           Task.WaitAll(unsoundTasks.ToArray());
         }
 
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DelayHoudini > 0)
+        {
+          Task.WaitAll(unsoundTasks.ToArray(),
+            ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DelayHoudini * 1000);
+        }
+
         // Schedule the sound refutation engines for execution
         foreach (RefutationEngine engine in refutationEngines) {
           if (engine is StaticRefutationEngine && ((StaticRefutationEngine) engine).IsTrusted) {
@@ -144,32 +150,52 @@ namespace Microsoft.Boogie
           }
         }
 
-        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding > 0) {
-          Task.Factory.StartNew(
-            () =>
-          {
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicErrorLimit > 0)
+        {
             int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+            bool done = false;
 
-            while (true) {
-              if (refutationEngines.Count >= Environment.ProcessorCount) break;
-              Thread.Sleep(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding * 1000);
-              if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) {
+            while (!done) {
+                if (refutationEngines.Count >= Environment.ProcessorCount) break;
+                Thread.Sleep(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicErrorLimit * 1000);
+                if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) {
+                    numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+
+                    foreach (RefutationEngine engine in refutationEngines)
+                    {
+                        if (engine is StaticRefutationEngine && ((StaticRefutationEngine)engine).IsTrusted)
+                        {
+                            CommandLineOptions.Clo.Cho[engine.ID].ProverCCLimit = 20;
+                            done = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding > 0) {
+          int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+          int spawnedEngines = 0;
+          
+          while (true) {
+            if (spawnedEngines >= ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSlidingLimit) break;
+            Thread.Sleep(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferenceSliding * 1000);
+            if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) {
                 numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
 
                 refutationEngines.Add(new StaticRefutationEngine(refutationEngines.Count, "slided_houdini",
                     CommandLineOptions.Clo.ProverCCLimit.ToString(), "false", "false", "false", "-1"));
 
                 soundTasks.Add(Task.Factory.StartNew(
-                  () => {
-                  engineIdx = ((StaticRefutationEngine) refutationEngines[refutationEngines.Count -1]).
-                    start(getFreshProgram(false, false, true), ref outcome);
-                  tokenSource.Cancel(false);
+                    () => {
+                    engineIdx = ((StaticRefutationEngine) refutationEngines[refutationEngines.Count -1]).
+                        start(getFreshProgram(false, false, true), ref outcome);
+                    tokenSource.Cancel(false);
                 }, tokenSource.Token
                 ));
-              }
+                spawnedEngines++;
             }
-          }, tokenSource.Token
-          );
+          }
         }
         try {
           Task.WaitAny(soundTasks.ToArray(), tokenSource.Token);
@@ -268,6 +294,16 @@ namespace Microsoft.Boogie
 
     private void runSingleRefutationEngine()
     {
+    
+      List<string> filesToProcess = new List<string>();
+      filesToProcess.Add(fileNames[fileNames.Count - 1]);
+      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
+      if (string.IsNullOrEmpty (directoryContainingFiles))
+        directoryContainingFiles = Directory.GetCurrentDirectory ();
+      var annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
+        Path.GetFileNameWithoutExtension(filesToProcess[0]);
+        Console.WriteLine(annotatedFile);
+        
       Houdini.HoudiniOutcome outcome = null;
       RefutationEngine engine = null;
 
@@ -286,7 +322,12 @@ namespace Microsoft.Boogie
         engine = new StaticRefutationEngine(0, "lei",
           CommandLineOptions.Clo.ProverCCLimit.ToString(), "True", "False", "False", "-1");
       }
-      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lu"))
+      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lu1"))
+      {
+        engine = new StaticRefutationEngine(0, "lu",
+        CommandLineOptions.Clo.ProverCCLimit.ToString(), "False", "False", "False", "1");
+      }
+      else if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals("lu2"))
       {
         engine = new StaticRefutationEngine(0, "lu",
           CommandLineOptions.Clo.ProverCCLimit.ToString(), "False", "False", "False", "2");
@@ -300,14 +341,29 @@ namespace Microsoft.Boogie
       {
         DynamicRefutationEngine _engine = engine as DynamicRefutationEngine;
         _engine.start(getFreshProgram(false, false, false));
-        Console.WriteLine("Number of false assignments = " + _engine.Interpreter.NumberOfKilledCandidates());
+        int numFalseAssigns = 0;
+        using (StreamWriter fs = File.CreateText(annotatedFile + "-killed-da.txt"))
+        {
+            foreach (string x in _engine.Interpreter.KilledCandidates()) {
+                fs.WriteLine("FALSE: " + x);
+                numFalseAssigns++;
+            }
+        }
+        //Console.WriteLine("Number of false assignments = " + numFalseAssigns);
       }
       else
       {
         ((StaticRefutationEngine)engine).start(getFreshProgram(false, false, true), ref outcome);
         int numFalseAssigns = 0;
-        foreach (var x in outcome.assignment) {
-            if (!x.Value) numFalseAssigns++;
+        using (StreamWriter fs = File.CreateText(annotatedFile + "-killed-" + engine.Name + ".txt"))
+        {
+            foreach (var x in outcome.assignment) {
+                if (!x.Value) 
+                {
+                    fs.WriteLine("FALSE: " + x.Key);
+                    numFalseAssigns++;
+                }
+            }
         }
         Console.WriteLine("Number of false assignments = " + numFalseAssigns);
       }
@@ -316,7 +372,7 @@ namespace Microsoft.Boogie
     private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
     {
       divergenceCheck = divergenceCheck ||
-                        !((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DisableBarrierDivergenceChecks;
+                        ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).EnableBarrierDivergenceChecks;
 
       return GVUtil.GetFreshProgram(fileNames, raceCheck, divergenceCheck, inline);
     }

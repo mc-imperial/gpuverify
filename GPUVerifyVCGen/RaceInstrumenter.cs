@@ -80,7 +80,7 @@ namespace GPUVerify {
     private void AddSameWarpNoAccessCandidateInvariant(IRegion region, Variable v, AccessType Access) {
       if (!GPUVerifyVCGenCommandLineOptions.WarpSync) return;
       Expr candidate = Expr.Imp(Expr.And(GPUVerifier.ThreadsInSameGroup(), verifier.ThreadsInSameWarp()), NoAccessExpr(v, Access));
-      verifier.AddCandidateInvariant(region, candidate, "sameWarpNoAccess", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+      verifier.AddCandidateInvariant(region, candidate, "sameWarpNoAccess", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE, "do_not_predicate");
     }
 
     public void AddRaceCheckingCandidateInvariants(Implementation impl, IRegion region) {

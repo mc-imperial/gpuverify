@@ -173,18 +173,11 @@ namespace GPUVerify
         private HashSet<Block> HeadersFromWhichToExitEarly = new HashSet<Block>();
         
         private int Executions = 0;
-        private Dictionary<System.Type, System.TimeSpan> NodeToTime = new Dictionary<System.Type, System.TimeSpan>();  
         private Random Random;
         
-        public int NumberOfKilledCandidates()
+        public IEnumerable<string> KilledCandidates()
         {
-            int numFalseAssigns = 0;
-            foreach (KeyValuePair<string, BitVector> pair in AssertStatus)
-            {
-                if (pair.Value.Equals(BitVector.False))
-                    numFalseAssigns++;
-            }
-            return numFalseAssigns;
+            return AssertStatus.Where(x => x.Value.Equals(BitVector.False)).Select(x => x.Key);
         }
 
         public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
@@ -323,15 +316,7 @@ namespace GPUVerify
             try
             {  
                 do
-                {
-//                    nodeToTime[typeof(UnaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BinaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(TernaryNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BVExtractNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(BVConcatenationNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(MapSymbolNode)] = System.TimeSpan.Zero;
-//                    nodeToTime[typeof(ScalarSymbolNode)] = System.TimeSpan.Zero;
-                
+                {                
                     // Reset the memory in readiness for the next execution
                     Memory.Clear();
                     foreach (Block header in HeaderToLoopBody.Keys)
@@ -594,10 +579,10 @@ namespace GPUVerify
                 while (block != null 
                     && GlobalHeaderCount < ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopHeaderLimit)
                 {
-                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor > 0
+                    if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisUnsoundLoopEscaping > 0
                         && HeaderToLoopBody.Keys.Contains(block)
                         && HeaderExecutionCounts.ContainsKey(block)
-                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisLoopEscapeFactor)
+                        && HeaderExecutionCounts[block] > ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicAnalysisUnsoundLoopEscaping)
                     {
                         // If we have exceeded the user-set loop escape factor then go to an exit block
                         block = HeaderToLoopExitBlocks[block][0];
@@ -903,7 +888,6 @@ namespace GPUVerify
             }
             if (indices.Count > 0)
             {
-                int exprEvaluations = 0;
                 do
                 {
                     // Set up the memory correctly for the selected offset variable
@@ -924,12 +908,11 @@ namespace GPUVerify
                         else
                             throw new UnhandledException("Race instrumentation " + RaceInstrumentationUtil.RaceCheckingMethod + " not supported");
                     }
-                    exprEvaluations++;
                     EvaluateAssert(program, impl, tree, assert, assertBoolean);
                     if (AssertStatus[assertBoolean] == BitVector.False)
                         break;
                 }
-                while (CartesianProduct(indices, sizes) && exprEvaluations < 5);
+                while (CartesianProduct(indices, sizes));
             }
         }
 
@@ -1273,19 +1256,25 @@ namespace GPUVerify
                     binary.evaluation = (FPInterpretations[FPTriple]);
                 }
                 else if (binary.op.Equals("FADD32") ||
-                         binary.op.Equals("FADD64") ||
                          binary.op.Equals("FSUB32") ||
-                         binary.op.Equals("FSUB64") ||
                          binary.op.Equals("FMUL32") ||
-                         binary.op.Equals("FMUL64") ||
                          binary.op.Equals("FDIV32") ||
+                         binary.op.Equals("FPOW32"))
+                {
+                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
+                    if (!FPInterpretations.ContainsKey(FPTriple))
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next(), 32);
+                    binary.evaluation = (FPInterpretations[FPTriple]);
+                }
+                else if (binary.op.Equals("FADD64") ||
+                         binary.op.Equals("FSUB64") ||
+                         binary.op.Equals("FMUL64") ||
                          binary.op.Equals("FDIV64") ||
-                         binary.op.Equals("FPOW32") ||
                          binary.op.Equals("FPOW64"))
                 {
                     Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
                     if (!FPInterpretations.ContainsKey(FPTriple))
-                        FPInterpretations[FPTriple] = new BitVector(Random.Next());
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next(), 64);
                     binary.evaluation = (FPInterpretations[FPTriple]);
                 }
                 else
@@ -1307,25 +1296,31 @@ namespace GPUVerify
                         unary.evaluation = BitVector.True;
                 }
                 else if (unary.op.Equals("FABS32") ||
-                         unary.op.Equals("FABS64") ||
                          unary.op.Equals("FCOS32") ||
-                         unary.op.Equals("FCOS64") ||
                          unary.op.Equals("FEXP32") ||
-                         unary.op.Equals("FEXP64") ||
                          unary.op.Equals("FFLOOR32") ||
-                         unary.op.Equals("FFLOOR64") ||
                          unary.op.Equals("FLOG32") ||
-                         unary.op.Equals("FLOG64") ||
                          unary.op.Equals("FPOW32") ||
-                         unary.op.Equals("FPOW64") ||
                          unary.op.Equals("FSIN32") ||
+                         unary.op.Equals("FSQRT32"))
+                {
+                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
+                    if (!FPInterpretations.ContainsKey(FPTriple))
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next(), 32);
+                    unary.evaluation = FPInterpretations[FPTriple];   
+                }
+                else if (unary.op.Equals("FABS64") ||
+                         unary.op.Equals("FCOS64") ||
+                         unary.op.Equals("FEXP64") ||
+                         unary.op.Equals("FFLOOR64") ||
+                         unary.op.Equals("FLOG64") ||
+                         unary.op.Equals("FPOW64") ||
                          unary.op.Equals("FSIN64") ||
-                         unary.op.Equals("FSQRT32") ||
                          unary.op.Equals("FSQRT64"))
                 {
                     Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
                     if (!FPInterpretations.ContainsKey(FPTriple))
-                        FPInterpretations[FPTriple] = new BitVector(Random.Next());
+                        FPInterpretations[FPTriple] = new BitVector(Random.Next(), 64);
                     unary.evaluation = FPInterpretations[FPTriple];
                 }
                 else if (RegularExpressions.BVZEXT.IsMatch(unary.op))
@@ -1377,7 +1372,6 @@ namespace GPUVerify
 
         private void EvaluateExprTree(ExprTree tree)
         {            
-            Stopwatch timer = new Stopwatch();
             foreach (HashSet<Node> nodes in tree)
             {
                 foreach (Node node in nodes)
@@ -1389,7 +1383,6 @@ namespace GPUVerify
                             _node.evaluation = Memory.GetValue(_node.symbol);
                         else
                             _node.initialised = false;
-                        //nodeToTime[typeof(ScalarSymbolNode)] += timer.Elapsed;
                     }
                     else if (node is MapSymbolNode)
                     {
@@ -1410,7 +1403,6 @@ namespace GPUVerify
                             else
                                 _node.initialised = false;
                         }
-                        //nodeToTime[typeof(MapSymbolNode)] += timer.Elapsed;
                     }
                     else if (node is BVExtractNode)
                     {
@@ -1420,7 +1412,6 @@ namespace GPUVerify
                             _node.evaluation = BitVector.Slice(child.evaluation, _node.high, _node.low);
                         else
                             _node.initialised = false;
-                        //nodeToTime[typeof(BVExtractNode)] += timer.Elapsed;
                     }
                     else if (node is BVConcatenationNode)
                     {
@@ -1431,15 +1422,11 @@ namespace GPUVerify
                             _node.evaluation = BitVector.Concatenate(one.evaluation, two.evaluation);
                         else
                             _node.initialised = false;
-                        //nodeToTime[typeof(BVConcatenationNode)] += timer.Elapsed;
                     }
                     else if (node is UnaryNode)
                     {
                         UnaryNode _node = node as UnaryNode;
-                        timer.Start();  
                         EvaluateUnaryNode(_node);
-                        timer.Stop();
-                        //nodeToTime[typeof(UnaryNode)] += timer.Elapsed;
                     }
                     else if (node is BinaryNode)
                     {
@@ -1448,7 +1435,6 @@ namespace GPUVerify
                             EvaluateBinaryBoolNode(_node);
                         else
                             EvaluateBinaryNonBoolNode(_node);
-                        //nodeToTime[typeof(BinaryNode)] += timer.Elapsed;
                     }
                     else if (node is TernaryNode)
                     {
@@ -1475,7 +1461,6 @@ namespace GPUVerify
                                     _node.initialised = false;
                             }
                         }
-                        //nodeToTime[typeof(TernaryNode)] += timer.Elapsed;
                     }
                 } 
             }
