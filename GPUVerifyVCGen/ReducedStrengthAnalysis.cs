@@ -20,6 +20,7 @@ class ReducedStrengthAnalysis {
   GPUVerifier verifier;
   Implementation impl;
   VariableDefinitionAnalysis varDefs;
+  HashSet<Variable> rootModset;
 
   Dictionary<Variable, List<Tuple<object, Expr>>> multiDefMap = new Dictionary<Variable, List<Tuple<object, Expr>>>();
   Dictionary<string, ModStrideConstraint> strideConstraintMap = new Dictionary<string, ModStrideConstraint>();
@@ -59,6 +60,7 @@ class ReducedStrengthAnalysis {
   }
 
   void Analyse() {
+    rootModset = LoopInvariantGenerator.GetModifiedVariables(verifier.RootRegion(impl));
     AnalyseRegion(verifier.RootRegion(impl));
     foreach (var v in multiDefMap.Keys) {
       var defs = multiDefMap[v];
@@ -98,6 +100,8 @@ class ReducedStrengthAnalysis {
         return new StrideForm(StrideForm.Kind.Constant, e);
       if (ie.Decl == v)
         return new StrideForm(StrideForm.Kind.Identity, e);
+      if (!rootModset.Contains(ie.Decl))
+        return new StrideForm(StrideForm.Kind.Constant, e);
     }
 
     if (verifier.IntRep.IsAdd(e, out lhs, out rhs)) {
