@@ -63,6 +63,7 @@ namespace GPUVerify
     public static bool PrintLoopStatistics = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
     public static List<string> KernelInterceptorParams = new List<string>();
+    public static bool EnableInessentialLoopDetection = false;
 
     public static int Parse(string[] args)
     {
@@ -89,7 +90,7 @@ namespace GPUVerify
             Console.WriteLine("Error: parameter list expected after " + beforeColon + " argument");
             Environment.Exit(1);
           }
-          if (!afterColon.StartsWith("[") || !afterColon.EndsWith("]")) 
+          if (!afterColon.StartsWith("[") || !afterColon.EndsWith("]"))
           {
             Console.WriteLine("Error: parameter list must be enclosed in square brackets.");
             Environment.Exit(1);
@@ -103,10 +104,10 @@ namespace GPUVerify
             Environment.Exit(1);
           }
           break;
-          
+
           case "-invertedTracking":
-        case "/invertedTracking":
-            InvertedTracking = true;
+          case "/invertedTracking":
+          InvertedTracking = true;
           break;
 
           case "-help":
@@ -347,6 +348,11 @@ namespace GPUVerify
           case "-printLoopStatistics":
           case "/printLoopStatistics":
           PrintLoopStatistics = true;
+          break;
+
+          case "-enableInessentialLoopDetection":
+          case "/enableInessentialLoopDetection":
+          EnableInessentialLoopDetection = true;
           break;
 
           default:

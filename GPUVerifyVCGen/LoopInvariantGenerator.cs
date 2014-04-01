@@ -244,7 +244,6 @@ namespace GPUVerify
    Graph<Block> cfg = Program.GraphFromImpl(impl);
    var ctrlDep = cfg.ControlDependence();
    ctrlDep.TransitiveClosure();
-   Graph<Block> loopInfo = verifier.Program.ProcessLoops(impl);
    Dictionary<Block, AssignmentExpressionExpander> controlNodeExprInfo = new Dictionary<Block, AssignmentExpressionExpander>();
    HashSet<Block> controllingNodeIsPredicated = new HashSet<Block>();
 
@@ -636,14 +635,20 @@ namespace GPUVerify
 
    if (c is CallCmd)
    {
+    // Speculate invariants if we see atomics,
+    // which we need to race check
     CallCmd call = c as CallCmd;
     if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
      return true;
 
+    // Speculate invariants if we see an unsafe barrier,
+    // which we need to check for barrier divergence
     if (GPUVerifier.IsBarrier(call.Proc) &&
         !QKeyValue.FindBoolAttribute(call.Proc.Attributes, "safe_barrier"))
      return true;
 
+    // Speculate invariants if we see a call to a procedure that has a non-local array
+    // or constant array in its modset
     List<Variable> vars =  new List<Variable>();
     call.AddAssignedVariables(vars);
     foreach (Variable v in vars)
@@ -655,6 +660,8 @@ namespace GPUVerify
     }
    }
 
+   // Speculate invariants if race instrumentation or a constant write
+   // instrumentation will occur
    if (c is AssignCmd)
    {
     AssignCmd assign = c as AssignCmd;
@@ -685,6 +692,8 @@ namespace GPUVerify
     }
    }
 
+   // Speculate invariants if we see an assert that is not a sourceloc assert; such
+   // an assert is likely user supplied.
    if (c is AssertCmd)
    {
     AssertCmd assertion = c as AssertCmd;
@@ -692,6 +701,8 @@ namespace GPUVerify
      return true;
    }
 
+   // Speculate invariants if we see an assume that is not a partition; such
+   // an assume is likely user supplied.
    if (c is AssumeCmd)
    {
     AssumeCmd assumption = c as AssumeCmd;
@@ -704,6 +715,8 @@ namespace GPUVerify
 
   internal static bool AccessesGlobalArrayOrUnsafeBarrier(IRegion region, GPUVerifier verifier)
   {
+   // Heuristic to establish whether to speculate loop invariants for a specific loop
+   // based on the commands that occur int the loop.
    foreach (Cmd c in region.Cmds())
    {
     if (AccessesGlobalArrayOrUnsafeBarrier(c, verifier))
