@@ -44,6 +44,10 @@ class UnstructuredRegion : IRegion {
     return preds.Except(backedges);
   }
 
+  public Block Header() {
+    return header;
+  }
+
   public UnstructuredRegion(Program p, Implementation impl) {
     blockGraph = p.ProcessLoops(impl);
     header = null;
@@ -129,6 +133,13 @@ class UnstructuredRegion : IRegion {
 
   public void AddInvariant(PredicateCmd pc) {
     header.Cmds.Insert(0, pc);
+  }
+
+  public void AddLoopInvariantDisabledTag() {
+    AssumeCmd assume = new AssumeCmd(Token.NoToken, Expr.True, null);
+
+    assume.Attributes = new QKeyValue(Token.NoToken, "invGenSkippedLoop", new List<object>() { }, assume.Attributes);
+    header.Cmds.Insert(0, assume);
   }
 
   public List<PredicateCmd> RemoveInvariants() {

@@ -36,16 +36,29 @@ namespace GPUVerify
    invariantGenerationRules.Add(new LoopVariableBoundsInvariantGenerator(verifier));
   }
 
+  public static void EstablishDisabledLoops(GPUVerifier verifier, Implementation impl)
+  {
+   foreach (var region in verifier.RootRegion(impl).SubRegions())
+   {
+    if (!AccessesGlobalArrayOrUnsafeBarrier(region, verifier)) {
+     verifier.AddRegionWithLoopInvariantsDisabled(region);
+    }
+   }
+  }
+
   public static void PreInstrument(GPUVerifier verifier, Implementation impl)
   {
    foreach (var region in verifier.RootRegion(impl).SubRegions())
    {
+    if (verifier.RegionHasLoopInvariantsDisabled(region))
+     continue;
+
     GenerateCandidateForReducedStrengthStrideVariables(verifier, impl, region);
     GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
     GenerateCandidateForNonUniformGuardVariables(verifier, impl, region);
     GenerateCandidateForLoopBounds(verifier, impl, region);
+   GenerateCandidateForLoopsWhichAreControlDependentOnThreadOrGroupIDs(verifier, impl, region);
    }
-   GenerateCandidateForLoopsWhichAreControlDependentOnThreadOrGroupIDs(verifier, impl);
   }
 
   private static void GenerateCandidateForNonUniformGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region)
@@ -217,7 +230,7 @@ namespace GPUVerify
    }
   }
 
-  private static void GenerateCandidateForLoopsWhichAreControlDependentOnThreadOrGroupIDs(GPUVerifier verifier, Implementation impl)
+  private static void GenerateCandidateForLoopsWhichAreControlDependentOnThreadOrGroupIDs(GPUVerifier verifier, Implementation impl, IRegion region)
   {
    // We use control dependence information to determine whether a loop is always uniformly executed.
    // If a loop is control dependent on a conditional statement involving thread or group IDs then the following
@@ -235,116 +248,110 @@ namespace GPUVerify
    Dictionary<Block, AssignmentExpressionExpander> controlNodeExprInfo = new Dictionary<Block, AssignmentExpressionExpander>();
    HashSet<Block> controllingNodeIsPredicated = new HashSet<Block>();
 
-   foreach (Block header in loopInfo.Headers)
-   {
-    // Extract the body associated with this loop
-    HashSet<Block> loopBody = new HashSet<Block>();
-    foreach (Block tail in loopInfo.BackEdgeNodes(header))
-     loopBody.UnionWith(loopInfo.NaturalLoops(header, tail));
+   Block header = region.Header();
 
-    // Go through every loop in the CFG and determine the distinct basic blocks on which it is control dependent
-    HashSet<Block> controllingBlocks = new HashSet<Block>();
-    foreach (Block block in cfg.Nodes)
+   // Go through every loop in the CFG and determine the distinct basic blocks on which it is control dependent
+   HashSet<Block> controllingBlocks = new HashSet<Block>();
+   foreach (Block block in cfg.Nodes)
+   {
+    if (ctrlDep.ContainsKey(block) && block != header)
     {
-     if (ctrlDep.ContainsKey(block) && block != header)
+     // Loop headers are always control dependent on themselves. Ignore this control dependence
+     // as we want to compute the set of basic blocks whose conditions lead to execution of the loop header
+     if (ctrlDep[block].Where(x => x == header).ToList().Count > 0)
      {
-      // Loop headers are always control dependent on themselves. Ignore this control dependence
-      // as we want to compute the set of basic blocks whose conditions lead to execution of the loop header
-      if (ctrlDep[block].Where(x => x == header).ToList().Count > 0)
+       // If the header is control dependent on this block, remember the block
+       controllingBlocks.Add(block);
+     }
+    }
+   }
+   if (controllingBlocks.Count > 0)
+   {
+    HashSet<Block> toKeep = new HashSet<Block>();
+    foreach (Block controlling in controllingBlocks)
+    {
+     if (!controlNodeExprInfo.ContainsKey(controlling))
+     {
+      // If we have not done so already, fully expand the expression which determines the direction of the conditional
+      HashSet<Variable> tempVariables = new HashSet<Variable>();
+      var visitor = new VariablesOccurringInExpressionVisitor();
+      foreach (Block succ in cfg.Successors(controlling))
       {
-        // If the header is control dependent on this block, remember the block
-        controllingBlocks.Add(block);
+       foreach (var assume in succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")))
+       {
+        visitor.Visit(assume.Expr);
+        tempVariables.UnionWith(visitor.GetVariables().ToList());
+       }
+      }
+
+      if (tempVariables.Count > 0)
+      {
+       controllingNodeIsPredicated.Add(controlling);
+       // There should be exactly one partition variable
+       Debug.Assert(tempVariables.Count == 1);
+       controlNodeExprInfo[controlling] = new AssignmentExpressionExpander(cfg, tempVariables.Single());
+      }
+     }
+
+     // Only keep blocks which have partition variables
+     if (controllingNodeIsPredicated.Contains(controlling))
+       toKeep.Add(controlling);
+    }
+
+    controllingBlocks.IntersectWith(toKeep);
+
+    // Build up the expressions on the LHS of the implication
+    List<Expr> antecedentExprs = new List<Expr>();
+    foreach (Block controlling in controllingBlocks)
+    {
+     if (controlNodeExprInfo[controlling].GetGPUVariables().Count > 0)
+     {
+      // If the fully-expanded conditional expression contains thread or group IDs
+      foreach (Block succ in cfg.Successors(controlling))
+      {
+        // Find the side of the branch that must execute if the loop executes
+       if (cfg.DominatorMap.DominatedBy(header, succ))
+       {
+        // Get the assume associated with the branch
+        var assume = succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")).Single();
+        if (assume.Expr is NAryExpr)
+        {
+         NAryExpr nary = assume.Expr as NAryExpr;
+         Debug.Assert((nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not);
+         // The assume is a not expression !E. Negating !E gives !!E which is logically equivalent to E.
+         // E is the expression that must hold for the conditional to bypass the loop
+         antecedentExprs.Add(controlNodeExprInfo[controlling].GetUnexpandedExpr());
+        }
+        else
+        {
+         Expr negatedExpr = Expr.Not(controlNodeExprInfo[controlling].GetUnexpandedExpr());
+         antecedentExprs.Add(negatedExpr);
+        }
+       }
       }
      }
     }
-    if (controllingBlocks.Count > 0)
+    if (antecedentExprs.Count > 0)
     {
-     HashSet<Block> toKeep = new HashSet<Block>();
-     foreach (Block controlling in controllingBlocks)
+     // Create the set of implications which state that, if one of the antecedent expressions holds,
+     // the thread is not enabled and does not read or write to an array location in the loop body
+     Expr lhsOfImplication;
+     if (antecedentExprs.Count > 1)
      {
-      if (!controlNodeExprInfo.ContainsKey(controlling))
+      lhsOfImplication = Expr.Or(antecedentExprs[0], antecedentExprs[1]);
+      for (int i = 2; i < antecedentExprs.Count; ++i)
       {
-       // If we have not done so already, fully expand the expression which determines the direction of the conditional
-       HashSet<Variable> tempVariables = new HashSet<Variable>();
-       var visitor = new VariablesOccurringInExpressionVisitor();
-       foreach (Block succ in cfg.Successors(controlling))
-       {
-        foreach (var assume in succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")))
-        {
-         visitor.Visit(assume.Expr);
-         tempVariables.UnionWith(visitor.GetVariables().ToList());
-        }
-       }
-
-       if (tempVariables.Count > 0)
-       {
-        controllingNodeIsPredicated.Add(controlling);
-        // There should be exactly one partition variable
-        Debug.Assert(tempVariables.Count == 1);
-        controlNodeExprInfo[controlling] = new AssignmentExpressionExpander(cfg, tempVariables.Single());
-       }
-      }
-
-      // Only keep blocks which have partition variables
-      if (controllingNodeIsPredicated.Contains(controlling))
-        toKeep.Add(controlling);
-     }
-
-     controllingBlocks.IntersectWith(toKeep);
-
-     // Build up the expressions on the LHS of the implication
-     List<Expr> antecedentExprs = new List<Expr>();
-     foreach (Block controlling in controllingBlocks)
-     {
-      if (controlNodeExprInfo[controlling].GetGPUVariables().Count > 0)
-      {
-       // If the fully-expanded conditional expression contains thread or group IDs
-       foreach (Block succ in cfg.Successors(controlling))
-       {
-         // Find the side of the branch that must execute if the loop executes
-        if (cfg.DominatorMap.DominatedBy(header, succ))
-        {
-         // Get the assume associated with the branch
-         var assume = succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")).Single();
-         if (assume.Expr is NAryExpr)
-         {
-          NAryExpr nary = assume.Expr as NAryExpr;
-          Debug.Assert((nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not);
-          // The assume is a not expression !E. Negating !E gives !!E which is logically equivalent to E.
-          // E is the expression that must hold for the conditional to bypass the loop
-          antecedentExprs.Add(controlNodeExprInfo[controlling].GetUnexpandedExpr());
-         }
-         else
-         {
-          Expr negatedExpr = Expr.Not(controlNodeExprInfo[controlling].GetUnexpandedExpr());
-          antecedentExprs.Add(negatedExpr);
-         }
-        }
-       }
+       lhsOfImplication = Expr.Or(lhsOfImplication, antecedentExprs[i]);
       }
      }
-     if (antecedentExprs.Count > 0)
-     {
-      // Create the set of implications which state that, if one of the antecedent expressions holds,
-      // the thread is not enabled and does not read or write to an array location in the loop body
-      Expr lhsOfImplication;
-      if (antecedentExprs.Count > 1)
-      {
-       lhsOfImplication = Expr.Or(antecedentExprs[0], antecedentExprs[1]);
-       for (int i = 2; i < antecedentExprs.Count; ++i)
-       {
-        lhsOfImplication = Expr.Or(lhsOfImplication, antecedentExprs[i]);
-       }
-      }
-      else
-       lhsOfImplication = antecedentExprs[0];
-      AddInvariantsForLoopsWhichAreControlDependentOnThreadOrGroupIDs(verifier, header, loopBody, lhsOfImplication);
-     }
+     else
+      lhsOfImplication = antecedentExprs[0];
+     AddInvariantsForLoopsWhichAreControlDependentOnThreadOrGroupIDs(verifier, region, lhsOfImplication);
     }
    }
   }
 
-  private static void AddInvariantsForLoopsWhichAreControlDependentOnThreadOrGroupIDs(GPUVerifier verifier, Block header, HashSet<Block> loopBody, Expr lhsOfImplication)
+  private static void AddInvariantsForLoopsWhichAreControlDependentOnThreadOrGroupIDs(GPUVerifier verifier, IRegion region, Expr lhsOfImplication)
   {
    // Invariant #1: The thread is not enabled
    string enabledVariableName = "__enabled";
@@ -356,26 +363,23 @@ namespace GPUVerify
     verifier.ResContext.AddVariable(enabledVariable, true);
    }
    Expr invariantEnabled = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, enabledVariable)));
-   verifier.AddCandidateInvariant(header, invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+   verifier.AddCandidateInvariant(region, invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
 
    // Retrieve the variables read and written in the loop body
    var readVisitor = new VariablesOccurringInExpressionVisitor();
    var writeVisitor = new VariablesOccurringInExpressionVisitor();
-   foreach (Block bodyBlock in loopBody)
+   foreach (AssignCmd assignment in region.Cmds().OfType<AssignCmd>())
    {
-    foreach (AssignCmd assignment in bodyBlock.Cmds.OfType<AssignCmd>())
+    var mapLhss = assignment.Lhss.OfType<MapAssignLhs>();
+    foreach (var LhsRhs in mapLhss.Zip(assignment.Rhss))
     {
-     var mapLhss = assignment.Lhss.OfType<MapAssignLhs>();
-     foreach (var LhsRhs in mapLhss.Zip(assignment.Rhss))
-     {
-      writeVisitor.Visit(LhsRhs.Item1);
-      readVisitor.Visit(LhsRhs.Item2);
-     }
-     var simpleLhss = assignment.Lhss.OfType<SimpleAssignLhs>();
-     foreach (var LhsRhs in simpleLhss.Zip(assignment.Rhss))
-     {
-      readVisitor.Visit(LhsRhs.Item2);
-     }
+     writeVisitor.Visit(LhsRhs.Item1);
+     readVisitor.Visit(LhsRhs.Item2);
+    }
+    var simpleLhss = assignment.Lhss.OfType<SimpleAssignLhs>();
+    foreach (var LhsRhs in simpleLhss.Zip(assignment.Rhss))
+    {
+     readVisitor.Visit(LhsRhs.Item2);
     }
    }
 
@@ -386,7 +390,7 @@ namespace GPUVerify
     Variable writeHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_WRITE_HAS_OCCURRED_" + found.Name);
     Debug.Assert(writeHasOccurredVariable != null);
     Expr writeHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, writeHasOccurredVariable)));
-    verifier.AddCandidateInvariant(header, writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+    verifier.AddCandidateInvariant(region, writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
    }
 
    // Invariant #3: Arrays in global or group-shared memory are not read
@@ -396,7 +400,7 @@ namespace GPUVerify
     Variable readHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_READ_HAS_OCCURRED_" + found.Name);
     Debug.Assert(readHasOccurredVariable != null);
     Expr readHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, readHasOccurredVariable)));
-    verifier.AddCandidateInvariant(header, readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+    verifier.AddCandidateInvariant(region, readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
    }
   }
 
@@ -595,10 +599,11 @@ namespace GPUVerify
   {
    foreach (IRegion subregion in region.SubRegions())
    {
+    if (verifier.RegionHasLoopInvariantsDisabled(region))
+     continue;
+
     foreach (InvariantGenerationRule r in invariantGenerationRules)
-    {
      r.GenerateCandidates(Impl, subregion);
-    }
 
     AddBarrierDivergenceCandidates(LocalVars, Impl, subregion);
 
@@ -623,6 +628,88 @@ namespace GPUVerify
    }
 
    return result;
+  }
+
+  internal static bool AccessesGlobalArrayOrUnsafeBarrier(Cmd c, GPUVerifier verifier)
+  {
+   var StateToCheck = verifier.KernelArrayInfo;
+
+   if (c is CallCmd)
+   {
+    CallCmd call = c as CallCmd;
+    if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
+     return true;
+
+    if (GPUVerifier.IsBarrier(call.Proc) &&
+        !QKeyValue.FindBoolAttribute(call.Proc.Attributes, "safe_barrier"))
+     return true;
+
+    List<Variable> vars =  new List<Variable>();
+    call.AddAssignedVariables(vars);
+    foreach (Variable v in vars)
+    {
+     if (StateToCheck.getAllNonLocalArrays().Contains(v))
+      return true;
+     if (StateToCheck.getConstantArrays().Contains(v))
+      return true;
+    }
+   }
+
+   if (c is AssignCmd)
+   {
+    AssignCmd assign = c as AssignCmd;
+
+    ReadCollector rc = new ReadCollector(StateToCheck);
+    foreach (var rhs in assign.Rhss)
+     rc.Visit(rhs);
+    foreach (var access in rc.accesses)
+    {
+     if (!StateToCheck.getReadOnlyNonLocalArrays().Contains(access.v))
+      return true;
+    }
+
+    foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
+    {
+     WriteCollector wc = new WriteCollector(StateToCheck);
+     wc.Visit(LhsRhs.Item1);
+     if (wc.FoundWrite())
+      return true;
+    }
+
+    foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
+    {
+     ConstantWriteCollector cwc = new ConstantWriteCollector(StateToCheck);
+     cwc.Visit(LhsRhs.Item1);
+     if (cwc.FoundWrite())
+      return true;
+    }
+   }
+
+   if (c is AssertCmd)
+   {
+    AssertCmd assertion = c as AssertCmd;
+    if (!QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc"))
+     return true;
+   }
+
+   if (c is AssumeCmd)
+   {
+    AssumeCmd assumption = c as AssumeCmd;
+    if (!QKeyValue.FindBoolAttribute(assumption.Attributes, "partition"))
+     return true;
+   }
+
+   return false;
+  }
+
+  internal static bool AccessesGlobalArrayOrUnsafeBarrier(IRegion region, GPUVerifier verifier)
+  {
+   foreach (Cmd c in region.Cmds())
+   {
+    if (AccessesGlobalArrayOrUnsafeBarrier(c, verifier))
+     return true;
+   }
+   return false;
   }
  }
 }

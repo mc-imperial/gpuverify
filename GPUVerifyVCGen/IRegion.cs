@@ -22,8 +22,10 @@ interface IRegion {
   IEnumerable<object> CmdsChildRegions();
   IEnumerable<IRegion> SubRegions();
   IEnumerable<Block> PreHeaders();
+  Block Header();
   Expr Guard();
   void AddInvariant(PredicateCmd pc);
+  void AddLoopInvariantDisabledTag();
   List<PredicateCmd> RemoveInvariants();
   HashSet<Variable> PartitionVariablesOfHeader();
 }

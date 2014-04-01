@@ -42,6 +42,8 @@ namespace GPUVerify
         public string BarrierProcedureLocalFenceArgName;
         public string BarrierProcedureGlobalFenceArgName;
 
+        private HashSet<object> RegionsWithLoopInvariantsDisabled = new HashSet<object>();
+
         internal IKernelArrayInfo KernelArrayInfo = new KernelArrayInfoLists();
 
         private HashSet<string> ReservedNames = new HashSet<string>();
@@ -519,6 +521,7 @@ namespace GPUVerify
 
               foreach (var impl in Program.Implementations().ToList())
                 {
+                    LoopInvariantGenerator.EstablishDisabledLoops(this, impl);
                     LoopInvariantGenerator.PreInstrument(this, impl);
                 }
 
@@ -632,6 +635,7 @@ namespace GPUVerify
             // in adding capture states to loop heads demands an unstructured
             // representation.  It would be nicer to eliminate this ordering
             // constraint.
+            AddLoopInvariantDisabledTags();
             AddCaptureStates();
 
             if (GPUVerifyVCGenCommandLineOptions.WarpSync)
@@ -1857,21 +1861,6 @@ namespace GPUVerify
             region.AddInvariant(predicate);
         }
 
-        internal void AddCandidateInvariant(Block block, Expr e, string tag, int StageId, string attribute = null)
-        {
-            if (GPUVerifyVCGenCommandLineOptions.DoNotGenerateCandidates.Contains(tag)) {
-                return; // candidate *not* generated
-            }
-
-            PredicateCmd predicate = Program.CreateCandidateInvariant(e, tag, StageId);
-
-            if (attribute != null)
-              predicate.Attributes = new QKeyValue(Token.NoToken, attribute, new List<object>() { }, predicate.Attributes);
-
-            block.Cmds.Insert(0, predicate);
-        }
-
-
         internal Implementation GetImplementation(string procedureName)
         {
           var Relevant = Program.Implementations().Where(Item => Item.Name == procedureName);
@@ -2365,6 +2354,25 @@ namespace GPUVerify
             AddInlineAttribute(method);
             Program.TopLevelDeclarations.Add(method);
           }
+        }
+
+        internal void AddRegionWithLoopInvariantsDisabled(IRegion region) {
+            RegionsWithLoopInvariantsDisabled.Add(region.Identifier());
+        }
+
+        internal bool RegionHasLoopInvariantsDisabled(IRegion region) {
+            return RegionsWithLoopInvariantsDisabled.Contains(region.Identifier());
+        }
+
+        private void AddLoopInvariantDisabledTags() {
+            foreach (var impl in Program.Implementations().ToList())
+            {
+                foreach (var region in RootRegion(impl).SubRegions())
+                {
+                    if (RegionHasLoopInvariantsDisabled(region))
+                        region.AddLoopInvariantDisabledTag();
+                }
+            }
         }
 
         internal bool TryGetArrayFromPrefixedString(string s, string prefix, out Variable v) {
