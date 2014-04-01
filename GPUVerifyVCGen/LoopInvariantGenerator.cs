@@ -424,7 +424,7 @@ namespace GPUVerify
     LocalVars.Add(v);
    }
 
-   AddCandidateInvariants(verifier.RootRegion(Impl), LocalVars, Impl);
+   AddCandidateInvariants(LocalVars, Impl);
   }
 
   private void AddEqualityCandidateInvariant(IRegion region, string LoopPredicate, Variable v)
@@ -594,20 +594,19 @@ namespace GPUVerify
     ((IdentifierExpr)nary.Args[1]).Name));
   }
 
-  private void AddCandidateInvariants(IRegion region, HashSet<Variable> LocalVars, Implementation Impl)
+  private void AddCandidateInvariants(HashSet<Variable> LocalVars, Implementation Impl)
   {
-   foreach (IRegion subregion in region.SubRegions())
+   foreach (IRegion region in verifier.RootRegion(Impl).SubRegions())
    {
     if (verifier.RegionHasLoopInvariantsDisabled(region))
      continue;
 
     foreach (InvariantGenerationRule r in invariantGenerationRules)
-     r.GenerateCandidates(Impl, subregion);
+     r.GenerateCandidates(Impl, region);
 
-    AddBarrierDivergenceCandidates(LocalVars, Impl, subregion);
+    AddBarrierDivergenceCandidates(LocalVars, Impl, region);
 
-    verifier.RaceInstrumenter.AddRaceCheckingCandidateInvariants(Impl, subregion);
-
+    verifier.RaceInstrumenter.AddRaceCheckingCandidateInvariants(Impl, region);
    }
   }
 
