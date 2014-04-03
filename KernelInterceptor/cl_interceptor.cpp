@@ -9,6 +9,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <cstring>
+#include <cstdlib>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -37,75 +39,56 @@ class Col_Logger {
 		std::map<cl_program, std::vector<std::string> > programs;
 		std::map<cl_program, std::string> options;
 		std::map<cl_kernel, struct kernel_data> kernels;
-		std::vector<cl_mem> buffers;
-		unsigned int counter;
 
 		void dump(cl_kernel karnol)
 		{
 			struct kernel_data kernel = kernels[karnol];
+
+			// Making our temporary file, also our directory in case it isn't there already
 			struct stat st = {0};
 			if (stat(".gpuverify", &st) == -1) {
 				mkdir(".gpuverify",0700);
 			}
 
-			string num = static_cast<ostringstream*>( &(ostringstream() << counter) )->str();
-			counter++;
-			ofstream fs;
-			fs.open((string(".gpuverify/") + kernel.name + num).c_str(), ofstream::out);
-
-			fs << "GPUVerify args:" << std::endl;
-			fs << "--local_size=[";
-			fs << kernel.local_size[0];
+			FILE* f = fopen(tempnam(".gpuverify",kernel.name.c_str()),"w");
+			
+		       	fprintf(f,"GPUVerify args:\n--local_size=%zu", kernel.local_size[0]);
 			if (kernel.dimension > 1)
-				for (int i = 1; i < kernel.dimension; i++)
-					fs << "," << kernel.local_size[i];
-			fs << "]";
+			  for (int i = 1; i < kernel.dimension; i++)
+			    fprintf(f,",%zu",kernel.local_size[i]);
 
-			fs << " --num_groups=[";
-			fs << kernel.global_size[0]/kernel.local_size[0];
+			fprintf(f," --global_size=%zu",kernel.global_size[0]);
 			if (kernel.dimension > 1)
-				for (int i = 1; i < kernel.dimension; i++)
-					fs << "," << kernel.global_size[i]/kernel.local_size[i];
-			fs << "]";
+			  for (int i = 1; i < kernel.dimension; i++)
+			    fprintf(f,",%zu",kernel.global_size[i]);
 
-			fs << " --params=[" << kernel.name;
-			for (int i = 0; i < kernel.args.size(); i++)
-			{
-				if (kernel.args[i].data != NULL && kernel.args[i].size < sizeof(cl_mem) || (std::find(buffers.begin(), buffers.end(), *(cl_mem*)kernel.args[i].data) == buffers.end())) { // We assume that a cl_mem pointer is unlikely to be aliased by any of the scalar parameters
-					fs << ",";
-					switch (kernel.args[i].size) {
-						case 1:
-							fs << *(uint8_t*) kernel.args[i].data;
-							break;
-						case 2:
-							fs << *(uint16_t*) kernel.args[i].data;
-							break;
-						case 4:
-							fs << *(uint32_t*) kernel.args[i].data;
-							break;
-						case 8:
-							fs << *(uint64_t*) kernel.args[i].data;
-							break;
-						default:
-							fs << "0x";
-							for (int j = kernel.args[i].size - 1; j >= 0 ; j--)
-								fprintf(stderr, "%02X", ((unsigned char*) kernel.args[i].data)[j]);
-							break;
-					}
-				}
+			fprintf(f," --params=[%s",kernel.name.c_str());
+			for (unsigned int i = 0; i < kernel.args.size(); i++) {
+			  cl_kernel_arg_address_qualifier q;
+			  clGetKernelArgInfo(karnol, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(q), &q, NULL);
+			  if (q == CL_KERNEL_ARG_ADDRESS_PRIVATE) {
+			    switch (kernel.args[i].size) {
+			    case 1: fprintf(f, ",%hhu", *(uint8_t*)  kernel.args[i].data); break;
+			    case 2: fprintf(f, ",%hu",  *(uint16_t*) kernel.args[i].data); break;
+			    case 4: fprintf(f, ",%u",   *(uint32_t*) kernel.args[i].data); break;
+			    case 8: fprintf(f, ",%lu",  *(uint64_t*) kernel.args[i].data); break;
+			    default:
+			      fprintf(f, ",0x");
+			      for (int j = kernel.args[i].size -1; j >= 0; j--)
+				fprintf(f, "%02X", ((unsigned char*) kernel.args[i].data)[j]);
+			      break;
+			    }
+			  }
 			}
-			fs << "]";
 
-			fs << std::endl;
+			fprintf(f, "]\noptions:\n");
+			fprintf(f, "%s\n", options[kernel.program].c_str());
 
-			fs << "options:" << std::endl;
-			fs << options[kernel.program];
-			fs << std::endl;
-
-			fs << "code:" << std::endl;
 			std::vector<std::string> code = programs[kernel.program];
+			fprintf(f, "code:\n");
 			for (int i = 0; i < code.size(); i++)
-				fs << code[i];
+			  fprintf(f, "%s", code[i].c_str());
+			fclose(f);
 		}
 
 		void dump(void)
@@ -140,17 +123,6 @@ Col_Logger& singleton(void)
 }
 
 extern "C" {
-
-cl_mem clCreateBuffer_hook (cl_context context,
-                            cl_mem_flags flags,
-                            size_t size,
-                            void *host_ptr,
-                            cl_int *errcode_ret)
-{
-	cl_mem mem = clCreateBuffer(context, flags, size, host_ptr, errcode_ret);
-	singleton().buffers.push_back(mem);
-  return mem;
-}
 
 cl_program clCreateProgramWithSource_hook (cl_context context,
                                            cl_uint count,

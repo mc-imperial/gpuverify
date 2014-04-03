@@ -5,14 +5,6 @@
 extern "C" {
 #endif
 
-void dump_stuff(void);
-
-cl_mem clCreateBuffer_hook (cl_context context,
-                            cl_mem_flags flags,
-                            size_t size,
-                            void *host_ptr,
-                            cl_int *errcode_ret);
-
 cl_program clCreateProgramWithSource_hook (cl_context context,
                                            cl_uint count,
                                            const char **strings,
@@ -45,7 +37,6 @@ cl_int clEnqueueNDRangeKernel_hook (cl_command_queue command_queue,
                                     const cl_event *event_wait_list,
                                     cl_event *event);
 
-#define clCreateBuffer clCreateBuffer_hook
 #define clCreateProgramWithSource clCreateProgramWithSource_hook
 #define clBuildProgram clBuildProgram_hook
 #define clCreateKernel clCreateKernel_hook
