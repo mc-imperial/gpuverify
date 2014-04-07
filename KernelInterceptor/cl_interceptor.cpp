@@ -20,9 +20,16 @@
 
 using namespace std;
 
+struct file_line_time {
+	string file;
+	int line;
+	time_t time;
+};
+
 struct arg_data {
 	size_t size;
 	void* data;
+	struct file_line_time flt;
 };
 
 struct kernel_data {
@@ -34,191 +41,197 @@ struct kernel_data {
 	size_t local_size [3];
 };
 
-class Col_Logger {
-	public:
-		std::map<cl_program, std::vector<std::string> > programs;
-		std::map<cl_program, std::string> options;
-		std::map<cl_kernel, struct kernel_data> kernels;
+void de_newline(char* string) {
+	for (int i = 0; string[i] != '\0'; i++) {
+		if (string[i] == '\n' || string[i] == '\r') {
+			string[i] = ' ';
+		}
+	}
+}
 
-		void dump(cl_kernel karnol)
-		{
-			struct kernel_data kernel = kernels[karnol];
+class CL_Logger {
+public:
+	std::map<cl_program, pair<vector<string>,struct file_line_time> > programs;
+	std::map<cl_program, string> options;
+	std::map<cl_kernel, struct kernel_data> kernels;
+	const char* dirname;
 
-			// Making our temporary file, also our directory in case it isn't there already
-			struct stat st = {0};
-			if (stat(".gpuverify", &st) == -1) {
-				mkdir(".gpuverify",0700);
-			}
+	void dump(cl_kernel karnol) {
+		struct kernel_data kernel = kernels[karnol];
 
-			FILE* f = fopen(tempnam(".gpuverify",kernel.name.c_str()),"w");
+		FILE* f = fopen(tempnam(dirname,kernel.name.c_str()),"w");
 			
-		       	fprintf(f,"GPUVerify args:\n--local_size=%zu", kernel.local_size[0]);
-			if (kernel.dimension > 1)
-			  for (int i = 1; i < kernel.dimension; i++)
-			    fprintf(f,",%zu",kernel.local_size[i]);
-
-			fprintf(f," --global_size=%zu",kernel.global_size[0]);
-			if (kernel.dimension > 1)
-			  for (int i = 1; i < kernel.dimension; i++)
-			    fprintf(f,",%zu",kernel.global_size[i]);
-
-			fprintf(f," --params=[%s",kernel.name.c_str());
-			for (unsigned int i = 0; i < kernel.args.size(); i++) {
-			  cl_kernel_arg_address_qualifier q;
-			  clGetKernelArgInfo(karnol, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(q), &q, NULL);
-			  if (q == CL_KERNEL_ARG_ADDRESS_PRIVATE) {
-			    switch (kernel.args[i].size) {
-			    case 1: fprintf(f, ",%hhu", *(uint8_t*)  kernel.args[i].data); break;
-			    case 2: fprintf(f, ",%hu",  *(uint16_t*) kernel.args[i].data); break;
-			    case 4: fprintf(f, ",%u",   *(uint32_t*) kernel.args[i].data); break;
-			    case 8: fprintf(f, ",%lu",  *(uint64_t*) kernel.args[i].data); break;
-			    default:
-			      fprintf(f, ",0x");
-			      for (int j = kernel.args[i].size -1; j >= 0; j--)
-				fprintf(f, "%02X", ((unsigned char*) kernel.args[i].data)[j]);
-			      break;
-			    }
-			  }
-			}
-
-			fprintf(f, "]\noptions:\n");
-			fprintf(f, "%s\n", options[kernel.program].c_str());
-
-			std::vector<std::string> code = programs[kernel.program];
-			fprintf(f, "code:\n");
-			for (int i = 0; i < code.size(); i++)
-			  fprintf(f, "%s", code[i].c_str());
-			fclose(f);
-		}
-
-		void dump(void)
-		{
-			std::cerr << "DUMPING!" << std::endl;
-
-			std::map<cl_kernel, struct kernel_data>::iterator it;
-			for (it = kernels.begin(); it != kernels.end(); ++it)
-			{
-				this->dump(it->first);
+		fprintf(f,"// --local_size=%zu", kernel.local_size[0]);
+		if (kernel.dimension > 1) {
+			for (int i = 1; i < kernel.dimension; i++) {
+				fprintf(f,",%zu",kernel.local_size[i]);
 			}
 		}
 
-		void clear (void)
-		{
-			programs.clear();
-			kernels.clear();
+		fprintf(f," --global_size=%zu",kernel.global_size[0]);
+		if (kernel.dimension > 1) {
+			for (int i = 1; i < kernel.dimension; i++) {
+				fprintf(f,",%zu",kernel.global_size[i]);
+			}
 		}
 
-		/*
-		~Col_Logger(void)
-		{
-			this->dump();
+		fprintf(f," --params=%s",kernel.name.c_str());
+		for (unsigned int i = 0; i < kernel.args.size(); i++) {
+			cl_kernel_arg_address_qualifier q;
+			clGetKernelArgInfo(karnol, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(q), &q, NULL);
+			if (q == CL_KERNEL_ARG_ADDRESS_PRIVATE) { // Best heuristic for "scalar"
+				switch (kernel.args[i].size) {
+				case 1: fprintf(f, ",%hhu", *(uint8_t*)  kernel.args[i].data); break;
+				case 2: fprintf(f, ",%hu",  *(uint16_t*) kernel.args[i].data); break;
+				case 4: fprintf(f, ",%u",   *(uint32_t*) kernel.args[i].data); break;
+				case 8: fprintf(f, ",%lu",  *(uint64_t*) kernel.args[i].data); break;
+				default:
+					fprintf(f, ",0x");
+					for (int j = kernel.args[i].size -1; j >= 0; j--) {
+						fprintf(f, "%02X", ((unsigned char*) kernel.args[i].data)[j]);
+					}
+					break;
+				}
+			}
 		}
-		*/
+
+		fprintf(f, "\n// ");
+		char* opts = strdup(options[kernel.program].c_str());
+		de_newline(opts);
+		fprintf(f, "%s\n", opts);
+		fprintf(f, "// Built at %s:%d\n",programs[kernel.program].second.file.c_str(), programs[kernel.program].second.line);
+
+		fprintf(f, "\n");
+
+		std::vector<std::string> code = programs[kernel.program].first;
+		for (int i = 0; i < code.size(); i++) {
+			fprintf(f, "%s", code[i].c_str());
+		}
+		fclose(f);
+	}
+
+	CL_Logger (void) {
+		dirname = getenv("GPUV_KI_DIR") ? getenv("GPUV_KI_DIR") : ".gpuverify";
+
+		// Making our directory in case it isn't there already
+		// TODO: Does this work on Windows?
+		struct stat st = {0};
+		if (stat(dirname, &st) == -1) {
+			mkdir(dirname,0700);
+		}
+
+	}
+
 };
 
-Col_Logger& singleton(void)
+CL_Logger& singleton(void)
 {
-	static Col_Logger t;
+	static CL_Logger t;
 	return t;
 }
 
 extern "C" {
 
-cl_program clCreateProgramWithSource_hook (cl_context context,
-                                           cl_uint count,
-                                           const char **strings,
-                                           const size_t *lengths,
-                                           cl_int *errcode_ret)
-{
-	cl_program program = clCreateProgramWithSource(context, count, strings, lengths, errcode_ret);
-	std::vector<std::string> code (count);
-	if (lengths == NULL)
-		for (int i = 0; i < count; i++)
-		{
-			std::string line (strings[i]);
-			code.push_back(line);
-		}
-	else
-		for (int i = 0; i < count; i++)
-		{
-			if (lengths[i] == 0) {
+	cl_program clCreateProgramWithSource_hook (cl_context context,
+						   cl_uint count,
+						   const char **strings,
+						   const size_t *lengths,
+						   cl_int *errcode_ret,
+						   const char* file, int line)
+	{
+		cl_program program = clCreateProgramWithSource(context, count, strings, lengths, errcode_ret);
+		std::vector<std::string> code (count);
+		if (lengths == NULL) {
+			for (int i = 0; i < count; i++) {
 				std::string line (strings[i]);
 				code.push_back(line);
 			}
-			else {
-				std::string line (strings[i],lengths[i]);
-				code.push_back(line);
+		}
+		else {
+			for (int i = 0; i < count; i++) {
+				if (lengths[i] == 0) {
+					std::string line (strings[i]);
+					code.push_back(line);
+				}
+				else {
+					std::string line (strings[i],lengths[i]);
+					code.push_back(line);
+				}
 			}
 		}
-	singleton().programs[program] = code;
 
-  return program;
-}
+		struct file_line_time flt = {string(file), line, 0};
+		singleton().programs[program] = pair <vector<string>,struct file_line_time> (code,flt);
 
-cl_int clBuildProgram_hook (cl_program program,
-                            cl_uint num_devices,
-                            const cl_device_id *device_list,
-                            const char *options,
-                            void (*pfn_notify)(cl_program, void *user_data),
-                            void *user_data)
-{
-	std::string opts (options);
-	singleton().options[program] = opts;
-  return clBuildProgram(program, num_devices, device_list, options, pfn_notify, user_data);
-}
-
-cl_kernel clCreateKernel_hook (cl_program  program,
-                               const char *kernel_name,
-                               cl_int *errcode_ret)
-{
-	cl_kernel kernel = clCreateKernel(program, kernel_name, errcode_ret);
-	struct kernel_data data;
-	data.program = program;
-	data.name = std::string (kernel_name);
-	singleton().kernels[kernel] = data;
-  return kernel;
-}
-
-cl_int clSetKernelArg_hook (cl_kernel kernel,
-                            cl_uint arg_index,
-                            size_t arg_size,
-                            const void *arg_value)
-{
-	cl_int ret = clSetKernelArg(kernel, arg_index, arg_size, arg_value);
-	if (singleton().kernels[kernel].args.size() < arg_index+1)
-		singleton().kernels[kernel].args.resize(arg_index + 1);
-	singleton().kernels[kernel].args[arg_index].size = arg_size;
-	if (arg_value)
-	{
-		singleton().kernels[kernel].args[arg_index].data = malloc(arg_size);
-		memcpy(singleton().kernels[kernel].args[arg_index].data, arg_value, arg_size);
+		return program;
 	}
-	else
-		singleton().kernels[kernel].args[arg_index].data = NULL;
-  return ret;
-}
 
-cl_int clEnqueueNDRangeKernel_hook (cl_command_queue command_queue,
-                                    cl_kernel kernel,
-                                    cl_uint work_dim,
-                                    const size_t *global_work_offset,
-                                    const size_t *global_work_size,
-                                    const size_t *local_work_size,
-                                    cl_uint num_events_in_wait_list,
-                                    const cl_event *event_wait_list,
-                                    cl_event *event)
-
-{
-	cl_int ret = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, global_work_offset, global_work_size, local_work_size, num_events_in_wait_list, event_wait_list, event);
-	singleton().kernels[kernel].dimension = work_dim;
-	for (int i = 0; i < work_dim; i++)
+	cl_int clBuildProgram_hook (cl_program program,
+				    cl_uint num_devices,
+				    const cl_device_id *device_list,
+				    const char *options,
+				    void (*pfn_notify)(cl_program, void *user_data),
+				    void *user_data)
 	{
-		singleton().kernels[kernel].global_size[i] = global_work_size[i];
-		singleton().kernels[kernel].local_size[i] = local_work_size[i];
+		std::string opts (options);
+		singleton().options[program] = opts;
+		return clBuildProgram(program, num_devices, device_list, options, pfn_notify, user_data);
 	}
-	singleton().dump(kernel);
-	//singleton().clear(); // Comment out this line if you want the kernel source/name re-dumped over and over.
-  return ret;
-}
+
+	cl_kernel clCreateKernel_hook (cl_program  program,
+				       const char *kernel_name,
+				       cl_int *errcode_ret)
+	{
+		cl_kernel kernel = clCreateKernel(program, kernel_name, errcode_ret);
+		struct kernel_data data;
+		data.program = program;
+		data.name = std::string (kernel_name);
+		singleton().kernels[kernel] = data;
+		return kernel;
+	}
+
+	cl_int clSetKernelArg_hook (cl_kernel kernel,
+				    cl_uint arg_index,
+				    size_t arg_size,
+				    const void *arg_value)
+	{
+		cl_int ret = clSetKernelArg(kernel, arg_index, arg_size, arg_value);
+
+		// Resizing the vector if need-be
+		if (singleton().kernels[kernel].args.size() < arg_index+1) {
+			singleton().kernels[kernel].args.resize(arg_index + 1);
+		}
+
+		singleton().kernels[kernel].args[arg_index].size = arg_size;
+		if (arg_value) {
+			singleton().kernels[kernel].args[arg_index].data = malloc(arg_size);
+			memcpy(singleton().kernels[kernel].args[arg_index].data, arg_value, arg_size);
+		}
+		else {
+			singleton().kernels[kernel].args[arg_index].data = NULL;
+		}
+		return ret;
+	}
+
+	cl_int clEnqueueNDRangeKernel_hook (cl_command_queue command_queue,
+					    cl_kernel kernel,
+					    cl_uint work_dim,
+					    const size_t *global_work_offset,
+					    const size_t *global_work_size,
+					    const size_t *local_work_size,
+					    cl_uint num_events_in_wait_list,
+					    const cl_event *event_wait_list,
+					    cl_event *event)
+
+	{
+		cl_int ret = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, global_work_offset, global_work_size, local_work_size, num_events_in_wait_list, event_wait_list, event);
+		singleton().kernels[kernel].dimension = work_dim;
+		for (int i = 0; i < work_dim; i++) {
+			singleton().kernels[kernel].global_size[i] = global_work_size[i];
+			singleton().kernels[kernel].local_size[i] = local_work_size[i];
+		}
+		singleton().dump(kernel);
+		return ret;
+	}
 
 }

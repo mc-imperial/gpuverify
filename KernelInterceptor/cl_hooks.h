@@ -9,7 +9,8 @@ cl_program clCreateProgramWithSource_hook (cl_context context,
                                            cl_uint count,
                                            const char **strings,
                                            const size_t *lengths,
-                                           cl_int *errcode_ret);
+                                           cl_int *errcode_ret,
+					   const char* file, int line);
 
 cl_int clBuildProgram_hook (cl_program program,
                             cl_uint num_devices,
@@ -37,7 +38,7 @@ cl_int clEnqueueNDRangeKernel_hook (cl_command_queue command_queue,
                                     const cl_event *event_wait_list,
                                     cl_event *event);
 
-#define clCreateProgramWithSource clCreateProgramWithSource_hook
+#define clCreateProgramWithSource(a,b,c,d,e) clCreateProgramWithSource_hook(a,b,c,d,e,__FILE__,__LINE__)
 #define clBuildProgram clBuildProgram_hook
 #define clCreateKernel clCreateKernel_hook
 #define clSetKernelArg clSetKernelArg_hook
