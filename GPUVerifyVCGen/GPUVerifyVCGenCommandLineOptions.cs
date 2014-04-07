@@ -90,17 +90,23 @@ namespace GPUVerify
             Console.WriteLine("Error: parameter list expected after " + beforeColon + " argument");
             Environment.Exit(1);
           }
-          if (!afterColon.StartsWith("[") || !afterColon.EndsWith("]"))
+          afterColon = afterColon.Trim();
+          if (afterColon.StartsWith("[") && afterColon.EndsWith("]"))
           {
-            Console.WriteLine("Error: parameter list must be enclosed in square brackets.");
+            afterColon = afterColon.Substring(1,afterColon.Length-2);
+          }
+          else if (!afterColon.StartsWith("[") && !afterColon.EndsWith("]")) // Don't have to do any processing
+          {
+          }
+          else
+          {
+            Console.WriteLine("Error: parameter list must be enclosed in square brackets or not at all.");
             Environment.Exit(1);
           }
-          afterColon = afterColon.Trim();
-          afterColon = afterColon.Substring(1,afterColon.Length-2);
           KernelInterceptorParams = new List<string>(afterColon.Split(','));
-          if (KernelInterceptorParams.Count == 0 || KernelInterceptorParams[0].Length == 0)
+          if (KernelInterceptorParams.Count == 0 || KernelInterceptorParams.Any(x => x.Length == 0))
           {
-            Console.WriteLine("Error: first parameter must be kernel name.");
+            Console.WriteLine("Error: Cannot have empty parameters");
             Environment.Exit(1);
           }
           break;
