@@ -17,6 +17,147 @@ namespace Microsoft.Boogie
   using System.Collections.Generic;
   using System.Text.RegularExpressions;
   using System.Linq;
+  
+  // Abstract class from which all engines inherit
+  public abstract class Engine
+  { 
+    public int ID { get; set; }
+    
+    public abstract void Print();
+  }
+  
+  // Engines based on SMT solving
+  public abstract class SMTEngine : Engine
+  {
+    protected Houdini.ConcurrentHoudini houdini = null;
+    
+    public int ErrorLimit { get; set; }
+    public string Solver { get; set; }
+    
+    public SMTEngine (string solver, int errorLimit) 
+    {
+      this.Solver = solver;
+      this.ErrorLimit = errorLimit;
+    }
+    
+    public int Start (Program program, ref Houdini.HoudiniOutcome outcome)
+    {
+      if (this.Solver.Equals("cvc4")) 
+        KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program, this.ID);
+      if (CommandLineOptions.Clo.Trace) 
+        Console.WriteLine(this.GetType().Name + " started crunching");
+      
+      Houdini.HoudiniSession.HoudiniStatistics houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
+      string filename = "houdiniCexTrace_" + this.ID +".bpl";
+      houdini = new Houdini.ConcurrentHoudini(this.ID, program, houdiniStats, filename);
+      
+      if (outcome != null)
+        outcome = houdini.PerformHoudiniInference(initialAssignment: outcome.assignment);
+      else
+        outcome = houdini.PerformHoudiniInference();
+      
+      if (CommandLineOptions.Clo.Trace) 
+        Console.WriteLine(this.GetType().Name + " finished crunching");
+      
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugConcurrentHoudini) 
+      {
+        int numTrueAssigns = 0;
+        foreach (var x in outcome.assignment) 
+        {
+          if (x.Value) numTrueAssigns++;
+        }
+
+        Console.WriteLine("Number of true assignments          = " + numTrueAssigns);
+        Console.WriteLine("Number of false assignments         = " + (outcome.assignment.Count - numTrueAssigns));
+        Console.WriteLine("Prover time                         = " + houdiniStats.proverTime.ToString("F2"));
+        Console.WriteLine("Unsat core prover time              = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
+        Console.WriteLine("Number of prover queries            = " + houdiniStats.numProverQueries);
+        Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
+        Console.WriteLine("Number of unsat core prunings       = " + houdiniStats.numUnsatCorePrunings);
+      }
+      return this.ID;
+    }
+    
+    public override void Print ()
+    {
+      Console.WriteLine("########################################");
+      Console.WriteLine("# Engine:      " + this.GetType().Name);
+      Console.WriteLine("# ID:          " + this.ID);
+      Console.WriteLine("# Solver:      " + this.Solver);
+      Console.WriteLine("# Error limit: " + this.ErrorLimit);
+      Console.WriteLine("########################################");
+    }
+    
+    // Called just before SMT solver is called, allowing an analysis to change the program
+    public abstract void ManipulateProgram (Program program);
+  }
+  
+  // Engine where asserts are NOT maintained in the base step
+  public class SSTEP : SMTEngine
+  {
+    public SSTEP (string solver = "Z3", int errorLimit = 20):
+      base(solver, errorLimit)
+    {
+    }
+    
+    public override void ManipulateProgram (Program program)
+    {
+    }
+  }
+  
+  // Engine where asserts are NOT maintained in the induction step
+  public class SBASE : SMTEngine
+  {
+    public SBASE (string solver = "Z3", int errorLimit = 20):
+      base(solver, errorLimit)
+    {
+    }
+    
+    public override void ManipulateProgram (Program program)
+    {
+    }
+  }
+  
+  // Engine based on loop unrolling to a specific depth
+  public class LU : SMTEngine
+  {
+    public int UnrollFactor { get; set; }
+  
+    public LU (int unrollFactor, string solver = "Z3", int errorLimit = 20):
+      base(solver, errorLimit)
+    {
+      this.UnrollFactor = unrollFactor;
+    }
+    
+    public override void ManipulateProgram (Program program)
+    {
+      program.UnrollLoops(this.UnrollFactor, CommandLineOptions.Clo.SoundLoopUnrolling);
+    }
+  }
+  
+  // Engines based on dynamic analysis
+  public class DYNAMIC : Engine
+  {
+    public DYNAMIC ()
+    {
+    }
+    
+    public int Start (Program program)
+    {
+      if (CommandLineOptions.Clo.Trace) Console.WriteLine(this.GetType().Name + " started crunching");
+      new BoogieInterpreter(program);
+      if (CommandLineOptions.Clo.Trace) Console.WriteLine(this.GetType().Name + " finished crunching");
+      return this.ID;
+    }
+  
+    public override void Print ()
+    {
+      Console.WriteLine("########################################");
+      Console.WriteLine("# Engine:      " + this.GetType().Name);
+      Console.WriteLine("# ID:          " + this.ID);
+      Console.WriteLine("########################################");
+    }
+  }
 
   /// <summary>
   /// Wrapper class for a concurrent Houdini instance. It is able to run either on
@@ -182,9 +323,7 @@ namespace Microsoft.Boogie
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
         printConfig();
 
-      Interpreter = new BoogieInterpreter(program, 
-                              Tuple.Create(threadId_X, threadId_Y, threadId_Z), 
-                              Tuple.Create(groupId_X, groupId_Y, groupId_Z));
+      Interpreter = new BoogieInterpreter(program);
 
       if (CommandLineOptions.Clo.Trace)
         Console.WriteLine("INFO:[Engine-" + name + "] finished.");

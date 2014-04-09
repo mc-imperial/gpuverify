@@ -180,7 +180,7 @@ namespace GPUVerify
             return AssertStatus.Where(x => x.Value.Equals(BitVector.False)).Select(x => x.Key);
         }
 
-        public BoogieInterpreter(Program program, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
+        public BoogieInterpreter(Program program)
         {
             // If there are no invariants to falsify, return
             if (program.TopLevelDeclarations.OfType<Constant>().Where(item => QKeyValue.FindBoolAttribute(item.Attributes, "existential")).Count() == 0)
@@ -200,7 +200,7 @@ namespace GPUVerify
             // Determine whether there are loops that could be executed indepedently
             ComputeDisjointLoops(impl, loopInfo);
             
-            DoInterpretation(program, impl, localIDSpecification, globalIDSpecification);
+            DoInterpretation(program, impl);
         }
         
         private void ComputeLoopExits(Graph<Block> loopInfo)
@@ -310,7 +310,7 @@ namespace GPUVerify
             return Tuple.Create(writeSet, readSet, assertReadSet);
         }
         
-        private void DoInterpretation (Program program, Implementation impl, Tuple<int, int, int> localIDSpecification, Tuple<int, int, int> globalIDSpecification)
+        private void DoInterpretation (Program program, Implementation impl)
         {
             Print.VerboseMessage("Falsyifying invariants with dynamic analysis...");
             try
@@ -327,8 +327,8 @@ namespace GPUVerify
                     EvaluateGlobalVariables(program.TopLevelDeclarations.OfType<GlobalVariable>());
                     Print.DebugMessage(gpu.ToString(), 1);
                     // Set the local thread IDs and group IDs
-                    SetLocalIDs(localIDSpecification);
-                    SetGlobalIDs(globalIDSpecification);
+                    SetLocalIDs();
+                    SetGlobalIDs();
                     Print.DebugMessage("Thread 1 local  ID = " + String.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
                     Print.DebugMessage("Thread 1 global ID = " + String.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
                     Print.DebugMessage("Thread 2 local  ID = " + String.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
@@ -371,44 +371,18 @@ namespace GPUVerify
             }
         }
 
-        private Tuple<BitVector, BitVector> GetID(int selectedValue, int dimensionUpperBound)
+        private Tuple<BitVector, BitVector> GetID(int dimUpperBound)
         {
-            if (selectedValue > -1)
-            {
-                if (selectedValue == int.MaxValue)
-                {
-                    BitVector val1 = new BitVector(dimensionUpperBound);
-                    BitVector val2;
-                    if (dimensionUpperBound > 0)
-                        val2 = new BitVector(dimensionUpperBound - 1);
-                    else
-                        val2 = new BitVector(dimensionUpperBound);
-                    return Tuple.Create(val1, val2);
-                }
-                else
-                {
-                    BitVector val1 = new BitVector(selectedValue);
-                    BitVector val2;
-                    if (selectedValue < dimensionUpperBound)
-                        val2 = new BitVector(selectedValue + 1);
-                    else
-                        val2 = new BitVector(selectedValue);
-                    return Tuple.Create(val1, val2);
-                }
-            }
-            else
-            {
-                BitVector val1 = new BitVector(Random.Next(0, dimensionUpperBound + 1));
-                BitVector val2 = new BitVector(Random.Next(0, dimensionUpperBound + 1));
-                return Tuple.Create(val1, val2);
-            }
+          BitVector val1 = new BitVector(Random.Next(0, dimUpperBound + 1));
+          BitVector val2 = new BitVector(Random.Next(0, dimUpperBound + 1));
+          return Tuple.Create(val1, val2);
         }
 
-        private void SetLocalIDs(Tuple<int, int, int> localIDSpecification)
+        private void SetLocalIDs()
         {
-            Tuple<BitVector,BitVector> dimX = GetID(localIDSpecification.Item1, gpu.blockDim[DIMENSION.X] - 1);
-            Tuple<BitVector,BitVector> dimY = GetID(localIDSpecification.Item2, gpu.blockDim[DIMENSION.Y] - 1);
-            Tuple<BitVector,BitVector> dimZ = GetID(localIDSpecification.Item3, gpu.blockDim[DIMENSION.Z] - 1);
+            Tuple<BitVector,BitVector> dimX = GetID(gpu.blockDim[DIMENSION.X] - 1);
+            Tuple<BitVector,BitVector> dimY = GetID(gpu.blockDim[DIMENSION.Y] - 1);
+            Tuple<BitVector,BitVector> dimZ = GetID(gpu.blockDim[DIMENSION.Z] - 1);
             LocalID1[0] = dimX.Item1;
             LocalID2[0] = dimX.Item2;
             LocalID1[1] = dimY.Item1;
@@ -417,11 +391,11 @@ namespace GPUVerify
             LocalID2[2] = dimZ.Item2;    
         }
 
-        private void SetGlobalIDs(Tuple<int, int, int> globalIDSpecification)
+        private void SetGlobalIDs()
         {
-            Tuple<BitVector,BitVector> dimX = GetID(globalIDSpecification.Item1, gpu.gridDim[DIMENSION.X] - 1);
-            Tuple<BitVector,BitVector> dimY = GetID(globalIDSpecification.Item2, gpu.gridDim[DIMENSION.Y] - 1);
-            Tuple<BitVector,BitVector> dimZ = GetID(globalIDSpecification.Item3, gpu.gridDim[DIMENSION.Z] - 1);            
+            Tuple<BitVector,BitVector> dimX = GetID(gpu.gridDim[DIMENSION.X] - 1);
+            Tuple<BitVector,BitVector> dimY = GetID(gpu.gridDim[DIMENSION.Y] - 1);
+            Tuple<BitVector,BitVector> dimZ = GetID(gpu.gridDim[DIMENSION.Z] - 1);            
             GlobalID1[0] = dimX.Item1;
             GlobalID2[0] = dimX.Item2;
             GlobalID1[1] = dimY.Item1;
