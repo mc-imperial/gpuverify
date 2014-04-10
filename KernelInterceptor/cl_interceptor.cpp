@@ -56,7 +56,7 @@ public:
 	std::map<cl_kernel, struct kernel_data> kernels;
 	const char* dirname;
 
-	void dump(cl_kernel karnol) {
+	void dump(cl_kernel karnol, const char* file, int line) {
 		struct kernel_data kernel = kernels[karnol];
 
 		FILE* f = fopen(tempnam(dirname,kernel.name.c_str()),"w");
@@ -100,6 +100,7 @@ public:
 		de_newline(opts);
 		fprintf(f, "%s\n", opts);
 		fprintf(f, "// Built at %s:%d\n",programs[kernel.program].second.file.c_str(), programs[kernel.program].second.line);
+		fprintf(f, "// Run at %s:%d\n", file, line);
 
 		fprintf(f, "\n");
 
@@ -221,7 +222,8 @@ extern "C" {
 					    const size_t *local_work_size,
 					    cl_uint num_events_in_wait_list,
 					    const cl_event *event_wait_list,
-					    cl_event *event)
+					    cl_event *event,
+					    const char* file, int line)
 
 	{
 		cl_int ret = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, global_work_offset, global_work_size, local_work_size, num_events_in_wait_list, event_wait_list, event);
@@ -230,7 +232,7 @@ extern "C" {
 			singleton().kernels[kernel].global_size[i] = global_work_size[i];
 			singleton().kernels[kernel].local_size[i] = local_work_size[i];
 		}
-		singleton().dump(kernel);
+		singleton().dump(kernel, file, line);
 		return ret;
 	}
 

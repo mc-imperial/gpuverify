@@ -36,13 +36,14 @@ cl_int clEnqueueNDRangeKernel_hook (cl_command_queue command_queue,
                                     const size_t *local_work_size,
                                     cl_uint num_events_in_wait_list,
                                     const cl_event *event_wait_list,
-                                    cl_event *event);
+                                    cl_event *event,
+				    const char* file, int line);
 
 #define clCreateProgramWithSource(a,b,c,d,e) clCreateProgramWithSource_hook(a,b,c,d,e,__FILE__,__LINE__)
 #define clBuildProgram clBuildProgram_hook
 #define clCreateKernel clCreateKernel_hook
 #define clSetKernelArg clSetKernelArg_hook
-#define clEnqueueNDRangeKernel clEnqueueNDRangeKernel_hook
+#define clEnqueueNDRangeKernel(a,b,c,d,e,f,g,h,i) clEnqueueNDRangeKernel_hook(a,b,c,d,e,f,g,h,i,__FILE__,__LINE__)
 
 #ifdef __cplusplus
 }
