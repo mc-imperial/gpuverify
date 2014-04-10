@@ -8,7 +8,12 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#include <direct.h>
+#else
 #include <unistd.h>
+#endif
 #include <cstring>
 #include <cstdlib>
 
@@ -17,6 +22,7 @@
 #else
 #include <CL/cl.h>
 #endif
+
 
 using namespace std;
 
@@ -118,7 +124,11 @@ public:
 		// TODO: Does this work on Windows?
 		struct stat st = {0};
 		if (stat(dirname, &st) == -1) {
+#ifdef _MSC_VER
+      _mkdir(dirname);
+#else
 			mkdir(dirname,0700);
+#endif
 		}
 
 	}
@@ -171,7 +181,7 @@ extern "C" {
 				    cl_uint num_devices,
 				    const cl_device_id *device_list,
 				    const char *options,
-				    void (*pfn_notify)(cl_program, void *user_data),
+				    void (CL_CALLBACK *  pfn_notify)(cl_program, void *),
 				    void *user_data)
 	{
 		std::string opts (options);

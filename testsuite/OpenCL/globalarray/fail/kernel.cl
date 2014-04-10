@@ -8,10 +8,16 @@
 __constant int A[64] = { };
 
 __kernel void globalarray(__global float* p) {
-  int i = get_global_id(0);
+  int i = get_global_id(0) + 1;
   int a = A[i];
 
+  char c;
+
+  __constant char* cp = A;
+
+  c = cp[0];
+
   if(a == 0) {
-    p[0] = get_global_id(0);
+    p[0] = get_global_id(0) + c;
   }
 }
