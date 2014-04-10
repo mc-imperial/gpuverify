@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cl_hooks", "cl_hooks\cl_hooks.vcxproj", "{0428DB3D-C027-4491-80F1-69316A0A6D92}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cl_interceptor", "cl_interceptor\cl_interceptor.vcxproj", "{0428DB3D-C027-4491-80F1-69316A0A6D92}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
