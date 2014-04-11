@@ -20,6 +20,7 @@ namespace Microsoft.Boogie
   using System.Linq;
   using VC;
 
+  /*
   /// <summary>
   /// Scheduler for infering invariants using Houdini and/or through dynamic analysis.
   /// It allows for either sequential or concurrent execution of refutation engines
@@ -552,4 +553,5 @@ namespace Microsoft.Boogie
 
     }
   }
+  */
 }
