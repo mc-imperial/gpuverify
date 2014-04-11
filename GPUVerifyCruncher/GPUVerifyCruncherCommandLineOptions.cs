@@ -42,14 +42,14 @@ namespace GPUVerify
 
     protected override bool ParseOption(string name, CommandLineOptionEngine.CommandLineParseState ps)
     {
-      if (name == "sequentialCrunch") {
+      if (name == "sequential") {
         if (ps.ConfirmArgumentCount(1)) { 
           ParsePipelineString(ps.args[ps.i]);
         }
         return true;
       }
       
-      if (name == "parallelCrunch") {
+      if (name == "parallel") {
         if (ps.ConfirmArgumentCount(1)) {
           Pipeline.Sequential = false;
           ParsePipelineString(ps.args[ps.i]);
