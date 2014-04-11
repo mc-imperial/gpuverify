@@ -532,6 +532,10 @@ namespace GPUVerify
 
             }
 
+            if (GPUVerifyVCGenCommandLineOptions.CheckArrayBounds) {
+              AddArrayBoundsChecks();
+            }
+
             if (GPUVerifyVCGenCommandLineOptions.ConstantWriteChecks) {
                 ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
             }

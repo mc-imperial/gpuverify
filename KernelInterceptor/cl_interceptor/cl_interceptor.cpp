@@ -8,7 +8,14 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef _MSC_VER
+#include <stdint.h>
+#include <direct.h>
+#define FORMAT_SIZET "Iu"
+#else
 #include <unistd.h>
+#define FORMAT_SIZET "zu"
+#endif
 #include <cstring>
 #include <cstdlib>
 
@@ -17,6 +24,7 @@
 #else
 #include <CL/cl.h>
 #endif
+
 
 using namespace std;
 
@@ -59,19 +67,19 @@ public:
 	void dump(cl_kernel karnol, const char* file, int line) {
 		struct kernel_data kernel = kernels[karnol];
 
-		FILE* f = fopen(tempnam(dirname,kernel.name.c_str()),"w");
+		FILE* f = fopen(_tempnam(dirname,kernel.name.c_str()),"w");
 			
-		fprintf(f,"// --local_size=%zu", kernel.local_size[0]);
+		fprintf(f,"// --local_size=%" FORMAT_SIZET, kernel.local_size[0]);
 		if (kernel.dimension > 1) {
-			for (int i = 1; i < kernel.dimension; i++) {
-				fprintf(f,",%zu",kernel.local_size[i]);
+			for (unsigned int i = 1; i < kernel.dimension; i++) {
+				fprintf(f,",%" FORMAT_SIZET,kernel.local_size[i]);
 			}
 		}
 
-		fprintf(f," --global_size=%zu",kernel.global_size[0]);
+		fprintf(f," --global_size=%" FORMAT_SIZET,kernel.global_size[0]);
 		if (kernel.dimension > 1) {
-			for (int i = 1; i < kernel.dimension; i++) {
-				fprintf(f,",%zu",kernel.global_size[i]);
+			for (unsigned int i = 1; i < kernel.dimension; i++) {
+				fprintf(f,",%" FORMAT_SIZET,kernel.global_size[i]);
 			}
 		}
 
@@ -96,7 +104,7 @@ public:
 		}
 
 		fprintf(f, "\n// ");
-		char* opts = strdup(options[kernel.program].c_str());
+		char* opts = _strdup(options[kernel.program].c_str());
 		de_newline(opts);
 		fprintf(f, "%s\n", opts);
 		fprintf(f, "// Built at %s:%d\n",programs[kernel.program].second.file.c_str(), programs[kernel.program].second.line);
@@ -105,7 +113,7 @@ public:
 		fprintf(f, "\n");
 
 		std::vector<std::string> code = programs[kernel.program].first;
-		for (int i = 0; i < code.size(); i++) {
+		for (size_t i = 0; i < code.size(); i++) {
 			fprintf(f, "%s", code[i].c_str());
 		}
 		fclose(f);
@@ -118,7 +126,11 @@ public:
 		// TODO: Does this work on Windows?
 		struct stat st = {0};
 		if (stat(dirname, &st) == -1) {
+#ifdef _MSC_VER
+      _mkdir(dirname);
+#else
 			mkdir(dirname,0700);
+#endif
 		}
 
 	}
@@ -143,13 +155,13 @@ extern "C" {
 		cl_program program = clCreateProgramWithSource(context, count, strings, lengths, errcode_ret);
 		std::vector<std::string> code (count);
 		if (lengths == NULL) {
-			for (int i = 0; i < count; i++) {
+			for (cl_uint i = 0; i < count; i++) {
 				std::string line (strings[i]);
 				code.push_back(line);
 			}
 		}
 		else {
-			for (int i = 0; i < count; i++) {
+			for (cl_uint i = 0; i < count; i++) {
 				if (lengths[i] == 0) {
 					std::string line (strings[i]);
 					code.push_back(line);
@@ -171,7 +183,7 @@ extern "C" {
 				    cl_uint num_devices,
 				    const cl_device_id *device_list,
 				    const char *options,
-				    void (*pfn_notify)(cl_program, void *user_data),
+				    void (CL_CALLBACK *  pfn_notify)(cl_program, void *),
 				    void *user_data)
 	{
 		std::string opts (options);
@@ -228,7 +240,7 @@ extern "C" {
 	{
 		cl_int ret = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, global_work_offset, global_work_size, local_work_size, num_events_in_wait_list, event_wait_list, event);
 		singleton().kernels[kernel].dimension = work_dim;
-		for (int i = 0; i < work_dim; i++) {
+		for (cl_uint i = 0; i < work_dim; i++) {
 			singleton().kernels[kernel].global_size[i] = global_work_size[i];
 			singleton().kernels[kernel].local_size[i] = local_work_size[i];
 		}
