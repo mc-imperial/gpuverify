@@ -775,7 +775,6 @@ class GPUVerifyInstance (object):
       CommandLineOptions.cruncherOptions += [ "/refutationEngine:" + args.refutation_engine ]
       self.stop = 'cruncher'
     if args.infer_info:
-      CommandLineOptions.cruncherOptions += [ "/inferInfo" ]
       CommandLineOptions.cruncherOptions += [ "/trace" ]
     if args.debug_houdini:
       CommandLineOptions.cruncherOptions += [ "/debugConcurrentHoudini" ]

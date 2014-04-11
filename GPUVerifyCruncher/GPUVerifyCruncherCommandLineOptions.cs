@@ -19,7 +19,6 @@ namespace GPUVerify
   public class GPUVerifyCruncherCommandLineOptions : GVCommandLineOptions
   {
     public int DynamicErrorLimit = 0;
-    public bool InferInfo = false;
     public int DynamicAnalysisLoopHeaderLimit = 1000;
     public int DynamicAnalysisUnsoundLoopEscaping = 0;
     public bool DynamicAnalysisSoundLoopEscaping = false;
@@ -57,11 +56,6 @@ namespace GPUVerify
         return true;
       }
 
-      if (name == "inferInfo") {
-        InferInfo = true;
-        return true;
-      }
-
       if (name == "replaceLoopInvariantAssertions") {
         ReplaceLoopInvariantAssertions = true;
         return true;
@@ -78,13 +72,20 @@ namespace GPUVerify
     private void ParsePipelineString (string pipelineStr)
 	{
       Debug.Assert (pipelineStr[0] == '[' && pipelineStr[pipelineStr.Length - 1] == ']');
-	  string[] engines = pipelineStr.Substring(1, pipelineStr.Length - 2).Split('-');
+      
+      const string houdini = "houdini";
+      const string sstep = "sstep";
+      const string sbase = "sbase";
+      const string lu = "lu";
+      const string dynamic = "dynamic";
+      
+      string[] engines = pipelineStr.Substring(1, pipelineStr.Length - 2).Split('-');
 	  foreach (string engine in engines) 
       {
-        if (engine.ToUpper().StartsWith("HOUDINI")) 
+        if (engine.ToLower().StartsWith(houdini)) 
         {
-          Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
-          
+          Dictionary<string, string> parameters = GetParameters(engine.Substring(houdini.Length));
+
           // The user wants to override Houdini settings used in the cruncher
           VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(), 
                                                             GetSolverValue(parameters),
@@ -99,7 +100,7 @@ namespace GPUVerify
           if (parameters.ContainsKey(VanillaHoudini.GetSlidingSecondsParameter().Name))
           {  
             // Spawn a new Houdini engine after x seconds
-            houdiniEngine.SlidingSeconds = ParseFloatParameter(parameters, VanillaHoudini.GetSlidingSecondsParameter().Name);
+            houdiniEngine.SlidingSeconds = ParseIntParameter(parameters, VanillaHoudini.GetSlidingSecondsParameter().Name);
           }
           if (parameters.ContainsKey(VanillaHoudini.GetSlidingLimitParameter().Name))
           {  
@@ -107,23 +108,23 @@ namespace GPUVerify
             houdiniEngine.SlidingLimit = ParseIntParameter(parameters, VanillaHoudini.GetSlidingLimitParameter().Name);
           }
         }
-        else if (engine.ToUpper().StartsWith("SBASE")) 
+        else if (engine.ToLower().StartsWith(sbase)) 
         {
-          Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
+          Dictionary<string, string> parameters = GetParameters(engine.Substring(sbase.Length));
           Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(), 
                                        GetSolverValue(parameters), 
                                        GetErrorLimitValue(parameters)));
 		}
-		else if (engine.ToUpper().StartsWith("SSTEP"))
+		else if (engine.ToLower().StartsWith(sstep))
         {
-          Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
+          Dictionary<string, string> parameters = GetParameters(engine.Substring(sstep.Length));
           Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(), 
                                        GetSolverValue(parameters), 
                                        GetErrorLimitValue(parameters)));
         }
-        else if (engine.ToUpper().StartsWith("LU"))
+        else if (engine.ToLower().StartsWith(lu))
         {
-          Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
+          Dictionary<string, string> parameters = GetParameters(engine.Substring(lu.Length));
           if (!parameters.ContainsKey(LU.GetUnrollParameter().Name))
           {  
             Console.WriteLine(String.Format("For LU you must supply the parameter '{0}'", LU.GetUnrollParameter().Name));
@@ -134,7 +135,7 @@ namespace GPUVerify
                                     GetErrorLimitValue(parameters),
                                     ParseIntParameter(parameters, LU.GetUnrollParameter().Name)));
         }
-        else if (engine.ToUpper().Equals("DYNAMIC"))
+        else if (engine.ToLower().Equals(dynamic))
         {
             Pipeline.AddEngine(new DynamicAnalysis());
         }
