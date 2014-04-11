@@ -229,7 +229,6 @@ class DefaultCmdLineOptions(object):
     self.cruncherOptions = []
     self.boogieOptions = []
     self.bugleOptions = []
-    self.invInferConfigFile = "inference.cfg"
     self.skip = { "clang": False,
              "opt": False,
              "bugle": False,
@@ -568,7 +567,6 @@ def processOptions(args):
   CommandLineOptions.vcgenOptions += [ "/params:" + args['params'] ] if args['params'] else []
 
   CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file'] or []] or []
-  CommandLineOptions.invInferConfigFile = args['infer_config_file'] or "inference.cfg"
 
   CommandLineOptions.cruncherOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
   CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
@@ -823,7 +821,6 @@ class GPUVerifyInstance (object):
 
     CommandLineOptions.cruncherOptions += CommandLineOptions.defaultOptions
     CommandLineOptions.boogieOptions += CommandLineOptions.defaultOptions
-    CommandLineOptions.cruncherOptions += [ "/invInferConfigFile:" + os.path.dirname(os.path.abspath(__file__)) + os.sep + CommandLineOptions.invInferConfigFile ]
     CommandLineOptions.cruncherOptions += [ bplFilename ]
 
     if args.race_instrumenter == "watchdog-single":
