@@ -79,6 +79,10 @@ namespace GPUVerify
     static int InferInvariantsInFiles(List<string> fileNames)
     {
       Contract.Requires(cce.NonNullElements(fileNames));
+      
+      //Scheduler scheduler = new Scheduler(fileNames);
+      
+      
       InvariantInferrer inferrer = new InvariantInferrer();
 
       int exitCode = inferrer.inferInvariants(fileNames);

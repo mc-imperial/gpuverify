@@ -34,8 +34,8 @@ namespace GPUVerify
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
     
-    public List<Engine> SequentialPipeline = new List<Engine>();
-    public List<Engine> ParallelPipeline = new List<Engine>();
+    public List<Engine> SequentialPipeline;
+    public HashSet<Engine> ParallelPipeline;
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -51,7 +51,7 @@ namespace GPUVerify
       
       if (name == "parallelCrunch") {
         if (ps.ConfirmArgumentCount(1)) {
-          ParallelPipeline = ParsePipeline(ps.args[ps.i]);
+          ParallelPipeline = new HashSet<Engine>(ParsePipeline(ps.args[ps.i]));
         }
         return true;
       }
@@ -146,36 +146,56 @@ namespace GPUVerify
       return base.ParseOption(name, ps);  // defer to superclass
     }
     
-    private List<Engine> ParsePipeline (string pipeline) 
-    {
-      List<Engine> engineList = new List<Engine>();
-      Debug.Assert(pipeline[0] == '[' && pipeline[pipeline.Length-1] == ']');
-      string[] engines = pipeline.Substring(1, pipeline.Length-2).Split(',');
-      foreach (string engine in engines)
+    private List<Engine> ParsePipeline (string pipeline)
+		{
+			int SMTBasedID = 0;
+			List<Engine> engineList = new List<Engine> ();
+			Debug.Assert (pipeline [0] == '[' && pipeline [pipeline.Length - 1] == ']');
+			string[] engines = pipeline.Substring (1, pipeline.Length - 2).Split (',');
+			foreach (string engine in engines) 
       {
-        if (engine.ToUpper().Equals("SBASE"))
-            engineList.Add(new SBASE());
-        if (engine.ToUpper().Equals("SSTEP"))
-            engineList.Add(new SSTEP());
-        if (engine.ToUpper().Equals("DYNAMIC"))
-            engineList.Add(new DYNAMIC());
-        if (engine.ToUpper().StartsWith("LU"))
+        if (engine.ToUpper().Equals("HOUDINI"))
+        {
+          engineList.Add(new ClassicHoudini(SMTBasedID));
+          ++SMTBasedID;
+        }
+				else if (engine.ToUpper().Equals ("SBASE")) 
+        {
+					engineList.Add (new SBASE (SMTBasedID));
+          ++SMTBasedID;
+				}
+				else if (engine.ToUpper().Equals("SSTEP"))
+        {
+          engineList.Add(new SSTEP(SMTBasedID));
+          ++SMTBasedID;
+        }
+        else if (engine.ToUpper().StartsWith("LU"))
         {
             try
             {
               int unrollFactor = Convert.ToInt32(engine.Substring(2));
-              engineList.Add(new LU(unrollFactor));
+              engineList.Add(new LU(SMTBasedID, unrollFactor));
+              ++SMTBasedID;
             }
-            catch (FormatException e)
+            catch (FormatException)
             {
                 Console.WriteLine("Loop unroll factor must be a number. You gave: " + engine);
                 System.Environment.Exit(1);
             }
-            catch (OverflowException e)
+            catch (OverflowException)
             {
                 Console.WriteLine("Loop unroll factor must fit into a 32-bit integer. You gave: " + engine);
                 System.Environment.Exit(1);
             }
+        }
+        else if (engine.ToUpper().Equals("DYNAMIC"))
+        {
+            engineList.Add(new DynamicAnalysis());
+        }
+        else
+        {
+            Console.WriteLine(String.Format("Unknown cruncher engine: '{0}'", engine));  
+            System.Environment.Exit(1);
         }
       }
       return engineList;

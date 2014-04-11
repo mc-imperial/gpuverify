@@ -22,6 +22,13 @@ namespace Microsoft.Boogie
   public abstract class Engine
   { 
     public int ID { get; set; }
+    public bool UnderApproximating { get; set; }
+    
+    public Engine (int ID, bool underApproximating)
+    {
+      this.ID = ID;
+      this.UnderApproximating = underApproximating;
+    }
     
     public abstract void Print();
   }
@@ -29,44 +36,80 @@ namespace Microsoft.Boogie
   // Engines based on SMT solving
   public abstract class SMTEngine : Engine
   {
-    protected Houdini.ConcurrentHoudini houdini = null;
+    public Houdini.ConcurrentHoudini houdini = null;
     
+    protected static string CVC4 = "CVC4";
+    protected static string Z3 = "Z3";
+    
+		public string Solver { get; set; }
     public int ErrorLimit { get; set; }
-    public string Solver { get; set; }
     
-    public SMTEngine (string solver, int errorLimit) 
+    public SMTEngine (int ID, bool underApproximating, string solver, int errorLimit) :
+      base (ID, underApproximating)
     {
-      this.Solver = solver;
+			this.Solver = solver.ToUpper();
       this.ErrorLimit = errorLimit;
+      CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
+      CommandLineOptions.Clo.Cho[this.ID].ProverCCLimit = this.ErrorLimit;
+      
+      foreach (string opt in CommandLineOptions.Clo.ProverOptions) 
+      {
+        if ((this.Solver.Equals(Z3)   && !opt.Contains("LOGIC=")) ||
+            (this.Solver.Equals(CVC4) && !opt.Contains("OPTIMIZE_FOR_BV="))) 
+        {
+          CommandLineOptions.Clo.Cho[this.ID].ProverOptions.Add(opt);
+        }
+      }
     }
     
-    public int Start (Program program, ref Houdini.HoudiniOutcome outcome)
+    public int Start(Program program, ref Houdini.HoudiniOutcome outcome)
     {
-      if (this.Solver.Equals("cvc4")) 
-        KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program, this.ID);
-      if (CommandLineOptions.Clo.Trace) 
+      if (this.Solver.Equals(CVC4))
+      {
+        if (CommandLineOptions.Clo.Cho[this.ID].ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
+            CheckForQuantifiers.Found(program))
+        {
+          CommandLineOptions.Clo.Cho[this.ID].ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
+          CommandLineOptions.Clo.Cho[this.ID].ProverOptions.Add("LOGIC=ALL_SUPPORTED");  
+        }
+      }
+        
+      if (CommandLineOptions.Clo.Trace)
         Console.WriteLine(this.GetType().Name + " started crunching");
       
+      ModifyProgramBeforeCrunch(program);
+      
       Houdini.HoudiniSession.HoudiniStatistics houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
-      string filename = "houdiniCexTrace_" + this.ID +".bpl";
+      string filename = "houdiniCexTrace_" + this.ID + ".bpl";
       houdini = new Houdini.ConcurrentHoudini(this.ID, program, houdiniStats, filename);
       
       if (outcome != null)
+      {
         outcome = houdini.PerformHoudiniInference(initialAssignment: outcome.assignment);
+      }
       else
+      {
         outcome = houdini.PerformHoudiniInference();
-      
+      }
+        
       if (CommandLineOptions.Clo.Trace) 
         Console.WriteLine(this.GetType().Name + " finished crunching");
       
+      OutputResults(outcome, houdiniStats);
+      
+      return this.ID;
+    }
+    
+    // Called just before SMT cruncher starts, allowing an analysis to change the program if required.
+    public virtual void ModifyProgramBeforeCrunch (Program program)
+    { 
+    }
+    
+    private void OutputResults (Houdini.HoudiniOutcome outcome, Houdini.HoudiniSession.HoudiniStatistics houdiniStats)
+    {
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugConcurrentHoudini) 
       {
-        int numTrueAssigns = 0;
-        foreach (var x in outcome.assignment) 
-        {
-          if (x.Value) numTrueAssigns++;
-        }
-
+        int numTrueAssigns = outcome.assignment.Where(x => x.Value).Count();
         Console.WriteLine("Number of true assignments          = " + numTrueAssigns);
         Console.WriteLine("Number of false assignments         = " + (outcome.assignment.Count - numTrueAssigns));
         Console.WriteLine("Prover time                         = " + houdiniStats.proverTime.ToString("F2"));
@@ -75,7 +118,6 @@ namespace Microsoft.Boogie
         Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
         Console.WriteLine("Number of unsat core prunings       = " + houdiniStats.numUnsatCorePrunings);
       }
-      return this.ID;
     }
     
     public override void Print ()
@@ -87,34 +129,34 @@ namespace Microsoft.Boogie
       Console.WriteLine("# Error limit: " + this.ErrorLimit);
       Console.WriteLine("########################################");
     }
-    
-    // Called just before SMT solver is called, allowing an analysis to change the program
-    public abstract void ManipulateProgram (Program program);
+  }
+  
+  // Engine representing classic Houdini
+  public class ClassicHoudini : SMTEngine
+  {
+    public ClassicHoudini (int ID, string solver = "Z3", int errorLimit = 20):
+    base(ID, false, solver, errorLimit)
+    {
+    }
   }
   
   // Engine where asserts are NOT maintained in the base step
   public class SSTEP : SMTEngine
   {
-    public SSTEP (string solver = "Z3", int errorLimit = 20):
-      base(solver, errorLimit)
+    public SSTEP (int ID, string solver = "Z3", int errorLimit = 20):
+      base(ID, true, solver, errorLimit)
     {
-    }
-    
-    public override void ManipulateProgram (Program program)
-    {
+      CommandLineOptions.Clo.Cho[this.ID].DisableLoopInvEntryAssert = true;
     }
   }
   
   // Engine where asserts are NOT maintained in the induction step
   public class SBASE : SMTEngine
   {
-    public SBASE (string solver = "Z3", int errorLimit = 20):
-      base(solver, errorLimit)
+    public SBASE (int ID, string solver = "Z3", int errorLimit = 20):
+      base(ID, true, solver, errorLimit)
     {
-    }
-    
-    public override void ManipulateProgram (Program program)
-    {
+      CommandLineOptions.Clo.Cho[this.ID].DisableLoopInvMaintainedAssert = true;
     }
   }
   
@@ -123,22 +165,23 @@ namespace Microsoft.Boogie
   {
     public int UnrollFactor { get; set; }
   
-    public LU (int unrollFactor, string solver = "Z3", int errorLimit = 20):
-      base(solver, errorLimit)
+    public LU (int ID, int unrollFactor, string solver = "Z3", int errorLimit = 20):
+    base(ID, true, solver, errorLimit)
     {
       this.UnrollFactor = unrollFactor;
     }
     
-    public override void ManipulateProgram (Program program)
+    public override void ModifyProgramBeforeCrunch (Program program)
     {
       program.UnrollLoops(this.UnrollFactor, CommandLineOptions.Clo.SoundLoopUnrolling);
     }
   }
   
   // Engines based on dynamic analysis
-  public class DYNAMIC : Engine
+  public class DynamicAnalysis : Engine
   {
-    public DYNAMIC ()
+    public DynamicAnalysis ():
+    base(Int32.MaxValue, true)
     {
     }
     
@@ -156,6 +199,78 @@ namespace Microsoft.Boogie
       Console.WriteLine("# Engine:      " + this.GetType().Name);
       Console.WriteLine("# ID:          " + this.ID);
       Console.WriteLine("########################################");
+    }
+  }
+  
+  public class Scheduler
+  {
+    private List<string> FileNames;
+    private SMTEngine lastEngine;
+    
+    public Scheduler(List<string> fileNames)
+    {
+      this.FileNames = fileNames;
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).SequentialPipeline.Count > 0)
+      {
+        ScheduleEnginesInSequence(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).SequentialPipeline);
+      }
+      else
+      {
+        ScheduleEnginesInParallel(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelPipeline);
+      }
+      
+      ApplyInvariantsAndEmit();
+    }
+    
+    private void ScheduleEnginesInSequence(List<Engine> engines)
+    {
+      Houdini.HoudiniOutcome outcome = null;
+      foreach (Engine engine in engines)
+      {
+        if (engine is SMTEngine)
+        {
+          SMTEngine smtEngine = (SMTEngine) engine;
+          smtEngine.Start(getFreshProgram(false, false, true), ref outcome);
+          lastEngine = smtEngine;
+        }  
+        else
+        {
+          DynamicAnalysis dynamicEngine = (DynamicAnalysis) engine;
+          dynamicEngine.Start(getFreshProgram(false, false, false));
+        }
+      }
+    }
+    
+    private void ScheduleEnginesInParallel (HashSet<Engine> engines)
+    {
+      
+    }
+    
+    private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
+    {
+      if (!divergenceCheck)
+      {
+        divergenceCheck = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).EnableBarrierDivergenceChecks;
+      }
+      return GVUtil.GetFreshProgram(this.FileNames, raceCheck, divergenceCheck, inline);
+    }
+    
+    private void ApplyInvariantsAndEmit ()
+    {
+      List<string> filesToProcess = new List<string>();
+      filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
+      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
+      if (string.IsNullOrEmpty (directoryContainingFiles))
+        directoryContainingFiles = Directory.GetCurrentDirectory ();
+      var annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
+        Path.GetFileNameWithoutExtension(filesToProcess[0]);
+
+      Program program = getFreshProgram(true, true, false);
+      CommandLineOptions.Clo.PrintUnstructured = 2;
+      
+      lastEngine.houdini.ApplyAssignment(program);
+      
+      GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile, "cbpl");
     }
   }
 
