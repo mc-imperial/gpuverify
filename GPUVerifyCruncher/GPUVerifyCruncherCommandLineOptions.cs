@@ -56,6 +56,16 @@ namespace GPUVerify
         }
         return true;
       }
+      
+      if (name == "delayHoudini") {
+        if (ps.ConfirmArgumentCount(1))
+        {
+          int houdiniDelay = 0;
+          if (ps.GetNumericArgument(ref houdiniDelay))
+            Pipeline.houdiniDelay = houdiniDelay;
+        }
+        return true;
+      }
     
       if (name == "invInferConfigFile") {
         if (ps.ConfirmArgumentCount(1)) {
@@ -98,12 +108,6 @@ namespace GPUVerify
       if (name == "dynamicErrorLimit") {
         if (ps.ConfirmArgumentCount(1))
             ps.GetNumericArgument(ref DynamicErrorLimit);
-        return true;
-      }
-
-      if (name == "delayHoudini") {
-        if (ps.ConfirmArgumentCount(1))
-            ps.GetNumericArgument(ref DelayHoudini);
         return true;
       }
 
@@ -156,7 +160,7 @@ namespace GPUVerify
         if (engine.ToUpper().StartsWith("HOUDINI")) 
         {
           Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
-          Pipeline.AddEngine(new ClassicHoudini(Pipeline.GetNextSMTEngineID(), 
+          Pipeline.AddEngine(new VanillaHoudini(Pipeline.GetNextSMTEngineID(), 
                                                 GetSolverValue(parameters),
                                                 GetErrorLimitValue(parameters)));
         }

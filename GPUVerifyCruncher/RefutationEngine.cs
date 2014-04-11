@@ -16,7 +16,9 @@ namespace Microsoft.Boogie
   using System.IO;
   using System.Collections.Generic;
   using System.Text.RegularExpressions;
-  using System.Linq;
+  using System.Linq;  
+  using System.Threading;
+  using System.Threading.Tasks;
   
   // Abstract class from which all engines inherit
   public abstract class Engine
@@ -136,10 +138,10 @@ namespace Microsoft.Boogie
     }
   }
   
-  // Engine representing classic Houdini
-  public class ClassicHoudini : SMTEngine
+  // Engine representing vanilla Houdini
+  public class VanillaHoudini : SMTEngine
   {
-    public ClassicHoudini (int ID, string solver, int errorLimit):
+    public VanillaHoudini (int ID, string solver, int errorLimit):
     base(ID, false, solver, errorLimit)
     {
     }
@@ -212,12 +214,34 @@ namespace Microsoft.Boogie
   public class Pipeline
   {
     public bool Sequential { get; set;}
+    public int houdiniDelay { get; set; }
     private List<Engine> Engines = new List<Engine>();
     private int NextSMTEngineID = 0;
+    private VanillaHoudini houdiniEngine = null;
     
     public Pipeline(bool sequential)
     {
       this.Sequential = sequential;
+      this.houdiniDelay = 0;
+    }
+    
+    public void AddHoudiniEngine()
+    {
+      foreach (Engine engine in Engines)
+      {
+        if (engine is VanillaHoudini)
+          houdiniEngine = (VanillaHoudini) engine; 
+      }
+      if (houdiniEngine == null)
+      {
+        houdiniEngine = new VanillaHoudini(GetNextSMTEngineID(), SMTEngine.DefaultSolver, SMTEngine.DefaultErrorLimit);
+        Engines.Add(houdiniEngine);
+      }
+    }
+    
+    public VanillaHoudini GetHoudiniEngine()
+    {
+      return houdiniEngine;
     }
     
     public void AddEngine(Engine engine)
@@ -249,30 +273,16 @@ namespace Microsoft.Boogie
     {
       this.FileNames = fileNames;
       Pipeline pipeline = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).Pipeline;
-      
-      SMTEngine houdiniEngine = null;
+      pipeline.AddHoudiniEngine();
       if (pipeline.Sequential)
       {
-        // Add a default Houdini engine if the user has not done so
-        foreach (Engine engine in pipeline.GetEngines())
-        {
-          if (engine is ClassicHoudini)
-            houdiniEngine = (ClassicHoudini) engine;          
-        }
-        if (houdiniEngine == null)
-        {
-          houdiniEngine = new ClassicHoudini(pipeline.GetNextSMTEngineID(), SMTEngine.DefaultSolver, SMTEngine.DefaultErrorLimit);
-          pipeline.AddEngine(houdiniEngine);
-        }
-        // Schedule the engines in sequence
         ScheduleEnginesInSequence(pipeline);
       }
       else
       {
         ScheduleEnginesInParallel(pipeline);
       }
-      
-      ApplyInvariantsAndEmit(houdiniEngine);
+      ApplyInvariantsAndEmit(pipeline);
     }
     
     private void ScheduleEnginesInSequence(Pipeline pipeline)
@@ -295,19 +305,58 @@ namespace Microsoft.Boogie
     
     private void ScheduleEnginesInParallel (Pipeline pipeline)
     {
+      Houdini.HoudiniOutcome outcome = null;
+      CancellationTokenSource tokenSource = new CancellationTokenSource();
+      List<Task> underApproximatingTasks = new List<Task>();
+      List<Task> overApproximatingTasks = new List<Task>();
       
+      // Schedule the under-approximating engines first
+      foreach (Engine engine in pipeline.GetEngines()) 
+      {
+        if (!(engine is VanillaHoudini)) 
+        {
+          if (engine is DynamicAnalysis)
+          {
+            DynamicAnalysis dynamicEngine = (DynamicAnalysis) engine;
+            underApproximatingTasks.Add(Task.Factory.StartNew(
+                () => {dynamicEngine.Start(getFreshProgram(false, false, false));}, 
+                tokenSource.Token));
+          }
+          else
+          {
+            SMTEngine smtEngine = (SMTEngine) engine;
+            underApproximatingTasks.Add(Task.Factory.StartNew(
+                () => {smtEngine.Start(getFreshProgram(false, false, true), ref outcome);}, 
+                tokenSource.Token));
+          }
+         }
+       }
+       
+       // Wait for the under-approximating engines to finish
+       if (pipeline.houdiniDelay > 0)
+       {
+          Task.WaitAll(underApproximatingTasks.ToArray(), pipeline.houdiniDelay * 1000);
+       }
+       else
+       {
+          Task.WaitAll(underApproximatingTasks.ToArray());
+       }
+       
+       // Now schedule vanilla Houdini
+       overApproximatingTasks.Add(Task.Factory.StartNew(
+              () => {pipeline.GetHoudiniEngine().Start(getFreshProgram(false, false, true), ref outcome);}, 
+              tokenSource.Token));
+       Task.WaitAll(overApproximatingTasks.ToArray());
     }
     
     private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
     {
       if (!divergenceCheck)
-      {
         divergenceCheck = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).EnableBarrierDivergenceChecks;
-      }
       return GVUtil.GetFreshProgram(this.FileNames, raceCheck, divergenceCheck, inline);
     }
     
-    private void ApplyInvariantsAndEmit (SMTEngine houdiniEngine)
+    private void ApplyInvariantsAndEmit(Pipeline pipeline)
     {
       List<string> filesToProcess = new List<string>();
       filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
@@ -319,9 +368,7 @@ namespace Microsoft.Boogie
 
       Program program = getFreshProgram(true, true, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
-      
-      houdiniEngine.houdini.ApplyAssignment(program);
-      
+      pipeline.GetHoudiniEngine().houdini.ApplyAssignment(program);
       GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile, "cbpl");
     }
   }
