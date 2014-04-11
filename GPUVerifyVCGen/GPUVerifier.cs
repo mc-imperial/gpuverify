@@ -532,14 +532,6 @@ namespace GPUVerify
 
             }
 
-            if (GPUVerifyVCGenCommandLineOptions.CheckArrayBounds) {
-              AddArrayBoundsChecks();
-            }
-
-            if (GPUVerifyVCGenCommandLineOptions.ConstantWriteChecks) {
-                ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
-            }
-
             if (GPUVerifyVCGenCommandLineOptions.KernelInterceptorParams.Count > 0) {
               AddParamsAsPreconditions();
             }

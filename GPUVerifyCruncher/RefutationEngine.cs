@@ -38,16 +38,21 @@ namespace Microsoft.Boogie
   {
     public Houdini.ConcurrentHoudini houdini = null;
     
-    protected static string CVC4 = "CVC4";
-    protected static string Z3 = "Z3";
+    public static string CVC4 = "cvc4";
+    public static string Z3 = "z3";
+    public static string SolverParam = "solver";
+    public static string ErrorLimitParam = "errorlimit";
     
-		public string Solver { get; set; }
+    public static string DefaultSolver = Z3;
+    public static int DefaultErrorLimit = 20;
+    
+	public string Solver { get; set; }
     public int ErrorLimit { get; set; }
     
     public SMTEngine (int ID, bool underApproximating, string solver, int errorLimit) :
       base (ID, underApproximating)
     {
-			this.Solver = solver.ToUpper();
+	  this.Solver = solver;
       this.ErrorLimit = errorLimit;
       CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
       CommandLineOptions.Clo.Cho[this.ID].ProverCCLimit = this.ErrorLimit;
@@ -100,7 +105,7 @@ namespace Microsoft.Boogie
       return this.ID;
     }
     
-    // Called just before SMT cruncher starts, allowing an analysis to change the program if required.
+    // Called just before SMT cruncher starts, allowing an analysis to change the program if required
     public virtual void ModifyProgramBeforeCrunch (Program program)
     { 
     }
@@ -134,7 +139,7 @@ namespace Microsoft.Boogie
   // Engine representing classic Houdini
   public class ClassicHoudini : SMTEngine
   {
-    public ClassicHoudini (int ID, string solver = "Z3", int errorLimit = 20):
+    public ClassicHoudini (int ID, string solver, int errorLimit):
     base(ID, false, solver, errorLimit)
     {
     }
@@ -143,7 +148,7 @@ namespace Microsoft.Boogie
   // Engine where asserts are NOT maintained in the base step
   public class SSTEP : SMTEngine
   {
-    public SSTEP (int ID, string solver = "Z3", int errorLimit = 20):
+    public SSTEP (int ID, string solver, int errorLimit):
       base(ID, true, solver, errorLimit)
     {
       CommandLineOptions.Clo.Cho[this.ID].DisableLoopInvEntryAssert = true;
@@ -164,8 +169,10 @@ namespace Microsoft.Boogie
   public class LU : SMTEngine
   {
     public int UnrollFactor { get; set; }
+    
+    public static string UnrollParam = "unroll";
   
-    public LU (int ID, int unrollFactor, string solver = "Z3", int errorLimit = 20):
+    public LU (int ID, int unrollFactor, string solver, int errorLimit):
     base(ID, true, solver, errorLimit)
     {
       this.UnrollFactor = unrollFactor;
@@ -202,36 +209,81 @@ namespace Microsoft.Boogie
     }
   }
   
+  public class Pipeline
+  {
+    public bool Sequential { get; set;}
+    private List<Engine> Engines = new List<Engine>();
+    private int NextSMTEngineID = 0;
+    
+    public Pipeline(bool sequential)
+    {
+      this.Sequential = sequential;
+    }
+    
+    public void AddEngine(Engine engine)
+    {
+      this.Engines.Add(engine);
+    }
+    
+    public int GetNextSMTEngineID()
+    {
+      return NextSMTEngineID++;
+    }
+    
+    public int NumberOfSMTEngines()
+    {
+      return NextSMTEngineID;
+    }
+    
+    public IEnumerable<Engine> GetEngines()
+    {
+      return Engines;
+    }
+  }
+  
   public class Scheduler
   {
     private List<string> FileNames;
-    private SMTEngine lastEngine;
     
     public Scheduler(List<string> fileNames)
     {
       this.FileNames = fileNames;
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).SequentialPipeline.Count > 0)
+      Pipeline pipeline = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).Pipeline;
+      
+      SMTEngine houdiniEngine = null;
+      if (pipeline.Sequential)
       {
-        ScheduleEnginesInSequence(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).SequentialPipeline);
+        // Add a default Houdini engine if the user has not done so
+        foreach (Engine engine in pipeline.GetEngines())
+        {
+          if (engine is ClassicHoudini)
+            houdiniEngine = (ClassicHoudini) engine;          
+        }
+        if (houdiniEngine == null)
+        {
+          houdiniEngine = new ClassicHoudini(pipeline.GetNextSMTEngineID(), SMTEngine.DefaultSolver, SMTEngine.DefaultErrorLimit);
+          pipeline.AddEngine(houdiniEngine);
+        }
+        // Schedule the engines in sequence
+        ScheduleEnginesInSequence(pipeline);
       }
       else
       {
-        ScheduleEnginesInParallel(((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParallelPipeline);
+        ScheduleEnginesInParallel(pipeline);
       }
       
-      ApplyInvariantsAndEmit();
+      ApplyInvariantsAndEmit(houdiniEngine);
     }
     
-    private void ScheduleEnginesInSequence(List<Engine> engines)
+    private void ScheduleEnginesInSequence(Pipeline pipeline)
     {
       Houdini.HoudiniOutcome outcome = null;
-      foreach (Engine engine in engines)
+      foreach (Engine engine in pipeline.GetEngines())
       {
         if (engine is SMTEngine)
         {
           SMTEngine smtEngine = (SMTEngine) engine;
           smtEngine.Start(getFreshProgram(false, false, true), ref outcome);
-          lastEngine = smtEngine;
         }  
         else
         {
@@ -241,7 +293,7 @@ namespace Microsoft.Boogie
       }
     }
     
-    private void ScheduleEnginesInParallel (HashSet<Engine> engines)
+    private void ScheduleEnginesInParallel (Pipeline pipeline)
     {
       
     }
@@ -255,20 +307,20 @@ namespace Microsoft.Boogie
       return GVUtil.GetFreshProgram(this.FileNames, raceCheck, divergenceCheck, inline);
     }
     
-    private void ApplyInvariantsAndEmit ()
+    private void ApplyInvariantsAndEmit (SMTEngine houdiniEngine)
     {
       List<string> filesToProcess = new List<string>();
       filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
       string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
       if (string.IsNullOrEmpty (directoryContainingFiles))
         directoryContainingFiles = Directory.GetCurrentDirectory ();
-      var annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
+      string annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
         Path.GetFileNameWithoutExtension(filesToProcess[0]);
 
       Program program = getFreshProgram(true, true, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
       
-      lastEngine.houdini.ApplyAssignment(program);
+      houdiniEngine.houdini.ApplyAssignment(program);
       
       GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile, "cbpl");
     }

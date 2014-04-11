@@ -61,8 +61,8 @@ namespace GPUVerify
           }
         }
 
-        int exitCode = InferInvariantsInFiles(fileList);
-        Environment.Exit(exitCode);
+        new Scheduler(fileList);
+        Environment.Exit(0);
       } catch (Exception e) {
         if(GetCommandLineOptions().DebugGPUVerify) {
           Console.Error.WriteLine("Exception thrown in GPUVerifyCruncher");
@@ -74,26 +74,6 @@ namespace GPUVerify
 
         Environment.Exit(1);
       }
-    }
-
-    static int InferInvariantsInFiles(List<string> fileNames)
-    {
-      Contract.Requires(cce.NonNullElements(fileNames));
-      
-      //Scheduler scheduler = new Scheduler(fileNames);
-      
-      
-      InvariantInferrer inferrer = new InvariantInferrer();
-
-      int exitCode = inferrer.inferInvariants(fileNames);
-      if (exitCode != 0) return exitCode;
-
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).RefutationEngine.Equals(""))
-      {
-        inferrer.applyInvariantsAndEmitProgram();
-      }
-
-      return 0;
     }
 
     private static GPUVerifyCruncherCommandLineOptions GetCommandLineOptions()

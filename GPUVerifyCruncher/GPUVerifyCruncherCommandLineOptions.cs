@@ -34,8 +34,8 @@ namespace GPUVerify
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
     
-    public List<Engine> SequentialPipeline;
-    public HashSet<Engine> ParallelPipeline;
+    // Assume a sequential pipeline unless the user selects otherwise
+    public Pipeline Pipeline = new Pipeline(sequential: true);
 
     public GPUVerifyCruncherCommandLineOptions() :
       base() { }
@@ -43,15 +43,16 @@ namespace GPUVerify
     protected override bool ParseOption(string name, CommandLineOptionEngine.CommandLineParseState ps)
     {
       if (name == "sequentialCrunch") {
-        if (ps.ConfirmArgumentCount(1)) {
-          SequentialPipeline = ParsePipeline(ps.args[ps.i]);
+        if (ps.ConfirmArgumentCount(1)) { 
+          ParsePipelineString(ps.args[ps.i]);
         }
         return true;
       }
       
       if (name == "parallelCrunch") {
         if (ps.ConfirmArgumentCount(1)) {
-          ParallelPipeline = new HashSet<Engine>(ParsePipeline(ps.args[ps.i]));
+          Pipeline.Sequential = false;
+          ParsePipelineString(ps.args[ps.i]);
         }
         return true;
       }
@@ -146,51 +147,49 @@ namespace GPUVerify
       return base.ParseOption(name, ps);  // defer to superclass
     }
     
-    private List<Engine> ParsePipeline (string pipeline)
-		{
-			int SMTBasedID = 0;
-			List<Engine> engineList = new List<Engine> ();
-			Debug.Assert (pipeline [0] == '[' && pipeline [pipeline.Length - 1] == ']');
-			string[] engines = pipeline.Substring (1, pipeline.Length - 2).Split (',');
-			foreach (string engine in engines) 
+    private void ParsePipelineString (string pipelineStr)
+	{
+      Debug.Assert (pipelineStr[0] == '[' && pipelineStr[pipelineStr.Length - 1] == ']');
+	  string[] engines = pipelineStr.Substring(1, pipelineStr.Length - 2).Split('-');
+	  foreach (string engine in engines) 
       {
-        if (engine.ToUpper().Equals("HOUDINI"))
+        if (engine.ToUpper().StartsWith("HOUDINI")) 
         {
-          engineList.Add(new ClassicHoudini(SMTBasedID));
-          ++SMTBasedID;
+          Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
+          Pipeline.AddEngine(new ClassicHoudini(Pipeline.GetNextSMTEngineID(), 
+                                                GetSolverValue(parameters),
+                                                GetErrorLimitValue(parameters)));
         }
-				else if (engine.ToUpper().Equals ("SBASE")) 
+        else if (engine.ToUpper().StartsWith("SBASE")) 
         {
-					engineList.Add (new SBASE (SMTBasedID));
-          ++SMTBasedID;
-				}
-				else if (engine.ToUpper().Equals("SSTEP"))
+          Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
+          Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(), 
+                                       GetSolverValue(parameters), 
+                                       GetErrorLimitValue(parameters)));
+		}
+		else if (engine.ToUpper().StartsWith("SSTEP"))
         {
-          engineList.Add(new SSTEP(SMTBasedID));
-          ++SMTBasedID;
+          Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
+          Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(), 
+                                       GetSolverValue(parameters), 
+                                       GetErrorLimitValue(parameters)));
         }
         else if (engine.ToUpper().StartsWith("LU"))
         {
-            try
-            {
-              int unrollFactor = Convert.ToInt32(engine.Substring(2));
-              engineList.Add(new LU(SMTBasedID, unrollFactor));
-              ++SMTBasedID;
-            }
-            catch (FormatException)
-            {
-                Console.WriteLine("Loop unroll factor must be a number. You gave: " + engine);
-                System.Environment.Exit(1);
-            }
-            catch (OverflowException)
-            {
-                Console.WriteLine("Loop unroll factor must fit into a 32-bit integer. You gave: " + engine);
-                System.Environment.Exit(1);
-            }
+          Dictionary<string, string> parameters = GetParameters(engine.Substring(2));
+          if (!parameters.ContainsKey(LU.UnrollParam))
+          {  
+            Console.WriteLine(String.Format("For LU you must supply the parameter '{0}'", LU.UnrollParam));
+            System.Environment.Exit(1);
+          }
+          Pipeline.AddEngine(new LU(Pipeline.GetNextSMTEngineID(), 
+                                    ParseIntParameter(LU.UnrollParam, parameters[LU.UnrollParam]), 
+                                    GetSolverValue(parameters), 
+                                    GetErrorLimitValue(parameters)));
         }
         else if (engine.ToUpper().Equals("DYNAMIC"))
         {
-            engineList.Add(new DynamicAnalysis());
+            Pipeline.AddEngine(new DynamicAnalysis());
         }
         else
         {
@@ -198,7 +197,60 @@ namespace GPUVerify
             System.Environment.Exit(1);
         }
       }
-      return engineList;
     } 
+    
+    private Dictionary<string, string> GetParameters(string parameterStr)
+    {
+      Dictionary<string, string> map = new Dictionary<string, string>();
+      Debug.Assert (parameterStr[0] == '[' && parameterStr[parameterStr.Length - 1] == ']');
+      string[] parameters = parameterStr.Substring(1, parameterStr.Length - 2).Split(',');
+      foreach (string param in parameters)
+      {
+        string[] values = param.Split('=');
+        Debug.Assert(values.Length == 2);
+        map[values[0]] = values[1].ToLower();
+      }
+      return map;
+    }
+    
+    private int GetErrorLimitValue(Dictionary<string, string> parameters)
+    {
+      if (parameters.ContainsKey(SMTEngine.ErrorLimitParam))
+        return ParseIntParameter(SMTEngine.ErrorLimitParam, parameters[SMTEngine.ErrorLimitParam]);
+      return SMTEngine.DefaultErrorLimit;
+    }
+    
+    private string GetSolverValue(Dictionary<string, string> parameters)
+    {
+      if (parameters.ContainsKey(SMTEngine.SolverParam))
+      {
+        if (!parameters[SMTEngine.SolverParam].Equals(SMTEngine.Z3) && !parameters[SMTEngine.SolverParam].Equals(SMTEngine.CVC4))
+        {
+          Console.WriteLine(String.Format("Unknown solver '{0}'", parameters[SMTEngine.SolverParam]));
+          System.Environment.Exit(1);
+        }
+        return parameters[SMTEngine.SolverParam];
+      }
+      return SMTEngine.DefaultSolver;
+    }
+    
+    private int ParseIntParameter(string paramName, string paramValue)
+    {
+      try
+      {
+        return Convert.ToInt32(paramValue);
+      }            
+      catch (FormatException)
+      {
+        Console.WriteLine(String.Format("'{0}' must be an integer. You gave '{1}'", paramName, paramValue));
+        System.Environment.Exit(1);
+      }
+      catch (OverflowException)
+      {
+        Console.WriteLine(String.Format("'{0}' must fit into a 32-bit integer. You gave '{1}'", paramName, paramValue));
+        System.Environment.Exit(1);
+      }
+      return -1;
+    }
   }   
 }
