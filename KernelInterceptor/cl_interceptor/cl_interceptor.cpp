@@ -11,8 +11,10 @@
 #ifdef _MSC_VER
 #include <stdint.h>
 #include <direct.h>
+#define FORMAT_SIZET "Iu"
 #else
 #include <unistd.h>
+#define FORMAT_SIZET "zu"
 #endif
 #include <cstring>
 #include <cstdlib>
@@ -67,17 +69,17 @@ public:
 
 		FILE* f = fopen(_tempnam(dirname,kernel.name.c_str()),"w");
 			
-		fprintf(f,"// --local_size=%zu", kernel.local_size[0]);
+		fprintf(f,"// --local_size=%" FORMAT_SIZET, kernel.local_size[0]);
 		if (kernel.dimension > 1) {
 			for (unsigned int i = 1; i < kernel.dimension; i++) {
-				fprintf(f,",%zu",kernel.local_size[i]);
+				fprintf(f,",%" FORMAT_SIZET,kernel.local_size[i]);
 			}
 		}
 
-		fprintf(f," --global_size=%zu",kernel.global_size[0]);
+		fprintf(f," --global_size=%" FORMAT_SIZET,kernel.global_size[0]);
 		if (kernel.dimension > 1) {
 			for (unsigned int i = 1; i < kernel.dimension; i++) {
-				fprintf(f,",%zu",kernel.global_size[i]);
+				fprintf(f,",%" FORMAT_SIZET,kernel.global_size[i]);
 			}
 		}
 
