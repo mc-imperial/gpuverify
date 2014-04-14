@@ -15,9 +15,9 @@ using System.Diagnostics.Contracts;
 using System.Collections.Specialized;
 using System.Text.RegularExpressions;
 using Microsoft.Boogie;
+using Microsoft.Boogie.Houdini;
 using Microsoft.Boogie.GraphUtil;
 using Microsoft.Basetypes;
-using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
 
 namespace GPUVerify
 {
@@ -89,13 +89,7 @@ namespace GPUVerify
 
   internal class DepthFirstSearch
   {
-    enum COLOR
-    {
-WHITE,
-      GREY,
-      BLACK}
-
-    ;
+    enum COLOR {WHITE, GREY,BLACK};
 
     private Block start;
     private Graph<Block> cfg;
@@ -148,26 +142,36 @@ WHITE,
     private BitVector[] LocalID2 = new BitVector[3];
     private BitVector[] GlobalID1 = new BitVector[3];
     private BitVector[] GlobalID2 = new BitVector[3];
+    
     // The GPU configuration
     private GPU gpu = new GPU();
+    
     // The memory for the interpreter
     private Memory Memory = new Memory();
+    
     // The expression trees used internally to evaluate Boogie expressions
     private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
+    
     // A basic block label to basic block mapping
     private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
+    
     // The current status of the assert - is it true or false?
     private Dictionary<string, BitVector> AssertStatus = new Dictionary<string, BitVector>();
+    
     // Our FP interpretrations
     private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
+    
     // Which basic blocks have been covered
     private HashSet<Block> Covered = new HashSet<Block>();
+    
     // Keeping trace of header execution counts
     private int GlobalHeaderCount = 0;
     private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
+    
     // Loop bodies and loop-exit destinations
     private Dictionary<Block, HashSet<Block>> HeaderToLoopBody = new Dictionary<Block, HashSet<Block>>();
     private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
+    
     // Headers whose loops are independent from other loops
     private HashSet<Block> HeadersFromWhichToExitEarly = new HashSet<Block>();
     private int Executions = 0;

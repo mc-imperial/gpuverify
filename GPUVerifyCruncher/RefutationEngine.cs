@@ -13,6 +13,7 @@ using GPUVerify;
 namespace Microsoft.Boogie
 {
   using System;
+  using System.Text;
   using System.IO;
   using System.Collections.Generic;
   using System.Text.RegularExpressions;
@@ -252,6 +253,11 @@ namespace Microsoft.Boogie
        this.SlidingSeconds = GetSlidingSecondsParameter().DefaultValue;
        this.SlidingLimit = GetSlidingLimitParameter().DefaultValue;
     }
+    
+    public override string ToString()
+    {
+      return Name;
+    }
   }
   
   // Engine where asserts are NOT maintained in the base step
@@ -264,6 +270,11 @@ namespace Microsoft.Boogie
     {
       CommandLineOptions.Clo.Cho[this.ID].DisableLoopInvEntryAssert = true;
     }
+    
+    public override string ToString()
+    {
+      return Name;
+    }
   }
   
   // Engine where asserts are NOT maintained in the induction step
@@ -275,6 +286,11 @@ namespace Microsoft.Boogie
       base(ID, true, solver, errorLimit)
     {
       CommandLineOptions.Clo.Cho[this.ID].DisableLoopInvMaintainedAssert = true;
+    }
+    
+    public override string ToString()
+    {
+      return Name;
     }
   }
   
@@ -319,6 +335,11 @@ namespace Microsoft.Boogie
     {
       program.UnrollLoops(this.UnrollFactor, CommandLineOptions.Clo.SoundLoopUnrolling);
     }
+    
+    public override string ToString()
+    {
+      return Name + UnrollFactor;
+    }
   }
   
   // Engines based on dynamic analysis
@@ -355,12 +376,9 @@ namespace Microsoft.Boogie
     {
     }
     
-    public int Start (Program program)
+    public BoogieInterpreter Start (Program program)
     {
-      if (CommandLineOptions.Clo.Trace) Console.WriteLine(this.GetType().Name + " started crunching");
-      new BoogieInterpreter(this, program);
-      if (CommandLineOptions.Clo.Trace) Console.WriteLine(this.GetType().Name + " finished crunching");
-      return this.ID;
+      return new BoogieInterpreter(this, program);
     }
   
     public override void Print ()
@@ -369,6 +387,11 @@ namespace Microsoft.Boogie
       Console.WriteLine("# Engine:      " + this.GetType().Name);
       Console.WriteLine("# ID:          " + this.ID);
       Console.WriteLine("########################################");
+    }
+    
+    public override string ToString()
+    {
+      return Name;
     }
   }
   
@@ -429,6 +452,20 @@ namespace Microsoft.Boogie
     {
       return Engines;
     }
+    
+    public override string ToString()
+    {
+      StringBuilder sb = new System.Text.StringBuilder();
+      if (this.Sequential)
+        sb.Append("sequential");
+      else
+        sb.Append("parallel");
+      foreach (Engine engine in Engines)
+      {
+        sb.Append("-" + engine.ToString()); 
+      }
+      return sb.ToString();
+    }
   }
   
   // The pipeline scheduler
@@ -448,47 +485,42 @@ namespace Microsoft.Boogie
       }
       
       // Execute the engine pipeline in sequence or in parallel
-      Houdini.HoudiniOutcome outcome;
       if (pipeline.Sequential)
       {
-        outcome = ScheduleEnginesInSequence(pipeline);
+        ScheduleEnginesInSequence(pipeline);
       }
       else
       {
-        outcome = ScheduleEnginesInParallel(pipeline);
+        ScheduleEnginesInParallel(pipeline);
       }
 
       // If Houdini has been invoked then apply the invariants to the program.
       // Otherwise return a non-zero exit code to stop the final verification step.
       if (pipeline.runHoudini)
       {
-        // Did the engines terminate successfully?
-        ErrorCode = CheckOutcome(outcome);
-        // If so apply the invariants to the program
-        if (ErrorCode == 0)
-        {
-          GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(pipeline), GetCBPLFileName(), "cbpl");
-        }          
+        ErrorCode = 0;
+        GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(pipeline), GetFileNameBase(), "cbpl");          
       }
       else
-      {
+      {       
         ErrorCode = 1; 
+        DumpKilledInvariants(pipeline.ToString());
       }
     }
         
-    private string GetCBPLFileName()
+    private string GetFileNameBase()
     {
-      List<string> filesToProcess = new List<string>();
-      filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
-      string directoryContainingFiles = Path.GetDirectoryName(filesToProcess[0]);
-      if (string.IsNullOrEmpty(directoryContainingFiles))
+      string currentDir = Path.GetDirectoryName(this.FileNames[this.FileNames.Count - 1]);
+      if (string.IsNullOrEmpty(currentDir))
       {
-        directoryContainingFiles = Directory.GetCurrentDirectory();
+        currentDir = Directory.GetCurrentDirectory();
       }
-      return directoryContainingFiles + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(filesToProcess[0]);      
+      return currentDir + 
+             Path.DirectorySeparatorChar + 
+             Path.GetFileNameWithoutExtension(this.FileNames[this.FileNames.Count - 1]);      
     }
     
-    private Houdini.HoudiniOutcome ScheduleEnginesInSequence(Pipeline pipeline)
+    private void ScheduleEnginesInSequence(Pipeline pipeline)
     {
       Houdini.HoudiniOutcome outcome = null;
       foreach (Engine engine in pipeline.GetEngines())
@@ -501,13 +533,13 @@ namespace Microsoft.Boogie
         else
         {
           DynamicAnalysis dynamicEngine = (DynamicAnalysis) engine;
-          dynamicEngine.Start(getFreshProgram(false, false, false));
+          Program program = getFreshProgram(false, false, false);
+          dynamicEngine.Start(program);
         }
       }
-      return outcome;
     }
     
-    private Houdini.HoudiniOutcome ScheduleEnginesInParallel(Pipeline pipeline)
+    private void ScheduleEnginesInParallel(Pipeline pipeline)
     {
       Houdini.HoudiniOutcome outcome = null;
       CancellationTokenSource tokenSource = new CancellationTokenSource();
@@ -525,7 +557,7 @@ namespace Microsoft.Boogie
             underApproximatingTasks.Add(Task.Factory.StartNew(
               () =>
               {
-                dynamicEngine.Start(getFreshProgram(false, false, false));
+              dynamicEngine.Start(getFreshProgram(false, false, false));
               }, 
               tokenSource.Token));
           }
@@ -535,7 +567,7 @@ namespace Microsoft.Boogie
             underApproximatingTasks.Add(Task.Factory.StartNew(
               () =>
               {
-                smtEngine.Start(getFreshProgram(false, false, true), ref outcome);
+              smtEngine.Start(getFreshProgram(false, false, true), ref outcome);
               }, 
               tokenSource.Token));
           }
@@ -625,9 +657,18 @@ namespace Microsoft.Boogie
       else
       {
         Task.WaitAll(underApproximatingTasks.ToArray());
-      }       
-       
-      return outcome;
+      }
+    }
+    
+    private void DumpKilledInvariants (string engineName)
+    {
+      using (StreamWriter fs = File.CreateText(GetFileNameBase() + "-killed-" + engineName + ".txt"))
+      {
+        foreach (string key in Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Keys) 
+        {
+          fs.WriteLine("FALSE: " + key);
+        }
+      }
     }
     
     private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
@@ -665,41 +706,6 @@ namespace Microsoft.Boogie
         }
       }
       return program;
-    }
-        
-    private int CheckOutcome(Houdini.HoudiniOutcome outcome)
-    {
-      bool valid = true;
-      foreach (VC.ConditionGeneration.Outcome vcgenOutcome in 
-                outcome.implementationOutcomes.Values.Select(i => i.outcome)) 
-      {
-        if (vcgenOutcome != VCGen.Outcome.Correct) 
-          valid = false;
-      }
-      
-      if (valid)
-        return 0;
-    
-      int verified = 0;
-      int errorCount = 0;
-      int inconclusives = 0;
-      int timeOuts = 0;
-      int outOfMemories = 0;
-      foreach (var implOutcome in outcome.implementationOutcomes) 
-      {
-        KernelAnalyser.ProcessOutcome(getFreshProgram(false, false, false), 
-                                      implOutcome.Key, 
-                                      implOutcome.Value.outcome, 
-                                      implOutcome.Value.errors, 
-                                      "", 
-                                      ref errorCount, 
-                                      ref verified, 
-                                      ref inconclusives, 
-                                      ref timeOuts, 
-                                      ref outOfMemories);
-      }
-      GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
-      return errorCount + inconclusives + timeOuts + outOfMemories;
     }
   }
 }
