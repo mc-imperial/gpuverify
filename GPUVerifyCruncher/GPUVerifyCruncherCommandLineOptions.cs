@@ -18,10 +18,6 @@ namespace GPUVerify
 {
   public class GPUVerifyCruncherCommandLineOptions : CommandLineOptions
   {
-    public int DynamicErrorLimit = 0;
-    public int DynamicAnalysisLoopHeaderLimit = 1000;
-    public int DynamicAnalysisUnsoundLoopEscaping = 0;
-    public bool DynamicAnalysisSoundLoopEscaping = false;
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
     public bool DebugGPUVerify = false;
@@ -48,6 +44,11 @@ namespace GPUVerify
           Pipeline.Sequential = false;
           ParsePipelineString(ps.args[ps.i]);
         }
+        return true;
+      }
+      
+      if (name == "noHoudini") {
+        Pipeline.runHoudini = false;
         return true;
       }
 
@@ -105,51 +106,44 @@ namespace GPUVerify
                                                                 parameterStr);
           CheckForMutuallyExclusiveParameters(VanillaHoudini.Name, VanillaHoudini.GetMutuallyExclusiveParameters(),parameters);
           
-          VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(), 
-                                                            GetSolverValue(parameters),
-                                                            GetErrorLimitValue(parameters));
+          int errorLimit = ParseIntParameter(parameters, 
+                                             SMTEngine.GetErrorLimitParameter().Name, 
+                                             SMTEngine.GetErrorLimitParameter().DefaultValue);
+          VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(),GetSolverValue(parameters), errorLimit);
           Pipeline.AddEngine(houdiniEngine);
-          
-          if (parameters.ContainsKey(VanillaHoudini.GetDelayParameter().Name))
-          {  
-            // Delay Houdini by x seconds
-            houdiniEngine.Delay = ParseIntParameter(parameters, VanillaHoudini.GetDelayParameter().Name);
-          }
-          if (parameters.ContainsKey(VanillaHoudini.GetSlidingSecondsParameter().Name))
-          {  
-            // Spawn a new Houdini engine after x seconds
-            houdiniEngine.SlidingSeconds = ParseIntParameter(parameters, VanillaHoudini.GetSlidingSecondsParameter().Name);
-          }
-          if (parameters.ContainsKey(VanillaHoudini.GetSlidingLimitParameter().Name))
-          {  
-            // Spawn new Houdini engines until this x limit has been reached
-            houdiniEngine.SlidingLimit = ParseIntParameter(parameters, VanillaHoudini.GetSlidingLimitParameter().Name);
-          }
+          houdiniEngine.Delay = ParseIntParameter(parameters, VanillaHoudini.GetDelayParameter().Name, VanillaHoudini.GetDelayParameter().DefaultValue);
+          houdiniEngine.SlidingSeconds = ParseIntParameter(parameters, VanillaHoudini.GetSlidingSecondsParameter().Name, VanillaHoudini.GetSlidingSecondsParameter().DefaultValue);
+          houdiniEngine.SlidingLimit = ParseIntParameter(parameters, VanillaHoudini.GetSlidingLimitParameter().Name, VanillaHoudini.GetSlidingLimitParameter().DefaultValue);
         }
         else if (engine.ToUpper().Equals(SBASE.Name)) 
         {
           string parameterStr = engineStr.Substring(SBASE.Name.Length);
           Dictionary<string, string> parameters = GetParameters(SBASE.Name, SBASE.GetAllowedParameters(), SBASE.GetRequiredParameters(), parameterStr);
-          Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(), 
-                                       GetSolverValue(parameters), 
-                                       GetErrorLimitValue(parameters)));
+          int errorLimit = ParseIntParameter(parameters, 
+                                             SMTEngine.GetErrorLimitParameter().Name, 
+                                             SMTEngine.GetErrorLimitParameter().DefaultValue);
+          Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(),GetSolverValue(parameters),errorLimit));
 		    }
 		    else if (engine.ToUpper().Equals(SSTEP.Name))
         {
           string parameterStr = engineStr.Substring(SSTEP.Name.Length);
           Dictionary<string, string> parameters = GetParameters(SSTEP.Name, SSTEP.GetAllowedParameters(), SSTEP.GetRequiredParameters(), parameterStr);
-          Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(), 
-                                       GetSolverValue(parameters), 
-                                       GetErrorLimitValue(parameters)));
+          int errorLimit = ParseIntParameter(parameters, 
+                                             SMTEngine.GetErrorLimitParameter().Name, 
+                                             SMTEngine.GetErrorLimitParameter().DefaultValue);
+          Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(),GetSolverValue(parameters),errorLimit));
         }
         else if (engine.ToUpper().Equals(LU.Name))
         {
           string parameterStr = engineStr.Substring(LU.Name.Length);
           Dictionary<string, string> parameters = GetParameters(LU.Name, LU.GetAllowedParameters(), LU.GetRequiredParameters(), parameterStr);
+          int errorLimit = ParseIntParameter(parameters, 
+                                             SMTEngine.GetErrorLimitParameter().Name, 
+                                             SMTEngine.GetErrorLimitParameter().DefaultValue);
           Pipeline.AddEngine(new LU(Pipeline.GetNextSMTEngineID(), 
                                     GetSolverValue(parameters), 
-                                    GetErrorLimitValue(parameters),
-                                    ParseIntParameter(parameters, LU.GetUnrollParameter().Name)));
+                                    errorLimit, 
+                                    ParseIntParameter(parameters, LU.GetUnrollParameter().Name, 1)));
         }
         else if (engine.ToUpper().Equals(DynamicAnalysis.Name))
         {
@@ -158,16 +152,12 @@ namespace GPUVerify
                                                                 DynamicAnalysis.GetAllowedParameters(), 
                                                                 DynamicAnalysis.GetRequiredParameters(), parameterStr);
           DynamicAnalysis dynamicEngine = new DynamicAnalysis();
-          if (parameters.ContainsKey(DynamicAnalysis.GetLoopHeaderLimitParameter().Name))
-          {  
-            // Set the loop header limit
-            dynamicEngine.LoopHeaderLimit = ParseIntParameter(parameters, DynamicAnalysis.GetLoopHeaderLimitParameter().Name);
-          }
-          if (parameters.ContainsKey(DynamicAnalysis.GetLoopEscapingParameter().Name))
-          {  
-            // Set the maximum number of loop header executions before control breaks out of the loop body
-            dynamicEngine.LoopEscape = ParseIntParameter(parameters, DynamicAnalysis.GetLoopEscapingParameter().Name);
-          }
+          dynamicEngine.LoopHeaderLimit = ParseIntParameter(parameters, 
+                                                            DynamicAnalysis.GetLoopHeaderLimitParameter().Name, 
+                                                            DynamicAnalysis.GetLoopHeaderLimitParameter().DefaultValue);
+          dynamicEngine.LoopEscape = ParseIntParameter(parameters, 
+                                                       DynamicAnalysis.GetLoopEscapingParameter().Name, 
+                                                       DynamicAnalysis.GetLoopEscapingParameter().DefaultValue);
           Pipeline.AddEngine(dynamicEngine);
         }
         else
@@ -227,13 +217,6 @@ namespace GPUVerify
       }
     }
     
-    private int GetErrorLimitValue(Dictionary<string, string> parameters)
-    {
-      if (parameters.ContainsKey(SMTEngine.GetErrorLimitParameter().Name))
-        return ParseIntParameter(parameters, SMTEngine.GetErrorLimitParameter().Name);
-      return SMTEngine.GetErrorLimitParameter().DefaultValue;
-    }
-    
     private string GetSolverValue(Dictionary<string, string> parameters)
     {
       if (parameters.ContainsKey(SMTEngine.GetSolverParameter().Name))
@@ -248,8 +231,12 @@ namespace GPUVerify
       return SMTEngine.GetSolverParameter().DefaultValue;
     }
     
-    private int ParseIntParameter(Dictionary<string, string> parameters, string paramName)
+    private int ParseIntParameter(Dictionary<string, string> parameters, string paramName, int defaultValue)
     {
+      if (!parameters.ContainsKey(paramName))
+      {
+        return defaultValue;
+      }
       try
       {
         return Convert.ToInt32(parameters[paramName]);
@@ -262,25 +249,6 @@ namespace GPUVerify
       catch (OverflowException)
       {
         Console.WriteLine(String.Format("'{0}' must fit into a 32-bit integer. You gave '{1}'", paramName, parameters[paramName]));
-        System.Environment.Exit(1);
-      }
-      return -1;
-    }
-    
-    private float ParseFloatParameter(Dictionary<string, string> parameters, string paramName)
-    {
-      try
-      {
-        return Convert.ToSingle(parameters[paramName]);
-      }            
-      catch (FormatException)
-      {
-        Console.WriteLine(String.Format("'{0}' must be a float. You gave '{1}'", paramName, parameters[paramName]));
-        System.Environment.Exit(1);
-      }
-      catch (OverflowException)
-      {
-        Console.WriteLine(String.Format("'{0}' must fit into a 32-bit float. You gave '{1}'", paramName, parameters[paramName]));
         System.Environment.Exit(1);
       }
       return -1;

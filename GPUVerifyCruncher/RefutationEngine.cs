@@ -358,7 +358,7 @@ namespace Microsoft.Boogie
     public int Start (Program program)
     {
       if (CommandLineOptions.Clo.Trace) Console.WriteLine(this.GetType().Name + " started crunching");
-      new BoogieInterpreter(program);
+      new BoogieInterpreter(this, program);
       if (CommandLineOptions.Clo.Trace) Console.WriteLine(this.GetType().Name + " finished crunching");
       return this.ID;
     }
@@ -376,7 +376,8 @@ namespace Microsoft.Boogie
   public class Pipeline
   {
     public bool Sequential { get; set;}
-    public int houdiniDelay { get; set; }
+    public bool runHoudini { get; set; }
+    
     private List<Engine> Engines = new List<Engine>();
     private int NextSMTEngineID = 0;
     private VanillaHoudini houdiniEngine = null;
@@ -384,7 +385,7 @@ namespace Microsoft.Boogie
     public Pipeline(bool sequential)
     {
       this.Sequential = sequential;
-      this.houdiniDelay = 0;
+      this.runHoudini = true;
     }
     
     // Adds Houdini to the pipeline if the user has not done so
@@ -439,9 +440,12 @@ namespace Microsoft.Boogie
     public Scheduler(List<string> fileNames)
     {
       this.FileNames = fileNames;
+      
       Pipeline pipeline = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).Pipeline;
-      // Ensure the pipeline has a Houdini engine
-      pipeline.AddHoudiniEngine();
+      if (pipeline.runHoudini)
+      {
+        pipeline.AddHoudiniEngine();
+      }
       
       // Execute the engine pipeline in sequence or in parallel
       Houdini.HoudiniOutcome outcome;
@@ -454,24 +458,34 @@ namespace Microsoft.Boogie
         outcome = ScheduleEnginesInParallel(pipeline);
       }
 
-      // Did the engines terminate successfully?
-      ErrorCode = CheckOutcome(outcome);
-      // If so apply the invariants to the program
-      if (ErrorCode == 0)
+      // If Houdini has been invoked then apply the invariants to the program.
+      // Otherwise return a non-zero exit code to stop the final verification step.
+      if (pipeline.runHoudini)
       {
-        GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(pipeline), GetCBPLFileName(), "cbpl");
-      }          
+        // Did the engines terminate successfully?
+        ErrorCode = CheckOutcome(outcome);
+        // If so apply the invariants to the program
+        if (ErrorCode == 0)
+        {
+          GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(pipeline), GetCBPLFileName(), "cbpl");
+        }          
+      }
+      else
+      {
+        ErrorCode = 1; 
+      }
     }
         
     private string GetCBPLFileName()
     {
       List<string> filesToProcess = new List<string>();
       filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
-      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
+      string directoryContainingFiles = Path.GetDirectoryName(filesToProcess[0]);
       if (string.IsNullOrEmpty(directoryContainingFiles))
-        directoryContainingFiles = Directory.GetCurrentDirectory ();
-      return directoryContainingFiles + Path.DirectorySeparatorChar + 
-                Path.GetFileNameWithoutExtension(filesToProcess[0]);      
+      {
+        directoryContainingFiles = Directory.GetCurrentDirectory();
+      }
+      return directoryContainingFiles + Path.DirectorySeparatorChar + Path.GetFileNameWithoutExtension(filesToProcess[0]);      
     }
     
     private Houdini.HoudiniOutcome ScheduleEnginesInSequence(Pipeline pipeline)
@@ -493,7 +507,7 @@ namespace Microsoft.Boogie
       return outcome;
     }
     
-    private Houdini.HoudiniOutcome ScheduleEnginesInParallel (Pipeline pipeline)
+    private Houdini.HoudiniOutcome ScheduleEnginesInParallel(Pipeline pipeline)
     {
       Houdini.HoudiniOutcome outcome = null;
       CancellationTokenSource tokenSource = new CancellationTokenSource();
@@ -501,80 +515,119 @@ namespace Microsoft.Boogie
       List<Task> overApproximatingTasks = new List<Task>();
       
       // Schedule the under-approximating engines first
-      foreach (Engine engine in pipeline.GetEngines()) 
+      foreach (Engine engine in pipeline.GetEngines())
       {
-        if (!(engine is VanillaHoudini)) 
+        if (!(engine is VanillaHoudini))
         {
           if (engine is DynamicAnalysis)
           {
-            DynamicAnalysis dynamicEngine = (DynamicAnalysis) engine;
+            DynamicAnalysis dynamicEngine = (DynamicAnalysis)engine;
             underApproximatingTasks.Add(Task.Factory.StartNew(
-                () => {dynamicEngine.Start(getFreshProgram(false, false, false));}, 
-                tokenSource.Token));
+              () =>
+              {
+                dynamicEngine.Start(getFreshProgram(false, false, false));
+              }, 
+              tokenSource.Token));
           }
           else
           {
-            SMTEngine smtEngine = (SMTEngine) engine;
+            SMTEngine smtEngine = (SMTEngine)engine;
             underApproximatingTasks.Add(Task.Factory.StartNew(
-                () => {smtEngine.Start(getFreshProgram(false, false, true), ref outcome);}, 
-                tokenSource.Token));
-          }
-         }
-       }
-       
-       // Wait for the under-approximating engines to finish
-       if (pipeline.houdiniDelay > 0)
-       {
-          Task.WaitAll(underApproximatingTasks.ToArray(), pipeline.houdiniDelay * 1000);
-       }
-       else if (pipeline.GetHoudiniEngine().SlidingSeconds == 0) 
-       {
-          Task.WaitAll(underApproximatingTasks.ToArray());
-       }
-       
-       // Now schedule vanilla Houdini
-       overApproximatingTasks.Add(Task.Factory.StartNew(
-              () => {pipeline.GetHoudiniEngine().Start(getFreshProgram(false, false, true), ref outcome);
-                    }, 
+              () =>
+              {
+                smtEngine.Start(getFreshProgram(false, false, true), ref outcome);
+              }, 
               tokenSource.Token));
-              
-       if (pipeline.GetHoudiniEngine().SlidingSeconds > 0) 
-       {
-         int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
-         int newHoudinis = 0;
-         while (true) 
-         {
-           if (newHoudinis >= pipeline.GetHoudiniEngine().SlidingLimit) 
-             break;
-           Thread.Sleep((int) pipeline.GetHoudiniEngine().SlidingSeconds * 1000);
-           if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) 
-           {
-             numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
-             VanillaHoudini newHoudiniEngine = new VanillaHoudini(pipeline.GetNextSMTEngineID(), 
-                                                                  pipeline.GetHoudiniEngine().Solver, 
-                                                                  pipeline.GetHoudiniEngine().ErrorLimit);
-             pipeline.AddEngine(newHoudiniEngine);                 
-
-             overApproximatingTasks.Add(Task.Factory.StartNew(
-                    () => { newHoudiniEngine.Start(getFreshProgram(false, false, true), ref outcome); 
-                            tokenSource.Cancel(false);
-                          }, 
-                    tokenSource.Token));
-             ++newHoudinis;
-            }
           }
         }
-        try 
+      }
+      
+      if (pipeline.runHoudini)
+      {
+        // We set a barrier on the under-approximating engines if a Houdini delay 
+        // is specified or no sliding is selected
+        if (pipeline.GetHoudiniEngine().Delay > 0)
+        {
+          if (CommandLineOptions.Clo.Trace)
+            Console.WriteLine("Waiting at barrier until Houdini delay has elapsed or all under-approximating engines have finished");
+          Task.WaitAll(underApproximatingTasks.ToArray(), pipeline.GetHoudiniEngine().Delay * 1000);
+        }
+        else if (pipeline.GetHoudiniEngine().SlidingSeconds == 0)
+        {
+          if (CommandLineOptions.Clo.Trace)
+            Console.WriteLine("Waiting at barrier until all under-approximating engines have finished");
+          Task.WaitAll(underApproximatingTasks.ToArray());
+        }
+       
+        // Schedule the vanilla Houdini engine
+        overApproximatingTasks.Add(Task.Factory.StartNew(
+          () =>
+          {
+            pipeline.GetHoudiniEngine().Start(getFreshProgram(false, false, true), ref outcome);
+          }, 
+          tokenSource.Token));
+              
+        // Schedule Houdinis every x seconds until the number of new Houdini instances exceeds the limit
+        if (pipeline.GetHoudiniEngine().SlidingSeconds > 0)
+        {
+          int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+          int newHoudinis = 0;
+          bool runningHoudinis;
+          
+          do
+          {
+            // Wait before launching new Houdini instances
+            Thread.Sleep((int)pipeline.GetHoudiniEngine().SlidingSeconds * 1000);
+            
+            // Only launch a fresh Houdini if the candidate invariant set has changed
+            if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted)
+            {
+              numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+              
+              VanillaHoudini newHoudiniEngine = new VanillaHoudini(pipeline.GetNextSMTEngineID(), 
+                                                  pipeline.GetHoudiniEngine().Solver, 
+                                                  pipeline.GetHoudiniEngine().ErrorLimit);
+              pipeline.AddEngine(newHoudiniEngine);  
+              
+              if (CommandLineOptions.Clo.Trace)
+                Console.WriteLine("Scheduling another Houdini instance");
+              
+              overApproximatingTasks.Add(Task.Factory.StartNew(
+                () =>
+                {
+                  newHoudiniEngine.Start(getFreshProgram(false, false, true), ref outcome); 
+                  tokenSource.Cancel(false);
+                }, 
+                tokenSource.Token));
+              ++newHoudinis;
+            }
+            
+            // Are any Houdinis still running?
+            runningHoudinis = false;
+            foreach (Task task in overApproximatingTasks)
+            {
+              if (task.Status.Equals(TaskStatus.Running))
+                runningHoudinis = true;
+            }
+          } while (newHoudinis < pipeline.GetHoudiniEngine().SlidingLimit && runningHoudinis);
+        }
+        
+        try
         {
           Task.WaitAny(overApproximatingTasks.ToArray(), tokenSource.Token);
-          Console.WriteLine("DONE");
           tokenSource.Cancel(false);
-        } 
-        catch (OperationCanceledException) 
+        }
+        catch (OperationCanceledException)
         {
           // Should not do anything
         }
-        return outcome;
+      }
+      else
+      {
+        Task.WaitAll(underApproximatingTasks.ToArray());
+      }       
+       
+      return outcome;
     }
     
     private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
