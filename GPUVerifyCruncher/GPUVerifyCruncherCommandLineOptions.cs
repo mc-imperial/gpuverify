@@ -52,12 +52,6 @@ namespace GPUVerify
         return true;
       }
 
-      if (name == "dynamicErrorLimit") {
-        if (ps.ConfirmArgumentCount(1))
-            ps.GetNumericArgument(ref DynamicErrorLimit);
-        return true;
-      }
-
       if (name == "replaceLoopInvariantAssertions") {
         ReplaceLoopInvariantAssertions = true;
         return true;
