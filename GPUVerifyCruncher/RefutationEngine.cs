@@ -382,7 +382,20 @@ namespace Microsoft.Boogie
       ErrorCode = CheckOutcome(outcome);
       // If so apply the invariants to the program
       if (ErrorCode == 0)
-        ApplyInvariantsAndEmit(pipeline);
+      {
+        GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(pipeline), GetCBPLFileName(), "cbpl");
+      }          
+    }
+        
+    private string GetCBPLFileName()
+    {
+      List<string> filesToProcess = new List<string>();
+      filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
+      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
+      if (string.IsNullOrEmpty(directoryContainingFiles))
+        directoryContainingFiles = Directory.GetCurrentDirectory ();
+      return directoryContainingFiles + Path.DirectorySeparatorChar + 
+                Path.GetFileNameWithoutExtension(filesToProcess[0]);      
     }
     
     private Houdini.HoudiniOutcome ScheduleEnginesInSequence(Pipeline pipeline)
@@ -445,7 +458,8 @@ namespace Microsoft.Boogie
        
        // Now schedule vanilla Houdini
        overApproximatingTasks.Add(Task.Factory.StartNew(
-              () => {pipeline.GetHoudiniEngine().Start(getFreshProgram(false, false, true), ref outcome);}, 
+              () => {pipeline.GetHoudiniEngine().Start(getFreshProgram(false, false, true), ref outcome);
+                    }, 
               tokenSource.Token));
               
        if (pipeline.GetHoudiniEngine().SlidingSeconds > 0) 
@@ -460,11 +474,15 @@ namespace Microsoft.Boogie
            if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) 
            {
              numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
-             VanillaHoudini newHoudiniEngine = new VanillaHoudini(pipeline.GetNextSMTEngineID(), pipeline.GetHoudiniEngine().Solver, pipeline.GetHoudiniEngine().ErrorLimit);
+             VanillaHoudini newHoudiniEngine = new VanillaHoudini(pipeline.GetNextSMTEngineID(), 
+                                                                  pipeline.GetHoudiniEngine().Solver, 
+                                                                  pipeline.GetHoudiniEngine().ErrorLimit);
              pipeline.AddEngine(newHoudiniEngine);                 
 
              overApproximatingTasks.Add(Task.Factory.StartNew(
-                    () => { newHoudiniEngine.Start(getFreshProgram(false, false, true), ref outcome); tokenSource.Cancel(false);}, 
+                    () => { newHoudiniEngine.Start(getFreshProgram(false, false, true), ref outcome); 
+                            tokenSource.Cancel(false);
+                          }, 
                     tokenSource.Token));
              ++newHoudinis;
             }
@@ -490,26 +508,41 @@ namespace Microsoft.Boogie
       return GVUtil.GetFreshProgram(this.FileNames, raceCheck, divergenceCheck, inline);
     }
     
-    private void ApplyInvariantsAndEmit(Pipeline pipeline)
+    private Program ApplyInvariants(Pipeline pipeline)
     {
-      List<string> filesToProcess = new List<string>();
-      filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
-      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
-      if (string.IsNullOrEmpty (directoryContainingFiles))
-        directoryContainingFiles = Directory.GetCurrentDirectory ();
-      string annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
-        Path.GetFileNameWithoutExtension(filesToProcess[0]);
-
       Program program = getFreshProgram(true, true, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
       pipeline.GetHoudiniEngine().houdini.ApplyAssignment(program);
-      GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile, "cbpl");
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ReplaceLoopInvariantAssertions)
+      {
+        foreach (Block block in program.Blocks()) 
+        {
+          List<Cmd> newCmds = new List<Cmd>();
+          foreach (Cmd cmd in block.Cmds) 
+          {
+            AssertCmd assertion = cmd as AssertCmd;
+            if (assertion != null &&
+                QKeyValue.FindBoolAttribute(assertion.Attributes,"originated_from_invariant")) 
+            {
+              AssumeCmd assumption = new AssumeCmd(assertion.tok, assertion.Expr, assertion.Attributes);
+              newCmds.Add(assumption);
+            } 
+            else 
+            {
+              newCmds.Add(cmd);
+            }
+          }
+          block.Cmds = newCmds;
+        }
+      }
+      return program;
     }
         
     private int CheckOutcome(Houdini.HoudiniOutcome outcome)
     {
       bool valid = true;
-      foreach (VC.ConditionGeneration.Outcome vcgenOutcome in outcome.implementationOutcomes.Values.Select(i => i.outcome)) 
+      foreach (VC.ConditionGeneration.Outcome vcgenOutcome in 
+                outcome.implementationOutcomes.Values.Select(i => i.outcome)) 
       {
         if (vcgenOutcome != VCGen.Outcome.Correct) 
           valid = false;

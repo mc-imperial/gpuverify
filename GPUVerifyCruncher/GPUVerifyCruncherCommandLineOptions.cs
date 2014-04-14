@@ -84,8 +84,9 @@ namespace GPUVerify
       {
         if (engine.ToLower().StartsWith(houdini)) 
         {
-          Dictionary<string, string> parameters = GetParameters(engine.Substring(houdini.Length));
-
+          string parameterStr = engine.Substring(houdini.Length);
+          Dictionary<string, string> parameters = GetParameters(parameterStr);
+          
           // The user wants to override Houdini settings used in the cruncher
           VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(), 
                                                             GetSolverValue(parameters),
@@ -110,21 +111,24 @@ namespace GPUVerify
         }
         else if (engine.ToLower().StartsWith(sbase)) 
         {
-          Dictionary<string, string> parameters = GetParameters(engine.Substring(sbase.Length));
+          string parameterStr = engine.Substring(sbase.Length);
+          Dictionary<string, string> parameters = GetParameters(parameterStr);
           Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(), 
                                        GetSolverValue(parameters), 
                                        GetErrorLimitValue(parameters)));
 		}
 		else if (engine.ToLower().StartsWith(sstep))
         {
-          Dictionary<string, string> parameters = GetParameters(engine.Substring(sstep.Length));
+          string parameterStr = engine.Substring(sstep.Length);
+          Dictionary<string, string> parameters = GetParameters(parameterStr);
           Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(), 
                                        GetSolverValue(parameters), 
                                        GetErrorLimitValue(parameters)));
         }
         else if (engine.ToLower().StartsWith(lu))
         {
-          Dictionary<string, string> parameters = GetParameters(engine.Substring(lu.Length));
+          string parameterStr = engine.Substring(lu.Length);
+          Dictionary<string, string> parameters = GetParameters(parameterStr);
           if (!parameters.ContainsKey(LU.GetUnrollParameter().Name))
           {  
             Console.WriteLine(String.Format("For LU you must supply the parameter '{0}'", LU.GetUnrollParameter().Name));
@@ -150,13 +154,16 @@ namespace GPUVerify
     private Dictionary<string, string> GetParameters(string parameterStr)
     {
       Dictionary<string, string> map = new Dictionary<string, string>();
-      Debug.Assert (parameterStr[0] == '[' && parameterStr[parameterStr.Length - 1] == ']');
-      string[] parameters = parameterStr.Substring(1, parameterStr.Length - 2).Split(',');
-      foreach (string param in parameters)
+      if (parameterStr.Length > 0)
       {
-        string[] values = param.Split('=');
-        Debug.Assert(values.Length == 2);
-        map[values[0]] = values[1].ToLower();
+        Debug.Assert(parameterStr[0] == '[' && parameterStr[parameterStr.Length - 1] == ']');
+        string[] parameters = parameterStr.Substring(1, parameterStr.Length - 2).Split(',');
+        foreach (string param in parameters)
+        {
+          string[] values = param.Split('=');
+          Debug.Assert(values.Length == 2);
+          map[values[0]] = values[1].ToLower();
+        }
       }
       return map;
     }
