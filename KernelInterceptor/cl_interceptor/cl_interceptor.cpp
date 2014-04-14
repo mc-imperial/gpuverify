@@ -4,20 +4,22 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
-#include <string.h>
-#include <stdio.h>
+#include <cstring>
+#include <cstdio>
+#include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
+
 #ifdef _MSC_VER
 #include <stdint.h>
 #include <direct.h>
 #define FORMAT_SIZET "Iu"
+#define stdrup _strdup
+#define tempnam _tempnam
 #else
 #include <unistd.h>
 #define FORMAT_SIZET "zu"
 #endif
-#include <cstring>
-#include <cstdlib>
 
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
@@ -67,7 +69,7 @@ public:
 	void dump(cl_kernel karnol, const char* file, int line) {
 		struct kernel_data kernel = kernels[karnol];
 
-		FILE* f = fopen(_tempnam(dirname,kernel.name.c_str()),"w");
+		FILE* f = fopen(tempnam(dirname,kernel.name.c_str()),"w");
 			
 		fprintf(f,"// --local_size=%" FORMAT_SIZET, kernel.local_size[0]);
 		if (kernel.dimension > 1) {
@@ -104,7 +106,7 @@ public:
 		}
 
 		fprintf(f, "\n// ");
-		char* opts = _strdup(options[kernel.program].c_str());
+		char* opts = strdup(options[kernel.program].c_str());
 		de_newline(opts);
 		fprintf(f, "%s\n", opts);
 		fprintf(f, "// Built at %s:%d\n",programs[kernel.program].second.file.c_str(), programs[kernel.program].second.line);
@@ -186,7 +188,7 @@ extern "C" {
 				    void (CL_CALLBACK *  pfn_notify)(cl_program, void *),
 				    void *user_data)
 	{
-		std::string opts (options);
+		std::string opts (options ? options : "");
 		singleton().options[program] = opts;
 		return clBuildProgram(program, num_devices, device_list, options, pfn_notify, user_data);
 	}
