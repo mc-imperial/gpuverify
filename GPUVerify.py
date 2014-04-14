@@ -567,14 +567,8 @@ def processOptions(args):
   CommandLineOptions.vcgenOptions += [ "/params:" + args['params'] ] if args['params'] else []
 
   CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file'] or []] or []
-
-  CommandLineOptions.cruncherOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
-  CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
-  CommandLineOptions.cruncherOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
-  CommandLineOptions.boogieOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
-
+ 
   if args['source_language'] == SourceLanguage.CUDA:
-    CommandLineOptions.cruncherOptions += [ "/sourceLanguage:cu" ]
     CommandLineOptions.boogieOptions += [ "/sourceLanguage:cu" ]
   
   return CommandLineOptions

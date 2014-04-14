@@ -16,7 +16,7 @@ using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-  public class GPUVerifyCruncherCommandLineOptions : GVCommandLineOptions
+  public class GPUVerifyCruncherCommandLineOptions : CommandLineOptions
   {
     public int DynamicErrorLimit = 0;
     public int DynamicAnalysisLoopHeaderLimit = 1000;
@@ -24,10 +24,11 @@ namespace GPUVerify
     public bool DynamicAnalysisSoundLoopEscaping = false;
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
+    public bool DebugGPUVerify = false;
     
     // Assume a sequential pipeline unless the user selects otherwise
     public Pipeline Pipeline = new Pipeline(sequential: true);
-
+    
     public GPUVerifyCruncherCommandLineOptions() :
       base() 
     { 
@@ -65,6 +66,11 @@ namespace GPUVerify
         EnableBarrierDivergenceChecks = true;
         return true;
       }
+      
+      if (name == "debugGPUVerify") {
+        DebugGPUVerify = true;
+        return true;
+      }
 
       return base.ParseOption(name, ps);
     }
@@ -90,13 +96,15 @@ namespace GPUVerify
         }
         if (engine.ToUpper().Equals(VanillaHoudini.Name)) 
         {
+          // The user wants to override Houdini settings used in the cruncher
+          
           string parameterStr = engineStr.Substring(VanillaHoudini.Name.Length);
           Dictionary<string, string> parameters = GetParameters(VanillaHoudini.Name, 
                                                                 VanillaHoudini.GetAllowedParameters(), 
                                                                 VanillaHoudini.GetRequiredParameters(), 
                                                                 parameterStr);
+          CheckForMutuallyExclusiveParameters(VanillaHoudini.Name, VanillaHoudini.GetMutuallyExclusiveParameters(),parameters);
           
-          // The user wants to override Houdini settings used in the cruncher
           VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(), 
                                                             GetSolverValue(parameters),
                                                             GetErrorLimitValue(parameters));
@@ -116,14 +124,6 @@ namespace GPUVerify
           {  
             // Spawn new Houdini engines until this x limit has been reached
             houdiniEngine.SlidingLimit = ParseIntParameter(parameters, VanillaHoudini.GetSlidingLimitParameter().Name);
-          }
-                    
-          if (parameters.ContainsKey(VanillaHoudini.GetDelayParameter().Name) && 
-              parameters.ContainsKey(VanillaHoudini.GetSlidingSecondsParameter().Name))
-          {
-            Console.WriteLine(String.Format("Parameters '{0}' and '{1}' are mutually exclsuive", 
-                              VanillaHoudini.GetDelayParameter().Name, VanillaHoudini.GetSlidingSecondsParameter().Name));
-            System.Environment.Exit(1);
           }
         }
         else if (engine.ToUpper().Equals(SBASE.Name)) 
@@ -157,7 +157,18 @@ namespace GPUVerify
           Dictionary<string, string> parameters = GetParameters(DynamicAnalysis.Name, 
                                                                 DynamicAnalysis.GetAllowedParameters(), 
                                                                 DynamicAnalysis.GetRequiredParameters(), parameterStr);
-          Pipeline.AddEngine(new DynamicAnalysis());
+          DynamicAnalysis dynamicEngine = new DynamicAnalysis();
+          if (parameters.ContainsKey(DynamicAnalysis.GetLoopHeaderLimitParameter().Name))
+          {  
+            // Set the loop header limit
+            dynamicEngine.LoopHeaderLimit = ParseIntParameter(parameters, DynamicAnalysis.GetLoopHeaderLimitParameter().Name);
+          }
+          if (parameters.ContainsKey(DynamicAnalysis.GetLoopEscapingParameter().Name))
+          {  
+            // Set the maximum number of loop header executions before control breaks out of the loop body
+            dynamicEngine.LoopEscape = ParseIntParameter(parameters, DynamicAnalysis.GetLoopEscapingParameter().Name);
+          }
+          Pipeline.AddEngine(dynamicEngine);
         }
         else
         {
@@ -167,7 +178,7 @@ namespace GPUVerify
       }
     } 
     
-    private Dictionary<string, string> GetParameters(string engineName,
+    private Dictionary<string, string> GetParameters(string engine,
                                                      List<EngineParameter> allowedParams, 
                                                      List<EngineParameter> requiredParams, 
                                                      string parameterStr)
@@ -184,7 +195,7 @@ namespace GPUVerify
           string paramName = values[0];
           if (allowedParams.Find(item => item.Name.Equals(paramName)) == null)
           {
-            Console.WriteLine(String.Format("Parameter '{0}' is not valid for cruncher engine '{1}'", paramName, engineName));
+            Console.WriteLine(String.Format("Parameter '{0}' is not valid for cruncher engine '{1}'", paramName, engine));
             System.Environment.Exit(1);
           }
           map[paramName] = values[1].ToLower();
@@ -194,11 +205,26 @@ namespace GPUVerify
       {
         if (!map.ContainsKey(param.Name))
         {
-          Console.WriteLine(String.Format("For cruncher engine '{0}' you must supply parameter '{1}'", engineName, param.Name));
+          Console.WriteLine(String.Format("For cruncher engine '{0}' you must supply parameter '{1}'", engine, param.Name));
           System.Environment.Exit(1);
         }  
       }
       return map;
+    }
+    
+    private void CheckForMutuallyExclusiveParameters(string engine,
+                                                     List<Tuple<EngineParameter, EngineParameter>> mutuallyExclusivePairs, 
+                                                     Dictionary<string, string> parameters)
+    {
+      foreach (var tuple in mutuallyExclusivePairs)
+      {
+        if (parameters.ContainsKey(tuple.Item1.Name) && parameters.ContainsKey(tuple.Item2.Name))
+        {
+          Console.WriteLine(String.Format("Parameters '{0}' and '{1}' are mutually exclusive in cruncher engine '{2}'", 
+            tuple.Item1.Name, tuple.Item2.Name, engine));
+          System.Environment.Exit(1);
+        }  
+      }
     }
     
     private int GetErrorLimitValue(Dictionary<string, string> parameters)
@@ -259,5 +285,6 @@ namespace GPUVerify
       }
       return -1;
     }
-  }   
+  }  
+  
 }

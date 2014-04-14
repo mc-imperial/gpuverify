@@ -57,9 +57,19 @@ namespace Microsoft.Boogie
       this.UnderApproximating = underApproximating;
     }
     
+    public static List<EngineParameter> GetAllowedParameters()
+    {
+      return new List<EngineParameter>();
+    }
+    
     public static List<EngineParameter> GetRequiredParameters()
     {
       return new List<EngineParameter>();
+    }
+    
+    public static List<Tuple<EngineParameter, EngineParameter>> GetMutuallyExclusiveParameters()
+    {
+      return new List<Tuple<EngineParameter, EngineParameter>>();
     }
     
     public abstract void Print();
@@ -89,7 +99,7 @@ namespace Microsoft.Boogie
       return ErrorLimitParameter;
     }    
     
-    public static List<EngineParameter> GetAllowedParameters()
+    public new static List<EngineParameter> GetAllowedParameters()
     {
       return new List<EngineParameter>{ GetSolverParameter(), GetErrorLimitParameter() };
     }
@@ -222,6 +232,14 @@ namespace Microsoft.Boogie
       allowedParams.Add(GetSlidingLimitParameter());
       return allowedParams;
     }
+    
+    // Override static method from base class
+    public new static List<Tuple<EngineParameter, EngineParameter>> GetMutuallyExclusiveParameters()
+    {
+      return new List<Tuple<EngineParameter, EngineParameter>> { 
+        Tuple.Create<EngineParameter, EngineParameter>(GetDelayParameter(), GetSlidingSecondsParameter()),
+        Tuple.Create<EngineParameter, EngineParameter>(GetDelayParameter(), GetSlidingLimitParameter())};
+    }
   
     public int Delay { get; set; }
     public int SlidingSeconds { get; set; }
@@ -324,10 +342,13 @@ namespace Microsoft.Boogie
       return LoopEscapingParameter;
     }
     
-    public static List<EngineParameter> GetAllowedParameters()
+    public new static List<EngineParameter> GetAllowedParameters()
     {
       return new List<EngineParameter> { GetLoopHeaderLimitParameter(), GetLoopEscapingParameter() };
     }
+    
+    public int LoopHeaderLimit { get; set; }
+    public int LoopEscape { get; set; }
   
     public DynamicAnalysis ():
       base(Int32.MaxValue, true)
