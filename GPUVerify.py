@@ -12,6 +12,7 @@ import multiprocessing # Only for determining number of CPU cores available
 import getversion
 import pprint
 from collections import defaultdict
+import copy
 
 # To properly kill child processes cross platform
 try:
@@ -319,9 +320,9 @@ class ldict(dict):
       raise AttributeError, method_name
 
 def parse_args(argv):
-    parser = GPUVerifyArgumentParser(description="GPUVerify frontend")
+    parser = GPUVerifyArgumentParser(description="GPUVerify frontend", usage="gpuverify [options] <kernel>")
 
-    parser.add_argument("kernel", type=file, help="a kernel to verify")
+    parser.add_argument("kernel", nargs='?', type=file, help="a kernel to verify") # nargs='?' because of needing to put KI in this script
 
     general = parser.add_argument_group("GENERAL OPTIONS")
 
@@ -361,8 +362,8 @@ def parse_args(argv):
     sizing.add_argument("--global_size=", dest='global_size', type=dimensions, help="Specify whether the NDRange is 1D, 2D, or 3D, and specify size for each dimension. This corresponds to the `global_work_size` parameter of `clEnqueueNDRangeKernel`. Use * for an unconstrained value")
     numg.add_argument("--num_groups=",    dest='num_groups',  type=dimensions, help="Specify whether a grid of work-groups is 1D, 2D, or 3D, and specify size for each dimension. Use * for an unconstrained value")
 
-    lsize.add_argument("--blockDim=",     dest='group_size',  type=dimensions, help="Specify whether a thhread block is 1D, 2D, or 3D, and specify size for each dimension. Use * for an unconstrained value.")
-    numg.add_argument("--gridDim=",       dest='num_groups',  type=dimensions, help="Specify whether grid of thread blocks is 1D, 2D, or 3D, and specify size for each dimension. Use * for an unconstrained value")
+    lsize.add_argument("--blockDim=",     dest='group_size',  type=dimensions, help="Specify thread block size. Synonym for --local_size")
+    numg.add_argument("--gridDim=",       dest='num_groups',  type=dimensions, help="Specify grid of thread blocks. Synonym for --num_groups")
 
     advanced = parser.add_argument_group("ADVANCED OPTIONS")
 
@@ -442,10 +443,67 @@ def parse_args(argv):
     undocumented.add_argument("--dynamic-error-limit=", type=non_negative, default=0)
     undocumented.add_argument("--debug-houdini", action='store_true')
 
+    interceptor = parser.add_argument_group("BATCH PROCESSING")
+    interceptor.add_argument("--show-intercepted", action='store_true')
+    interceptor.add_argument("--check-intercepted=", type=non_negative, metavar="X")
+    interceptor.add_argument("--check-all-intercepted", action='store_true')
+
+    if len(argv) == 0:
+      argv = [ '--help' ]
+
     args = vars(parser.parse_args(argv))
 
     # Technically unnecessary but I like it prettier
     args = ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in args.iteritems())
+
+    args['batch_mode'] = any(args[x] for x in ['show_intercepted','check_intercepted','check_all_intercepted'])
+
+    if not args['batch_mode']:
+      if not args['kernel']:
+        parser.error("Must provide a kernel for normal mode")
+      name = args['kernel'].name
+      _unused,ext = SplitFilenameExt(name)
+    
+      starts = defaultdict(lambda : "clang", { '.bc': "opt", '.opt.bc': "bugle", '.gbpl': "vcgen", '.bpl.': "cruncher", '.cbpl': "boogie" })
+      args['start'] = starts[ext]
+
+      if not args['stop']:
+        args['stop'] = "boogie"
+
+      if not args['source_language']:
+        if ext == '.cl':
+          args['source_language'] = SourceLanguage.OpenCL
+        elif ext == '.cu':
+          args['source_language'] = SourceLanguage.CUDA
+        else:
+          if ext == '.bc':
+            proc = subprocess.Popen([gvfindtools.llvmBinDir + "/llvm-nm", name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            lines,stderr = proc.communicate()
+          else:
+            lines = ''.join(args['kernel'].readlines())
+          if any(x in lines for x in ["get_local_size","get_global_size","__kernel"]):
+            args['source_language'] = SourceLanguage.OpenCL
+          elif "blockDim" in lines:
+            args['source_language'] = SourceLanguage.CUDA
+          else:
+            parser.error("Could not infer source language")
+
+      # Use '//' to ensure flooring division for Python3
+      if args['num_groups'] and args['global_size']:
+        parser.error("--num_groups and --global_size are mutually exclusive.")
+      elif args['group_size'] and args['global_size']:
+        if len(args['group_size']) != len(args['global_size']):
+          parser.error("Dimensions of --local_size and --global_size must match.")
+        args['num_groups'] = [(a//b) for (a,b) in zip(args['global_size'],args['group_size'])]
+        for i in (i for (a,b,c,i) in zip(args.num_groups,args.group_size,args.global_size,range(len(args.num_groups))) if a * b != c):
+          parser.error("Dimension " + str(i) + " of global_size does not divide by the same dimension in local_size")
+      elif args['group_size'] and args['num_groups']:
+        pass
+      else:
+        parser.error("Not enough size arguments")
+
+      if args['verbose']:
+        print("Got {} groups of size {}".format("x".join(map(str,args['num_groups'])), "x".join(map(str,args['group_size']))))
 
     if not args['size_t']:
         args['size_t'] = 32
@@ -457,51 +515,6 @@ def parse_args(argv):
 
     if not args['mode']:
         args['mode'] = AnalysisMode.ALL
-
-    name = args['kernel'].name
-    _unused,ext = SplitFilenameExt(name)
-    
-    starts = defaultdict(lambda : "clang", { '.bc': "opt", '.opt.bc': "bugle", '.gbpl': "vcgen", '.bpl.': "cruncher", '.cbpl': "boogie" })
-    args['start'] = starts[ext]
-
-    if not args['stop']:
-        args['stop'] = "boogie"
-
-    if not args['source_language']:
-        if ext == '.cl':
-            args['source_language'] = SourceLanguage.OpenCL
-        elif ext == '.cu':
-            args['source_language'] = SourceLanguage.CUDA
-        else:
-            if ext == '.bc':
-                proc = subprocess.Popen([gvfindtools.llvmBinDir + "/llvm-nm", name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-                lines,stderr = proc.communicate()
-            else:
-                lines = args['kernel'].readlines()
-            if "get_local_size" in lines:
-                args['source_language'] = SourceLanguage.OpenCL
-            elif "blockDim" in lines:
-                args['source_language'] = SourceLanguage.CUDA
-            else:
-                parser.error("Could not infer source language")
-
-    # Use '//' to ensure flooring division for Python3
-    if args['num_groups'] and args['global_size']:
-      parser.error("--num_groups and --global_size are mutually exclusive.")
-    elif args['group_size'] and args['global_size']:
-      if len(args['group_size']) != len(args['global_size']):
-        parser.error("Dimensions of --local_size and --global_size must match.")
-      args['num_groups'] = [(a//b) for (a,b) in zip(args['global_size'],args['group_size'])]
-      for i in xrange(len(args['group_size'])):
-        if args['num_groups'][i] * args['group_size'][i] != args['global_size'][i]:
-          parser.error("Dimension " + str(i) + " of global_size does not divide by the same dimension in local_size")
-    elif args['group_size'] and args['num_groups']:
-      pass
-    else:
-      parser.error("Not enough size arguments")
-
-    if args['verbose']:
-      print("Got {} groups of size {}".format("x".join(map(str,args['num_groups'])), "x".join(map(str,args['group_size']))))
 
     return args
 
@@ -517,7 +530,7 @@ def params (string):
   string = string.strip()
   string = string[1:-1] if string[0]+string[-1] == "[]" else string
   values = string.split(",")
-  values = values[0] + map(lambda x: x if x == '*' else int(x), values[1:])
+  values = values[:1] + map(lambda x: x if x == '*' else int(x), values[1:])
   return values
 
 def non_negative (string):
@@ -531,7 +544,7 @@ def non_negative (string):
 
 
 def processOptions(args):
-  CommandLineOptions = DefaultCmdLineOptions()
+  CommandLineOptions = copy.deepcopy(DefaultCmdLineOptions())
   _f, ext = SplitFilenameExt(args['kernel'].name)
   if ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
     CommandLineOptions.skip["clang"] = True
@@ -565,7 +578,7 @@ def processOptions(args):
   CommandLineOptions.boogieOptions += sum([a.split(" ") for a in args['boogie_options'] or []],[])
   
   CommandLineOptions.vcgenOptions += ["/noCandidate:"+a for a in args['omit_infer'] or []]
-  CommandLineOptions.vcgenOptions += [ "/params:" + args['params'] ] if args['params'] else []
+  CommandLineOptions.vcgenOptions += [ "/params:" + ','.join(map(str,args['params'])) ] if args['params'] else []
 
   CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file'] or []] or []
   CommandLineOptions.invInferConfigFile = args['infer_config_file'] or "inference.cfg"
@@ -677,14 +690,13 @@ class GPUVerifyInstance (object):
       if not args.stop == 'cruncher': cleanUpHandler.register(DeleteFile, cbplFilename)
       if not args.stop == 'vcgen': cleanUpHandler.register(DeleteFile, bplFilename)
 
-    CommandLineOptions.clangOptions.append("-o")
-    CommandLineOptions.clangOptions.append(bcFilename)
-    CommandLineOptions.clangOptions.append(filename + ext)
+    CommandLineOptions.clangOptions += ["-o", bcFilename]
+    CommandLineOptions.clangOptions += ["-x", "cl" if args.source_language == SourceLanguage.OpenCL else "cuda", (filename + ext)]
 
     CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
-    if ext in [ ".cl", ".cu" ]:
-      CommandLineOptions.bugleOptions += [ "-l", "cl" if ext == ".cl" else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
+    if args.start == 'clang':
+      CommandLineOptions.bugleOptions += [ "-l", "cl" if args.source_language == SourceLanguage.OpenCL else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
     elif not CommandLineOptions.skip['bugle']:
       lang = args.bugle_lang
       if not lang: # try to infer
@@ -1059,6 +1071,53 @@ class GPUVerifyInstance (object):
       else:
         print("- no tools ran")
 
+def subtool_args (args):
+  pass_flags = { 'verbose': "--verbose", 'debug': "--debug" }
+#, 'clang_options', 'opt_options', 'bugle_options', 'cruncher_options', 'boogie_options']
+  return [pass_flags[x] for x,v in args.iteritems() if v and (x in pass_flags)]
+
+def do_batch_mode (args):
+
+  kernels = []
+  for path, subdirs, files in os.walk(".gpuverify"):
+    kernels += map(lambda x: path+os.sep+x, files)
+  kernels = sorted(kernels)
+
+  def parse_file (file):
+    code = [x.rstrip() for x in file.readlines()]
+    k_args = filter(lambda x: x != "", code[0][len("//"):].split(" "))
+    opts = filter(lambda x: x != "", code[1][len("//"):].split(" "))
+    return code,k_args,opts
+
+  if args.show_intercepted:
+    for index,file_name in enumerate(kernels):
+      with open(file_name) as file:
+        code,k_args,opts = parse_file(file)
+        built = code[2][len("//"):]
+        ran = code[3][len("//"):]
+        print("["+str(index)+"] " + file_name+": " + ' '.join(k_args))
+        print(built)
+        print(ran)
+
+  if args.check_intercepted:
+    with open(kernels[args.check_intercepted]) as file:
+      code,k_args,opts = parse_file(file)
+      main(parse_args(subtool_args(args) + k_args + opts + [file.name]))
+
+  if args.check_all_intercepted:
+    for f in kernels:
+      with open(f) as file:
+        code,k_args,opts = parse_file(file)
+        my_args = subtool_args(args) + k_args + opts + [f]
+        print(my_args)
+        try:
+          main(parse_args(my_args))
+        except GPUVerifyException as e:
+          print(str(e), file=sys.stderr)
+        except KeyboardInterrupt:
+          raise
+
+
 def main(argv):
   """ This wraps GPUVerify's real main function so
       that we can handle exceptions and trigger our own exit
@@ -1122,7 +1181,10 @@ if __name__ == '__main__':
   try:
     args = parse_args(sys.argv[1:])
     debug = args.debug
-    main(args)
+    if args.batch_mode:
+      do_batch_mode(args)
+    else:
+      main(args)
   except GPUVerifyException as e:
     # We assume that globals are not cleaned up when running as a script so it 
     # is safe to read CommandLineOptions
