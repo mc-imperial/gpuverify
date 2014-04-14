@@ -22,9 +22,13 @@ namespace Microsoft.Boogie
   using VC;
   
   // This class allows us to parameterise each engine with specific values
-  public class EngineParameter<T>
+  public abstract class EngineParameter
   {
     public string Name { get; set; }
+  }
+  
+  public class EngineParameter<T> : EngineParameter
+  {
     public T DefaultValue { get; set; }
     private List<T> AllowedValues;
     
@@ -51,6 +55,11 @@ namespace Microsoft.Boogie
     {
       this.ID = ID;
       this.UnderApproximating = underApproximating;
+    }
+    
+    public static List<EngineParameter> GetRequiredParameters()
+    {
+      return new List<EngineParameter>();
     }
     
     public abstract void Print();
@@ -80,13 +89,18 @@ namespace Microsoft.Boogie
       return ErrorLimitParameter;
     }    
     
-	public string Solver { get; set; }
+    public static List<EngineParameter> GetAllowedParameters()
+    {
+      return new List<EngineParameter>{ GetSolverParameter(), GetErrorLimitParameter() };
+    }
+    
+	  public string Solver { get; set; }
     public int ErrorLimit { get; set; }
     
     public SMTEngine (int ID, bool underApproximating, string solver, int errorLimit) :
       base (ID, underApproximating)
     {
-	  this.Solver = solver;
+	    this.Solver = solver;
       this.ErrorLimit = errorLimit;
       CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
       CommandLineOptions.Clo.Cho[this.ID].ProverCCLimit = this.ErrorLimit;
@@ -173,6 +187,8 @@ namespace Microsoft.Boogie
   // Engine representing vanilla Houdini
   public class VanillaHoudini : SMTEngine
   {
+    public static string Name = "HOUDINI";
+    
     private static EngineParameter<int> DelayParameter;
     public static EngineParameter<int> GetDelayParameter()
     {
@@ -185,7 +201,7 @@ namespace Microsoft.Boogie
     public static EngineParameter<int> GetSlidingSecondsParameter()
     {
       if (SlidingSecondsParameter == null)
-        SlidingSecondsParameter = new EngineParameter<int>("slidingseconds", 2);
+        SlidingSecondsParameter = new EngineParameter<int>("slidingseconds", 0);
       return SlidingSecondsParameter;
     }
     
@@ -193,8 +209,18 @@ namespace Microsoft.Boogie
     public static EngineParameter<int> GetSlidingLimitParameter()
     {
       if (SlidingLimitParameter == null)
-        SlidingLimitParameter = new EngineParameter<int>("slidinglimit", 2);
+        SlidingLimitParameter = new EngineParameter<int>("slidinglimit", 1);
       return SlidingLimitParameter;
+    }
+    
+    // Override static method from base class
+    public new static List<EngineParameter> GetAllowedParameters()
+    {
+      List<EngineParameter> allowedParams = SMTEngine.GetAllowedParameters();
+      allowedParams.Add(GetDelayParameter());
+      allowedParams.Add(GetSlidingSecondsParameter());
+      allowedParams.Add(GetSlidingLimitParameter());
+      return allowedParams;
     }
   
     public int Delay { get; set; }
@@ -204,15 +230,17 @@ namespace Microsoft.Boogie
     public VanillaHoudini (int ID, string solver, int errorLimit):
       base(ID, false, solver, errorLimit)
     {
-       this.Delay = VanillaHoudini.GetDelayParameter().DefaultValue;
-       this.SlidingSeconds = VanillaHoudini.GetSlidingSecondsParameter().DefaultValue;
-       this.SlidingLimit = VanillaHoudini.GetSlidingLimitParameter().DefaultValue;
+       this.Delay = GetDelayParameter().DefaultValue;
+       this.SlidingSeconds = GetSlidingSecondsParameter().DefaultValue;
+       this.SlidingLimit = GetSlidingLimitParameter().DefaultValue;
     }
   }
   
   // Engine where asserts are NOT maintained in the base step
   public class SSTEP : SMTEngine
   {
+    public static string Name = "SSTEP";
+    
     public SSTEP (int ID, string solver, int errorLimit):
       base(ID, true, solver, errorLimit)
     {
@@ -223,6 +251,8 @@ namespace Microsoft.Boogie
   // Engine where asserts are NOT maintained in the induction step
   public class SBASE : SMTEngine
   {
+    public static string Name = "SBASE";
+    
     public SBASE (int ID, string solver = "Z3", int errorLimit = 20):
       base(ID, true, solver, errorLimit)
     {
@@ -233,6 +263,8 @@ namespace Microsoft.Boogie
   // Engine based on loop unrolling to a specific depth
   public class LU : SMTEngine
   {
+    public static string Name = "LU";
+    
     private static EngineParameter<int> UnrollParameter;
     public static EngineParameter<int> GetUnrollParameter()
     {
@@ -240,6 +272,22 @@ namespace Microsoft.Boogie
         UnrollParameter = new EngineParameter<int>("unroll", 1);
       return UnrollParameter;
     }   
+    
+    // Override static method from base class
+    public new static List<EngineParameter> GetAllowedParameters()
+    {
+      List<EngineParameter> allowedParams = SMTEngine.GetAllowedParameters();
+      allowedParams.Add(GetUnrollParameter());
+      return allowedParams;
+    }
+    
+    // Override static method from base class
+    public new static List<EngineParameter> GetRequiredParameters()
+    {
+      List<EngineParameter> requiredParams = SMTEngine.GetRequiredParameters();
+      requiredParams.Add(GetUnrollParameter());
+      return requiredParams;
+    }
   
     public int UnrollFactor { get; set; }
   
@@ -258,6 +306,8 @@ namespace Microsoft.Boogie
   // Engines based on dynamic analysis
   public class DynamicAnalysis : Engine
   {
+    public static string Name = "DYNAMIC";
+    
     private static EngineParameter<int> LoopHeaderLimitParameter;
     public static EngineParameter<int> GetLoopHeaderLimitParameter()
     {
@@ -272,6 +322,11 @@ namespace Microsoft.Boogie
       if (LoopEscapingParameter == null)
         LoopEscapingParameter = new EngineParameter<int>("loopescaping", 0);
       return LoopEscapingParameter;
+    }
+    
+    public static List<EngineParameter> GetAllowedParameters()
+    {
+      return new List<EngineParameter> { GetLoopHeaderLimitParameter(), GetLoopEscapingParameter() };
     }
   
     public DynamicAnalysis ():

@@ -70,22 +70,31 @@ namespace GPUVerify
     }
     
     private void ParsePipelineString (string pipelineStr)
-	{
-      Debug.Assert (pipelineStr[0] == '[' && pipelineStr[pipelineStr.Length - 1] == ']');
-      
-      const string houdini = "houdini";
-      const string sstep = "sstep";
-      const string sbase = "sbase";
-      const string lu = "lu";
-      const string dynamic = "dynamic";
-      
-      string[] engines = pipelineStr.Substring(1, pipelineStr.Length - 2).Split('-');
-	  foreach (string engine in engines) 
+	  {
+      const char lhsDelimiter = '[';
+      const char rhsDelimiter = ']';
+      const char engineDelimiter = '-';
+      Debug.Assert (pipelineStr[0] == lhsDelimiter && pipelineStr[pipelineStr.Length - 1] == rhsDelimiter);
+      string[] engines = pipelineStr.Substring(1, pipelineStr.Length - 2).Split(engineDelimiter);
+	    foreach (string engineStr in engines) 
       {
-        if (engine.ToLower().StartsWith(houdini)) 
+        int lhsDelimiterIdx = engineStr.IndexOf(lhsDelimiter);
+        string engine;
+        if (lhsDelimiterIdx != -1)
         {
-          string parameterStr = engine.Substring(houdini.Length);
-          Dictionary<string, string> parameters = GetParameters(parameterStr);
+          engine = engineStr.Substring(0, lhsDelimiterIdx);
+        }
+        else
+        {
+          engine = engineStr; 
+        }
+        if (engine.ToUpper().Equals(VanillaHoudini.Name)) 
+        {
+          string parameterStr = engineStr.Substring(VanillaHoudini.Name.Length);
+          Dictionary<string, string> parameters = GetParameters(VanillaHoudini.Name, 
+                                                                VanillaHoudini.GetAllowedParameters(), 
+                                                                VanillaHoudini.GetRequiredParameters(), 
+                                                                parameterStr);
           
           // The user wants to override Houdini settings used in the cruncher
           VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(), 
@@ -108,40 +117,47 @@ namespace GPUVerify
             // Spawn new Houdini engines until this x limit has been reached
             houdiniEngine.SlidingLimit = ParseIntParameter(parameters, VanillaHoudini.GetSlidingLimitParameter().Name);
           }
+                    
+          if (parameters.ContainsKey(VanillaHoudini.GetDelayParameter().Name) && 
+              parameters.ContainsKey(VanillaHoudini.GetSlidingSecondsParameter().Name))
+          {
+            Console.WriteLine(String.Format("Parameters '{0}' and '{1}' are mutually exclsuive", 
+                              VanillaHoudini.GetDelayParameter().Name, VanillaHoudini.GetSlidingSecondsParameter().Name));
+            System.Environment.Exit(1);
+          }
         }
-        else if (engine.ToLower().StartsWith(sbase)) 
+        else if (engine.ToUpper().Equals(SBASE.Name)) 
         {
-          string parameterStr = engine.Substring(sbase.Length);
-          Dictionary<string, string> parameters = GetParameters(parameterStr);
+          string parameterStr = engineStr.Substring(SBASE.Name.Length);
+          Dictionary<string, string> parameters = GetParameters(SBASE.Name, SBASE.GetAllowedParameters(), SBASE.GetRequiredParameters(), parameterStr);
           Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(), 
                                        GetSolverValue(parameters), 
                                        GetErrorLimitValue(parameters)));
-		}
-		else if (engine.ToLower().StartsWith(sstep))
+		    }
+		    else if (engine.ToUpper().Equals(SSTEP.Name))
         {
-          string parameterStr = engine.Substring(sstep.Length);
-          Dictionary<string, string> parameters = GetParameters(parameterStr);
+          string parameterStr = engineStr.Substring(SSTEP.Name.Length);
+          Dictionary<string, string> parameters = GetParameters(SSTEP.Name, SSTEP.GetAllowedParameters(), SSTEP.GetRequiredParameters(), parameterStr);
           Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(), 
                                        GetSolverValue(parameters), 
                                        GetErrorLimitValue(parameters)));
         }
-        else if (engine.ToLower().StartsWith(lu))
+        else if (engine.ToUpper().Equals(LU.Name))
         {
-          string parameterStr = engine.Substring(lu.Length);
-          Dictionary<string, string> parameters = GetParameters(parameterStr);
-          if (!parameters.ContainsKey(LU.GetUnrollParameter().Name))
-          {  
-            Console.WriteLine(String.Format("For LU you must supply the parameter '{0}'", LU.GetUnrollParameter().Name));
-            System.Environment.Exit(1);
-          }
+          string parameterStr = engineStr.Substring(LU.Name.Length);
+          Dictionary<string, string> parameters = GetParameters(LU.Name, LU.GetAllowedParameters(), LU.GetRequiredParameters(), parameterStr);
           Pipeline.AddEngine(new LU(Pipeline.GetNextSMTEngineID(), 
                                     GetSolverValue(parameters), 
                                     GetErrorLimitValue(parameters),
                                     ParseIntParameter(parameters, LU.GetUnrollParameter().Name)));
         }
-        else if (engine.ToLower().Equals(dynamic))
+        else if (engine.ToUpper().Equals(DynamicAnalysis.Name))
         {
-            Pipeline.AddEngine(new DynamicAnalysis());
+          string parameterStr = engineStr.Substring(DynamicAnalysis.Name.Length);
+          Dictionary<string, string> parameters = GetParameters(DynamicAnalysis.Name, 
+                                                                DynamicAnalysis.GetAllowedParameters(), 
+                                                                DynamicAnalysis.GetRequiredParameters(), parameterStr);
+          Pipeline.AddEngine(new DynamicAnalysis());
         }
         else
         {
@@ -151,7 +167,10 @@ namespace GPUVerify
       }
     } 
     
-    private Dictionary<string, string> GetParameters(string parameterStr)
+    private Dictionary<string, string> GetParameters(string engineName,
+                                                     List<EngineParameter> allowedParams, 
+                                                     List<EngineParameter> requiredParams, 
+                                                     string parameterStr)
     {
       Dictionary<string, string> map = new Dictionary<string, string>();
       if (parameterStr.Length > 0)
@@ -162,8 +181,22 @@ namespace GPUVerify
         {
           string[] values = param.Split('=');
           Debug.Assert(values.Length == 2);
-          map[values[0]] = values[1].ToLower();
+          string paramName = values[0];
+          if (allowedParams.Find(item => item.Name.Equals(paramName)) == null)
+          {
+            Console.WriteLine(String.Format("Parameter '{0}' is not valid for cruncher engine '{1}'", paramName, engineName));
+            System.Environment.Exit(1);
+          }
+          map[paramName] = values[1].ToLower();
         }
+      }
+      foreach (EngineParameter param in requiredParams)
+      {
+        if (!map.ContainsKey(param.Name))
+        {
+          Console.WriteLine(String.Format("For cruncher engine '{0}' you must supply parameter '{1}'", engineName, param.Name));
+          System.Environment.Exit(1);
+        }  
       }
       return map;
     }
