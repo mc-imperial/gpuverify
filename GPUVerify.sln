@@ -124,6 +124,8 @@ Global
 		StartupItem = GPUVerifyVCGen\GPUVerifyVCGen.csproj
 		Policies = $0
 		$0.TextStylePolicy = $1
+		$1.TabWidth = 2
+		$1.IndentWidth = 2
 		$1.inheritsSet = VisualStudio
 		$1.inheritsScope = text/plain
 		$1.scope = text/x-csharp

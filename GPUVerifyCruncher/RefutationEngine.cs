@@ -19,6 +19,31 @@ namespace Microsoft.Boogie
   using System.Linq;  
   using System.Threading;
   using System.Threading.Tasks;
+  using VC;
+  
+  // This class allows us to parameterise each engine with specific values
+  public abstract class EngineParameter
+  {
+    public string Name { get; set; }
+  }
+  
+  public class EngineParameter<T> : EngineParameter
+  {
+    public T DefaultValue { get; set; }
+    private List<T> AllowedValues;
+    
+    public EngineParameter(string name, T defaultValue, List<T> allowedValues = null)
+    {
+      this.Name = name;
+      this.DefaultValue = defaultValue;
+      this.AllowedValues = allowedValues;
+    }
+    
+    public bool IsValidValue (T value)
+    {
+      return AllowedValues.Contains(value);
+    }
+  }
   
   // Abstract class from which all engines inherit
   public abstract class Engine
@@ -32,6 +57,21 @@ namespace Microsoft.Boogie
       this.UnderApproximating = underApproximating;
     }
     
+    public static List<EngineParameter> GetAllowedParameters()
+    {
+      return new List<EngineParameter>();
+    }
+    
+    public static List<EngineParameter> GetRequiredParameters()
+    {
+      return new List<EngineParameter>();
+    }
+    
+    public static List<Tuple<EngineParameter, EngineParameter>> GetMutuallyExclusiveParameters()
+    {
+      return new List<Tuple<EngineParameter, EngineParameter>>();
+    }
+    
     public abstract void Print();
   }
   
@@ -42,19 +82,35 @@ namespace Microsoft.Boogie
     
     public static string CVC4 = "cvc4";
     public static string Z3 = "z3";
-    public static string SolverParam = "solver";
-    public static string ErrorLimitParam = "errorlimit";
     
-    public static string DefaultSolver = Z3;
-    public static int DefaultErrorLimit = 20;
+    private static EngineParameter<string> SolverParameter;
+    public static EngineParameter<string> GetSolverParameter()
+    {
+      if (SolverParameter == null)
+        SolverParameter = new EngineParameter<string>("solver", Z3, new List<string>{Z3, CVC4});
+      return SolverParameter;
+    }
     
-	public string Solver { get; set; }
+    private static EngineParameter<int> ErrorLimitParameter;
+    public static EngineParameter<int> GetErrorLimitParameter()
+    {
+      if (ErrorLimitParameter == null)
+        ErrorLimitParameter = new EngineParameter<int>("errorlimit", 20);
+      return ErrorLimitParameter;
+    }    
+    
+    public new static List<EngineParameter> GetAllowedParameters()
+    {
+      return new List<EngineParameter>{ GetSolverParameter(), GetErrorLimitParameter() };
+    }
+    
+	  public string Solver { get; set; }
     public int ErrorLimit { get; set; }
     
     public SMTEngine (int ID, bool underApproximating, string solver, int errorLimit) :
       base (ID, underApproximating)
     {
-	  this.Solver = solver;
+	    this.Solver = solver;
       this.ErrorLimit = errorLimit;
       CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
       CommandLineOptions.Clo.Cho[this.ID].ProverCCLimit = this.ErrorLimit;
@@ -82,7 +138,7 @@ namespace Microsoft.Boogie
       }
         
       if (CommandLineOptions.Clo.Trace)
-        Console.WriteLine(this.GetType().Name + " started crunching");
+        Console.WriteLine("[CRUNCHER] Engine " + this.GetType().Name + " started");
       
       ModifyProgramBeforeCrunch(program);
       
@@ -100,7 +156,7 @@ namespace Microsoft.Boogie
       }
         
       if (CommandLineOptions.Clo.Trace) 
-        Console.WriteLine(this.GetType().Name + " finished crunching");
+        Console.WriteLine("[CRUNCHER] Engine " + this.GetType().Name + " finished");
       
       OutputResults(outcome, houdiniStats);
       
@@ -141,15 +197,68 @@ namespace Microsoft.Boogie
   // Engine representing vanilla Houdini
   public class VanillaHoudini : SMTEngine
   {
-    public VanillaHoudini (int ID, string solver, int errorLimit):
-    base(ID, false, solver, errorLimit)
+    public static string Name = "HOUDINI";
+    
+    private static EngineParameter<int> DelayParameter;
+    public static EngineParameter<int> GetDelayParameter()
     {
+      if (DelayParameter == null)
+        DelayParameter = new EngineParameter<int>("delay", 0);
+      return DelayParameter;
+    }
+    
+    private static EngineParameter<int> SlidingSecondsParameter;
+    public static EngineParameter<int> GetSlidingSecondsParameter()
+    {
+      if (SlidingSecondsParameter == null)
+        SlidingSecondsParameter = new EngineParameter<int>("slidingseconds", 0);
+      return SlidingSecondsParameter;
+    }
+    
+    private static EngineParameter<int> SlidingLimitParameter;
+    public static EngineParameter<int> GetSlidingLimitParameter()
+    {
+      if (SlidingLimitParameter == null)
+        SlidingLimitParameter = new EngineParameter<int>("slidinglimit", 1);
+      return SlidingLimitParameter;
+    }
+    
+    // Override static method from base class
+    public new static List<EngineParameter> GetAllowedParameters()
+    {
+      List<EngineParameter> allowedParams = SMTEngine.GetAllowedParameters();
+      allowedParams.Add(GetDelayParameter());
+      allowedParams.Add(GetSlidingSecondsParameter());
+      allowedParams.Add(GetSlidingLimitParameter());
+      return allowedParams;
+    }
+    
+    // Override static method from base class
+    public new static List<Tuple<EngineParameter, EngineParameter>> GetMutuallyExclusiveParameters()
+    {
+      return new List<Tuple<EngineParameter, EngineParameter>> { 
+        Tuple.Create<EngineParameter, EngineParameter>(GetDelayParameter(), GetSlidingSecondsParameter()),
+        Tuple.Create<EngineParameter, EngineParameter>(GetDelayParameter(), GetSlidingLimitParameter())};
+    }
+  
+    public int Delay { get; set; }
+    public int SlidingSeconds { get; set; }
+    public int SlidingLimit { get; set; } 
+  
+    public VanillaHoudini (int ID, string solver, int errorLimit):
+      base(ID, false, solver, errorLimit)
+    {
+       this.Delay = GetDelayParameter().DefaultValue;
+       this.SlidingSeconds = GetSlidingSecondsParameter().DefaultValue;
+       this.SlidingLimit = GetSlidingLimitParameter().DefaultValue;
     }
   }
   
   // Engine where asserts are NOT maintained in the base step
   public class SSTEP : SMTEngine
   {
+    public static string Name = "SSTEP";
+    
     public SSTEP (int ID, string solver, int errorLimit):
       base(ID, true, solver, errorLimit)
     {
@@ -160,6 +269,8 @@ namespace Microsoft.Boogie
   // Engine where asserts are NOT maintained in the induction step
   public class SBASE : SMTEngine
   {
+    public static string Name = "SBASE";
+    
     public SBASE (int ID, string solver = "Z3", int errorLimit = 20):
       base(ID, true, solver, errorLimit)
     {
@@ -170,12 +281,36 @@ namespace Microsoft.Boogie
   // Engine based on loop unrolling to a specific depth
   public class LU : SMTEngine
   {
-    public int UnrollFactor { get; set; }
+    public static string Name = "LU";
     
-    public static string UnrollParam = "unroll";
+    private static EngineParameter<int> UnrollParameter;
+    public static EngineParameter<int> GetUnrollParameter()
+    {
+      if (UnrollParameter == null)
+        UnrollParameter = new EngineParameter<int>("unroll", 1);
+      return UnrollParameter;
+    }   
+    
+    // Override static method from base class
+    public new static List<EngineParameter> GetAllowedParameters()
+    {
+      List<EngineParameter> allowedParams = SMTEngine.GetAllowedParameters();
+      allowedParams.Add(GetUnrollParameter());
+      return allowedParams;
+    }
+    
+    // Override static method from base class
+    public new static List<EngineParameter> GetRequiredParameters()
+    {
+      List<EngineParameter> requiredParams = SMTEngine.GetRequiredParameters();
+      requiredParams.Add(GetUnrollParameter());
+      return requiredParams;
+    }
   
-    public LU (int ID, int unrollFactor, string solver, int errorLimit):
-    base(ID, true, solver, errorLimit)
+    public int UnrollFactor { get; set; }
+  
+    public LU (int ID, string solver, int errorLimit, int unrollFactor):
+      base(ID, true, solver, errorLimit)
     {
       this.UnrollFactor = unrollFactor;
     }
@@ -189,8 +324,34 @@ namespace Microsoft.Boogie
   // Engines based on dynamic analysis
   public class DynamicAnalysis : Engine
   {
+    public static string Name = "DYNAMIC";
+    
+    private static EngineParameter<int> LoopHeaderLimitParameter;
+    public static EngineParameter<int> GetLoopHeaderLimitParameter()
+    {
+      if (LoopHeaderLimitParameter == null)
+        LoopHeaderLimitParameter = new EngineParameter<int>("headerlimit", 1000);
+      return LoopHeaderLimitParameter;
+    }
+    
+    private static EngineParameter<int> LoopEscapingParameter;
+    public static EngineParameter<int> GetLoopEscapingParameter()
+    {
+      if (LoopEscapingParameter == null)
+        LoopEscapingParameter = new EngineParameter<int>("loopescaping", 0);
+      return LoopEscapingParameter;
+    }
+    
+    public new static List<EngineParameter> GetAllowedParameters()
+    {
+      return new List<EngineParameter> { GetLoopHeaderLimitParameter(), GetLoopEscapingParameter() };
+    }
+    
+    public int LoopHeaderLimit { get; set; }
+    public int LoopEscape { get; set; }
+  
     public DynamicAnalysis ():
-    base(Int32.MaxValue, true)
+      base(Int32.MaxValue, true)
     {
     }
     
@@ -211,6 +372,7 @@ namespace Microsoft.Boogie
     }
   }
   
+  // The pipeline of engines
   public class Pipeline
   {
     public bool Sequential { get; set;}
@@ -225,6 +387,7 @@ namespace Microsoft.Boogie
       this.houdiniDelay = 0;
     }
     
+    // Adds Houdini to the pipeline if the user has not done so
     public void AddHoudiniEngine()
     {
       foreach (Engine engine in Engines)
@@ -234,7 +397,9 @@ namespace Microsoft.Boogie
       }
       if (houdiniEngine == null)
       {
-        houdiniEngine = new VanillaHoudini(GetNextSMTEngineID(), SMTEngine.DefaultSolver, SMTEngine.DefaultErrorLimit);
+        houdiniEngine = new VanillaHoudini(GetNextSMTEngineID(), 
+                                           SMTEngine.GetSolverParameter().DefaultValue, 
+                                           SMTEngine.GetErrorLimitParameter().DefaultValue);
         Engines.Add(houdiniEngine);
       }
     }
@@ -265,27 +430,51 @@ namespace Microsoft.Boogie
     }
   }
   
+  // The pipeline scheduler
   public class Scheduler
   {
     private List<string> FileNames;
+    public int ErrorCode;
     
     public Scheduler(List<string> fileNames)
     {
       this.FileNames = fileNames;
       Pipeline pipeline = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).Pipeline;
+      // Ensure the pipeline has a Houdini engine
       pipeline.AddHoudiniEngine();
+      
+      // Execute the engine pipeline in sequence or in parallel
+      Houdini.HoudiniOutcome outcome;
       if (pipeline.Sequential)
       {
-        ScheduleEnginesInSequence(pipeline);
+        outcome = ScheduleEnginesInSequence(pipeline);
       }
       else
       {
-        ScheduleEnginesInParallel(pipeline);
+        outcome = ScheduleEnginesInParallel(pipeline);
       }
-      ApplyInvariantsAndEmit(pipeline);
+
+      // Did the engines terminate successfully?
+      ErrorCode = CheckOutcome(outcome);
+      // If so apply the invariants to the program
+      if (ErrorCode == 0)
+      {
+        GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(pipeline), GetCBPLFileName(), "cbpl");
+      }          
+    }
+        
+    private string GetCBPLFileName()
+    {
+      List<string> filesToProcess = new List<string>();
+      filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
+      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
+      if (string.IsNullOrEmpty(directoryContainingFiles))
+        directoryContainingFiles = Directory.GetCurrentDirectory ();
+      return directoryContainingFiles + Path.DirectorySeparatorChar + 
+                Path.GetFileNameWithoutExtension(filesToProcess[0]);      
     }
     
-    private void ScheduleEnginesInSequence(Pipeline pipeline)
+    private Houdini.HoudiniOutcome ScheduleEnginesInSequence(Pipeline pipeline)
     {
       Houdini.HoudiniOutcome outcome = null;
       foreach (Engine engine in pipeline.GetEngines())
@@ -301,9 +490,10 @@ namespace Microsoft.Boogie
           dynamicEngine.Start(getFreshProgram(false, false, false));
         }
       }
+      return outcome;
     }
     
-    private void ScheduleEnginesInParallel (Pipeline pipeline)
+    private Houdini.HoudiniOutcome ScheduleEnginesInParallel (Pipeline pipeline)
     {
       Houdini.HoudiniOutcome outcome = null;
       CancellationTokenSource tokenSource = new CancellationTokenSource();
@@ -337,16 +527,54 @@ namespace Microsoft.Boogie
        {
           Task.WaitAll(underApproximatingTasks.ToArray(), pipeline.houdiniDelay * 1000);
        }
-       else
+       else if (pipeline.GetHoudiniEngine().SlidingSeconds == 0) 
        {
           Task.WaitAll(underApproximatingTasks.ToArray());
        }
        
        // Now schedule vanilla Houdini
        overApproximatingTasks.Add(Task.Factory.StartNew(
-              () => {pipeline.GetHoudiniEngine().Start(getFreshProgram(false, false, true), ref outcome);}, 
+              () => {pipeline.GetHoudiniEngine().Start(getFreshProgram(false, false, true), ref outcome);
+                    }, 
               tokenSource.Token));
-       Task.WaitAll(overApproximatingTasks.ToArray());
+              
+       if (pipeline.GetHoudiniEngine().SlidingSeconds > 0) 
+       {
+         int numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+         int newHoudinis = 0;
+         while (true) 
+         {
+           if (newHoudinis >= pipeline.GetHoudiniEngine().SlidingLimit) 
+             break;
+           Thread.Sleep((int) pipeline.GetHoudiniEngine().SlidingSeconds * 1000);
+           if (Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count > numOfRefuted) 
+           {
+             numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
+             VanillaHoudini newHoudiniEngine = new VanillaHoudini(pipeline.GetNextSMTEngineID(), 
+                                                                  pipeline.GetHoudiniEngine().Solver, 
+                                                                  pipeline.GetHoudiniEngine().ErrorLimit);
+             pipeline.AddEngine(newHoudiniEngine);                 
+
+             overApproximatingTasks.Add(Task.Factory.StartNew(
+                    () => { newHoudiniEngine.Start(getFreshProgram(false, false, true), ref outcome); 
+                            tokenSource.Cancel(false);
+                          }, 
+                    tokenSource.Token));
+             ++newHoudinis;
+            }
+          }
+        }
+        try 
+        {
+          Task.WaitAny(overApproximatingTasks.ToArray(), tokenSource.Token);
+          Console.WriteLine("DONE");
+          tokenSource.Cancel(false);
+        } 
+        catch (OperationCanceledException) 
+        {
+          // Should not do anything
+        }
+        return outcome;
     }
     
     private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
@@ -356,231 +584,69 @@ namespace Microsoft.Boogie
       return GVUtil.GetFreshProgram(this.FileNames, raceCheck, divergenceCheck, inline);
     }
     
-    private void ApplyInvariantsAndEmit(Pipeline pipeline)
+    private Program ApplyInvariants(Pipeline pipeline)
     {
-      List<string> filesToProcess = new List<string>();
-      filesToProcess.Add(this.FileNames[this.FileNames.Count - 1]);
-      string directoryContainingFiles = Path.GetDirectoryName (filesToProcess [0]);
-      if (string.IsNullOrEmpty (directoryContainingFiles))
-        directoryContainingFiles = Directory.GetCurrentDirectory ();
-      string annotatedFile = directoryContainingFiles + Path.DirectorySeparatorChar +
-        Path.GetFileNameWithoutExtension(filesToProcess[0]);
-
       Program program = getFreshProgram(true, true, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
       pipeline.GetHoudiniEngine().houdini.ApplyAssignment(program);
-      GPUVerify.GVUtil.IO.EmitProgram(program, annotatedFile, "cbpl");
-    }
-  }
-
-  /// <summary>
-  /// Wrapper class for a concurrent Houdini instance. It is able to run either on
-  /// the main thread or on a worker thread.
-  /// </summary>
-  public class StaticRefutationEngine : RefutationEngine
-  {
-    private Houdini.ConcurrentHoudini houdini = null;
-    private bool isTrusted;
-    private string solver;
-    private int errorLimit;
-    private bool disableLEI;
-    private bool disableLMI;
-    private bool modifyTSO;
-    private int loopUnroll;
-
-    public override int ID { get { return this.id; } }
-    public override string Name { get { return this.name; } }
-    public bool IsTrusted { get { return this.isTrusted; } }
-    public Houdini.ConcurrentHoudini Houdini { get { return this.houdini; } }
-
-    public StaticRefutationEngine(int id, string name, string errorLimit, string disableLEI,
-                                  string disableLMI, string modifyTSO, string loopUnroll)
-    {
-      this.id = id;
-      this.name = name;
-      this.errorLimit = int.Parse(errorLimit);
-      this.disableLEI = bool.Parse(disableLEI);
-      this.disableLMI = bool.Parse(disableLMI);
-      this.modifyTSO = bool.Parse(modifyTSO);
-      this.loopUnroll = int.Parse(loopUnroll);
-
-      CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
-      CommandLineOptions.Clo.Cho[id].ProverCCLimit = this.errorLimit;
-      CommandLineOptions.Clo.Cho[id].DisableLoopInvEntryAssert = this.disableLEI;
-      CommandLineOptions.Clo.Cho[id].DisableLoopInvMaintainedAssert = this.disableLMI;
-      CommandLineOptions.Clo.Cho[id].ModifyTopologicalSorting = this.modifyTSO;
-
-      if (CommandLineOptions.Clo.ProverOptions.Contains("SOLVER=cvc4"))
-        this.solver = "cvc4";
-      else
-        this.solver = "Z3";
-
-      foreach (var opt in CommandLineOptions.Clo.ProverOptions) {
-        if ((this.solver.Equals("Z3") && !opt.Contains("LOGIC=")) ||
-            (this.solver.Equals("cvc4") && !opt.Contains("OPTIMIZE_FOR_BV="))) {
-          CommandLineOptions.Clo.Cho[id].ProverOptions.Add(opt);
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ReplaceLoopInvariantAssertions)
+      {
+        foreach (Block block in program.Blocks()) 
+        {
+          List<Cmd> newCmds = new List<Cmd>();
+          foreach (Cmd cmd in block.Cmds) 
+          {
+            AssertCmd assertion = cmd as AssertCmd;
+            if (assertion != null &&
+                QKeyValue.FindBoolAttribute(assertion.Attributes,"originated_from_invariant")) 
+            {
+              AssumeCmd assumption = new AssumeCmd(assertion.tok, assertion.Expr, assertion.Attributes);
+              newCmds.Add(assumption);
+            } 
+            else 
+            {
+              newCmds.Add(cmd);
+            }
+          }
+          block.Cmds = newCmds;
         }
       }
-
-      if (this.disableLEI || this.disableLMI || this.loopUnroll != -1)
-        this.isTrusted = false;
-      else
-        this.isTrusted = true;
-
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DynamicErrorLimit > 0 && this.isTrusted)
-        CommandLineOptions.Clo.Cho[id].ProverCCLimit = 1;
+      return program;
     }
-
-    /// <summary>
-    /// Starts a new concurrent Houdini execution. Returns the outcome of the
-    /// Houdini process by reference.
-    /// </summary>
-    public int start(Program program, ref Houdini.HoudiniOutcome outcome)
+        
+    private int CheckOutcome(Houdini.HoudiniOutcome outcome)
     {
-      if (solver.Equals("cvc4"))
-        KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program, id);
-
-      if (CommandLineOptions.Clo.Trace)
-        Console.WriteLine("INFO:[Engine-" + name + "] started crunching ...");
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
-        printConfig();
-
-      if (loopUnroll != -1)
-        program.UnrollLoops(loopUnroll, CommandLineOptions.Clo.SoundLoopUnrolling);
-
-      var houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
-      houdini = new Houdini.ConcurrentHoudini(id, program, houdiniStats, "houdiniCexTrace_" + id +".bpl");
-
-      if (outcome != null)
-        outcome = houdini.PerformHoudiniInference(initialAssignment: outcome.assignment);
-      else
-        outcome = houdini.PerformHoudiniInference();
-
-      if (CommandLineOptions.Clo.Trace)
-        Console.WriteLine("INFO:[Engine-" + name + "] finished.");
-
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugConcurrentHoudini) {
-        int numTrueAssigns = 0;
-        foreach (var x in outcome.assignment) {
-          if (x.Value)
-            numTrueAssigns++;
-        }
-
-        Console.WriteLine("Number of true assignments = " + numTrueAssigns);
-        Console.WriteLine("Number of false assignments = " + (outcome.assignment.Count - numTrueAssigns));
-        Console.WriteLine("Prover time = " + houdiniStats.proverTime.ToString("F2"));
-        Console.WriteLine("Unsat core prover time = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
-        Console.WriteLine("Number of prover queries = " + houdiniStats.numProverQueries);
-        Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
-        Console.WriteLine("Number of unsat core prunings = " + houdiniStats.numUnsatCorePrunings);
+      bool valid = true;
+      foreach (VC.ConditionGeneration.Outcome vcgenOutcome in 
+                outcome.implementationOutcomes.Values.Select(i => i.outcome)) 
+      {
+        if (vcgenOutcome != VCGen.Outcome.Correct) 
+          valid = false;
       }
-
-      return id;
-    }
-
-    /// <summary>
-    /// Prints the configuration options of the Static Refutation Engine.
-    /// </summary>
-    public override void printConfig()
-    {
-      Console.WriteLine("######################################");
-      Console.WriteLine("# Configuration for " + name + ":");
-      Console.WriteLine("# id = " + id);
-      Console.WriteLine("# solver = " + solver);
-      Console.WriteLine("# errorLimit = " + errorLimit);
-      Console.WriteLine("# disableLEI = " + disableLEI);
-      Console.WriteLine("# disableLMI = " + disableLMI);
-      Console.WriteLine("# modifyTSO = " + modifyTSO);
-      Console.WriteLine("# loopUnroll = " + loopUnroll);
-      Console.WriteLine("######################################");
-    }
-  }
-
-  /// <summary>
-  /// Wrapper class for a concurrent dynamic analyser instance. It is able to run either on
-  /// the main thread or on a worker thread.
-  /// </summary>
-  public class DynamicRefutationEngine : RefutationEngine
-  {
-    private int threadId_X;
-    private int threadId_Y;
-    private int threadId_Z;
-    private int groupId_X;
-    private int groupId_Y;
-    private int groupId_Z;
-
-    public override int ID { get { return this.id; } }
-    public override string Name { get { return this.name; } }
+      
+      if (valid)
+        return 0;
     
-    public BoogieInterpreter Interpreter;
-
-    public DynamicRefutationEngine(int id, string name, string threadId_X, string threadId_Y, string threadId_Z,
-                                   string groupId_X, string groupId_Y, string groupId_Z)
-    {
-      this.id = id;
-      this.name = name;
-      this.threadId_X = checkForMaxAndParseInt(threadId_X);
-      this.threadId_Y = checkForMaxAndParseInt(threadId_Y);
-      this.threadId_Z = checkForMaxAndParseInt(threadId_Z);
-      this.groupId_X = checkForMaxAndParseInt(groupId_X);
-      this.groupId_Y = checkForMaxAndParseInt(groupId_Y);
-      this.groupId_Z = checkForMaxAndParseInt(groupId_Z);
+      int verified = 0;
+      int errorCount = 0;
+      int inconclusives = 0;
+      int timeOuts = 0;
+      int outOfMemories = 0;
+      foreach (var implOutcome in outcome.implementationOutcomes) 
+      {
+        KernelAnalyser.ProcessOutcome(getFreshProgram(false, false, false), 
+                                      implOutcome.Key, 
+                                      implOutcome.Value.outcome, 
+                                      implOutcome.Value.errors, 
+                                      "", 
+                                      ref errorCount, 
+                                      ref verified, 
+                                      ref inconclusives, 
+                                      ref timeOuts, 
+                                      ref outOfMemories);
+      }
+      GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
+      return errorCount + inconclusives + timeOuts + outOfMemories;
     }
-
-    /// <summary>
-    /// Starts a new concurrent dynamic analyser execution.
-    /// </summary>
-    public void start(Program program, bool verbose = false, int debug = 0)
-    {
-      if (CommandLineOptions.Clo.Trace)
-        Console.WriteLine("INFO:[Engine-" + name + "] started crunching ...");
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).InferInfo)
-        printConfig();
-
-      Interpreter = new BoogieInterpreter(program);
-
-      if (CommandLineOptions.Clo.Trace)
-        Console.WriteLine("INFO:[Engine-" + name + "] finished.");
-    }
-
-    private int checkForMaxAndParseInt(string value)
-    {
-      if (value.ToLower().Equals("max")) return int.MaxValue;
-      else return int.Parse(value);
-    }
-
-    /// <summary>
-        /// Prints the configuration options of the Dynamic Refutation Engine.
-    /// </summary>
-    public override void printConfig()
-    {
-      Console.WriteLine("######################################");
-      Console.WriteLine("# Configuration for " + name + ":");
-      Console.WriteLine("# id = " + id);
-      Console.WriteLine("# threadId_X = " + threadId_X);
-      Console.WriteLine("# threadId_Y = " + threadId_Y);
-      Console.WriteLine("# threadId_Z = " + threadId_Z);
-      Console.WriteLine("# groupId_X = " + groupId_X);
-      Console.WriteLine("# groupId_Y = " + groupId_Y);
-      Console.WriteLine("# groupId_Z = " + groupId_Z);
-      Console.WriteLine("######################################");
-    }
-  }
-
-  /// <summary>
-  /// An abstract class for a refutation engine.
-  /// </summary>
-  public abstract class RefutationEngine
-  {
-    protected int id;
-    protected string name;
-
-    public abstract int ID { get; }
-    public abstract string Name { get; }
-
-    /// <summary>
-    /// Prints the configuration options of the Refutation Engine.
-    /// </summary>
-    public abstract void printConfig();
   }
 }
