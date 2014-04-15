@@ -46,7 +46,8 @@ namespace Microsoft.Boogie
     }
   }
   
-  // Abstract class from which all engines inherit
+  // Abstract class from which all engines inherit.
+  // Every engine maintains its own set of additional command-line parameters
   public abstract class Engine
   { 
     public int ID { get; set; }
@@ -72,17 +73,14 @@ namespace Microsoft.Boogie
     {
       return new List<Tuple<EngineParameter, EngineParameter>>();
     }
-    
-    public abstract void Print();
   }
   
   // Engines based on SMT solving
   public abstract class SMTEngine : Engine
   {
-    public Houdini.ConcurrentHoudini houdini = null;
-    
-    public static string CVC4 = "cvc4";
-    public static string Z3 = "z3";
+    // SMT solvers
+    private static string CVC4 = "cvc4";
+    private static string Z3 = "z3";
     
     private static EngineParameter<string> SolverParameter;
     public static EngineParameter<string> GetSolverParameter()
@@ -105,7 +103,8 @@ namespace Microsoft.Boogie
       return new List<EngineParameter>{ GetSolverParameter(), GetErrorLimitParameter() };
     }
     
-	  public string Solver { get; set; }
+    public Houdini.ConcurrentHoudini houdini = null;
+    public string Solver { get; set; }
     public int ErrorLimit { get; set; }
     
     public SMTEngine (int ID, bool underApproximating, string solver, int errorLimit) :
@@ -126,7 +125,7 @@ namespace Microsoft.Boogie
       }
     }
     
-    public int Start(Program program, ref Houdini.HoudiniOutcome outcome)
+    public void Start(Program program, ref Houdini.HoudiniOutcome outcome)
     {
       if (this.Solver.Equals(CVC4))
       {
@@ -159,39 +158,25 @@ namespace Microsoft.Boogie
       if (CommandLineOptions.Clo.Trace) 
         Console.WriteLine("[CRUNCHER] Engine " + this.GetType().Name + " finished");
       
-      OutputResults(outcome, houdiniStats);
-      
-      return this.ID;
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugConcurrentHoudini) 
+        OutputResults(outcome, houdiniStats);
     }
     
-    // Called just before SMT cruncher starts, allowing an analysis to change the program if required
+    // Called just before SMT cruncher starts, allowing an SMT engine to change the program if required
     public virtual void ModifyProgramBeforeCrunch (Program program)
     { 
     }
     
     private void OutputResults (Houdini.HoudiniOutcome outcome, Houdini.HoudiniSession.HoudiniStatistics houdiniStats)
     {
-      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugConcurrentHoudini) 
-      {
-        int numTrueAssigns = outcome.assignment.Where(x => x.Value).Count();
-        Console.WriteLine("Number of true assignments          = " + numTrueAssigns);
-        Console.WriteLine("Number of false assignments         = " + (outcome.assignment.Count - numTrueAssigns));
-        Console.WriteLine("Prover time                         = " + houdiniStats.proverTime.ToString("F2"));
-        Console.WriteLine("Unsat core prover time              = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
-        Console.WriteLine("Number of prover queries            = " + houdiniStats.numProverQueries);
-        Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
-        Console.WriteLine("Number of unsat core prunings       = " + houdiniStats.numUnsatCorePrunings);
-      }
-    }
-    
-    public override void Print ()
-    {
-      Console.WriteLine("########################################");
-      Console.WriteLine("# Engine:      " + this.GetType().Name);
-      Console.WriteLine("# ID:          " + this.ID);
-      Console.WriteLine("# Solver:      " + this.Solver);
-      Console.WriteLine("# Error limit: " + this.ErrorLimit);
-      Console.WriteLine("########################################");
+      int numTrueAssigns = outcome.assignment.Where(x => x.Value).Count();
+      Console.WriteLine("Number of true assignments          = " + numTrueAssigns);
+      Console.WriteLine("Number of false assignments         = " + (outcome.assignment.Count - numTrueAssigns));
+      Console.WriteLine("Prover time                         = " + houdiniStats.proverTime.ToString("F2"));
+      Console.WriteLine("Unsat core prover time              = " + houdiniStats.unsatCoreProverTime.ToString("F2"));
+      Console.WriteLine("Number of prover queries            = " + houdiniStats.numProverQueries);
+      Console.WriteLine("Number of unsat core prover queries = " + houdiniStats.numUnsatCoreProverQueries);
+      Console.WriteLine("Number of unsat core prunings       = " + houdiniStats.numUnsatCorePrunings);
     }
   }
   
@@ -282,7 +267,7 @@ namespace Microsoft.Boogie
   {
     public static string Name = "SBASE";
     
-    public SBASE (int ID, string solver = "Z3", int errorLimit = 20):
+    public SBASE (int ID, string solver, int errorLimit):
       base(ID, true, solver, errorLimit)
     {
       CommandLineOptions.Clo.Cho[this.ID].DisableLoopInvMaintainedAssert = true;
@@ -379,14 +364,6 @@ namespace Microsoft.Boogie
     public BoogieInterpreter Start (Program program)
     {
       return new BoogieInterpreter(this, program);
-    }
-  
-    public override void Print ()
-    {
-      Console.WriteLine("########################################");
-      Console.WriteLine("# Engine:      " + this.GetType().Name);
-      Console.WriteLine("# ID:          " + this.ID);
-      Console.WriteLine("########################################");
     }
     
     public override string ToString()
@@ -649,25 +626,15 @@ namespace Microsoft.Boogie
           Task.WaitAny(overApproximatingTasks.ToArray(), tokenSource.Token);
           tokenSource.Cancel(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException e)
         {
-          // Should not do anything
+          Console.WriteLine("Unexpected exception: " + e);
+          throw;
         }
       }
       else
       {
         Task.WaitAll(underApproximatingTasks.ToArray());
-      }
-    }
-    
-    private void DumpKilledInvariants (string engineName)
-    {
-      using (StreamWriter fs = File.CreateText(GetFileNameBase() + "-killed-" + engineName + ".txt"))
-      {
-        foreach (string key in Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Keys) 
-        {
-          fs.WriteLine("FALSE: " + key);
-        }
       }
     }
     
@@ -707,5 +674,17 @@ namespace Microsoft.Boogie
       }
       return program;
     }
+    
+    private void DumpKilledInvariants (string engineName)
+    {
+      using (StreamWriter fs = File.CreateText(GetFileNameBase() + "-killed-" + engineName + ".txt"))
+      {
+        foreach (string key in Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Keys) 
+        {
+          fs.WriteLine("FALSE: " + key);
+        }
+      }
+    }
   }
+  
 }
