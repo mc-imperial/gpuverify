@@ -315,8 +315,15 @@ class ldict(dict):
   def __getattr__ (self, method_name):
     if method_name in self:
       return self[method_name]
+    elif method_name == "batch_mode":
+      return any(self[x] for x in
+                 ['show_intercepted','check_intercepted',
+                  'check_all_intercepted'])
+    elif method_name == "dimensions":
+      return len(self['group_size'])
     else:
       raise AttributeError, method_name
+
 
 def parse_args(argv):
     parser = GPUVerifyArgumentParser(description="GPUVerify frontend",
@@ -554,9 +561,10 @@ def parse_args(argv):
     undocumented = parser.add_argument_group("UNDOCUMENTED")
     undocumented.add_argument("--debug-houdini", action='store_true')
 
-    interceptor = parser.add_argument_group("BATCH PROCESSING")
+    interceptor = parser.add_argument_group("BATCH MODE")
     interceptor.add_argument("--show-intercepted", action='store_true')
-    interceptor.add_argument("--check-intercepted=", type=non_negative, metavar="X")
+    interceptor.add_argument("--check-intercepted=", type=non_negative,
+                             action='append', metavar="X")
     interceptor.add_argument("--check-all-intercepted", action='store_true')
 
 
@@ -564,33 +572,27 @@ def parse_args(argv):
       return ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in vars(parsed).iteritems())
 
     args = to_ldict(parser.parse_args(argv))
-    args['batch_mode'] = any(args[x] for x in
-                             ['show_intercepted','check_intercepted',
-                              'check_all_intercepted'])
 
-    if not args['batch_mode']:
+    if not args.batch_mode:
       if not args['kernel']:
         parser.error("Must provide a kernel for normal mode")
       name = args['kernel'].name
 
       # Try reading the first line of the kernel file as arguments
-      with args.kernel as kern_file:
-        code = kern_file.readlines()[0]
-        if code.startswith("//"):
-          try:
-            p = parser.parse_args(strip_dudspace(code[len("//"):].split(" ")))
-            file_args = to_ldict(p)
-            # Then override anything set via the command line
-            for k,v in file_args.iteritems():
-              if args[k] and v and args[k] != v:
-                print("Supplanting {}={} with {}".format(k,v,args[k]))
-              if not args[k] and v:
-                args[k] = v
-          except Exception as e:
-            pass # Probably doesn't parse -- worth a try
+      header = args.kernel.readline()
+      if header.startswith("//"):
+        try:
+          p = parser.parse_args(strip_dudspace(header[len("//"):].rstrip().split(" ")))
+          file_args = to_ldict(p)
+          # Then override anything set via the command line
+          update_args(file_args,args)
+          args = file_args
+        except Exception as e:
+          print(e.message)
+          pass # Probably doesn't parse -- worth a try
 
       _unused,ext = SplitFilenameExt(name)
-    
+
       starts = defaultdict(lambda : "clang",
                            { '.bc': "opt", '.opt.bc': "bugle", '.gbpl': "vcgen",
                              '.bpl.': "cruncher", '.cbpl': "boogie" })
@@ -1185,50 +1187,54 @@ def subtool_args (args):
 #, 'clang_options', 'opt_options', 'bugle_options', 'cruncher_options', 'boogie_options']
   return [pass_flags[x] for x,v in args.iteritems() if v and (x in pass_flags)]
 
+def update_args (base, new):
+  for k,v in new.iteritems():
+    if not base[k] and v:
+      print("Setting {} to {}".format(k,v))
+      base[k] = v
+    elif v and base[k] != v:
+      print("Supplanting {}={} for {}".format(k,base[k],v))
+      base[k] = v
+
 def strip_dudspace (argv):
   return filter(lambda x: x != "", argv)
 
-def do_batch_mode (args):
+def parse_header (file):
+  code = [x.rstrip() for x in file.readlines()]
+  header_args = strip_dudspace(code[0][len("//"):].split(" "))
+  return code[1:],header_args
 
+def verify_batch (host_args, files):
+  for f in files:
+    with open(f) as kernel:
+      try:
+        x = parse_args([f])
+        main(x)
+      except GPUVerifyException as e:
+        print(str(e), file=sys.stderr)
+        if e.getExitCode() == ErrorCodes.CTRL_C:
+          break
+
+def do_batch_mode (host_args):
   kernels = []
   for path, subdirs, files in os.walk(".gpuverify"):
     kernels += map(lambda x: path+os.sep+x, files)
   kernels = sorted(kernels)
 
-  def parse_file (file):
-    code = [x.rstrip() for x in file.readlines()]
-    k_args = filter(lambda x: x != "", code[0][len("//"):].split(" "))
-    opts = filter(lambda x: x != "", code[1][len("//"):].split(" "))
-    return code,k_args,opts
-
-  if args.show_intercepted:
+  if host_args.show_intercepted:
     for index,file_name in enumerate(kernels):
       with open(file_name) as file:
-        code,k_args,opts = parse_file(file)
-        built = code[2][len("//"):]
-        ran = code[3][len("//"):]
-        print("["+str(index)+"] " + file_name+": " + ' '.join(k_args))
+        code,header_args, = parse_header(file)
+        built = code[0][len("//"):]
+        ran = code[1][len("//"):]
+        print("["+str(index)+"] " + file_name+": " + ' '.join(header_args))
         print(built)
         print(ran)
 
-  if args.check_intercepted:
-    with open(kernels[args.check_intercepted]) as file:
-      code,k_args,opts = parse_file(file)
-      main(parse_args(subtool_args(args) + k_args + opts + [file.name]))
-
-  if args.check_all_intercepted:
-    for f in kernels:
-      with open(f) as file:
-        code,k_args,opts = parse_file(file)
-        my_args = subtool_args(args) + k_args + opts + [f]
-        print(my_args)
-        try:
-          main(parse_args(my_args))
-        except GPUVerifyException as e:
-          print(str(e), file=sys.stderr)
-          if e.getExitCode() == ErrorCodes.CTRL_C:
-            break;
-
+  if host_args.check_intercepted:
+    verify_batch(host_args,[kernels[i] for i in host_args.check_intercepted])
+  elif host_args.check_all_intercepted:
+    verify_batch(host_args,kernels)
 
 def main(argv):
   """ This wraps GPUVerify's real main function so

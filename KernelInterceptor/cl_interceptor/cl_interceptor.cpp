@@ -85,7 +85,7 @@ public:
 			}
 		}
 
-		fprintf(f," --params=%s",kernel.name.c_str());
+		fprintf(f," --kernel-args=%s",kernel.name.c_str());
 		for (unsigned int i = 0; i < kernel.args.size(); i++) {
 			cl_kernel_arg_address_qualifier q;
 			clGetKernelArgInfo(karnol, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(q), &q, NULL);
@@ -105,10 +105,9 @@ public:
 			}
 		}
 
-		fprintf(f, "\n// ");
 		char* opts = strdup(options[kernel.program].c_str());
 		de_newline(opts);
-		fprintf(f, "%s\n", opts);
+		fprintf(f, " %s\n", opts);
 		fprintf(f, "// Built at %s:%d\n",programs[kernel.program].second.file.c_str(), programs[kernel.program].second.line);
 		fprintf(f, "// Run at %s:%d\n", file, line);
 
