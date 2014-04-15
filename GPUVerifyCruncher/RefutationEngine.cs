@@ -137,8 +137,7 @@ namespace Microsoft.Boogie
         }
       }
         
-      if (CommandLineOptions.Clo.Trace)
-        Console.WriteLine("[CRUNCHER] Engine " + this.GetType().Name + " started");
+      Print.VerboseMessage("[CRUNCHER] Engine " + this.GetType().Name + " started");
       
       ModifyProgramBeforeCrunch(program);
       
@@ -155,8 +154,7 @@ namespace Microsoft.Boogie
         outcome = houdini.PerformHoudiniInference();
       }
         
-      if (CommandLineOptions.Clo.Trace) 
-        Console.WriteLine("[CRUNCHER] Engine " + this.GetType().Name + " finished");
+      Print.VerboseMessage("[CRUNCHER] Engine " + this.GetType().Name + " finished");
       
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugConcurrentHoudini) 
         OutputResults(outcome, houdiniStats);
@@ -557,14 +555,12 @@ namespace Microsoft.Boogie
         // is specified or no sliding is selected
         if (pipeline.GetHoudiniEngine().Delay > 0)
         {
-          if (CommandLineOptions.Clo.Trace)
-            Console.WriteLine("Waiting at barrier until Houdini delay has elapsed or all under-approximating engines have finished");
+          Print.VerboseMessage("Waiting at barrier until Houdini delay has elapsed or all under-approximating engines have finished");
           Task.WaitAll(underApproximatingTasks.ToArray(), pipeline.GetHoudiniEngine().Delay * 1000);
         }
         else if (pipeline.GetHoudiniEngine().SlidingSeconds == 0)
         {
-          if (CommandLineOptions.Clo.Trace)
-            Console.WriteLine("Waiting at barrier until all under-approximating engines have finished");
+          Print.VerboseMessage("Waiting at barrier until all under-approximating engines have finished");
           Task.WaitAll(underApproximatingTasks.ToArray());
         }
        
@@ -598,8 +594,7 @@ namespace Microsoft.Boogie
                                                   pipeline.GetHoudiniEngine().ErrorLimit);
               pipeline.AddEngine(newHoudiniEngine);  
               
-              if (CommandLineOptions.Clo.Trace)
-                Console.WriteLine("Scheduling another Houdini instance");
+              Print.VerboseMessage("Scheduling another Houdini instance");
               
               overApproximatingTasks.Add(Task.Factory.StartNew(
                 () =>

@@ -30,7 +30,7 @@ namespace GPUVerify
 		
 		public static void VerboseMessage (string arg)
 		{
-            if (CommandLineOptions.Clo.Trace)
+      if (CommandLineOptions.Clo.Trace)
 			    Console.WriteLine(arg);
 		}
 		
