@@ -437,20 +437,32 @@ def parse_args(argv):
     interceptor.add_argument("--check-intercepted=", type=non_negative, metavar="X")
     interceptor.add_argument("--check-all-intercepted", action='store_true')
 
-    if len(argv) == 0:
-      argv = [ '--help' ]
 
-    args = vars(parser.parse_args(argv))
+    def to_ldict (parsed):
+      return ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in vars(parsed).iteritems())
 
-    # Technically unnecessary but I like it prettier
-    args = ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in args.iteritems())
-
+    args = to_ldict(parser.parse_args(argv))
     args['batch_mode'] = any(args[x] for x in ['show_intercepted','check_intercepted','check_all_intercepted'])
 
     if not args['batch_mode']:
       if not args['kernel']:
         parser.error("Must provide a kernel for normal mode")
       name = args['kernel'].name
+
+      # Try reading the first line of the kernel file as arguments
+      with args.kernel as kern_file:
+        code = kern_file.readlines()[0]
+        if code.startswith("//"):
+          try:
+            file_args = to_ldict(parser.parse_args(strip_dudspace(code[len("//"):].split(" "))))
+            # Then override anything set via the command line
+            for k,v in args.iteritems():
+              if v or (k not in file_args):
+                file_args[k] = v
+            args = file_args
+          except Exception as e:
+            pass # Probably doesn't parse -- worth a try
+
       _unused,ext = SplitFilenameExt(name)
     
       starts = defaultdict(lambda : "clang", { '.bc': "opt", '.opt.bc': "bugle", '.gbpl': "vcgen", '.bpl.': "cruncher", '.cbpl': "boogie" })
@@ -1040,6 +1052,9 @@ def subtool_args (args):
 #, 'clang_options', 'opt_options', 'bugle_options', 'cruncher_options', 'boogie_options']
   return [pass_flags[x] for x,v in args.iteritems() if v and (x in pass_flags)]
 
+def strip_dudspace (argv):
+  return filter(lambda x: x != "", argv)
+
 def do_batch_mode (args):
 
   kernels = []
@@ -1143,7 +1158,7 @@ if __name__ == '__main__':
   ignoredErrors = [ ErrorCodes.SUCCESS, ErrorCodes.BOOGIE_ERROR ]
 
   try:
-    args = parse_args(sys.argv[1:])
+    args = parse_args(sys.argv[1:] or [ '--help' ])
     debug = args.debug
     if args.batch_mode:
       do_batch_mode(args)
