@@ -18,12 +18,18 @@ namespace GPUVerify
 {
   public class GPUVerifyCruncherCommandLineOptions : CommandLineOptions
   {
+    // Assume a sequential pipeline unless the user selects otherwise
+    public Pipeline Pipeline = new Pipeline(sequential: true);
+    
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
     public bool DebugGPUVerify = false;
     
-    // Assume a sequential pipeline unless the user selects otherwise
-    public Pipeline Pipeline = new Pipeline(sequential: true);
+    // Dimensionality of block = BlockHighestDim + 1
+    public int BlockHighestDim = 2;
+    // Dimensionality of grid = GridHighestDim + 1
+    public int GridHighestDim = 2;
+    public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
     
     public GPUVerifyCruncherCommandLineOptions() :
       base() 
@@ -64,6 +70,27 @@ namespace GPUVerify
       
       if (name == "debugGPUVerify") {
         DebugGPUVerify = true;
+        return true;
+      }
+      
+      if (name == "sourceLanguage") {
+        if (ps.ConfirmArgumentCount(1)) {
+          if(ps.args[ps.i] == "cl") {
+            SourceLanguage = SourceLanguage.OpenCL;
+          } else if(ps.args[ps.i] == "cu") {
+            SourceLanguage = SourceLanguage.CUDA;
+          }
+        }
+        return true;
+      }
+
+      if (name == "blockHighestDim") {
+        ps.GetNumericArgument(ref BlockHighestDim, 3);
+        return true;
+      }
+
+      if (name == "gridHighestDim") {
+        ps.GetNumericArgument(ref GridHighestDim, 3);
         return true;
       }
 

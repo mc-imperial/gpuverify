@@ -426,20 +426,10 @@ def parse_args(argv):
     inference.add_argument("--no-infer", dest='inference', action='store_false', help="Turn off invariant inference") # original also has --noinfer
     inference.add_argument("--omit-infer=", action='append', help="Do not generate invariants tagged 'X'") 
     inference.add_argument("--staged-inference",   action='store_true', help="Perform invariant inference in stages; this can boost performance for complex kernels (but this is not guaranteed)")
-    inference.add_argument("--parallel-inference", action='store_true', help="Use multiple solver instances in parallel to acceleate invariant inference (but this is not guaranteed)")
-    inference.add_argument("--dynamic-analysis",   action='store_true', help="Use dynamic analysis to falsify invariants")
-    inference.add_argument("--scheduling=", choices=["all-together","unsound-first"], help="Choose a parallel scheduling strategy from the following: 'unsound-first' or 'all-together'. By default the scheduler executes first any dynamic engines, then any unsound static engines, and the sound static engines. The 'unsound-first' strategy executes any unsound engines (either static or dynamic) together before the sound engines. The 'all-together' strategy executes all engines together")
-    inference.add_argument("--infer-sliding=",       type=non_negative, default=0, help="Potentially launches a new refutation engine every X seconds", metavar="X")
-    inference.add_argument("--infer-config-file=", default="inference.cfg", help="Specify a custom configuration file to be used during invariant inference", metavar="X.cfg")
     inference.add_argument("--infer-info",         action='store_true', help="Prints information about the inference process")
     inference.add_argument("--k-induction-depth=", type=non_negative, default=-1, help="Applies k-induction with k=X to all loops", metavar="X")
-    inference.add_argument("--refutation-engine=", choices=["houdini","dynamic","lmi","lei","lu1","lu2"], help="Chose a refutation engine from the following: 'houdini', 'dynamic', 'lmi' (ignore loop-maintained invariants), 'lei' (ignore loop-entry invariants), or 'lu' (loop unrolling). If an unsound refutation engine is chosen, the result cannot be trusted", metavar="X")
 
     undocumented = parser.add_argument_group("UNDOCUMENTED")
-
-    undocumented.add_argument("--infer-sliding-limit=", type=non_negative, default=0)
-    undocumented.add_argument("--delay-houdini=",       type=non_negative, default=0)
-    undocumented.add_argument("--dynamic-error-limit=", type=non_negative, default=0)
     undocumented.add_argument("--debug-houdini", action='store_true')
 
     interceptor = parser.add_argument_group("BATCH PROCESSING")
@@ -580,9 +570,15 @@ def processOptions(args):
   CommandLineOptions.vcgenOptions += [ "/params:" + ','.join(map(str,args['params'])) ] if args['params'] else []
 
   CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file'] or []] or []
- 
+  
+  CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
+  CommandLineOptions.cruncherOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
+  CommandLineOptions.boogieOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
+  CommandLineOptions.cruncherOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
+  
   if args['source_language'] == SourceLanguage.CUDA:
     CommandLineOptions.boogieOptions += [ "/sourceLanguage:cu" ]
+    CommandLineOptions.cruncherOptions += [ "/sourceLanguage:cu" ]
   
   return CommandLineOptions
 
@@ -777,33 +773,11 @@ class GPUVerifyInstance (object):
     CommandLineOptions.cruncherOptions += [ "/contractInfer" ]
     CommandLineOptions.cruncherOptions += [ "/concurrentHoudini" ]
   
-    if args.refutation_engine:
-      CommandLineOptions.cruncherOptions += [ "/refutationEngine:" + args.refutation_engine ]
-      self.stop = 'cruncher'
     if args.infer_info:
       CommandLineOptions.cruncherOptions += [ "/trace" ]
     if args.debug_houdini:
       CommandLineOptions.cruncherOptions += [ "/debugConcurrentHoudini" ]
   
-    if args.parallel_inference:
-      CommandLineOptions.cruncherOptions += [ "/parallelInference" ]
-      if args.infer_sliding > 0:
-        CommandLineOptions.cruncherOptions += [ "/inferenceSliding:" + str(args.infer_sliding) ]
-        CommandLineOptions.cruncherOptions += [ "/parallelInferenceScheduling:all-together" ]
-        if args.infer_sliding_limit > 0:
-          CommandLineOptions.cruncherOptions += [ "/inferenceSlidingLimit:" + str(args.infer_sliding_limit) ]
-        else:
-          CommandLineOptions.cruncherOptions += [ "/inferenceSlidingLimit:1" ]
-      elif args.delay_houdini > 0:
-        CommandLineOptions.cruncherOptions += [ "/delayHoudini:" + str(args.delay_houdini) ]
-        CommandLineOptions.cruncherOptions += [ "/parallelInferenceScheduling:all-together" ]
-      else:
-        CommandLineOptions.cruncherOptions += [ "/parallelInferenceScheduling:" + args.scheduling ]
-      if args.dynami_error_limit > 0:
-        CommandLineOptions.cruncherOptions += [ "/dynamicErrorLimit:" + str(args.dynamic_error_limit) ]
-  
-    if args.dynamic_analysis:
-      CommandLineOptions.cruncherOptions += [ "/dynamicAnalysis" ]
     CommandLineOptions.cruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
     CommandLineOptions.cruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
 
