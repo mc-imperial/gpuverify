@@ -394,7 +394,7 @@ def parse_args(argv):
     advanced.add_argument("--no-refined-atomics",           action='store_true', help="Disable return-value abstraction refinement for atomics")
     advanced.add_argument("--only-log",                     action='store_true', help="Log accesses to arrays, but do not check for aces. This can be useful for determining access pattern invariants")
 
-    advanced.add_argument("--params=", type=params, help="If K is a kernel whose non-array parameters are (x1,...,xn), then it adds the precondition (x1==v1 && ... && xn=vn). An asterisk can be used to denote an unconstrained parameter", metavar="K,v1,...,vn")
+    advanced.add_argument("--kernel-args=", type=params, help="If K is a kernel whose non-array parameters are (x1,...,xn), then it adds the precondition (x1==v1 && ... && xn=vn). An asterisk can be used to denote an unconstrained parameter", metavar="K,v1,...,vn")
 
     advanced.add_argument("--warp-sync=", type=non_negative, help="Synchronize threads within warps of size X. Defaults to 'resync' method, unless one of the following two options are set", metavar="X")
     twopass = advanced.add_mutually_exclusive_group()
@@ -579,7 +579,7 @@ def processOptions(args):
   CommandLineOptions.boogieOptions += sum([a.split(" ") for a in args['boogie_options'] or []],[])
   
   CommandLineOptions.vcgenOptions += ["/noCandidate:"+a for a in args['omit_infer'] or []]
-  CommandLineOptions.vcgenOptions += [ "/params:" + ','.join(map(str,args['params'])) ] if args['params'] else []
+  CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str,args['kernel_args'])) ] if args['kernel_args'] else []
 
   CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file'] or []] or []
   

@@ -83,8 +83,8 @@ namespace GPUVerify
 
         switch (beforeColon)
         {
-          case "-params":
-          case "/params":
+          case "-kernelArgs":
+          case "/kernelArgs":
           if (!hasColonArgument)
           {
             Console.WriteLine("Error: parameter list expected after " + beforeColon + " argument");
@@ -388,7 +388,7 @@ namespace GPUVerify
   /help                         : this message
   /print:file                   : output bpl file
 
-  /params:[K,v1,...,vn]         : If K is a kernel whose non-array parameters 
+  /kernelArgs:[K,v1,...,vn]     : If K is a kernel whose non-array parameters
                                     are (x1,...,xn), then add the following 
                                     precondition:
                                     __requires(x1==v1 && ... && xn==vn)
