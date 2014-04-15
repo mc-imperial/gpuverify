@@ -20,8 +20,8 @@ namespace GPUVerify
 {
     class UnitialisedException : Exception
     {
-        public UnitialisedException(string message)
-			: base(message)
+        public UnitialisedException(string message): 
+          base(message)
         { 
         }
     }

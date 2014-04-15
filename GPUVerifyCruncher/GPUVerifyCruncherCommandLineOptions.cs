@@ -123,21 +123,34 @@ namespace GPUVerify
                                                                 VanillaHoudini.GetAllowedParameters(), 
                                                                 VanillaHoudini.GetRequiredParameters(), 
                                                                 parameterStr);
-          CheckForMutuallyExclusiveParameters(VanillaHoudini.Name, VanillaHoudini.GetMutuallyExclusiveParameters(),parameters);
+          CheckForMutuallyExclusiveParameters(VanillaHoudini.Name, 
+                                              VanillaHoudini.GetMutuallyExclusiveParameters(),
+                                              parameters);
           
           int errorLimit = ParseIntParameter(parameters, 
                                              SMTEngine.GetErrorLimitParameter().Name, 
                                              SMTEngine.GetErrorLimitParameter().DefaultValue);
-          VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(),GetSolverValue(parameters), errorLimit);
+          VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(),
+                                                            GetSolverValue(parameters), 
+                                                            errorLimit);
           Pipeline.AddEngine(houdiniEngine);
-          houdiniEngine.Delay = ParseIntParameter(parameters, VanillaHoudini.GetDelayParameter().Name, VanillaHoudini.GetDelayParameter().DefaultValue);
-          houdiniEngine.SlidingSeconds = ParseIntParameter(parameters, VanillaHoudini.GetSlidingSecondsParameter().Name, VanillaHoudini.GetSlidingSecondsParameter().DefaultValue);
-          houdiniEngine.SlidingLimit = ParseIntParameter(parameters, VanillaHoudini.GetSlidingLimitParameter().Name, VanillaHoudini.GetSlidingLimitParameter().DefaultValue);
+          houdiniEngine.Delay = ParseIntParameter(parameters, 
+                                                  VanillaHoudini.GetDelayParameter().Name, 
+                                                  VanillaHoudini.GetDelayParameter().DefaultValue);
+          houdiniEngine.SlidingSeconds = ParseIntParameter(parameters, 
+                                                           VanillaHoudini.GetSlidingSecondsParameter().Name, 
+                                                           VanillaHoudini.GetSlidingSecondsParameter().DefaultValue);
+          houdiniEngine.SlidingLimit = ParseIntParameter(parameters, 
+                                                         VanillaHoudini.GetSlidingLimitParameter().Name, 
+                                                         VanillaHoudini.GetSlidingLimitParameter().DefaultValue);
         }
         else if (engine.ToUpper().Equals(SBASE.Name)) 
         {
           string parameterStr = engineStr.Substring(SBASE.Name.Length);
-          Dictionary<string, string> parameters = GetParameters(SBASE.Name, SBASE.GetAllowedParameters(), SBASE.GetRequiredParameters(), parameterStr);
+          Dictionary<string, string> parameters = GetParameters(SBASE.Name, 
+                                                                SBASE.GetAllowedParameters(), 
+                                                                SBASE.GetRequiredParameters(), 
+                                                                parameterStr);
           int errorLimit = ParseIntParameter(parameters, 
                                              SMTEngine.GetErrorLimitParameter().Name, 
                                              SMTEngine.GetErrorLimitParameter().DefaultValue);
@@ -146,7 +159,10 @@ namespace GPUVerify
 		    else if (engine.ToUpper().Equals(SSTEP.Name))
         {
           string parameterStr = engineStr.Substring(SSTEP.Name.Length);
-          Dictionary<string, string> parameters = GetParameters(SSTEP.Name, SSTEP.GetAllowedParameters(), SSTEP.GetRequiredParameters(), parameterStr);
+          Dictionary<string, string> parameters = GetParameters(SSTEP.Name, 
+                                                                SSTEP.GetAllowedParameters(), 
+                                                                SSTEP.GetRequiredParameters(), 
+                                                                parameterStr);
           int errorLimit = ParseIntParameter(parameters, 
                                              SMTEngine.GetErrorLimitParameter().Name, 
                                              SMTEngine.GetErrorLimitParameter().DefaultValue);
@@ -155,7 +171,10 @@ namespace GPUVerify
         else if (engine.ToUpper().Equals(LU.Name))
         {
           string parameterStr = engineStr.Substring(LU.Name.Length);
-          Dictionary<string, string> parameters = GetParameters(LU.Name, LU.GetAllowedParameters(), LU.GetRequiredParameters(), parameterStr);
+          Dictionary<string, string> parameters = GetParameters(LU.Name, 
+                                                                LU.GetAllowedParameters(),
+                                                                 LU.GetRequiredParameters(), 
+                                                                 parameterStr);
           int errorLimit = ParseIntParameter(parameters, 
                                              SMTEngine.GetErrorLimitParameter().Name, 
                                              SMTEngine.GetErrorLimitParameter().DefaultValue);
