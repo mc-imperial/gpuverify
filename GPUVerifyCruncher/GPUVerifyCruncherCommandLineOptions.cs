@@ -28,6 +28,7 @@ namespace GPUVerify
     public int BlockHighestDim = 2;
     public int GridHighestDim = 2;
     public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
+    public bool OnlyIntraGroupRaceChecking = false;
     
     public GPUVerifyCruncherCommandLineOptions() :
       base() 
@@ -89,6 +90,11 @@ namespace GPUVerify
 
       if (name == "gridHighestDim") {
         ps.GetNumericArgument(ref GridHighestDim, 3);
+        return true;
+      }
+      
+      if (name == "onlyIntraGroupRaceChecking") {
+        OnlyIntraGroupRaceChecking = true;
         return true;
       }
 

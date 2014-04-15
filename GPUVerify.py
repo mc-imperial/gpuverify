@@ -730,6 +730,7 @@ class GPUVerifyInstance (object):
       CommandLineOptions.vcgenOptions += [ "/onlyDivergence" ]
     if args.only_intra_group:
       CommandLineOptions.vcgenOptions += [ "/onlyIntraGroupRaceChecking" ]
+      CommandLineOptions.cruncherOptions += [ "/onlyIntraGroupRaceChecking" ]
       CommandLineOptions.boogieOptions += [ "/onlyIntraGroupRaceChecking" ]
     if args.only_log:
       CommandLineOptions.vcgenOptions += [ "/onlyLog" ]
