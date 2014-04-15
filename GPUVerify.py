@@ -319,115 +319,237 @@ class ldict(dict):
       raise AttributeError, method_name
 
 def parse_args(argv):
-    parser = GPUVerifyArgumentParser(description="GPUVerify frontend", usage="gpuverify [options] <kernel>")
+    parser = GPUVerifyArgumentParser(description="GPUVerify frontend",
+                                     usage="gpuverify [options] <kernel>")
 
-    parser.add_argument("kernel", nargs='?', type=file, help="a kernel to verify") # nargs='?' because of needing to put KI in this script
+    # nargs='?' because of needing to put KI in this script
+    parser.add_argument("kernel", nargs='?', type=file,
+                        help="a kernel to verify")
 
     general = parser.add_argument_group("GENERAL OPTIONS")
 
     general.add_argument("--version", nargs=0, action=ShowVersionAction)
 
-    general.add_argument("-D", dest='defines',  action='append', help="Define symbol", metavar="<value>")
-    general.add_argument("-I", dest='includes', action='append', help="Add directory to include search path", metavar="<value>")
+    general.add_argument("-D", dest='defines',  action='append',
+                         help="Define symbol", metavar="<value>")
+    general.add_argument("-I", dest='includes', action='append',
+                         help="Add directory to include search path", metavar="<value>")
 
     mode = general.add_mutually_exclusive_group()
-    mode.add_argument("--findbugs", dest='mode', action='store_const', const=AnalysisMode.FINDBUGS, help="Run tool in bug-finding mode")
-    mode.add_argument("--verify",   dest='mode', action='store_const', const=AnalysisMode.VERIFY, help="Run tool in verification mode")
+    mode.add_argument("--findbugs", dest='mode', action='store_const',
+                      const=AnalysisMode.FINDBUGS, help="Run tool in bug-finding mode")
+    mode.add_argument("--verify",   dest='mode', action='store_const',
+                      const=AnalysisMode.VERIFY, help="Run tool in verification mode")
 
-    general.add_argument("--loop-unwind=", type=non_negative, help="Explore traces that pass through at most X loop heads", metavar="X") #default=2
+    general.add_argument("--loop-unwind=", type=non_negative, #default=2,
+                         help="Explore traces that pass through at most X loop heads. \
+                         Implies --findbugs",
+                         metavar="X")
 
-    general.add_argument("--no-benign",        action='store_true', help="Do not tolerate benign data races")
-    general.add_argument("--only-divergence",  action='store_true', help="Only check for barrier divergence, not races")
-    general.add_argument("--only-intra-group", action='store_true', help="Do not check for inter-group races")
+    general.add_argument("--no-benign",        action='store_true',
+                         help="Do not tolerate benign data races")
+    general.add_argument("--only-divergence",  action='store_true',
+                         help="Only check for barrier divergence, not races")
+    general.add_argument("--only-intra-group", action='store_true',
+                         help="Do not check for inter-group races")
 
     verbosity = general.add_mutually_exclusive_group()
-    verbosity.add_argument("--verbose", action='store_true', help="Show subcommands and use verbose output")
-    verbosity.add_argument("--silent",  action='store_true', help="Silent on success; only show errors/timing")
+    verbosity.add_argument("--verbose", action='store_true',
+                           help="Show subcommands and use verbose output")
+    verbosity.add_argument("--silent",  action='store_true',
+                           help="Silent on success; only show errors/timing")
 
     general.add_argument("--time", action='store_true', help="Show timing information")
-    general.add_argument("--time-as-csv=", help="Print timing as CSV with label X", metavar="X")
+    general.add_argument("--time-as-csv=",
+                         help="Print timing as CSV with label X", metavar="X")
 
-    general.add_argument("--timeout=", type=non_negative, default=300, help="Allow each component to run for X seconds before giving up. A timout of 0 disables the timeout. Default is 300s", metavar="X")
-    general.add_argument("--memout=",  type=non_negative, default=0,   help="Give Boogie a hard memory limit of X megabytes. A memout of 0 disables the memout. Default is unlimited.", metavar="X")
+    general.add_argument("--timeout=", type=non_negative, default=300,
+                         help="Allow each component to run for X seconds before giving up. \
+                         A timout of 0 disables the timeout. \
+                         Default is 300s", metavar="X")
+    general.add_argument("--memout=",  type=non_negative, default=0,
+                         help="Give Boogie a hard memory limit of X megabytes. \
+                         A memout of 0 disables the memout. \
+                         Default is unlimited.", metavar="X")
 
-    general.add_argument("--opencl", dest='source_language', action='store_const', const=SourceLanguage.OpenCL, help="Force OpenCL")
-    general.add_argument("--cuda",   dest='source_language', action='store_const', const=SourceLanguage.CUDA,   help="Force CUDA")
+    general.add_argument("--opencl", dest='source_language', action='store_const',
+                         const=SourceLanguage.OpenCL, help="Force OpenCL")
+    general.add_argument("--cuda",   dest='source_language', action='store_const',
+                         const=SourceLanguage.CUDA,   help="Force CUDA")
 
-    sizing = parser.add_argument_group("SIZING")
+    sizing = parser.add_argument_group("SIZING",
+                                       "Define the dimensionality and size of each \
+                                       dimension as a 1-, 2-, or 3-tuple, \
+                                       optionally wrapped in []. E.g., [1,2] or 2,3,4. \
+                                       Use * for an unconstrained value")
     lsize = sizing.add_mutually_exclusive_group()
     numg = sizing.add_mutually_exclusive_group()
 
-    lsize.add_argument("--local_size=",    dest='group_size', type=dimensions, help="Specify whether a work-group is 1D, 2D, or 3D, and specify size for each dimension. This corresponds to the `local_work_size` parameter of `clEnqueueNDRangeKernel`. Use * for an unconstrained value", metavar="(X|X,Y|X,Y,Z)")
-    sizing.add_argument("--global_size=", dest='global_size', type=dimensions, help="Specify whether the NDRange is 1D, 2D, or 3D, and specify size for each dimension. This corresponds to the `global_work_size` parameter of `clEnqueueNDRangeKernel`. Use * for an unconstrained value")
-    numg.add_argument("--num_groups=",    dest='num_groups',  type=dimensions, help="Specify whether a grid of work-groups is 1D, 2D, or 3D, and specify size for each dimension. Use * for an unconstrained value")
+    lsize.add_argument("--local_size=",    dest='group_size', type=dimensions,
+                       help="Specify the dimensions of a work-group. \
+                       This corresponds to the `local_work_size` parameter \
+                       of `clEnqueueNDRangeKernel`.")
+    sizing.add_argument("--global_size=", dest='global_size', type=dimensions,
+                        help="Specify dimensions of the NDRange. \
+                        This corresponds to the `global_work_size` parameter \
+                        of `clEnqueueNDRangeKernel`. \
+                        Mutually exclusive with --num_groups")
+    numg.add_argument("--num_groups=",    dest='num_groups',  type=dimensions,
+                      help="Specify the dimensions of a grid of work-groups. \
+                      Mutually exclusive with --group_size")
 
-    lsize.add_argument("--blockDim=",     dest='group_size',  type=dimensions, help="Specify thread block size. Synonym for --local_size")
-    numg.add_argument("--gridDim=",       dest='num_groups',  type=dimensions, help="Specify grid of thread blocks. Synonym for --num_groups")
+    lsize.add_argument("--blockDim=",     dest='group_size',  type=dimensions,
+                       help="Specify the thread block size.")
+    numg.add_argument("--gridDim=",       dest='num_groups',  type=dimensions,
+                      help="Specify the grid of thread blocks.")
 
     advanced = parser.add_argument_group("ADVANCED OPTIONS")
 
     bitwidth = advanced.add_mutually_exclusive_group()
-    bitwidth.add_argument("--32-bit", dest='size_t', action='store_const', const=32, help="Assume 32-bit pointer size (default)")
-    bitwidth.add_argument("--64-bit", dest='size_t', action='store_const', const=64, help="Assume 64-bit pointer size")
+    bitwidth.add_argument("--32-bit", dest='size_t', action='store_const', const=32,
+                          help="Assume 32-bit pointer size (default)")
+    bitwidth.add_argument("--64-bit", dest='size_t', action='store_const', const=64,
+                          help="Assume 64-bit pointer size")
 
     abstraction = advanced.add_mutually_exclusive_group()
-    abstraction.add_argument("--adversarial-abstraction", action='store_true', help="Completely abstract shared state, so that reads are non-deterministic")
-    abstraction.add_argument("--equality-abstraction",    action='store_true', help="Make shared arrays non-deterministic, but consistent between threads, at barriers")
+    abstraction.add_argument("--adversarial-abstraction", action='store_true',
+                             help="Completely abstract shared state, \
+                             so that reads are non-deterministic")
+    abstraction.add_argument("--equality-abstraction",    action='store_true',
+                             help="At barriers, make shared arrays non-deterministic \
+                             but consistent between threads")
 
-    advanced.add_argument("--array-equalities",   action='store_true', help="Generate equality candidate invariants for array variables")
-    advanced.add_argument("--asymmetric-asserts", action='store_true', help="Emit assertions only for the first thread. Sound, and may lead to faster verification, but can yield false positives")
+    advanced.add_argument("--array-equalities",   action='store_true',
+                          help="Generate equality candidate invariants \
+                          for array variables")
+    advanced.add_argument("--asymmetric-asserts", action='store_true',
+                          help="Emit assertions only for the first thread. \
+                          Sound, and may lead to faster verification, \
+                          but can yield false positives")
 
-    advanced.add_argument("--boogie-file=", type=file, action='append', help="Specify a supporting .bpl file to be used during verification", metavar="X.bpl")
-    advanced.add_argument("--bugle-lang=", dest='source_language', choices=["cl","cu"], type=lambda x: SourceLanguage.OpenCL if x == "cl" else SourceLanguage.CUDA, help="Bitcode language if passing in a bitcode file")
+    advanced.add_argument("--boogie-file=", type=file, action='append',
+                          help="Specify a supporting .bpl file to be used \
+                          during verification", metavar="X.bpl")
+    advanced.add_argument("--bugle-lang=", dest='source_language', choices=["cl","cu"],
+                          type=lambda x: SourceLanguage.OpenCL if x == "cl" else SourceLanguage.CUDA,
+                          help="Bitcode language if passing in a bitcode file")
 
-    advanced.add_argument("--call-site-analysis",           action='store_true', help="Turn on call site analysis")
-    advanced.add_argument("--math-int",                     action='store_true', help="Represent integer types using mathematical integers instead of bit-vectors")
-    advanced.add_argument("--inverted-tracking",            action='store_true', help="Use do_not_track instead of track. This may result in faster detection of races for some solvers")
-    advanced.add_argument("--no-annotations",               action='store_true', help="Ignore all source-level annotations")
-    advanced.add_argument("--only-requires",                action='store_true', help="Ignore all source-level annotations except for requires")
-    advanced.add_argument("--no-barrier-access-checks",     action='store_true', help="Turn off access checks for barrier invariants")
-    advanced.add_argument("--no-constant-write-checks",     action='store_true', help="Turn off access checks for writes to constant space")
-    advanced.add_argument("--no-inline",                    action='store_true', help="Turn off automatic inlining by Bugle")
-    advanced.add_argument("--no-loop-predicate-invariants", action='store_true', help="Turn off automatic generation of loop invariants related to predicates, which can be incorrect")
-    advanced.add_argument("--no-smart-predication",         action='store_true', help="Turn off smart predication")
-    advanced.add_argument("--no-uniformity-analysis",       action='store_true', help="Turn off uniformity analysis")
-    advanced.add_argument("--no-refined-atomics",           action='store_true', help="Disable return-value abstraction refinement for atomics")
-    advanced.add_argument("--only-log",                     action='store_true', help="Log accesses to arrays, but do not check for aces. This can be useful for determining access pattern invariants")
+    advanced.add_argument("--call-site-analysis",           action='store_true',
+                          help="Turn on call site analysis")
+    advanced.add_argument("--math-int",                     action='store_true',
+                          help="Represent integer types using mathematical integers \
+                          instead of bit-vectors")
+    advanced.add_argument("--inverted-tracking",            action='store_true',
+                          help="Use do_not_track instead of track. \
+                          This may result in faster detection of races for some solvers")
+    advanced.add_argument("--no-annotations",               action='store_true',
+                          help="Ignore all source-level annotations")
+    advanced.add_argument("--only-requires",                action='store_true',
+                          help="Ignore all source-level annotations except for requires")
+    advanced.add_argument("--no-barrier-access-checks",     action='store_true',
+                          help="Turn off access checks for barrier invariants")
+    advanced.add_argument("--no-constant-write-checks",     action='store_true',
+                          help="Turn off access checks for writes to constant space")
+    advanced.add_argument("--no-inline",                    action='store_true',
+                          help="Turn off automatic inlining by Bugle")
+    advanced.add_argument("--no-loop-predicate-invariants", action='store_true',
+                          help="Turn off automatic generation of loop invariants \
+                          related to predicates, which can be incorrect")
+    advanced.add_argument("--no-smart-predication",         action='store_true',
+                          help="Turn off smart predication")
+    advanced.add_argument("--no-uniformity-analysis",       action='store_true',
+                          help="Turn off uniformity analysis")
+    advanced.add_argument("--no-refined-atomics",           action='store_true',
+                          help="Disable return-value abstraction refinement for atomics")
+    advanced.add_argument("--only-log",                     action='store_true',
+                          help="Log accesses to arrays, but do not check for races. \
+                          This can be useful for determining access pattern invariants")
 
-    advanced.add_argument("--kernel-args=", type=params, help="If K is a kernel whose non-array parameters are (x1,...,xn), then it adds the precondition (x1==v1 && ... && xn=vn). An asterisk can be used to denote an unconstrained parameter", metavar="K,v1,...,vn")
+    advanced.add_argument("--kernel-args=", type=params,
+                          help="For kernel K with scalar parameters (x1,...,xn), \
+                          adds the precondition (x1==v1 && ... && xn=vn). \
+                          Use * to denote an unconstrained parameter",
+                          metavar="K,v1,...,vn")
 
-    advanced.add_argument("--warp-sync=", type=non_negative, help="Synchronize threads within warps of size X. Defaults to 'resync' method, unless one of the following two options are set", metavar="X")
+    advanced.add_argument("--warp-sync=", type=non_negative,
+                          help="Synchronize threads within warps of size X. \
+                          Defaults to 'resync' analysis method, \
+                          unless one of the following two options are set",
+                          metavar="X")
     twopass = advanced.add_mutually_exclusive_group()
-    twopass.add_argument("--no-warp",   action='store_true', help="Only check inter-warp races")
-    twopass.add_argument("--only-warp", action='store_true', help="Only check intra-warp races")
+    twopass.add_argument("--no-warp",   action='store_true',
+                         help="Only check inter-warp races")
+    twopass.add_argument("--only-warp", action='store_true',
+                         help="Only check intra-warp races")
 
-    advanced.add_argument("--race-instrumenter=", choices=["standard","watchdog-single","watchdog-multiple"], default="standard", help="Choose which method of race instrumentation to use")
-    advanced.add_argument("--solver=", choices=["z3","cvc4"], default="z3",                                     help="Choose which SMT theorem prover to use in the backend. Default is z3")
-    advanced.add_argument("--logic=", choices=["ALL_SUPPORTED","QF_ALL_SUPPORTED"], default="QF_ALL_SUPPORTED", help="Define the logic for the cvc4 SMT solver backend. Default is QF_ALL_SUPPORTED")
+    advanced.add_argument("--race-instrumenter=",
+                          choices=["standard","watchdog-single","watchdog-multiple"],
+                          default="standard",
+                          help="Choose which method of race instrumentation to use")
+    advanced.add_argument("--solver=", choices=["z3","cvc4"], default="z3",
+                          help="Choose which SMT theorem prover to use in the backend. \
+                          Default is z3")
+    advanced.add_argument("--logic=", choices=["ALL_SUPPORTED","QF_ALL_SUPPORTED"],
+                          default="QF_ALL_SUPPORTED",
+                          help="Define the logic for the CVC4 SMT solver backend. \
+                          Default is QF_ALL_SUPPORTED")
 
     development = parser.add_argument_group("DEVELOPMENT OPTIONS")
-    development.add_argument("--debug",         action='store_true', help="Enable debugging of GPUVerify components: exceptions will not be suppressed")
-    development.add_argument("--keep-temps",    action='store_true', help="Keep intermediate bc, gbpl, bpl, and cbpl files")
-    development.add_argument("--gen-smt2",      action='store_true', help="Generate smt2 file")
+    development.add_argument("--debug",         action='store_true',
+                             help="Enable debugging of GPUVerify components: \
+                             exceptions will not be suppressed")
+    development.add_argument("--keep-temps",    action='store_true',
+                             help="Keep intermediate bc, gbpl, and cbpl files")
+    development.add_argument("--gen-smt2",      action='store_true',
+                             help="Generate smt2 file")
 
-    development.add_argument("--clang-opt=",    dest='clang_options',    action='append', help="Specify option to be passed to Clang")
-    development.add_argument("--opt-opt=",      dest='opt_options',      action='append', help="Specify option to be passed to LLVM optimization pass")
-    development.add_argument("--bugle-opt",     dest='bugle_options',    action='append', help="Specify option to be passed to Bugle")
-    development.add_argument("--vcgen-opt=",    dest='vcgen_options',    action='append', help="Specify option to be passed to VC generation")
-    development.add_argument("--cruncher-opt=", dest='cruncher_options', action='append', help="Specify option to be passed to invariant cruncher")
-    development.add_argument("--boogie-opt=",   dest='boogie_options',   action='append', help="Specify option to be passed to Boogie")
+    development.add_argument("--clang-opt=",    dest='clang_options',
+                             action='append',
+                             help="Specify option to be passed to Clang")
+    development.add_argument("--opt-opt=",      dest='opt_options',
+                             action='append',
+                             help="Specify option to be passed to optimization pass")
+    development.add_argument("--bugle-opt",     dest='bugle_options',
+                             action='append',
+                             help="Specify option to be passed to Bugle")
+    development.add_argument("--vcgen-opt=",    dest='vcgen_options',
+                             action='append',
+                             help="Specify option to be passed to generation")
+    development.add_argument("--cruncher-opt=", dest='cruncher_options',
+                             action='append',
+                             help="Specify option to be passed to cruncher")
+    development.add_argument("--boogie-opt=",   dest='boogie_options',
+                             action='append',
+                             help="Specify option to be passed to Boogie")
 
-    development.add_argument("--stop-at-opt",  dest='stop', action='store_const', const="opt",      help="Stop after LLVM optimization pass")
-    development.add_argument("--stop-at-gbpl", dest='stop', action='store_const', const="bugle",    help="Stop after generating gbpl")
-    development.add_argument("--stop-at-bpl",  dest='stop', action='store_const', const="vcgen",    help="Stop after generating bpl")
-    development.add_argument("--stop-at-cbpl", dest='stop', action='store_const', const="cruncher", help="Stop after generating an annotated bpl")
+    development.add_argument("--stop-at-opt",  dest='stop',
+                             action='store_const', const="opt",
+                             help="Stop after LLVM optimization pass")
+    development.add_argument("--stop-at-gbpl", dest='stop',
+                             action='store_const', const="bugle",
+                             help="Stop after generating gbpl")
+    development.add_argument("--stop-at-bpl",  dest='stop',
+                             action='store_const', const="vcgen",
+                             help="Stop after generating bpl")
+    development.add_argument("--stop-at-cbpl", dest='stop',
+                             action='store_const', const="cruncher",
+                             help="Stop after generating an annotated bpl")
 
     inference = parser.add_argument_group("INVARIANT INFERENCE OPTIONS")
-    inference.add_argument("--no-infer", dest='inference', action='store_false', help="Turn off invariant inference") # original also has --noinfer
-    inference.add_argument("--omit-infer=", action='append', help="Do not generate invariants tagged 'X'") 
-    inference.add_argument("--staged-inference",   action='store_true', help="Perform invariant inference in stages; this can boost performance for complex kernels (but this is not guaranteed)")
-    inference.add_argument("--infer-info",         action='store_true', help="Prints information about the inference process")
-    inference.add_argument("--k-induction-depth=", type=non_negative, default=-1, help="Applies k-induction with k=X to all loops", metavar="X")
+    inference.add_argument("--no-infer", dest='inference', action='store_false',
+                           help="Turn off invariant inference")
+    inference.add_argument("--omit-infer=", action='append',
+                           help="Do not generate invariants tagged 'X'")
+    inference.add_argument("--staged-inference",   action='store_true',
+                           help="Perform invariant inference in stages; \
+                           this can boost performance for complex kernels \
+                           (but this is not guaranteed)")
+    inference.add_argument("--infer-info",         action='store_true',
+                           help="Prints information about the process")
+    inference.add_argument("--k-induction-depth=", type=non_negative,
+                           default=-1,
+                           help="Applies k-induction with k=X to all loops",
+                           metavar="X")
 
     undocumented = parser.add_argument_group("UNDOCUMENTED")
     undocumented.add_argument("--debug-houdini", action='store_true')
@@ -442,7 +564,9 @@ def parse_args(argv):
       return ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in vars(parsed).iteritems())
 
     args = to_ldict(parser.parse_args(argv))
-    args['batch_mode'] = any(args[x] for x in ['show_intercepted','check_intercepted','check_all_intercepted'])
+    args['batch_mode'] = any(args[x] for x in
+                             ['show_intercepted','check_intercepted',
+                              'check_all_intercepted'])
 
     if not args['batch_mode']:
       if not args['kernel']:
@@ -454,18 +578,22 @@ def parse_args(argv):
         code = kern_file.readlines()[0]
         if code.startswith("//"):
           try:
-            file_args = to_ldict(parser.parse_args(strip_dudspace(code[len("//"):].split(" "))))
+            p = parser.parse_args(strip_dudspace(code[len("//"):].split(" ")))
+            file_args = to_ldict(p)
             # Then override anything set via the command line
-            for k,v in args.iteritems():
-              if v or (k not in file_args):
-                file_args[k] = v
-            args = file_args
+            for k,v in file_args.iteritems():
+              if args[k] and v and args[k] != v:
+                print("Supplanting {}={} with {}".format(k,v,args[k]))
+              if not args[k] and v:
+                args[k] = v
           except Exception as e:
             pass # Probably doesn't parse -- worth a try
 
       _unused,ext = SplitFilenameExt(name)
     
-      starts = defaultdict(lambda : "clang", { '.bc': "opt", '.opt.bc': "bugle", '.gbpl': "vcgen", '.bpl.': "cruncher", '.cbpl': "boogie" })
+      starts = defaultdict(lambda : "clang",
+                           { '.bc': "opt", '.opt.bc': "bugle", '.gbpl': "vcgen",
+                             '.bpl.': "cruncher", '.cbpl': "boogie" })
       args['start'] = starts[ext]
 
       if not args['stop']:
@@ -478,7 +606,8 @@ def parse_args(argv):
           args['source_language'] = SourceLanguage.CUDA
         else:
           if ext == '.bc':
-            proc = subprocess.Popen([gvfindtools.llvmBinDir + "/llvm-nm", name], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            proc = subprocess.Popen([gvfindtools.llvmBinDir + "/llvm-nm", name],
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             lines,stderr = proc.communicate()
           else:
             lines = ''.join(args['kernel'].readlines())
@@ -490,21 +619,25 @@ def parse_args(argv):
             parser.error("Could not infer source language")
 
       # Use '//' to ensure flooring division for Python3
-      if args['num_groups'] and args['global_size']:
+      if args.num_groups and args.global_size:
         parser.error("--num_groups and --global_size are mutually exclusive.")
-      elif args['group_size'] and args['global_size']:
-        if len(args['group_size']) != len(args['global_size']):
+      elif args.group_size and args.global_size:
+        if len(args.group_size) != len(args.global_size):
           parser.error("Dimensions of --local_size and --global_size must match.")
-        args['num_groups'] = [(a//b) for (a,b) in zip(args['global_size'],args['group_size'])]
-        for i in (i for (a,b,c,i) in zip(args.num_groups,args.group_size,args.global_size,range(len(args.num_groups))) if a * b != c):
-          parser.error("Dimension " + str(i) + " of global_size does not divide by the same dimension in local_size")
-      elif args['group_size'] and args['num_groups']:
+        args['num_groups'] = [(a//b) for (a,b) in zip(args.global_size,args.group_size)]
+        # The below returns a sequence of dimensions that aren't integer multiples
+        for i in (i for (i, a,b,c) in zip(range(len(args.num_groups)),
+                                          args.num_groups,args.group_size,args.global_size) if a * b != c):
+          parser.error("Dimension " + str(i) +
+                       " of global_size does not divide by the same dimension in local_size")
+      elif args.group_size and args.num_groups:
         pass
       else:
         parser.error("Not enough size arguments")
 
-      if args['verbose']:
-        print("Got {} groups of size {}".format("x".join(map(str,args['num_groups'])), "x".join(map(str,args['group_size']))))
+      if args.verbose:
+        print("Got {} groups of size {}".format("x".join(map(str,args['num_groups'])),
+                                                "x".join(map(str,args['group_size']))))
 
     if not args['size_t']:
         args['size_t'] = 32
@@ -523,7 +656,7 @@ def dimensions (string):
   string = string.strip()
   string = string[1:-1] if string[0]+string[-1] == "[]" else string
   values = map(lambda x: x if x == '*' else int(x), string.split(","))
-  if not (1 <= len(values) and len(values) <= 3) or len([x for x in values if x > 0]) < len(values):
+  if (len(values) not in [1,2,3]) or len([x for x in values if x > 0]) < len(values):
     raise argparse.ArgumentTypeError("Dimensions must be a vector of 1-3 positive integers")
   return values
 
@@ -1093,8 +1226,8 @@ def do_batch_mode (args):
           main(parse_args(my_args))
         except GPUVerifyException as e:
           print(str(e), file=sys.stderr)
-        except KeyboardInterrupt:
-          raise
+          if e.getExitCode() == ErrorCodes.CTRL_C:
+            break;
 
 
 def main(argv):
