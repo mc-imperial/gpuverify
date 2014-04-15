@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 from __future__ import print_function
+import pickle
 import argparse
 import os
 import signal
@@ -566,6 +567,7 @@ def parse_args(argv):
     interceptor.add_argument("--check-intercepted=", type=non_negative,
                              action='append', metavar="X")
     interceptor.add_argument("--check-all-intercepted", action='store_true')
+    interceptor.add_argument("--cache")
 
 
     def to_ldict (parsed):
@@ -1204,16 +1206,45 @@ def parse_header (file):
   header_args = strip_dudspace(code[0][len("//"):].split(" "))
   return code[1:],header_args
 
-def verify_batch (host_args, files):
+# cache is of form map(code, list(known_safe))
+def subsumes (cached,new):
+  return any(all(v in ['*',new[k]] for k,v in trial.iteritems()) for trial in cached)
+
+def in_cache (f,args,cache):
+  with open(f) as file:
+    code = file.readlines()
+    while code[0].startswith("//"):
+      code = code[1:]
+    code = ''.join(code)
+    return code in cache and subsumes(cache[code],args)
+
+def add_to_cache (f,args,cache):
+  with open(f) as file:
+    code = file.readlines()
+    while code[0].startswith("//"):
+      code = code[1:]
+    code = ''.join(code)
+    if code not in cache:
+      cache[code] = []
+    cache[code].append(dict((k,v) for k,v in args.iteritems() if k in ['group_size','num_groups','kernel_args']))
+    print("added to cache")
+
+def verify_batch (files, cache=None):
   for f in files:
-    with open(f) as kernel:
-      try:
-        x = parse_args([f])
-        main(x)
-      except GPUVerifyException as e:
-        print(str(e), file=sys.stderr)
-        if e.getExitCode() == ErrorCodes.CTRL_C:
-          break
+    try:
+      x = parse_args([f])
+      if not (cache is not None and in_cache(f,x,cache)): # ie, unless we've seen it before
+        if main(x) == ErrorCodes.SUCCESS:
+          add_to_cache(f,x,cache)
+          print(cache)
+      else:
+        print("seen it in mah cache!")
+    except GPUVerifyException as e:
+      print(str(e), file=sys.stderr)
+      if e.getExitCode() == ErrorCodes.CTRL_C:
+        break
+      elif e.getExitCode() == ErrorCodes.SUCCESS:
+        add_to_cache(f,x,cache)
 
 def do_batch_mode (host_args):
   kernels = []
@@ -1231,10 +1262,18 @@ def do_batch_mode (host_args):
         print(built)
         print(ran)
 
+  try:
+    cache_map = pickle.load(open(args.cache))
+  except Exception:
+    cache_map = {}
+
   if host_args.check_intercepted:
-    verify_batch(host_args,[kernels[i] for i in host_args.check_intercepted])
+    verify_batch([kernels[i] for i in host_args.check_intercepted], cache_map)
   elif host_args.check_all_intercepted:
-    verify_batch(host_args,kernels)
+    verify_batch(kernels, cache_map)
+
+  if args.cache:
+    pickle.dump(cache_map,open(args.cache,"w"))
 
 def main(argv):
   """ This wraps GPUVerify's real main function so
