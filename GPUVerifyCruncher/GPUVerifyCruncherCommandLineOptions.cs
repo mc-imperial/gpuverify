@@ -16,19 +16,13 @@ using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-  public class GPUVerifyCruncherCommandLineOptions : CommandLineOptions
+  public class GPUVerifyCruncherCommandLineOptions : GVCommandLineOptions
   {
     // Assume a sequential pipeline unless the user selects otherwise
     public Pipeline Pipeline = new Pipeline(sequential: true);
     
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
-    public bool DebugGPUVerify = false;
-     
-    public int BlockHighestDim = 2;
-    public int GridHighestDim = 2;
-    public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
-    public bool OnlyIntraGroupRaceChecking = false;
     
     public GPUVerifyCruncherCommandLineOptions() :
       base() 
@@ -64,37 +58,6 @@ namespace GPUVerify
 
       if (name == "enableBarrierDivergenceChecks") {
         EnableBarrierDivergenceChecks = true;
-        return true;
-      }
-      
-      if (name == "debugGPUVerify") {
-        DebugGPUVerify = true;
-        return true;
-      }
-      
-      if (name == "sourceLanguage") {
-        if (ps.ConfirmArgumentCount(1)) {
-          if(ps.args[ps.i] == "cl") {
-            SourceLanguage = SourceLanguage.OpenCL;
-          } else if(ps.args[ps.i] == "cu") {
-            SourceLanguage = SourceLanguage.CUDA;
-          }
-        }
-        return true;
-      }
-
-      if (name == "blockHighestDim") {
-        ps.GetNumericArgument(ref BlockHighestDim, 3);
-        return true;
-      }
-
-      if (name == "gridHighestDim") {
-        ps.GetNumericArgument(ref GridHighestDim, 3);
-        return true;
-      }
-      
-      if (name == "onlyIntraGroupRaceChecking") {
-        OnlyIntraGroupRaceChecking = true;
         return true;
       }
 
