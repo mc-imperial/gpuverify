@@ -51,6 +51,7 @@ struct kernel_data {
 	unsigned int dimension;
 	size_t global_size [3];
 	size_t local_size [3];
+	int counter;
 };
 
 void de_newline(char* string) {
@@ -79,10 +80,11 @@ public:
 	void dump(cl_kernel karnol, const char* file, int line) {
 		struct kernel_data kernel = kernels[karnol];
 
-		int count = 1;
+		unsigned int count = kernel.counter;
 		while (snprintf(filename, sizeof(filename), "%s"SEP"%s%03d.cl", dirname, kernel.name.c_str(), count), file_exists(filename)) {
 			count++;
 		}
+		kernels[karnol].counter = count;
 		ofstream out(filename);
 					
 		out << "// --local_size=" << kernel.local_size[0];
@@ -224,6 +226,7 @@ extern "C" {
 		struct kernel_data data;
 		data.program = program;
 		data.name = std::string (kernel_name);
+		data.counter = 1;
 		singleton().kernels[kernel] = data;
 		return kernel;
 	}
