@@ -9,16 +9,18 @@
 #include <cstdlib>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdint.h>
 
 #ifdef _MSC_VER
-#include <stdint.h>
 #include <direct.h>
 #define FORMAT_SIZET "Iu"
-#define stdrup _strdup
-#define tempnam _tempnam
+#define strdup _strdup
+#define snprintf sprintf_s
+#define SEP "\\"
 #else
 #include <unistd.h>
 #define FORMAT_SIZET "zu"
+#define SEP "/"
 #endif
 
 #ifdef __APPLE__
@@ -59,46 +61,67 @@ void de_newline(char* string) {
 	}
 }
 
+bool file_exists(char* name) {
+	ifstream f(name);
+	bool result = f.good();
+	f.close();
+	return result;
+}
+
 class CL_Logger {
 public:
 	std::map<cl_program, pair<vector<string>,struct file_line_time> > programs;
 	std::map<cl_program, string> options;
 	std::map<cl_kernel, struct kernel_data> kernels;
 	const char* dirname;
+	char filename[100];
 
 	void dump(cl_kernel karnol, const char* file, int line) {
 		struct kernel_data kernel = kernels[karnol];
 
-		FILE* f = fopen(tempnam(dirname,kernel.name.c_str()),"w");
-			
-		fprintf(f,"// --local_size=%" FORMAT_SIZET, kernel.local_size[0]);
+		int count = 1;
+		while (snprintf(filename, sizeof(filename), "%s"SEP"%s%03d.cl", dirname, kernel.name.c_str(), count), file_exists(filename)) {
+			count++;
+		}
+		ofstream out(filename);
+					
+		out << "// --local_size=" << kernel.local_size[0];
 		if (kernel.dimension > 1) {
 			for (unsigned int i = 1; i < kernel.dimension; i++) {
-				fprintf(f,",%" FORMAT_SIZET,kernel.local_size[i]);
+				out << "," << kernel.local_size[i];
 			}
 		}
 
-		fprintf(f," --global_size=%" FORMAT_SIZET,kernel.global_size[0]);
+		out << " --global_size=" << kernel.global_size[0];
 		if (kernel.dimension > 1) {
 			for (unsigned int i = 1; i < kernel.dimension; i++) {
-				fprintf(f,",%" FORMAT_SIZET,kernel.global_size[i]);
+				out << "," << kernel.global_size[i];
 			}
 		}
 
-		fprintf(f," --kernel-args=%s",kernel.name.c_str());
+		out << " --kernel-args=" << kernel.name;
 		for (unsigned int i = 0; i < kernel.args.size(); i++) {
 			cl_kernel_arg_address_qualifier q;
 			clGetKernelArgInfo(karnol, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(q), &q, NULL);
 			if (q == CL_KERNEL_ARG_ADDRESS_PRIVATE) { // Best heuristic for "scalar"
+				out << ",";
 				switch (kernel.args[i].size) {
-				case 1: fprintf(f, ",%hhu", *(uint8_t*)  kernel.args[i].data); break;
-				case 2: fprintf(f, ",%hu",  *(uint16_t*) kernel.args[i].data); break;
-				case 4: fprintf(f, ",%u",   *(uint32_t*) kernel.args[i].data); break;
-				case 8: fprintf(f, ",%lu",  *(uint64_t*) kernel.args[i].data); break;
+				case 1:
+					out << *(uint8_t*)kernel.args[i].data;
+					break;
+				case 2:
+					out << *(uint16_t*)kernel.args[i].data;
+					break;
+				case 4:
+					out << *(uint32_t*)kernel.args[i].data;
+					break;
+				case 8:
+					out << *(uint64_t*)kernel.args[i].data;
+					break;
 				default:
-					fprintf(f, ",0x");
+					out << "0x";
 					for (int j = kernel.args[i].size -1; j >= 0; j--) {
-						fprintf(f, "%02X", ((unsigned char*) kernel.args[i].data)[j]);
+						out << std::hex << ((unsigned char*)kernel.args[i].data)[j];
 					}
 					break;
 				}
@@ -107,28 +130,29 @@ public:
 
 		char* opts = strdup(options[kernel.program].c_str());
 		de_newline(opts);
-		fprintf(f, " %s\n", opts);
-		fprintf(f, "// Built at %s:%d\n",programs[kernel.program].second.file.c_str(), programs[kernel.program].second.line);
-		fprintf(f, "// Run at %s:%d\n", file, line);
-
-		fprintf(f, "\n");
+		out << " " << string(opts) << endl;
+		out << "// Built at " << programs[kernel.program].second.file << ":" << programs[kernel.program].second.line << endl;
+		out << "// Run at " << file << ":" << line << endl;
 
 		std::vector<std::string> code = programs[kernel.program].first;
 		for (size_t i = 0; i < code.size(); i++) {
-			fprintf(f, "%s", code[i].c_str());
+			out << code[i];
 		}
-		fclose(f);
 	}
 
 	CL_Logger (void) {
+		// TODO: Fix this up for MSVC (requires _dupenv_s instead of getenv, because mutable pointers that require freeing are the most secure)
+#ifndef _MSC_VER
 		dirname = getenv("GPUV_KI_DIR") ? getenv("GPUV_KI_DIR") : ".gpuverify";
+#else
+		dirname = ".gpuverify";
+#endif
 
 		// Making our directory in case it isn't there already
-		// TODO: Does this work on Windows?
 		struct stat st = {0};
 		if (stat(dirname, &st) == -1) {
 #ifdef _MSC_VER
-      _mkdir(dirname);
+			_mkdir(dirname);
 #else
 			mkdir(dirname,0700);
 #endif
