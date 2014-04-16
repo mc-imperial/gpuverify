@@ -647,6 +647,7 @@ def main(arg):
     parser.add_argument("--time-as-csv", action="store_true", default=False, help="Print timing of each test as CSV")
     parser.add_argument("--csv-file", type=str, default=None, help="Write timing data to a file (Note: requires --time-as-csv to be enabled)")
     parser.add_argument("--stop-on-fail", action="store_true", default=False, help="Stop on first failure")
+    parser.add_argument("--shuffle", type=int, default=None, help="Permute the order of tests under evaluation")
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
@@ -683,6 +684,10 @@ def main(arg):
     openCLCount=0
     miscCount=0
     kernelFiles=[]
+    if args.shuffle:
+        import random
+        random.seed(args.shuffle)
+        random.shuffle(kernelFiles)
     if (args.from_file):
       for f in args.from_file:
         kernels = [line.strip() for line in open(f) if not line.startswith('#')]
