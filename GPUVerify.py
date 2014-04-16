@@ -716,7 +716,10 @@ def processOptions(args):
   CommandLineOptions.boogieOptions += sum([a.split(" ") for a in args['boogie_options'] or []],[])
   
   CommandLineOptions.vcgenOptions += ["/noCandidate:"+a for a in args['omit_infer'] or []]
-  CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str,args['kernel_args'])) ] if args['kernel_args'] else []
+  if args.kernel_args:
+    CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str,args['kernel_args'])) ]
+    CommandLineOptions.cruncherOptions += [ "/proc:$" + args.kernel_args[0] ]
+    CommandLineOptions.boogieOptions   += [ "/proc:$" + args.kernel_args[0] ]
 
   CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file'] or []] or []
   
@@ -1229,14 +1232,16 @@ def add_to_cache (f,args,cache):
     cache[code].append(dict((k,v) for k,v in args.iteritems() if k in ['group_size','num_groups','kernel_args']))
     print("added to cache")
 
-def verify_batch (files, cache=None):
+def verify_batch (files, success_cache=None):
+  failure_cache = {}
   for f in files:
     try:
       x = parse_args([f])
-      if not (cache is not None and in_cache(f,x,cache)): # ie, unless we've seen it before
+      if not (success_cache is not None and in_cache(f,x,success_cache)) or not in_cache(f,x,failure_cache): # ie, unless we've seen it before
         if main(x) == ErrorCodes.SUCCESS:
-          add_to_cache(f,x,cache)
-          print(cache)
+          add_to_cache(f,x,success_cache)
+        else:
+          add_to_cache(f,x,failure_cache)
       else:
         print("seen it in mah cache!")
     except GPUVerifyException as e:
@@ -1244,7 +1249,9 @@ def verify_batch (files, cache=None):
       if e.getExitCode() == ErrorCodes.CTRL_C:
         break
       elif e.getExitCode() == ErrorCodes.SUCCESS:
-        add_to_cache(f,x,cache)
+        add_to_cache(f,x,success_cache)
+      else:
+        add_to_cache(f,x,failure_cache)
 
 def do_batch_mode (host_args):
   kernels = []
@@ -1263,17 +1270,17 @@ def do_batch_mode (host_args):
         print(ran)
 
   try:
-    cache_map = pickle.load(open(args.cache))
+    success_cache = pickle.load(open(args.cache))
   except Exception:
-    cache_map = {}
+    success_cache = {}
 
   if host_args.check_intercepted:
-    verify_batch([kernels[i] for i in host_args.check_intercepted], cache_map)
+    verify_batch([kernels[i] for i in host_args.check_intercepted], success_cache)
   elif host_args.check_all_intercepted:
-    verify_batch(kernels, cache_map)
+    verify_batch(kernels, success_cache)
 
   if args.cache:
-    pickle.dump(cache_map,open(args.cache,"w"))
+    pickle.dump(success_cache,open(args.cache,"w"))
 
 def main(argv):
   """ This wraps GPUVerify's real main function so
