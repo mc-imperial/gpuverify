@@ -252,51 +252,6 @@ def SplitFilenameExt(f):
     ext = ".opt.bc"
   return filename, ext
 
-class Timeout(Exception):
-    pass
-
-class ToolWatcher(object):
-  """ This class is used by run() to implement a timeout for tools.
-  It uses threading.Timer to implement the timeout and provides
-  a method for checking if the timeout occurred. It also provides a
-  method for cancelling the timeout.
-
-  The class is reentrant
-  """
-
-  def __handleTimeOut(self):
-    if self.popenObject.poll() == None :
-      # Program is still running, let's kill it
-      self.__killed=True
-      children = psutil.Process(self.popenObject.pid).get_children(True)
-      self.popenObject.terminate()
-      for child in children:
-        child.terminate()
-
-  """ Create a ToolWatcher instance with an existing "subprocess.Popen" instance
-      and timeout.
-  """
-  def __init__(self,popenObject,timeout):
-    """ Create ToolWatcher. This will start the timeout.
-    """
-    self.timeout=timeout
-    self.popenObject=popenObject
-    self.__killed=False
-
-    self.timer=threading.Timer(self.timeout, self.__handleTimeOut)
-    self.timer.start()
-
-  """ Returns True if the timeout occurred """
-  def timeOutOccured(self):
-    return self.__killed
-
-  """ Cancel the timeout. You must call this if your program wishes
-      to exit else exit() will block waiting for this class's Thread
-      (threading.Timer) to finish.
-  """
-  def cancelTimeout(self):
-    self.timer.cancel()
-
 def GPUVerifyWarn(msg):
   print("GPUVerify: warning: " + msg)
 
@@ -594,7 +549,6 @@ def parse_args(argv):
           update_args(file_args,args)
           args = file_args
         except Exception as e:
-          print(e.message)
           pass # Probably doesn't parse -- worth a try
 
       _unused,ext = SplitFilenameExt(name)
@@ -996,7 +950,7 @@ class GPUVerifyInstance (object):
     self.debugging = args.debug
     self.timeout = args.timeout
 
-  def run(self, command,timeout=0):
+  def run(self, command):
     """ Run a command with an optional timeout. A timeout of zero
         implies no timeout.
     """
@@ -1014,28 +968,14 @@ class GPUVerifyInstance (object):
     # Redirect stdin, othewise terminal text becomes unreadable after timeout
     popenargs['stdin']=subprocess.PIPE
 
-    killer=None
-    def cleanupKiller():
-      if killer!=None:
-        killer.cancelTimeout()
-
-    proc = subprocess.Popen(command,**popenargs)
-    if timeout > 0:
-      killer=ToolWatcher(proc,timeout)
-    try:
-      stdout, stderr = proc.communicate()
-      if killer != None and killer.timeOutOccured():
-        raise Timeout
-    except KeyboardInterrupt:
-      cleanupKiller()
-      proc.wait()
-      raise
-    finally:
-      #Need to kill the timer if it exists else exit() will block until the timer finishes
-      cleanupKiller()
-
+    proc = psutil.Popen(command,**popenargs)
+    if args.timeout > 0:
+      rc = proc.wait(timeout=self.timeout)
+    else:
+      rc = proc.wait()
+    stdout, stderr = proc.communicate()
     # We do not return stderr, as it was redirected to stdout
-    return stdout, proc.returncode
+    return stdout, rc
 
   def getMonoCmdLine(self):
     if os.name == 'posix':
@@ -1046,7 +986,7 @@ class GPUVerifyInstance (object):
     else:
       return [] # Presumably using Windows so don't need mono
 
-  def RunTool(self,ToolName, Command, ErrorCode, timeout=0):
+  def RunTool(self,ToolName, Command, ErrorCode):
     """ Run a tool.
         If the timeout is set to 0 then there will be no timeout.
     """
@@ -1054,10 +994,10 @@ class GPUVerifyInstance (object):
     self.Verbose("Running " + ToolName)
     try:
       start = timeit.default_timer()
-      stdout, returnCode = self.run(Command, timeout)
+      stdout, returnCode = self.run(Command)
       end = timeit.default_timer()
-      print(stdout,file=self.out)
-    except Timeout:
+      self.out.write(stdout)
+    except psutil.TimeoutExpired:
       if self.time:
         self.timing[ToolName] = timeout
       raise GPUVerifyException(ErrorCodes.TIMEOUT, ToolName + " timed out. " + \
@@ -1082,16 +1022,14 @@ class GPUVerifyInstance (object):
               self.clangOptions +
               [("-I" + str(o)) for o in self.includes] +
               [("-D" + str(o)) for o in self.defines],
-              ErrorCodes.CLANG_ERROR,
-              self.timeout)
+              ErrorCodes.CLANG_ERROR)
 
     """ RUN OPT """
     if not self.skip["opt"]:
       self.RunTool("opt",
               [gvfindtools.llvmBinDir + "/opt"] +
               self.optOptions,
-              ErrorCodes.OPT_ERROR,
-              self.timeout)
+              ErrorCodes.OPT_ERROR)
 
     if self.stop == 'opt': return 0
 
@@ -1100,8 +1038,7 @@ class GPUVerifyInstance (object):
       self.RunTool("bugle",
               [gvfindtools.bugleBinDir + "/bugle"] +
               self.bugleOptions,
-              ErrorCodes.BUGLE_ERROR,
-              self.timeout)
+              ErrorCodes.BUGLE_ERROR)
 
     if self.stop == 'bugle': return 0
 
@@ -1111,8 +1048,7 @@ class GPUVerifyInstance (object):
               self.getMonoCmdLine() +
               [gvfindtools.gpuVerifyBinDir + "/GPUVerifyVCGen.exe"] +
               self.vcgenOptions,
-              ErrorCodes.GPUVERIFYVCGEN_ERROR,
-              self.timeout)
+              ErrorCodes.GPUVERIFYVCGEN_ERROR)
 
     if self.stop == 'vcgen': return 0
 
@@ -1122,8 +1058,7 @@ class GPUVerifyInstance (object):
                 self.getMonoCmdLine() +
                 [gvfindtools.gpuVerifyBinDir + os.sep + "GPUVerifyCruncher.exe"] +
                 self.cruncherOptions,
-                ErrorCodes.BOOGIE_ERROR,
-                self.timeout)
+                ErrorCodes.BOOGIE_ERROR)
 
     if self.stop == 'cruncher': return 0
 
@@ -1132,8 +1067,7 @@ class GPUVerifyInstance (object):
             self.getMonoCmdLine() +
             [gvfindtools.gpuVerifyBinDir + "/GPUVerifyBoogieDriver.exe"] +
             self.boogieOptions,
-            ErrorCodes.BOOGIE_ERROR,
-            self.timeout)
+            ErrorCodes.BOOGIE_ERROR)
 
     """ SUCCESS - REPORT STATUS """
     if self.silent:
@@ -1287,7 +1221,7 @@ def do_batch_mode (host_args):
   if args.cache:
     pickle.dump(success_cache,open(args.cache,"w"))
 
-def main(argv, out=None):
+def main(argv, out=sys.stdout):
   """ This wraps GPUVerify's real main function so
       that we can handle exceptions and trigger our own exit
       commands.

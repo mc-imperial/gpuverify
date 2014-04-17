@@ -37,6 +37,7 @@ GPUVerifyLib/obj/*
 *.bc
 *.bpl
 *.gbpl
+*.cbpl
 *.loc
 
 #Monodevelop settings
