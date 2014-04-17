@@ -698,9 +698,6 @@ def processOptions(args):
   return CommandLineOptions
 
 class GPUVerifyInstance (object):
-  def Verbose (self, msg):
-    if (self.verbose):
-      print(msg)
 
   def __init__ (self, args, out=None):
     """
@@ -947,7 +944,7 @@ class GPUVerifyInstance (object):
     self.silent = args.silent
     self.time = args.time or (args.time_as_csv is not None)
     self.timeCSVLabel = args.time_as_csv
-    self.debugging = args.debug
+    self.debug = args.debug
     self.timeout = args.timeout
 
   def run(self, command):
@@ -970,16 +967,16 @@ class GPUVerifyInstance (object):
 
     proc = psutil.Popen(command,**popenargs)
     if args.timeout > 0:
-      rc = proc.wait(timeout=self.timeout)
+      return_code = proc.wait(timeout=self.timeout)
     else:
-      rc = proc.wait()
+      return_code = proc.wait()
     stdout, stderr = proc.communicate()
     # We do not return stderr, as it was redirected to stdout
-    return stdout, rc
+    return stdout, return_code
 
   def getMonoCmdLine(self):
     if os.name == 'posix':
-      if self.debugging:
+      if self.debug:
         return [ 'mono' , '--debug' ]
       else:
         return [ 'mono' ]
@@ -991,15 +988,15 @@ class GPUVerifyInstance (object):
         If the timeout is set to 0 then there will be no timeout.
     """
     assert ToolName in Tools
-    self.Verbose("Running " + ToolName)
+    if self.verbose:
+      print("Running " + ToolName)
     try:
       start = timeit.default_timer()
       stdout, returnCode = self.run(Command)
       end = timeit.default_timer()
       self.out.write(stdout)
     except psutil.TimeoutExpired:
-      if self.time:
-        self.timing[ToolName] = timeout
+      self.timing[ToolName] = timeout
       raise GPUVerifyException(ErrorCodes.TIMEOUT, ToolName + " timed out. " + \
                                "Use --timeout=N with N > " + str(timeout)    + \
                                " to increase timeout, or --timeout=0 to "    + \
@@ -1008,8 +1005,7 @@ class GPUVerifyInstance (object):
       raise GPUVerifyException(ErrorCode, "While invoking " + ToolName       + \
                                ": " + str(e) + "\nWith command line args:\n" + \
                                pprint.pformat(Command))
-    if self.time:
-      self.timing[ToolName] = end-start
+    self.timing[ToolName] = end-start
     if returnCode != ErrorCodes.SUCCESS:
       if self.silent and stdout: print(stdout, file=sys.stderr)
       raise GPUVerifyException(ErrorCode, stdout)
