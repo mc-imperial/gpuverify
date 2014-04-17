@@ -456,6 +456,8 @@ def parse_args(argv):
                           help="Ignore all source-level annotations")
     advanced.add_argument("--only-requires",                action='store_true',
                           help="Ignore all source-level annotations except for requires")
+    advanced.add_argument("--invariants-as-candidates",     action='store_true',
+                          help="Interpret all source-level invariants as candidates")
     advanced.add_argument("--no-barrier-access-checks",     action='store_true',
                           help="Turn off access checks for barrier invariants")
     advanced.add_argument("--no-constant-write-checks",     action='store_true',
@@ -701,14 +703,19 @@ def processOptions(args):
 
   CommandLineOptions.defines += args['defines'] or []
   CommandLineOptions.includes += args['includes'] or []
+
+  # Must be added after include of opencl or cuda header
   if args['no_annotations'] or args['only_requires']:
-    # Must be added after include of opencl or cuda header
     noAnnotationsHeader = [ "-include", "annotations/no_annotations.h" ]
     clangOpenCLOptions.extend(noAnnotationsHeader)
     clangCUDAOptions.extend(noAnnotationsHeader)
     if args['only_requires']:
       clangOpenCLDefines.append("ONLY_REQUIRES")
       clangCUDADefines.append("ONLY_REQUIRES")
+  if args['invariants_as_candidates']:
+    candidateAnnotationsHeader = [ "-include", "annotations/candidate_annotations.h" ]
+    clangOpenCLOptions.extend(candidateAnnotationsHeader)
+    clangCUDAOptions.extend(candidateAnnotationsHeader)
 
   CommandLineOptions.clangOptions += sum([a.split(" ") for a in args['clang_options'] or []],[])
   CommandLineOptions.optOptions += sum([a.split(" ") for a in args['opt_options'] or []],[])
