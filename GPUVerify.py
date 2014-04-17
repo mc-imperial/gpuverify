@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 from __future__ import print_function
+import StringIO
 import pickle
 import argparse
 import os
@@ -13,14 +14,50 @@ import multiprocessing # Only for determining number of CPU cores available
 import getversion
 import pprint
 from collections import defaultdict
+from collections import namedtuple
 import copy
+import distutils.spawn
 
 # To properly kill child processes cross platform
 try:
   import psutil
-  psutilPresent = True
 except ImportError:
-  psutilPresent = False
+  raise ConfigurationError("psutil required. \
+                           `pip install psutil` to get it.")
+
+# Try to import the paths need for GPUVerify's tools
+try:
+  import gvfindtools
+  # Initialise the paths (only needed for deployment version of gvfindtools.py)
+  gvfindtools.init(sys.path[0])
+except ImportError:
+  raise ConfigurationError("Cannot find 'gvfindtools.py' \
+                           Did you forget to create it from a template?")
+
+# WindowsError is not defined on UNIX systems, this works around that
+try:
+  WindowsError
+except NameError:
+  class WindowsError(Exception):
+    pass
+
+if os.name == 'posix':
+  # Check mono in path
+  if distutils.spawn.find_executable('mono') == None:
+    raise ConfigurationError("Could not find the mono executable in your PATH")
+
+class ConfigurationError(Exception):
+  def __init__ (self, msg):
+    self.msg = msg
+  def __str__ (self):
+    return "GPUVerify: CONFIGURATION_ERROR error ({}): {}".format(ErrorCodes.CONFIGURATION_ERROR,self.msg)
+
+class ArgumentParserError(Exception):
+  def __init__ (self, msg):
+    self.msg = msg
+  def __str__ (self):
+    return "GPUVerify: COMMAND_LINE_ERROR error ({}): {}".format(ErrorCodes.COMMAND_LINE_ERROR,self.msg)
+
 
 class GPUVerifyException(Exception):
   """
@@ -29,12 +66,6 @@ class GPUVerifyException(Exception):
   """
 
   def __init__(self, code, msg=None):
-    """
-      code : Should be a member of the ErrorCodes class
-      msg  : An optional string
-      stdout : An optional string showing stdout message of a tool
-      stderr : An optional string showing stderr message of a tool
-    """
     self.code = code
     self.msg = msg
 
@@ -42,9 +73,6 @@ class GPUVerifyException(Exception):
     return self.code
 
   def __str__(self):
-    """
-      Provide a human readable form of the Exception
-    """
     # Determine string for error code
     codeString = None
     for cs in [ x for x in dir(ErrorCodes) if not x.startswith('_') ]:
@@ -73,15 +101,6 @@ class ErrorCodes(object):
   CTRL_C = 8
   CONFIGURATION_ERROR = 9
 
-# Try to import the paths need for GPUVerify's tools
-try:
-  import gvfindtools
-  # Initialise the paths (only needed for deployment version of gvfindtools.py)
-  gvfindtools.init(sys.path[0])
-except ImportError:
-  raise GPUVerifyException(ErrorCodes.CONFIGURATION_ERROR,
-                           'Cannot find \'gvfindtools.py\'.'
-                           ' Did you forget to create it from a template?')
 
 class BatchCaller(object):
   """
@@ -90,7 +109,6 @@ class BatchCaller(object):
   """
 
   def __init__(self, verbose=False):
-    from collections import namedtuple
     self.calls = [ ]
     self.verbose = verbose
 
@@ -130,31 +148,21 @@ class BatchCaller(object):
     """
     self.calls = [ ]
 
-    assert len(self.calls) == 0
-
 cleanUpHandler = BatchCaller()
 
 """ Timing for the toolchain pipeline """
 Tools = ["clang", "opt", "bugle", "gpuverifyvcgen", "gpuverifycruncher", "gpuverifyboogiedriver"]
 Extensions = { 'clang': ".bc", 'opt': ".opt.bc", 'bugle': ".gbpl", 'gpuverifyvcgen': ".bpl", 'gpuverifycruncher': ".cbpl" }
 
-""" WindowsError is not defined on UNIX systems, this works around that """
-try:
-  WindowsError
-except NameError:
-  class WindowsError(Exception):
-    pass
 
 
 """ We support three analysis modes """
 class AnalysisMode(object):
-  """ This is the default mode.  Right now it is the same as VERIFY,
+  """ ALL is the default mode.  Right now it is the same as VERIFY,
       but in future this mode will run verification and bug-finding in parallel
   """
   ALL=0
-  """ This is bug-finding only mode """
   FINDBUGS=1
-  """ This is verify only mode """
   VERIFY=2
 
 """ We support OpenCL and CUDA """
@@ -184,7 +192,7 @@ if os.name == "posix":
     bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
                              + "/libbugleInlineCheckPlugin.dylib"
   else:
-    raise GPUVerifyException(ErrorCodes.CONFIGURATION_ERROR, 'Could not find Bugle Inline Check plugin')
+    raise ConfigurationError('Could not find Bugle Inline Check plugin')
 
   clangInlineOptions = [ "-Xclang", "-load",
                          "-Xclang", bugleInlineCheckPlugin,
@@ -215,7 +223,7 @@ clangCUDADefines = [ "__CUDA_ARCH__" ]
 """ Options for the tool """
 class DefaultCmdLineOptions(object):
   """
-  This class defines all the default options for the tool
+  This class defines some of the default options for the tool
   """
   def __init__(self):
     self.sourceFiles = [] # The OpenCL or CUDA files to be processed
@@ -260,12 +268,10 @@ class ToolWatcher(object):
     if self.popenObject.poll() == None :
       # Program is still running, let's kill it
       self.__killed=True
-      if psutilPresent:
-        children = psutil.Process(self.popenObject.pid).get_children(True)
+      children = psutil.Process(self.popenObject.pid).get_children(True)
       self.popenObject.terminate()
-      if psutilPresent:
-        for child in children:
-          child.terminate()
+      for child in children:
+        child.terminate()
 
   """ Create a ToolWatcher instance with an existing "subprocess.Popen" instance
       and timeout.
@@ -291,26 +297,22 @@ class ToolWatcher(object):
   def cancelTimeout(self):
     self.timer.cancel()
 
-
-def showVersionAndExit():
-  """ This will check if using gpuverify from development directory.
-      If so this will invoke Mercurial to find out version information.
-      If this is a deployed version we will try to read the version from
-      a file instead
-  """
-  print(getversion.getVersionString())
-  raise GPUVerifyException(ErrorCodes.SUCCESS)
-
 def GPUVerifyWarn(msg):
   print("GPUVerify: warning: " + msg)
 
 class GPUVerifyArgumentParser(argparse.ArgumentParser):
   def error (self, message):
-    raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, message)
+    raise ArgumentParserError(message)
 
 class ShowVersionAction(argparse.Action):
   def __call__ (self,a,b,c,d=None):
-    showVersionAndExit()
+    """ This will check if using gpuverify from development directory.
+        If so this will invoke Mercurial to find out version information.
+        If this is a deployed version we will try to read the version from
+        a file instead
+    """
+    print(getversion.getVersionString())
+    sys.exit()
 
 class ldict(dict):
   def __getattr__ (self, method_name):
@@ -739,11 +741,13 @@ class GPUVerifyInstance (object):
     if (self.verbose):
       print(msg)
 
-  def __init__ (self, args):
+  def __init__ (self, args, out=None):
     """
     This function should NOT be called directly instead call main()
     It is assumed that argv has had sys.argv[0] removed
     """
+
+    self.out = out
 
     self.timing = {}
 
@@ -761,8 +765,6 @@ class GPUVerifyInstance (object):
       CommandLineOptions.clangOptions += [ "-target", "nvptx--" ]
     elif (args.size_t == 64):
       CommandLineOptions.clangOptions += [ "-target", "nvptx64--" ]
-    else:
-      raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "unknown size_t size '" + str(args.size_t) + "'")
 
     if args.source_language == SourceLanguage.OpenCL:
       CommandLineOptions.clangOptions += clangOpenCLOptions
@@ -784,6 +786,8 @@ class GPUVerifyInstance (object):
           CommandLineOptions.defines += [ "__GLOBAL_SIZE_" + str(index) + "=" + str(value[1]) ]
         else:
           CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(index) + "=" + str(value) ]
+
+      assert(args.size_t in [32,64])
       if (args.size_t == 32):
         CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
                                              "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--.bc" ]
@@ -838,18 +842,8 @@ class GPUVerifyInstance (object):
     if args.start == 'clang':
       CommandLineOptions.bugleOptions += [ "-l", "cl" if args.source_language == SourceLanguage.OpenCL else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
     elif not CommandLineOptions.skip['bugle']:
-      lang = args.bugle_lang
-      if not lang: # try to infer
-        try:
-          proc = subprocess.Popen([ gvfindtools.llvmBinDir + "/llvm-nm", filename + ext ], stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-          stdout, stderr = proc.communicate()
-          if "get_local_size" in stdout: lang = 'cl'
-          if "blockDim" in stdout: lang = 'cu'
-        except: pass
-      if not lang:
-        raise GPUVerifyException(ErrorCodes.COMMAND_LINE_ERROR, "must specify --bugle-lang=[cl|cu] when given a bitcode .bc file")
-      assert lang in [ "cl", "cu" ]
-      CommandLineOptions.bugleOptions += [ "-l", lang, "-s", locFilename, "-o", gbplFilename, optFilename ]
+      assert args.bugle_lang in [ "cl", "cu" ]
+      CommandLineOptions.bugleOptions += [ "-l", args.bugle_lang, "-s", locFilename, "-o", gbplFilename, optFilename ]
 
     if args.math_int:
       CommandLineOptions.bugleOptions += [ "-i", "math" ]
@@ -860,7 +854,7 @@ class GPUVerifyInstance (object):
       if args.solver == "z3":
         CommandLineOptions.cruncherOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
         CommandLineOptions.boogieOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
-      
+
     if not args.no_inline:
       CommandLineOptions.bugleOptions += [ "-inline" ]
 
@@ -1004,12 +998,8 @@ class GPUVerifyInstance (object):
       print(" ".join(command))
     else:
       popenargs['bufsize']=0
-      if __name__ != '__main__':
-        # We don't want messages to go to stdout if being used as module
-        popenargs['stdout']=subprocess.PIPE
-
-    if self.silent:
-      popenargs['stdout']=subprocess.PIPE
+      # We don't want messages to go to stdout if being used as module
+    popenargs['stdout']=subprocess.PIPE
 
     # Redirect stderr to whatever stdout is redirected to
     popenargs['stderr']=subprocess.STDOUT
@@ -1032,7 +1022,7 @@ class GPUVerifyInstance (object):
     except KeyboardInterrupt:
       cleanupKiller()
       proc.wait()
-      raise GPUVerifyException(ErrorCodes.CTRL_C)
+      raise
     finally:
       #Need to kill the timer if it exists else exit() will block until the timer finishes
       cleanupKiller()
@@ -1042,14 +1032,10 @@ class GPUVerifyInstance (object):
 
   def getMonoCmdLine(self):
     if os.name == 'posix':
-      # Check mono in path
-      import distutils.spawn
-      if distutils.spawn.find_executable('mono') == None:
-        raise GPUVerifyException(ErrorCodes.CONFIGURATION_ERROR, "Could not find the mono executable in your PATH")
       if self.debugging:
         return [ 'mono' , '--debug' ]
       else:
-        return ['mono']
+        return [ 'mono' ]
     else:
       return [] # Presumably using Windows so don't need mono
 
@@ -1063,6 +1049,7 @@ class GPUVerifyInstance (object):
       start = timeit.default_timer()
       stdout, returnCode = self.run(Command, timeout)
       end = timeit.default_timer()
+      print(stdout,file=self.out)
     except Timeout:
       if self.time:
         self.timing[ToolName] = timeout
@@ -1146,19 +1133,19 @@ class GPUVerifyInstance (object):
       return 0
 
     if self.mode == AnalysisMode.FINDBUGS:
-      print("No defects were found while analysing: " + ", ".join(self.sourceFiles))
-      print("Notes:")
-      print("- use --loop-unwind=N with N > " + str(self.loopUnwindDepth) + " to search for deeper bugs")
-      print("- re-run in verification mode to try to prove absence of defects")
+      print("No defects were found while analysing: " + ", ".join(self.sourceFiles), file=self.out)
+      print("Notes:", file=self.out)
+      print("- use --loop-unwind=N with N > " + str(self.loopUnwindDepth) + " to search for deeper bugs", file=self.out)
+      print("- re-run in verification mode to try to prove absence of defects", file=self.out)
     else:
-      print("Verified: " + ", ".join(self.sourceFiles))
+      print("Verified: " + ", ".join(self.sourceFiles), file=self.out)
       if not self.onlyDivergence:
-        print("- no data races within " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"))
+        print("- no data races within " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=self.out)
         if not self.onlyIntraGroup:
-          print("- no data races between " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"))
-      print("- no barrier divergence")
-      print("- no assertion failures")
-      print("(but absolutely no warranty provided)")
+          print("- no data races between " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=self.out)
+      print("- no barrier divergence", file=self.out)
+      print("- no assertion failures", file=self.out)
+      print("(but absolutely no warranty provided)", file=self.out)
 
     return 0
 
@@ -1174,18 +1161,18 @@ class GPUVerifyInstance (object):
         row.insert(1,'PASS')
       else:
         row.insert(1,'FAIL(' + str(exitCode) + ')')
-      print(','.join(row))
+      print(','.join(row), file=self.out)
     else:
       total = sum(self.timing.values())
-      print("Timing information (%.2f secs):" % total)
+      print("Timing information (%.2f secs):" % total, file=self.out)
       if self.timing:
         padTool = max([ len(tool) for tool in self.timing.keys() ])
         padTime = max([ len('%.3f secs' % t) for t in self.timing.values() ])
         for tool in Tools:
           if tool in self.timing:
-            print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % self.timing[tool]).rjust(padTime)))
+            print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % self.timing[tool]).rjust(padTime)), file=self.out)
       else:
-        print("- no tools ran")
+        print("- no tools ran", file=self.out)
 
 def subtool_args (args):
   pass_flags = { 'verbose': "--verbose", 'debug': "--debug" }
@@ -1195,10 +1182,12 @@ def subtool_args (args):
 def update_args (base, new):
   for k,v in new.iteritems():
     if not base[k] and v:
-      print("Setting {} to {}".format(k,v))
+      if base.verbose or new.verbose:
+        print("Setting {} to {}".format(k,v))
       base[k] = v
     elif v and base[k] != v:
-      print("Supplanting {}={} for {}".format(k,base[k],v))
+      if base.verbose or new.verbose:
+        print("Supplanting {}={} for {}".format(k,base[k],v))
       base[k] = v
 
 def strip_dudspace (argv):
@@ -1230,28 +1219,37 @@ def add_to_cache (f,args,cache):
     if code not in cache:
       cache[code] = []
     cache[code].append(dict((k,v) for k,v in args.iteritems() if k in ['group_size','num_groups','kernel_args']))
-    print("added to cache")
+    if args.verbose:
+      print("added to cache")
 
 def verify_batch (files, success_cache=None):
   failure_cache = {}
+  results = {}
+  success = []
+  failure = []
   for f in files:
     try:
       x = parse_args([f])
       if not (success_cache is not None and in_cache(f,x,success_cache)) or not in_cache(f,x,failure_cache): # ie, unless we've seen it before
-        if main(x) == ErrorCodes.SUCCESS:
+        results[f] = StringIO.StringIO()
+        if main(x,results[f]) == ErrorCodes.SUCCESS:
           add_to_cache(f,x,success_cache)
+          success.append(f)
         else:
           add_to_cache(f,x,failure_cache)
+          failure.append(f)
       else:
-        print("seen it in mah cache!")
+        pass # in the cache
     except GPUVerifyException as e:
       print(str(e), file=sys.stderr)
-      if e.getExitCode() == ErrorCodes.CTRL_C:
-        break
-      elif e.getExitCode() == ErrorCodes.SUCCESS:
+      if e.getExitCode() == ErrorCodes.SUCCESS:
         add_to_cache(f,x,success_cache)
       else:
         add_to_cache(f,x,failure_cache)
+
+  for f in failure:
+    print("Kernel {} failed to verify:".format(f))
+    print(results[f].getValue())
 
 def do_batch_mode (host_args):
   kernels = []
@@ -1282,7 +1280,7 @@ def do_batch_mode (host_args):
   if args.cache:
     pickle.dump(success_cache,open(args.cache,"w"))
 
-def main(argv):
+def main(argv, out=None):
   """ This wraps GPUVerify's real main function so
       that we can handle exceptions and trigger our own exit
       commands.
@@ -1302,7 +1300,7 @@ def main(argv):
       except GPUVerifyVerification as e:
         # Handle error
   """
-  gv_instance = GPUVerifyInstance(argv)
+  gv_instance = GPUVerifyInstance(argv, out)
   def handleTiming (exitCode):
     if gv_instance.time:
       gv_instance.showTiming(exitCode)
@@ -1349,6 +1347,14 @@ if __name__ == '__main__':
       do_batch_mode(args)
     else:
       main(args)
+  except ConfigurationError as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(ErrorCodes.CONFIGURATION_ERROR)
+  except ArgumentParserError as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(ErrorCodes.COMMAND_LINE_ERROR)
+  except KeyboardInterrupt:
+    sys.exit(ErrorCodes.CTRL_C)
   except GPUVerifyException as e:
     # We assume that globals are not cleaned up when running as a script so it 
     # is safe to read CommandLineOptions
