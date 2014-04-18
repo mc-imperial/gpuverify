@@ -1163,22 +1163,35 @@ def verify_batch (files, success_cache={}):
     x = parse_args([f])
     # Only check if we've never seen it before
     if not (in_cache(f,x,success_cache) or in_cache(f,x,failure_cache)):
-      rc, out = main(x,results[f])
+      rc, out = main(x)
       results[f] = out
       if rc == ErrorCodes.SUCCESS:
         add_to_cache(f,x,success_cache)
-        success.append(f)
+        success.append((f,x))
       else:
         add_to_cache(f,x,failure_cache)
-        failure.append(f)
+        failure.append((f,x))
     else:
       pass # In the cache
 
-  for f in failure:
-    print("Kernel {} failed to verify:".format(f))
+  for s,args in success:
+    print("Kernel {} ({}) verified with: local_size={} global_size={} args={}".format(args['kernel_args'][0],
+                                                                                       s,
+                                                                                       ",".join(map(str,args['group_size'])),
+                                                                                       ",".join(map(str,args['global_size'])),
+                                                                                       ",".join(map(str,args['kernel_args'][1:]))))
+
+  print("")
+  print("=== FAILURES ===")
+  for f,args in failure:
+    print("Kernel {} ({}) failed to verify with: local_size={} global_size={} args={}".format(args['kernel_args'][0],
+                                                                                       s,
+                                                                                       ",".join(map(str,args['group_size'])),
+                                                                                       ",".join(map(str,args['global_size'])),
+                                                                                       ",".join(map(str,args['kernel_args'][1:]))))
     print(results[f])
 
-def do_batch_mode (host_args):
+def do_batch_mode (host_args): 
   kernels = []
   for path, subdirs, files in os.walk(".gpuverify"):
     kernels += map(lambda x: path+os.sep+x, files)
