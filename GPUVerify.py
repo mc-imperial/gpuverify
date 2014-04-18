@@ -58,22 +58,12 @@ class ArgumentParserError(Exception):
   def __str__ (self):
     return "GPUVerify: COMMAND_LINE_ERROR error ({}): {}".format(ErrorCodes.COMMAND_LINE_ERROR,self.msg)
 
-
 class GPUVerifyException(Exception):
-  """
-    These exceptions are used as a replacement
-    for using sys.exit()
-  """
-
   def __init__(self, code, msg=None):
     self.code = code
     self.msg = msg
 
-  def getExitCode(self):
-    return self.code
-
   def __str__(self):
-    # Determine string for error code
     codeString = None
     for cs in [ x for x in dir(ErrorCodes) if not x.startswith('_') ]:
       if getattr(ErrorCodes, cs) == self.code:
@@ -100,7 +90,6 @@ class ErrorCodes(object):
   TIMEOUT = 7
   CTRL_C = 8
   CONFIGURATION_ERROR = 9
-
 
 class BatchCaller(object):
   """
@@ -707,6 +696,14 @@ class GPUVerifyInstance (object):
 
     self.out = out
 
+    if os.name == 'posix':
+      if args.debug:
+        self.mono = [ 'mono' , '--debug' ]
+      else:
+        self.mono = [ 'mono' ]
+    else:
+      self.mono = [] # Presumably using Windows so don't need mono
+
     self.timing = {}
 
     CommandLineOptions = processOptions(args)
@@ -956,7 +953,7 @@ class GPUVerifyInstance (object):
       print(" ".join(command))
     else:
       popenargs['bufsize']=0
-      # We don't want messages to go to stdout if being used as module
+    # We don't want messages to go to stdout
     popenargs['stdout']=subprocess.PIPE
 
     # Redirect stderr to whatever stdout is redirected to
@@ -974,19 +971,8 @@ class GPUVerifyInstance (object):
     # We do not return stderr, as it was redirected to stdout
     return stdout, return_code
 
-  def getMonoCmdLine(self):
-    if os.name == 'posix':
-      if self.debug:
-        return [ 'mono' , '--debug' ]
-      else:
-        return [ 'mono' ]
-    else:
-      return [] # Presumably using Windows so don't need mono
-
   def RunTool(self,ToolName, Command, ErrorCode):
-    """ Run a tool.
-        If the timeout is set to 0 then there will be no timeout.
-    """
+    """ Returns a triple (succeeded, timedout, stdout), and stores the return code """
     assert ToolName in Tools
     if self.verbose:
       print("Running " + ToolName)
@@ -994,99 +980,110 @@ class GPUVerifyInstance (object):
       start = timeit.default_timer()
       stdout, returnCode = self.run(Command)
       end = timeit.default_timer()
-      self.out.write(stdout)
     except psutil.TimeoutExpired:
-      self.timing[ToolName] = timeout
-      raise GPUVerifyException(ErrorCodes.TIMEOUT, ToolName + " timed out. " + \
-                               "Use --timeout=N with N > " + str(timeout)    + \
-                               " to increase timeout, or --timeout=0 to "    + \
-                               "disable timeout.")
+      self.timing[ToolName] = self.timeout
+      return False, True, "{} timed out. Use --timeout=N with N > {} to increase timeout, or --timeout=0 to disable timeout.{}\n".format(ToolName, self.timeout)
     except (OSError,WindowsError) as e:
-      raise GPUVerifyException(ErrorCode, "While invoking " + ToolName       + \
-                               ": " + str(e) + "\nWith command line args:\n" + \
-                               pprint.pformat(Command))
+      print("Error while invoking {} : {}".format(ToolName, str(e)))
+      print("With command line args:")
+      print(pprint.pformat(Command))
+      raise
     self.timing[ToolName] = end-start
-    if returnCode != ErrorCodes.SUCCESS:
-      if self.silent and stdout: print(stdout, file=sys.stderr)
-      raise GPUVerifyException(ErrorCode, stdout)
+    # if returnCode != ErrorCodes.SUCCESS:
+    #   if self.silent and stdout: print(stdout, file=sys.stderr)
+    return (returnCode == ErrorCodes.SUCCESS, False, stdout)
 
   def invoke (self):
-    """ RUN CLANG """
+    """ Returns (returncode, outstring) """
+
     if not self.skip["clang"]:
-      self.RunTool("clang",
+      success, timeout, stdout = self.RunTool("clang",
               [gvfindtools.llvmBinDir + "/clang"] +
               self.clangOptions +
               [("-I" + str(o)) for o in self.includes] +
               [("-D" + str(o)) for o in self.defines],
               ErrorCodes.CLANG_ERROR)
 
-    """ RUN OPT """
+    if timeout: return ErrorCodes.TIMEOUT, stdout
+    if not success: return ErrorCodes.CLANG_ERROR, stdout
+
     if not self.skip["opt"]:
-      self.RunTool("opt",
+      success, timeout, stdout = self.RunTool("opt",
               [gvfindtools.llvmBinDir + "/opt"] +
               self.optOptions,
               ErrorCodes.OPT_ERROR)
 
+    if timeout: return ErrorCodes.TIMEOUT, stdout
+    if not success: return ErrorCodes.OPT_ERROR, stdout
+
     if self.stop == 'opt': return 0
 
-    """ RUN BUGLE """
     if not self.skip["bugle"]:
-      self.RunTool("bugle",
+      success, timeout, stdout = self.RunTool("bugle",
               [gvfindtools.bugleBinDir + "/bugle"] +
               self.bugleOptions,
               ErrorCodes.BUGLE_ERROR)
 
+    if timeout: return ErrorCodes.TIMEOUT, stdout
+    if not success: return ErrorCodes.BUGLE_ERROR, stdout
+
     if self.stop == 'bugle': return 0
 
-    """ RUN GPUVERIFYVCGEN """
     if not self.skip["vcgen"]:
-      self.RunTool("gpuverifyvcgen",
-              self.getMonoCmdLine() +
+      success, timeout, stdout = self.RunTool("gpuverifyvcgen",
+              self.mono +
               [gvfindtools.gpuVerifyBinDir + "/GPUVerifyVCGen.exe"] +
               self.vcgenOptions,
               ErrorCodes.GPUVERIFYVCGEN_ERROR)
 
+    if timeout: return ErrorCodes.TIMEOUT, stdout
+    if not success: return ErrorCodes.GPUVERIFYVCGEN_ERROR, stdout
+
     if self.stop == 'vcgen': return 0
 
-    """ RUN GPUVERIFYCRUNCHER """
     if not self.skip["cruncher"]:
-      self.RunTool("gpuverifycruncher",
-                self.getMonoCmdLine() +
+      success, timeout, stdout = self.RunTool("gpuverifycruncher",
+                self.mono +
                 [gvfindtools.gpuVerifyBinDir + os.sep + "GPUVerifyCruncher.exe"] +
                 self.cruncherOptions,
                 ErrorCodes.BOOGIE_ERROR)
+    if timeout: return ErrorCodes.TIMEOUT, stdout
+    if not success: return ErrorCodes.BOOGIE_ERROR, stdout
 
     if self.stop == 'cruncher': return 0
 
-    """ RUN GPUVERIFYBOOGIEDRIVER """
-    self.RunTool("gpuverifyboogiedriver",
-            self.getMonoCmdLine() +
+    success, timeout, stdout = self.RunTool("gpuverifyboogiedriver",
+            self.mono +
             [gvfindtools.gpuVerifyBinDir + "/GPUVerifyBoogieDriver.exe"] +
             self.boogieOptions,
             ErrorCodes.BOOGIE_ERROR)
+    if timeout: return ErrorCodes.TIMEOUT, stdout
+    if not success: return ErrorCodes.BOOGIE_ERROR, stdout
 
-    """ SUCCESS - REPORT STATUS """
     if self.silent:
-      return 0
+      return 0, ""
+
+    string_builder = StringIO.StringIO()
 
     if self.mode == AnalysisMode.FINDBUGS:
-      print("No defects were found while analysing: " + ", ".join(self.sourceFiles), file=self.out)
-      print("Notes:", file=self.out)
-      print("- use --loop-unwind=N with N > " + str(self.loopUnwindDepth) + " to search for deeper bugs", file=self.out)
-      print("- re-run in verification mode to try to prove absence of defects", file=self.out)
+      print("No defects were found while analysing: " + ", ".join(self.sourceFiles), file=string_builder)
+      print("Notes:", file=string_builder)
+      print("- use --loop-unwind=N with N > " + str(self.loopUnwindDepth) + " to search for deeper bugs", file=string_builder)
+      print("- re-run in verification mode to try to prove absence of defects", file=string_builder)
     else:
-      print("Verified: " + ", ".join(self.sourceFiles), file=self.out)
+      print("Verified: " + ", ".join(self.sourceFiles), file=string_builder)
       if not self.onlyDivergence:
-        print("- no data races within " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=self.out)
+        print("- no data races within " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=string_builder)
         if not self.onlyIntraGroup:
-          print("- no data races between " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=self.out)
-      print("- no barrier divergence", file=self.out)
-      print("- no assertion failures", file=self.out)
-      print("(but absolutely no warranty provided)", file=self.out)
+          print("- no data races between " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=string_builder)
+      print("- no barrier divergence", file=string_builder)
+      print("- no assertion failures", file=string_builder)
+      print("(but absolutely no warranty provided)", file=string_builder)
 
-    return 0
+    return 0, string_builder.getvalue()
 
   def showTiming(self, exitCode):
+    """ Returns the timing as a string """
     if self.timeCSVLabel is not None:
       times = [ self.timing.get(tool, 0.0) for tool in Tools ]
       total = sum(times)
@@ -1098,23 +1095,21 @@ class GPUVerifyInstance (object):
         row.insert(1,'PASS')
       else:
         row.insert(1,'FAIL(' + str(exitCode) + ')')
-      print(','.join(row), file=self.out)
+      return ','.join(row)
     else:
       total = sum(self.timing.values())
       print("Timing information (%.2f secs):" % total, file=self.out)
       if self.timing:
         padTool = max([ len(tool) for tool in self.timing.keys() ])
         padTime = max([ len('%.3f secs' % t) for t in self.timing.values() ])
+        string_builder = StringIO.StringIO()
         for tool in Tools:
           if tool in self.timing:
-            print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % self.timing[tool]).rjust(padTime)), file=self.out)
+            print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % self.timing[tool]).rjust(padTime)), file=string_builder)
+        return string_builder.getvalue()
       else:
-        print("- no tools ran", file=self.out)
+        return "- no tools ran"
 
-def subtool_args (args):
-  pass_flags = { 'verbose': "--verbose", 'debug': "--debug" }
-#, 'clang_options', 'opt_options', 'bugle_options', 'cruncher_options', 'boogie_options']
-  return [pass_flags[x] for x,v in args.iteritems() if v and (x in pass_flags)]
 
 def update_args (base, new):
   for k,v in new.iteritems():
@@ -1159,34 +1154,29 @@ def add_to_cache (f,args,cache):
     if args.verbose:
       print("added to cache")
 
-def verify_batch (files, success_cache=None):
+def verify_batch (files, success_cache={}):
   failure_cache = {}
   results = {}
   success = []
   failure = []
   for f in files:
-    try:
-      x = parse_args([f])
-      if not (success_cache is not None and in_cache(f,x,success_cache)) or not in_cache(f,x,failure_cache): # ie, unless we've seen it before
-        results[f] = StringIO.StringIO()
-        if main(x,results[f]) == ErrorCodes.SUCCESS:
-          add_to_cache(f,x,success_cache)
-          success.append(f)
-        else:
-          add_to_cache(f,x,failure_cache)
-          failure.append(f)
-      else:
-        pass # in the cache
-    except GPUVerifyException as e:
-      print(str(e), file=sys.stderr)
-      if e.getExitCode() == ErrorCodes.SUCCESS:
+    x = parse_args([f])
+    # Only check if we've never seen it before
+    if not (in_cache(f,x,success_cache) or in_cache(f,x,failure_cache)):
+      rc, out = main(x,results[f])
+      results[f] = out
+      if rc == ErrorCodes.SUCCESS:
         add_to_cache(f,x,success_cache)
+        success.append(f)
       else:
         add_to_cache(f,x,failure_cache)
+        failure.append(f)
+    else:
+      pass # In the cache
 
   for f in failure:
     print("Kernel {} failed to verify:".format(f))
-    print(results[f].getValue())
+    print(results[f])
 
 def do_batch_mode (host_args):
   kernels = []
@@ -1240,7 +1230,7 @@ def main(argv, out=sys.stdout):
   gv_instance = GPUVerifyInstance(argv, out)
   def handleTiming (exitCode):
     if gv_instance.time:
-      gv_instance.showTiming(exitCode)
+      print(gv_instance.showTiming(exitCode))
     sys.stderr.flush()
     sys.stdout.flush()
 
@@ -1255,9 +1245,9 @@ def main(argv, out=sys.stdout):
     cleanUpHandler.clear() # Clean up for next use
 
   try:
-    gv_instance.invoke()
+    returnCode, stdout = gv_instance.invoke()
   except GPUVerifyException as e:
-    doCleanUp(timing=True, exitCode=e.getExitCode())
+    doCleanUp(timing=True, exitCode=e.code)
     raise
   except Exception:
     # Something went very wrong
@@ -1265,7 +1255,7 @@ def main(argv, out=sys.stdout):
     raise
 
   doCleanUp(timing=True) # Do this outside try block so we don't call twice!
-  return ErrorCodes.SUCCESS
+  return returnCode, stdout
 
 debug = False
 
@@ -1283,7 +1273,9 @@ if __name__ == '__main__':
     if args.batch_mode:
       do_batch_mode(args)
     else:
-      main(args)
+      rc, out = main(args)
+      sys.stdout.write(out)
+      sys.exit(rc)
   except ConfigurationError as e:
     print(str(e), file=sys.stderr)
     sys.exit(ErrorCodes.CONFIGURATION_ERROR)
@@ -1295,13 +1287,13 @@ if __name__ == '__main__':
   except GPUVerifyException as e:
     # We assume that globals are not cleaned up when running as a script so it 
     # is safe to read CommandLineOptions
-    if (not (e.getExitCode() in ignoredErrors)) or debug:
-      if e.getExitCode() == ErrorCodes.COMMAND_LINE_ERROR:
+    if (not (e.code in ignoredErrors)) or debug:
+      if e.code == ErrorCodes.COMMAND_LINE_ERROR:
         # For command line errors only show the message and not internal details
         print('GPUVerify: {0}'.format(e.msg), file=sys.stderr)
       else:
         # Show all exception info for everything else not ignored
         print(str(e), file=sys.stderr)
-    sys.exit(e.getExitCode())
+    sys.exit(e.code)
 
   sys.exit(ErrorCodes.SUCCESS)
