@@ -13,8 +13,8 @@ import threading
 import multiprocessing # Only for determining number of CPU cores available
 import getversion
 import pprint
-from collections import defaultdict
-from collections import namedtuple
+import tempfile
+from collections import defaultdict, namedtuple
 import copy
 import distutils.spawn
 
@@ -584,7 +584,10 @@ def parse_args(argv):
       elif args.group_size and args.num_groups:
         pass
       else:
-        parser.error("Not enough size arguments")
+        if args.source_language == SourceLanguage.OpenCL:
+          parser.error("Must specify thread dimensions with --local_size and --global_size")
+        else:
+          parser.error("Must specify thread dimensions with --blockDim and --gridDim")
 
       if args.verbose:
         print("Got {} groups of size {}".format("x".join(map(str,args['num_groups'])),
@@ -955,7 +958,8 @@ class GPUVerifyInstance (object):
       popenargs['bufsize']=0
 
     # We don't want messages to go to stdout
-    popenargs['stdout']=subprocess.PIPE
+    stdoutFile = tempfile.SpooledTemporaryFile()
+    popenargs["stdout"] = stdoutFile
 
     # Redirect stderr to whatever stdout is redirected to
     if __name__ != '__main__':
@@ -970,6 +974,9 @@ class GPUVerifyInstance (object):
     else:
       return_code = proc.wait()
     stdout, stderr = proc.communicate()
+    stdoutFile.seek(0)
+    stdout = stdoutFile.read()
+    stdoutFile.close()
     # We do not return stderr, as it was redirected to stdout
     return stdout, return_code
 
