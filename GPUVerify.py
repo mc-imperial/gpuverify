@@ -953,11 +953,13 @@ class GPUVerifyInstance (object):
       print(" ".join(command))
     else:
       popenargs['bufsize']=0
+
     # We don't want messages to go to stdout
     popenargs['stdout']=subprocess.PIPE
 
     # Redirect stderr to whatever stdout is redirected to
-    popenargs['stderr']=subprocess.STDOUT
+    if __name__ != '__main__':
+      popenargs['stderr']=subprocess.PIPE
 
     # Redirect stdin, othewise terminal text becomes unreadable after timeout
     popenargs['stdin']=subprocess.PIPE
