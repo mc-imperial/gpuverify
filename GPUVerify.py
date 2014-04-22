@@ -618,7 +618,9 @@ def params (string):
   string = string.strip()
   string = string[1:-1] if string[0]+string[-1] == "[]" else string
   values = string.split(",")
-  values = values[:1] + map(lambda x: x if x == '*' else int(x), values[1:])
+  if not all(x == '*' or x.startswith("0x") for x in values[1:]):
+    raise argparse.ArgumentTypeError("kernel args are hex values or *")
+  values = values[:1] + map(lambda x: x if x == '*' else x[len("0x"):], values[1:])
   return values
 
 def non_negative (string):

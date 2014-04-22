@@ -15,6 +15,8 @@ using System.Text;
 using System.IO;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.Numerics;
+using System.Globalization;
 using Microsoft.Boogie;
 using Microsoft.Boogie.Houdini;
 using Microsoft.Basetypes;
@@ -712,11 +714,11 @@ namespace GPUVerify
             // Asterisk used to signify arbitrary value,
             // hence no requires clause needed.
             if (val=="*") continue;
-            // Todo: I'm assuming each parameter value is an
-            // integer here, but that's probably not the right
-            // way to go about things.
+
+	    BigInteger arg = BigInteger.Parse(val,NumberStyles.HexNumber);
+
             Expr val_expr =
-              IntRep.GetLiteral(Convert.ToInt32(val), id_size_bits);
+		    IntRep.GetLiteral(arg, ((BvType)v.TypedIdent.Type).Bits);
             Expr v_eq_val = Expr.Eq(v_expr, val_expr);
             proc.Requires.Add(new Requires(false, v_eq_val));
             // Console.WriteLine("__requires(" + v.Name + "==" + val + ")");
