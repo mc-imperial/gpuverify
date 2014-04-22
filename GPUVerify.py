@@ -1025,7 +1025,7 @@ class GPUVerifyInstance (object):
     if timeout: return ErrorCodes.TIMEOUT, stdout
     if not success: return ErrorCodes.OPT_ERROR, stdout
 
-    if self.stop == 'opt': return 0
+    if self.stop == 'opt': return 0, stdout
 
     if not self.skip["bugle"]:
       success, timeout, stdout = self.RunTool("bugle",
@@ -1036,7 +1036,7 @@ class GPUVerifyInstance (object):
     if timeout: return ErrorCodes.TIMEOUT, stdout
     if not success: return ErrorCodes.BUGLE_ERROR, stdout
 
-    if self.stop == 'bugle': return 0
+    if self.stop == 'bugle': return 0, stdout
 
     if not self.skip["vcgen"]:
       success, timeout, stdout = self.RunTool("gpuverifyvcgen",
@@ -1048,7 +1048,7 @@ class GPUVerifyInstance (object):
     if timeout: return ErrorCodes.TIMEOUT, stdout
     if not success: return ErrorCodes.GPUVERIFYVCGEN_ERROR, stdout
 
-    if self.stop == 'vcgen': return 0
+    if self.stop == 'vcgen': return 0, stdout
 
     if not self.skip["cruncher"]:
       success, timeout, stdout = self.RunTool("gpuverifycruncher",
@@ -1059,7 +1059,7 @@ class GPUVerifyInstance (object):
     if timeout: return ErrorCodes.TIMEOUT, stdout
     if not success: return ErrorCodes.BOOGIE_ERROR, stdout
 
-    if self.stop == 'cruncher': return 0
+    if self.stop == 'cruncher': return 0, stdout
 
     success, timeout, stdout = self.RunTool("gpuverifyboogiedriver",
             self.mono +
