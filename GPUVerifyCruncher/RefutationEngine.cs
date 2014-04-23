@@ -86,7 +86,7 @@ namespace Microsoft.Boogie
     public static EngineParameter<string> GetSolverParameter()
     {
       if (SolverParameter == null)
-        SolverParameter = new EngineParameter<string>("solver", Z3, new List<string>{Z3, CVC4});
+        SolverParameter = new EngineParameter<string>("solver", CVC4, new List<string>{Z3, CVC4});
       return SolverParameter;
     }
     

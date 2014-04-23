@@ -884,16 +884,15 @@ class GPUVerifyInstance (object):
     if args.debug_houdini:
       CommandLineOptions.cruncherOptions += [ "/debugConcurrentHoudini" ]
   
-    CommandLineOptions.cruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
-    CommandLineOptions.cruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
-
-    if args.solver == "cvc4":
+    if args.solver == "cvc4":      
       CommandLineOptions.cruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
+      CommandLineOptions.cruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
+      CommandLineOptions.cruncherOptions += [ "/proverOpt:LOGIC=" + args.logic ]
       CommandLineOptions.boogieOptions += [ "/proverOpt:SOLVER=cvc4" ]
       CommandLineOptions.boogieOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
-      CommandLineOptions.cruncherOptions += [ "/proverOpt:LOGIC=" + args.logic ]
       CommandLineOptions.boogieOptions += [ "/proverOpt:LOGIC=" + args.logic ]
     else:
+      CommandLineOptions.cruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
       CommandLineOptions.boogieOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
 
     if args.gen_smt2:
