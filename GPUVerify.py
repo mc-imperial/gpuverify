@@ -971,9 +971,16 @@ class GPUVerifyInstance (object):
 
     proc = psutil.Popen(command,**popenargs)
     if args.timeout > 0:
-      return_code = proc.wait(timeout=self.timeout)
+      try:
+        return_code = proc.wait(timeout=self.timeout)
+      except psutil.TimeoutExpired:
+        children = proc.get_children(True)
+        for child in children:
+          child.terminate()
+        raise
     else:
       return_code = proc.wait()
+
     stdout, stderr = proc.communicate()
     stdoutFile.seek(0)
     stdout = stdoutFile.read()
