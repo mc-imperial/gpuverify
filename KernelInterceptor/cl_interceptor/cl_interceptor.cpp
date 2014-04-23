@@ -2,6 +2,7 @@
 #include <vector>
 #include <algorithm>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <fstream>
 #include <cstring>
@@ -106,27 +107,12 @@ public:
 			cl_kernel_arg_address_qualifier q;
 			clGetKernelArgInfo(karnol, i, CL_KERNEL_ARG_ADDRESS_QUALIFIER, sizeof(q), &q, NULL);
 			if (q == CL_KERNEL_ARG_ADDRESS_PRIVATE) { // Best heuristic for "scalar"
-				out << ",";
-				switch (kernel.args[i].size) {
-				case 1:
-					out << *(uint8_t*)kernel.args[i].data;
-					break;
-				case 2:
-					out << *(uint16_t*)kernel.args[i].data;
-					break;
-				case 4:
-					out << *(uint32_t*)kernel.args[i].data;
-					break;
-				case 8:
-					out << *(uint64_t*)kernel.args[i].data;
-					break;
-				default:
-					out << "0x";
-					for (int j = kernel.args[i].size -1; j >= 0; j--) {
-						out << std::hex << ((unsigned char*)kernel.args[i].data)[j];
-					}
-					break;
+				out << ",0x";
+				out << std::hex;
+				for (int j = kernel.args[i].size-1; j >= 0; j--) {
+					out << setw(2) << setfill('0') << (unsigned) ((uint8_t*)kernel.args[i].data)[j];
 				}
+				out << std::dec;
 			}
 		}
 
