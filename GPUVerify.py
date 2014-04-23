@@ -993,7 +993,7 @@ class GPUVerifyInstance (object):
       end = timeit.default_timer()
     except psutil.TimeoutExpired:
       self.timing[ToolName] = self.timeout
-      return False, True, "{} timed out. Use --timeout=N with N > {} to increase timeout, or --timeout=0 to disable timeout.{}\n".format(ToolName, self.timeout)
+      return False, True, "{} timed out. Use --timeout=N with N > {} to increase timeout, or --timeout=0 to disable timeout.\n".format(ToolName, self.timeout)
     except (OSError,WindowsError) as e:
       print("Error while invoking {} : {}".format(ToolName, str(e)))
       print("With command line args:")
@@ -1196,7 +1196,7 @@ def verify_batch (files, success_cache={}):
   print("=== FAILURES ===")
   for f,args in failure:
     print("Kernel {} ({}) failed to verify with: local_size={} global_size={} args={}".format(args['kernel_args'][0],
-                                                                                       s,
+                                                                                       f,
                                                                                        ",".join(map(str,args['group_size'])),
                                                                                        ",".join(map(str,args['global_size'])),
                                                                                        ",".join(map(str,args['kernel_args'][1:]))))
