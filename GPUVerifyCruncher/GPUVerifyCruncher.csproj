@@ -34,7 +34,6 @@
   <ItemGroup>
     <Compile Include="GPUVerifyCruncher.cs" />
     <Compile Include="GPUVerifyCruncherCommandLineOptions.cs" />
-    <Compile Include="InvariantInferrer.cs" />
     <Compile Include="RefutationEngine.cs" />
     <Compile Include="BitVector.cs" />
     <Compile Include="BoogieInterpreter.cs" />

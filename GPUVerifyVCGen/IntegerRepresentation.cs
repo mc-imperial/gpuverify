@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Numerics;
 using Microsoft.Boogie;
 using Microsoft.Basetypes;
 
@@ -22,6 +23,7 @@ namespace GPUVerify
   {
     Microsoft.Boogie.Type GetIntType(int Width);
     LiteralExpr GetLiteral(int Value, int Width);
+    LiteralExpr GetLiteral(BigInteger Value, int Width);
 
     Expr MakeSub(Expr lhs, Expr rhs);
     Expr MakeAnd(Expr lhs, Expr rhs);
@@ -83,6 +85,10 @@ namespace GPUVerify
 
     public LiteralExpr GetLiteral(int Value, int Width) {
       return new LiteralExpr(Token.NoToken, BigNum.FromInt(Value), Width);
+    }
+
+    public LiteralExpr GetLiteral(BigInteger Value, int Width) {
+      return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(Value), Width);
     }
 
     private Expr MakeBitVectorBinaryBoolean(string suffix, string smtName, Expr lhs, Expr rhs)
@@ -197,6 +203,10 @@ namespace GPUVerify
 
     public LiteralExpr GetLiteral(int Value, int Width) {
       return new LiteralExpr(Token.NoToken, BigNum.FromInt(Value));
+    }
+
+    public LiteralExpr GetLiteral(BigInteger Value, int Width) {
+      return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(Value));
     }
 
     private Expr MakeIntBinaryInt(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
