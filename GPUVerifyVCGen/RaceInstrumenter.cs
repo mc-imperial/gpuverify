@@ -703,8 +703,13 @@ namespace GPUVerify {
             AddLogAndCheckCalls(result,new AccessRecord((call.Ins[0] as IdentifierExpr).Decl,call.Ins[1]),AccessType.ATOMIC,null);
             if (!GPUVerifyVCGenCommandLineOptions.OnlyWarp)
             {
-              (result[result.Count() - 1] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // Magic numbers ahoy! -1 should be the check
-              (result[result.Count() - 3] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // And -3 should be the log
+              if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
+                (result[result.Count() - 1] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // Magic numbers ahoy! -1 should be the check
+              }
+              int logOffset = 3;
+              if (GPUVerifyVCGenCommandLineOptions.OnlyLog)
+                logOffset -= 2;
+              (result[result.Count() - logOffset] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // And -logOffset should be the log
             }
             Debug.Assert(call.Outs.Count() == 2); // The receiving variable and the array should be assigned to
             result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { call.Outs[0] })); // We havoc the receiving variable.  We do not need to havoc the array, because it *must* be the case that this array is modelled adversarially
