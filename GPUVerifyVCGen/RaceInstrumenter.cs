@@ -706,9 +706,7 @@ namespace GPUVerify {
               if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
                 (result[result.Count() - 1] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // Magic numbers ahoy! -1 should be the check
               }
-              int logOffset = 3;
-              if (GPUVerifyVCGenCommandLineOptions.OnlyLog)
-                logOffset -= 2;
+              int logOffset = GPUVerifyVCGenCommandLineOptions.OnlyLog ? 1 : 3;
               (result[result.Count() - logOffset] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // And -logOffset should be the log
             }
             Debug.Assert(call.Outs.Count() == 2); // The receiving variable and the array should be assigned to
