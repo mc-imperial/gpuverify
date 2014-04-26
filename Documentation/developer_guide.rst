@@ -21,7 +21,7 @@ Linux
 -----
 In addition to the common prerequisites a Linux build of GPUVerify requires
 GCC >= 4.6 and a recent version of Mono since part of the toolchain uses C#.
-You should use a version of Mono >= 3.0.7.
+You should use a version of Mono >= 3.4.0.
 
 To build GPUVerify follow this guide in a bash shell.
 
@@ -39,7 +39,7 @@ Replace as appropriate or setup an environment variable.::
 #. Install Mono::
 
      $ cd ${BUILD_ROOT}
-     $ export MONO_VERSION=3.0.7
+     $ export MONO_VERSION=3.4.0
      $ wget http://download.mono-project.com/sources/mono/mono-${MONO_VERSION}.tar.bz2
      $ tar jxf mono-${MONO_VERSION}.tar.bz2
      $ rm mono-${MONO_VERSION}.tar.bz2
@@ -249,7 +249,7 @@ Mac OS X
 --------
 In addition to the common prerequisites a Mac build of GPUVerify requires
 a recent version of Mono since part of the toolchain uses C#.
-You should use a version of Mono >= 3.0.7.
+You should use a version of Mono >= 3.4.0.
 
 To build GPUVerify follow this guide in a bash shell.
 
