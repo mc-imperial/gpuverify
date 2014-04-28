@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 from __future__ import print_function
-import StringIO
+
+import io
 import pickle
 import argparse
 import os
@@ -17,6 +18,14 @@ import tempfile
 from collections import defaultdict, namedtuple
 import copy
 import distutils.spawn
+
+if sys.version_info.major == 3:
+  import io
+else:
+  # In python2.7 importing io.StringIO() doesn't work
+  # very well because it expects unicode strings
+  # use StringIO instead
+  import StringIO as io
 
 class ErrorCodes(object):
   SUCCESS = 0
@@ -269,7 +278,7 @@ class ldict(dict):
     elif method_name == "dimensions":
       return len(self['group_size'])
     else:
-      raise AttributeError, method_name
+      raise AttributeError(method_name)
 
 
 def parse_args(argv):
@@ -277,7 +286,7 @@ def parse_args(argv):
                                      usage="gpuverify [options] <kernel>")
 
     # nargs='?' because of needing to put KI in this script
-    parser.add_argument("kernel", nargs='?', type=file,
+    parser.add_argument("kernel", nargs='?', type=argparse.FileType('r'),
                         help="a kernel to verify")
 
     general = parser.add_argument_group("GENERAL OPTIONS")
@@ -381,7 +390,7 @@ def parse_args(argv):
                           Sound, and may lead to faster verification, \
                           but can yield false positives")
 
-    advanced.add_argument("--boogie-file=", type=file, action='append',
+    advanced.add_argument("--boogie-file=", type=argparse.FileType('r'), action='append',
                           help="Specify a supporting .bpl file to be used \
                           during verification", metavar="X.bpl")
     advanced.add_argument("--bugle-lang=", dest='source_language', choices=["cl","cu"],
@@ -519,7 +528,7 @@ def parse_args(argv):
 
 
     def to_ldict (parsed):
-      return ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in vars(parsed).iteritems())
+      return ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in vars(parsed).items())
 
     args = to_ldict(parser.parse_args(argv))
 
@@ -577,7 +586,7 @@ def parse_args(argv):
           parser.error("Dimensions of --local_size and --global_size must match.")
         args['num_groups'] = [(a//b) for (a,b) in zip(args.global_size,args.group_size)]
         # The below returns a sequence of dimensions that aren't integer multiples
-        for i in (i for (i, a,b,c) in zip(range(len(args.num_groups)),
+        for i in (i for (i, a,b,c) in zip(list(range(len(args.num_groups))),
                                           args.num_groups,args.group_size,args.global_size) if a * b != c):
           parser.error("Dimension " + str(i) +
                        " of global_size does not divide by the same dimension in local_size")
@@ -609,7 +618,7 @@ def parse_args(argv):
 def dimensions (string):
   string = string.strip()
   string = string[1:-1] if string[0]+string[-1] == "[]" else string
-  values = map(lambda x: x if x == '*' else int(x), string.split(","))
+  values = [x if x == '*' else int(x) for x in string.split(",")]
   if (len(values) not in [1,2,3]) or len([x for x in values if x > 0]) < len(values):
     raise argparse.ArgumentTypeError("Dimensions must be a vector of 1-3 positive integers")
   return values
@@ -620,7 +629,7 @@ def params (string):
   values = string.split(",")
   if not all(x == '*' or x.startswith("0x") for x in values[1:]):
     raise argparse.ArgumentTypeError("kernel args are hex values or *")
-  values = values[:1] + map(lambda x: x if x == '*' else x[len("0x"):], values[1:])
+  values = values[:1] + [x if x == '*' else x[len("0x"):] for x in values[1:]]
   return values
 
 def non_negative (string):
@@ -996,6 +1005,7 @@ class GPUVerifyInstance (object):
     try:
       start = timeit.default_timer()
       stdout, returnCode = self.run(Command)
+      stdout = stdout.decode() # For python3, we get bytes not a str, so convert
       end = timeit.default_timer()
     except psutil.TimeoutExpired:
       self.timing[ToolName] = self.timeout
@@ -1080,7 +1090,7 @@ class GPUVerifyInstance (object):
     if self.silent:
       return 0, ""
 
-    string_builder = StringIO.StringIO()
+    string_builder = io.StringIO()
 
     if self.mode == AnalysisMode.FINDBUGS:
       print("No defects were found while analysing: " + ", ".join(self.sourceFiles), file=string_builder)
@@ -1117,9 +1127,9 @@ class GPUVerifyInstance (object):
       total = sum(self.timing.values())
       print("Timing information (%.2f secs):" % total, file=self.out)
       if self.timing:
-        padTool = max([ len(tool) for tool in self.timing.keys() ])
-        padTime = max([ len('%.3f secs' % t) for t in self.timing.values() ])
-        string_builder = StringIO.StringIO()
+        padTool = max([ len(tool) for tool in list(self.timing.keys()) ])
+        padTime = max([ len('%.3f secs' % t) for t in list(self.timing.values()) ])
+        string_builder = io.StringIO()
         for tool in Tools:
           if tool in self.timing:
             print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % self.timing[tool]).rjust(padTime)), file=string_builder)
@@ -1129,7 +1139,7 @@ class GPUVerifyInstance (object):
 
 
 def update_args (base, new):
-  for k,v in new.iteritems():
+  for k,v in new.items():
     if not base[k] and v:
       if base.verbose or new.verbose:
         print("Setting {} to {}".format(k,v))
@@ -1140,7 +1150,7 @@ def update_args (base, new):
       base[k] = v
 
 def strip_dudspace (argv):
-  return filter(lambda x: x != "", argv)
+  return [x for x in argv if x != ""]
 
 def parse_header (file):
   code = [x.rstrip() for x in file.readlines()]
@@ -1149,7 +1159,7 @@ def parse_header (file):
 
 # cache is of form map(code, list(known_safe))
 def subsumes (cached,new):
-  return any(all(v in ['*',new[k]] for k,v in trial.iteritems()) for trial in cached)
+  return any(all(v in ['*',new[k]] for k,v in trial.items()) for trial in cached)
 
 def in_cache (f,args,cache):
   with open(f) as file:
@@ -1167,7 +1177,7 @@ def add_to_cache (f,args,cache):
     code = ''.join(code)
     if code not in cache:
       cache[code] = []
-    cache[code].append(dict((k,v) for k,v in args.iteritems() if k in ['group_size','num_groups','kernel_args']))
+    cache[code].append(dict((k,v) for k,v in args.items() if k in ['group_size','num_groups','kernel_args']))
     if args.verbose:
       print("added to cache")
 
@@ -1211,7 +1221,7 @@ def verify_batch (files, success_cache={}):
 def do_batch_mode (host_args): 
   kernels = []
   for path, subdirs, files in os.walk(".gpuverify"):
-    kernels += map(lambda x: path+os.sep+x, files)
+    kernels += [path+os.sep+x for x in files]
   kernels = sorted(kernels)
 
   if host_args.show_intercepted:
