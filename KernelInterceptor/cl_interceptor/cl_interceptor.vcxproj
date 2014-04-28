@@ -132,10 +132,10 @@
     <None Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cl_hooks.h" />
+    <ClCompile Include="cl_interceptor.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="cl_interceptor.cpp" />
+    <ClInclude Include="cl_interceptor.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

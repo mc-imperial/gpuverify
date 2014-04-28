@@ -109,7 +109,7 @@ public:
 			if (q == CL_KERNEL_ARG_ADDRESS_PRIVATE) { // Best heuristic for "scalar"
 				out << ",0x";
 				out << std::hex;
-				for (int j = kernel.args[i].size-1; j >= 0; j--) {
+				for (size_t j = kernel.args[i].size-1; j >= 0; j--) {
 					out << setw(2) << setfill('0') << (unsigned) ((uint8_t*)kernel.args[i].data)[j];
 				}
 				out << std::dec;
