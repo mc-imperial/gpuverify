@@ -8,6 +8,14 @@ Getting GPUVerify
 We build nightly drops for Linux and Windows.
 These can be found on the GPUVerify `Download <http://multicore.doc.ic.ac.uk/tools/GPUVerify/download.php>`_ page.
 
+Basic Prequisites
+-----------------
+
+GPUVerify requires python >= 2.7 and the python module `psutil <https://code.google.com/p/psutil/>`_.
+We recommend installing psutil with pip::
+
+     $ pip install psutil
+
 Linux/OSX
 ---------
 To install GPUVerify follow this guide in a bash shell.

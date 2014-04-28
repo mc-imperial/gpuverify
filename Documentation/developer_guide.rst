@@ -17,6 +17,14 @@ have a common set of prerequisites which are:
 * Git
 * Subversion
 
+Basic Prequisites
+-----------------
+
+GPUVerify requires python >= 2.7 and the python module `psutil <https://code.google.com/p/psutil/>`_.
+We recommend installing psutil with pip::
+
+     $ pip install psutil
+
 Linux
 -----
 In addition to the common prerequisites a Linux build of GPUVerify requires

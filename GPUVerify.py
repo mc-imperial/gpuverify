@@ -18,12 +18,30 @@ from collections import defaultdict, namedtuple
 import copy
 import distutils.spawn
 
+class ErrorCodes(object):
+  SUCCESS = 0
+  COMMAND_LINE_ERROR = 1
+  CLANG_ERROR = 2
+  OPT_ERROR = 3
+  BUGLE_ERROR = 4
+  GPUVERIFYVCGEN_ERROR = 5
+  BOOGIE_ERROR = 6
+  TIMEOUT = 7
+  CTRL_C = 8
+  CONFIGURATION_ERROR = 9
+
+class ConfigurationError(Exception):
+  def __init__ (self, msg):
+    self.msg = msg
+  def __str__ (self):
+    return "GPUVerify: CONFIGURATION_ERROR error ({}): {}".format(ErrorCodes.CONFIGURATION_ERROR,self.msg)
+
 # To properly kill child processes cross platform
 try:
   import psutil
 except ImportError:
-  raise ConfigurationError("psutil required. \
-                           `pip install psutil` to get it.")
+  raise ConfigurationError("psutil required. "
+                           "`pip install psutil` to get it.")
 
 # Try to import the paths need for GPUVerify's tools
 try:
@@ -31,8 +49,8 @@ try:
   # Initialise the paths (only needed for deployment version of gvfindtools.py)
   gvfindtools.init(sys.path[0])
 except ImportError:
-  raise ConfigurationError("Cannot find 'gvfindtools.py' \
-                           Did you forget to create it from a template?")
+  raise ConfigurationError("Cannot find 'gvfindtools.py' "
+                           "Did you forget to create it from a template?")
 
 # WindowsError is not defined on UNIX systems, this works around that
 try:
@@ -45,12 +63,6 @@ if os.name == 'posix':
   # Check mono in path
   if distutils.spawn.find_executable('mono') == None:
     raise ConfigurationError("Could not find the mono executable in your PATH")
-
-class ConfigurationError(Exception):
-  def __init__ (self, msg):
-    self.msg = msg
-  def __str__ (self):
-    return "GPUVerify: CONFIGURATION_ERROR error ({}): {}".format(ErrorCodes.CONFIGURATION_ERROR,self.msg)
 
 class ArgumentParserError(Exception):
   def __init__ (self, msg):
@@ -78,18 +90,6 @@ class GPUVerifyException(Exception):
       retStr = retStr + ': ' + self.msg
 
     return retStr
-
-class ErrorCodes(object):
-  SUCCESS = 0
-  COMMAND_LINE_ERROR = 1
-  CLANG_ERROR = 2
-  OPT_ERROR = 3
-  BUGLE_ERROR = 4
-  GPUVERIFYVCGEN_ERROR = 5
-  BOOGIE_ERROR = 6
-  TIMEOUT = 7
-  CTRL_C = 8
-  CONFIGURATION_ERROR = 9
 
 class BatchCaller(object):
   """
