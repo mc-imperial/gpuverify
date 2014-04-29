@@ -2,7 +2,6 @@
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 from __future__ import print_function
 
-import io
 import pickle
 import argparse
 import os
