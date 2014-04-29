@@ -21,7 +21,8 @@ Basic Prequisites
 -----------------
 
 GPUVerify requires python >= 2.7 and the python module `psutil <https://code.google.com/p/psutil/>`_.
-We recommend installing psutil with pip::
+On Windows, we recommend installing psutil from a `prebuilt binary <https://pypi.python.org/pypi?:action=display&name=psutil#downloads>`_.
+On Linux/OSX, we recommend installing psutil with pip::
 
      $ pip install psutil
 
