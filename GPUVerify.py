@@ -984,9 +984,13 @@ class GPUVerifyInstance (object):
         return_code = proc.wait(timeout=self.timeout)
       except psutil.TimeoutExpired:
         children = proc.get_children(True)
+        proc.terminate()
         for child in children:
-          child.terminate()
-        raise
+          try:
+            child.terminate()
+          except psutil.NoSuchProcess:
+            pass
+        raise psutil.TimeoutExpired
     else:
       return_code = proc.wait()
 
