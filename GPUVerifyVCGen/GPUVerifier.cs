@@ -495,6 +495,8 @@ namespace GPUVerify
             if (GPUVerifyVCGenCommandLineOptions.RefinedAtomics)
               RefineAtomicAbstraction();
 
+            HandleAsyncWorkGroupCopies();
+
             var nonUniformVars = new List<Variable> { _X, _Y, _Z };
             if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                 nonUniformVars.AddRange(new Variable[] { _GROUP_X, _GROUP_Y, _GROUP_Z } );
@@ -651,6 +653,26 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private void HandleAsyncWorkGroupCopies() {
+
+          /* Work in progress.  For now we simply eliminate
+           * async calls and havoc the receiving variables.
+           */
+          foreach(var b in Program.Blocks()) {
+            List<Cmd> newCmds = new List<Cmd>();
+            foreach(var c in b.Cmds) {
+              CallCmd call = c as CallCmd;
+              if(call != null && QKeyValue.FindBoolAttribute(call.Proc.Attributes, "async_work_group_copy")) {
+                Debug.Assert(call.Outs.Count() == 1);
+                newCmds.Add(new HavocCmd(Token.NoToken, call.Outs));
+              } else {
+                newCmds.Add(c);
+              }
+            }
+            b.Cmds = newCmds;
+          }
         }
 
         private int DeepestSubregion(IRegion r) {
