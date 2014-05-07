@@ -273,7 +273,6 @@ class GPUVerifyTestKernel(object):
             #Print csv output for user to see
             for line in stdout.split('\n'):
                 commaSplitLine = line.split(',')
-                print(commaSplitLine, len(commaSplitLine))
                 if len(commaSplitLine) == 9:
                     self.csvFile.write(line + '\n')
                     self.csvFile.flush()
