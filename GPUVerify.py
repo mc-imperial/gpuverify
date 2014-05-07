@@ -989,7 +989,7 @@ class GPUVerifyInstance (object):
             child.terminate()
           except psutil.NoSuchProcess:
             pass
-        raise psutil.TimeoutExpired
+        raise
     else:
       return_code = proc.wait()
 
