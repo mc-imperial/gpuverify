@@ -1154,12 +1154,18 @@ namespace GPUVerify {
         verifier.FindOrCreateValueVariable(v.Name, Access, mt.Result);
       }
 
-     if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         Debug.Assert(v.TypedIdent.Type is MapType);
         MapType mt = v.TypedIdent.Type as MapType;
         Debug.Assert(mt.Arguments.Count == 1);
         verifier.FindOrCreateBenignFlagVariable(v.Name);
-     }
+      }
+
+      if ((Access == AccessType.READ || Access == AccessType.WRITE) &&
+           verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(v.Name)) {
+        verifier.FindOrCreateAsyncHandleVariable(v.Name, Access);
+      }
+
     }
 
 

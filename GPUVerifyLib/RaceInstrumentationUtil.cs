@@ -58,5 +58,17 @@ namespace GPUVerify
       return new Constant(Token.NoToken, Ident, false);
     }
 
+    public static string MakeAsyncHandleVariableName(string Name, AccessType Access)
+    {
+        return "_" + Access + "_ASYNC_HANDLE_" + Name;
+    }
+
+    public static Variable MakeAsyncHandleVariable(string Name, AccessType Access, Microsoft.Boogie.Type Type)
+    {
+      var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeAsyncHandleVariableName(Name, Access),
+          Type);
+      return new GlobalVariable(Token.NoToken, Ident);
+    }
+    
   }
 }

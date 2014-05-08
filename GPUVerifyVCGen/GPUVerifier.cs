@@ -101,6 +101,8 @@ namespace GPUVerify
         internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
         internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
 
+        internal Dictionary<AccessType, HashSet<string>> ArraysAccessedByAsyncWorkGroupCopy;
+
         internal GPUVerifier(string filename, Program program, ResolutionContext rc)
             : base((IErrorSink)null)
         {
@@ -113,6 +115,10 @@ namespace GPUVerify
 
             this.size_t_bits = GetSizeTBits();
             this.id_size_bits = GetIdSizeBits();
+
+            this.ArraysAccessedByAsyncWorkGroupCopy = new Dictionary<AccessType,HashSet<string>>();
+            this.ArraysAccessedByAsyncWorkGroupCopy[AccessType.READ] = new HashSet<string>();
+            this.ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE] = new HashSet<string>();
 
             if (this.size_t_bits < this.id_size_bits) {
               Console.WriteLine("GPUVerify: error: _SIZE_T_TYPE size cannot be smaller than group_size_x size");
@@ -478,6 +484,10 @@ namespace GPUVerify
 
             CheckUserSuppliedLoopInvariants();
 
+            IdentifyArraysAccessedAsynchronously();
+
+            HandleAsyncWorkGroupCopies();
+
             DuplicateBarriers();
 
             if (GPUVerifyVCGenCommandLineOptions.IdentifySafeBarriers) {
@@ -653,6 +663,21 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private void IdentifyArraysAccessedAsynchronously() {
+          foreach(var AsyncCall in Program.Blocks().Select(Item => Item.Cmds).SelectMany(Item => Item).
+            OfType<CallCmd>().Where(Item => QKeyValue.FindBoolAttribute(
+              Item.Proc.Attributes, "async_work_group_copy"))) {
+            Variable DstArray =
+              (AsyncCall.Ins[0] as IdentifierExpr).Decl;
+            Variable SrcArray =
+              (AsyncCall.Ins[2] as IdentifierExpr).Decl;
+            Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(DstArray));
+            Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(SrcArray));
+            ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Add(DstArray.Name);
+            ArraysAccessedByAsyncWorkGroupCopy[AccessType.READ].Add(SrcArray.Name);
+          }
         }
 
         private void HandleAsyncWorkGroupCopies() {
@@ -1769,6 +1794,18 @@ namespace GPUVerify
           GlobalVariable result = MakeBenignFlagVariable(varName);
           Program.TopLevelDeclarations.Add(result);
           return result;
+        }
+
+        internal Variable FindOrCreateAsyncHandleVariable(string varName, AccessType Access)
+        {
+            foreach(var g in Program.TopLevelDeclarations.OfType<Variable>()) {
+              if(g.Name.Equals(RaceInstrumentationUtil.MakeAsyncHandleVariableName(varName, Access))) {
+                return g;
+              }
+            }
+            Variable result = RaceInstrumentationUtil.MakeAsyncHandleVariable(varName, Access, IntRep.GetIntType(size_t_bits));
+            Program.TopLevelDeclarations.Add(result);
+            return result;
         }
 
 
