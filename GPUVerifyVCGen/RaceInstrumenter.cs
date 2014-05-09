@@ -21,19 +21,15 @@ using Microsoft.Basetypes;
 namespace GPUVerify {
 
   abstract class RaceInstrumenter : IRaceInstrumenter {
-    protected GPUVerifier verifier;
 
-    private QKeyValue SourceLocationAttributes = null;
+    internal GPUVerifier verifier;
 
-    private int CheckStateCounter = 0;
-
-    public IKernelArrayInfo StateToCheck;
+    internal int CheckStateCounter = 0;
 
     private Dictionary<string, Procedure> RaceCheckingProcedures = new Dictionary<string, Procedure>();
 
     public RaceInstrumenter(GPUVerifier verifier) {
       this.verifier = verifier;
-      StateToCheck = verifier.KernelArrayInfo;
     }
 
     private void AddNoAccessCandidateInvariants(IRegion region, Variable v) {
@@ -88,7 +84,7 @@ namespace GPUVerify {
       List<Expr> offsetPredicatesWrite = new List<Expr>();
       List<Expr> offsetPredicatesAtomic = new List<Expr>();
 
-      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays()) {
         AddNoAccessCandidateInvariants(region, v);
         AddSameWarpNoAccessCandidateInvariant(region, v, AccessType.READ);
         AddSameWarpNoAccessCandidateInvariant(region, v, AccessType.WRITE);
@@ -645,17 +641,15 @@ namespace GPUVerify {
     }
 
     public void AddKernelPrecondition() {
-      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays()) {
         AddRequiresNoPendingAccess(v);
       }
     }
 
     public void AddRaceCheckingInstrumentation() {
 
-      foreach (Declaration d in verifier.Program.TopLevelDeclarations) {
-        if (d is Implementation) {
-          AddRaceCheckCalls(d as Implementation);
-        }
+      foreach (var impl in verifier.Program.Implementations().ToList()) {
+        new ImplementationInstrumenter(this, impl).AddRaceCheckCalls();
       }
 
     }
@@ -674,165 +668,7 @@ namespace GPUVerify {
       }
     }
 
-    private Block AddRaceCheckCalls(Block b) {
-      b.Cmds = AddRaceCheckCalls(b.Cmds);
-      return b;
-    }
-
-    private void AddRaceCheckCalls(Implementation impl) {
-      impl.Blocks = impl.Blocks.Select(AddRaceCheckCalls).ToList();
-    }
-
-    private List<Cmd> AddRaceCheckCalls(List<Cmd> cs) {
-      var result = new List<Cmd>();
-      foreach (Cmd c in cs) {
-
-        if (c is AssertCmd) {
-          AssertCmd assertion = c as AssertCmd;
-          if (QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc")) {
-            SourceLocationAttributes = assertion.Attributes;
-            // Remove source location assertions
-            continue;
-          }
-        }
-
-        if (c is CallCmd) {
-          CallCmd call = c as CallCmd;
-          if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
-          {
-            AddLogAndCheckCalls(result,new AccessRecord((call.Ins[0] as IdentifierExpr).Decl,call.Ins[1]),AccessType.ATOMIC,null);
-            if (!GPUVerifyVCGenCommandLineOptions.OnlyWarp)
-            {
-              if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
-                (result[result.Count() - 1] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // Magic numbers ahoy! -1 should be the check
-              }
-              int logOffset = GPUVerifyVCGenCommandLineOptions.OnlyLog ? 1 : 3;
-              (result[result.Count() - logOffset] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // And -logOffset should be the log
-            }
-            Debug.Assert(call.Outs.Count() == 2); // The receiving variable and the array should be assigned to
-            result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { call.Outs[0] })); // We havoc the receiving variable.  We do not need to havoc the array, because it *must* be the case that this array is modelled adversarially
-            continue;
-          }
-        }
-
-        if (c is AssignCmd) {
-          AssignCmd assign = c as AssignCmd;
-
-          ReadCollector rc = new ReadCollector(StateToCheck);
-          foreach (var rhs in assign.Rhss)
-            rc.Visit(rhs);
-          if (rc.accesses.Count > 0) {
-            foreach (AccessRecord ar in rc.accesses) {
-              if(!StateToCheck.getReadOnlyNonLocalArrays().Contains(ar.v)) {
-                AddLogAndCheckCalls(result, ar, AccessType.READ, null);
-              }
-            }
-          }
-
-          foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) {
-            WriteCollector wc = new WriteCollector(StateToCheck);
-            wc.Visit(LhsRhs.Item1);
-            if (wc.FoundWrite()) {
-              AccessRecord ar = wc.GetAccess();
-              AddLogAndCheckCalls(result, ar, AccessType.WRITE, LhsRhs.Item2);
-            }
-          }
-        }
-
-        result.Add(c);
-
-      }
-      return result;
-    }
-
-    private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
-      if (!GPUVerifyVCGenCommandLineOptions.OnlyWarp || Access == AccessType.WRITE) {
-        result.Add(MakeLogCall(ar, Access, Value));
-        if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-          result.Add(MakeUpdateBenignFlagCall(ar));
-        }
-        if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
-          result.Add(MakeCheckCall(result, ar, Access, Value));
-        }
-      }
-    }
-
-    private CallCmd MakeCheckCall(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
-      if(SourceLocationAttributes == null) {
-        ExitWithNoSourceError(ar.v, Access);
-      }
-      List<Expr> inParamsChk = new List<Expr>();
-      inParamsChk.Add(ar.Index);
-      MaybeAddValueParameter(inParamsChk, ar, Value, Access);
-      Procedure checkProcedure = GetRaceCheckingProcedure(Token.NoToken, "_CHECK_" + Access + "_" + ar.v.Name);
-      verifier.OnlyThread2.Add(checkProcedure.Name);
-      string CheckState = "check_state_" + CheckStateCounter;
-      CheckStateCounter++;
-      AssumeCmd captureStateAssume = new AssumeCmd(Token.NoToken, Expr.True);
-      captureStateAssume.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
-      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
-        "captureState", new List<object>() { CheckState }, captureStateAssume.Attributes);
-      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
-        "check_id", new List<object>() { CheckState }, captureStateAssume.Attributes);
-      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
-        "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
-      
-      result.Add(captureStateAssume);
-      CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
-      checkAccessCallCmd.Proc = checkProcedure;
-      checkAccessCallCmd.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
-      checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "check_id", new List<object>() { CheckState }, checkAccessCallCmd.Attributes);
-      return checkAccessCallCmd;
-    }
-
-    private CallCmd MakeLogCall(AccessRecord ar, AccessType Access, Expr Value) {
-      if(SourceLocationAttributes == null) {
-        ExitWithNoSourceError(ar.v, Access);
-      }
-      List<Expr> inParamsLog = new List<Expr>();
-      inParamsLog.Add(ar.Index);
-      MaybeAddValueParameter(inParamsLog, ar, Value, Access);
-      MaybeAddValueOldParameter(inParamsLog, ar, Access);
-      Procedure logProcedure = GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
-      verifier.OnlyThread1.Add(logProcedure.Name);
-      CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new List<IdentifierExpr>());
-      logAccessCallCmd.Proc = logProcedure;
-      logAccessCallCmd.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
-      return logAccessCallCmd;
-    }
-
-    private void MaybeAddValueParameter(List<Expr> parameters, AccessRecord ar, Expr Value, AccessType Access) {
-      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
-        if (Value != null) {
-          parameters.Add(Value);
-        }
-        else {
-          Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
-          e.Type = (ar.v.TypedIdent.Type as MapType).Result;
-          parameters.Add(e);
-        }
-      }
-    }
-
-    private void MaybeAddValueOldParameter(List<Expr> parameters, AccessRecord ar, AccessType Access) {
-      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
-          Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
-          e.Type = (ar.v.TypedIdent.Type as MapType).Result;
-          parameters.Add(e);
-      }
-    }
-
-    private CallCmd MakeUpdateBenignFlagCall(AccessRecord ar) {
-      List<Expr> inParamsUpdateBenignFlag = new List<Expr>();
-      inParamsUpdateBenignFlag.Add(ar.Index);
-      Procedure updateBenignFlagProcedure = GetRaceCheckingProcedure(Token.NoToken, "_UPDATE_WRITE_READ_BENIGN_FLAG_" + ar.v.Name);
-      verifier.OnlyThread2.Add(updateBenignFlagProcedure.Name);
-      CallCmd updateBenignFlagCallCmd = new CallCmd(Token.NoToken, updateBenignFlagProcedure.Name, inParamsUpdateBenignFlag, new List<IdentifierExpr>());
-      updateBenignFlagCallCmd.Proc = updateBenignFlagProcedure;
-      return updateBenignFlagCallCmd;
-    }
-
-    private Procedure GetRaceCheckingProcedure(IToken tok, string name) {
+    internal Procedure GetRaceCheckingProcedure(IToken tok, string name) {
       if (RaceCheckingProcedures.ContainsKey(name)) {
         return RaceCheckingProcedures[name];
       }
@@ -840,7 +676,6 @@ namespace GPUVerify {
       RaceCheckingProcedures[name] = newProcedure;
       return newProcedure;
     }
-
 
     public BigBlock MakeResetReadWriteSetStatements(Variable v, Expr ResetCondition) {
       BigBlock result = new BigBlock(Token.NoToken, null, new List<Cmd>(), null, null);
@@ -946,14 +781,14 @@ namespace GPUVerify {
     }
 
     public void AddRaceCheckingCandidateRequires(Procedure Proc) {
-      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays()) {
         AddNoAccessCandidateRequires(Proc, v);
         AddReadOrWrittenOffsetIsThreadIdCandidateRequires(Proc, v);
       }
     }
 
     public void AddRaceCheckingCandidateEnsures(Procedure Proc) {
-      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays()) {
         AddNoAccessCandidateEnsures(Proc, v);
         AddReadOrWrittenOffsetIsThreadIdCandidateEnsures(Proc, v);
       }
@@ -1000,7 +835,7 @@ namespace GPUVerify {
     }
 
     public virtual void AddRaceCheckingDeclarations() {
-      foreach (Variable v in StateToCheck.getAllNonLocalArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays()) {
         AddRaceCheckingDecsAndProcsForVar(v);
       }
     }
@@ -1299,15 +1134,6 @@ namespace GPUVerify {
       verifier.AddCandidateEnsures(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
     }
 
-    private void ExitWithNoSourceError(Variable v, AccessType Access)
-    {
-      Console.Error.WriteLine("No source location information available when processing " + 
-        Access + " operation on " + v + " at " + GPUVerifyVCGenCommandLineOptions.inputFiles[0] + ":" + 
-        v.tok.line + ":" + v.tok.col + ".  Aborting.");
-      Environment.Exit(1);
-    }
-
-
   }
 
 
@@ -1328,6 +1154,222 @@ namespace GPUVerify {
     }
   }
 
+  class ImplementationInstrumenter {
+
+    private RaceInstrumenter RI;
+    private GPUVerifier verifier;
+    private Implementation impl;
+    private QKeyValue SourceLocationAttributes = null;
+    private int AsyncIndexTempCounter = 0;
+
+    internal ImplementationInstrumenter(RaceInstrumenter RI, Implementation impl) {
+      this.RI = RI;
+      this.verifier = RI.verifier;
+      this.impl = impl;
+    }
+
+    internal void AddRaceCheckCalls() {
+      impl.Blocks = impl.Blocks.Select(AddRaceCheckCalls).ToList();
+    }
+
+    private void AddRaceCheckCalls(Implementation impl) {
+    }
+
+    private Block AddRaceCheckCalls(Block b) {
+      b.Cmds = AddRaceCheckCalls(b.Cmds);
+      return b;
+    }
+
+    private List<Cmd> AddRaceCheckCalls(List<Cmd> cs) {
+      var result = new List<Cmd>();
+      foreach (Cmd c in cs) {
+
+        if (c is AssertCmd) {
+          AssertCmd assertion = c as AssertCmd;
+          if (QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc")) {
+            SourceLocationAttributes = assertion.Attributes;
+            // Remove source location assertions
+            continue;
+          }
+        }
+
+        if (c is CallCmd) {
+          CallCmd call = c as CallCmd;
+          if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
+          {
+            AddLogAndCheckCalls(result,new AccessRecord((call.Ins[0] as IdentifierExpr).Decl,call.Ins[1]),AccessType.ATOMIC,null);
+            if (!GPUVerifyVCGenCommandLineOptions.OnlyWarp)
+            {
+              if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
+                (result[result.Count() - 1] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // Magic numbers ahoy! -1 should be the check
+              }
+              int logOffset = GPUVerifyVCGenCommandLineOptions.OnlyLog ? 1 : 3;
+              (result[result.Count() - logOffset] as CallCmd).Attributes.AddLast((QKeyValue) call.Attributes.Clone()); // And -logOffset should be the log
+            }
+            Debug.Assert(call.Outs.Count() == 2); // The receiving variable and the array should be assigned to
+            result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { call.Outs[0] })); // We havoc the receiving variable.  We do not need to havoc the array, because it *must* be the case that this array is modelled adversarially
+            continue;
+          }
+
+          if (QKeyValue.FindBoolAttribute(call.Attributes, "async_work_group_copy"))
+          {
+            IdentifierExpr DstArray = (IdentifierExpr)call.Ins[0];
+            Expr DstOffset = call.Ins[1];
+            IdentifierExpr SrcArray = (IdentifierExpr)call.Ins[2];
+            Expr SrcOffset = call.Ins[3];
+            Expr Size = call.Ins[4];
+            Expr Handle = call.Ins[5];
+
+            IdentifierExpr IndexTemp = new IdentifierExpr(Token.NoToken,
+              new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_index_temp_" + AsyncIndexTempCounter, Size.Type)));
+            AsyncIndexTempCounter++;
+
+            impl.LocVars.Add(IndexTemp.Decl);
+
+            result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { IndexTemp }));
+            result.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(IndexTemp, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
+            result.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUlt(IndexTemp, Size)));
+
+            AddLogAndCheckCalls(result, 
+              new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)),
+              AccessType.WRITE,
+              null);
+            AddLogAndCheckCalls(result, 
+              new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)),
+              AccessType.WRITE,
+              null);
+
+            continue;
+
+          }
+        }
+
+        if (c is AssignCmd) {
+          AssignCmd assign = c as AssignCmd;
+
+          ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
+          foreach (var rhs in assign.Rhss)
+            rc.Visit(rhs);
+          if (rc.accesses.Count > 0) {
+            foreach (AccessRecord ar in rc.accesses) {
+              if(!verifier.KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(ar.v)) {
+                AddLogAndCheckCalls(result, ar, AccessType.READ, null);
+              }
+            }
+          }
+
+          foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) {
+            WriteCollector wc = new WriteCollector(verifier.KernelArrayInfo);
+            wc.Visit(LhsRhs.Item1);
+            if (wc.FoundWrite()) {
+              AccessRecord ar = wc.GetAccess();
+              AddLogAndCheckCalls(result, ar, AccessType.WRITE, LhsRhs.Item2);
+            }
+          }
+        }
+
+        result.Add(c);
+
+      }
+      return result;
+    }
+
+    private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
+      if (!GPUVerifyVCGenCommandLineOptions.OnlyWarp || Access == AccessType.WRITE) {
+        result.Add(MakeLogCall(ar, Access, Value));
+        if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+          result.Add(MakeUpdateBenignFlagCall(ar));
+        }
+        if (!GPUVerifyVCGenCommandLineOptions.OnlyLog) {
+          result.Add(MakeCheckCall(result, ar, Access, Value));
+        }
+      }
+    }
+
+    private CallCmd MakeCheckCall(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
+      if(SourceLocationAttributes == null) {
+        ExitWithNoSourceError(ar.v, Access);
+      }
+      List<Expr> inParamsChk = new List<Expr>();
+      inParamsChk.Add(ar.Index);
+      MaybeAddValueParameter(inParamsChk, ar, Value, Access);
+      Procedure checkProcedure = RI.GetRaceCheckingProcedure(Token.NoToken, "_CHECK_" + Access + "_" + ar.v.Name);
+      verifier.OnlyThread2.Add(checkProcedure.Name);
+      string CheckState = "check_state_" + RI.CheckStateCounter;
+      RI.CheckStateCounter++;
+      AssumeCmd captureStateAssume = new AssumeCmd(Token.NoToken, Expr.True);
+      captureStateAssume.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
+      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
+        "captureState", new List<object>() { CheckState }, captureStateAssume.Attributes);
+      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
+        "check_id", new List<object>() { CheckState }, captureStateAssume.Attributes);
+      captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
+        "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
+      
+      result.Add(captureStateAssume);
+      CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
+      checkAccessCallCmd.Proc = checkProcedure;
+      checkAccessCallCmd.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
+      checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "check_id", new List<object>() { CheckState }, checkAccessCallCmd.Attributes);
+      return checkAccessCallCmd;
+    }
+
+    private CallCmd MakeLogCall(AccessRecord ar, AccessType Access, Expr Value) {
+      if(SourceLocationAttributes == null) {
+        ExitWithNoSourceError(ar.v, Access);
+      }
+      List<Expr> inParamsLog = new List<Expr>();
+      inParamsLog.Add(ar.Index);
+      MaybeAddValueParameter(inParamsLog, ar, Value, Access);
+      MaybeAddValueOldParameter(inParamsLog, ar, Access);
+      Procedure logProcedure = RI.GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
+      verifier.OnlyThread1.Add(logProcedure.Name);
+      CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new List<IdentifierExpr>());
+      logAccessCallCmd.Proc = logProcedure;
+      logAccessCallCmd.Attributes = SourceLocationAttributes.Clone() as QKeyValue;
+      return logAccessCallCmd;
+    }
+
+    private void ExitWithNoSourceError(Variable v, AccessType Access)
+    {
+      Console.Error.WriteLine("No source location information available when processing " + 
+        Access + " operation on " + v + " at " + GPUVerifyVCGenCommandLineOptions.inputFiles[0] + ":" + 
+        v.tok.line + ":" + v.tok.col + ".  Aborting.");
+      Environment.Exit(1);
+    }
+
+    private void MaybeAddValueParameter(List<Expr> parameters, AccessRecord ar, Expr Value, AccessType Access) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+        if (Value != null) {
+          parameters.Add(Value);
+        }
+        else {
+          Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
+          e.Type = (ar.v.TypedIdent.Type as MapType).Result;
+          parameters.Add(e);
+        }
+      }
+    }
+
+    private void MaybeAddValueOldParameter(List<Expr> parameters, AccessRecord ar, AccessType Access) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+          Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
+          e.Type = (ar.v.TypedIdent.Type as MapType).Result;
+          parameters.Add(e);
+      }
+    }
+
+    private CallCmd MakeUpdateBenignFlagCall(AccessRecord ar) {
+      List<Expr> inParamsUpdateBenignFlag = new List<Expr>();
+      inParamsUpdateBenignFlag.Add(ar.Index);
+      Procedure updateBenignFlagProcedure = RI.GetRaceCheckingProcedure(Token.NoToken, "_UPDATE_WRITE_READ_BENIGN_FLAG_" + ar.v.Name);
+      verifier.OnlyThread2.Add(updateBenignFlagProcedure.Name);
+      CallCmd updateBenignFlagCallCmd = new CallCmd(Token.NoToken, updateBenignFlagProcedure.Name, inParamsUpdateBenignFlag, new List<IdentifierExpr>());
+      updateBenignFlagCallCmd.Proc = updateBenignFlagProcedure;
+      return updateBenignFlagCallCmd;
+    }
+
+  }
 
 
 }

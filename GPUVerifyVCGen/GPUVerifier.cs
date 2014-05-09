@@ -486,8 +486,6 @@ namespace GPUVerify
 
             IdentifyArraysAccessedAsynchronously();
 
-            HandleAsyncWorkGroupCopies();
-
             DuplicateBarriers();
 
             if (GPUVerifyVCGenCommandLineOptions.IdentifySafeBarriers) {
@@ -504,8 +502,6 @@ namespace GPUVerify
 
             if (GPUVerifyVCGenCommandLineOptions.RefinedAtomics)
               RefineAtomicAbstraction();
-
-            HandleAsyncWorkGroupCopies();
 
             var nonUniformVars = new List<Variable> { _X, _Y, _Z };
             if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
@@ -668,7 +664,7 @@ namespace GPUVerify
         private void IdentifyArraysAccessedAsynchronously() {
           foreach(var AsyncCall in Program.Blocks().Select(Item => Item.Cmds).SelectMany(Item => Item).
             OfType<CallCmd>().Where(Item => QKeyValue.FindBoolAttribute(
-              Item.Proc.Attributes, "async_work_group_copy"))) {
+              Item.Attributes, "async_work_group_copy"))) {
             Variable DstArray =
               (AsyncCall.Ins[0] as IdentifierExpr).Decl;
             Variable SrcArray =
@@ -677,26 +673,6 @@ namespace GPUVerify
             Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(SrcArray));
             ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Add(DstArray.Name);
             ArraysAccessedByAsyncWorkGroupCopy[AccessType.READ].Add(SrcArray.Name);
-          }
-        }
-
-        private void HandleAsyncWorkGroupCopies() {
-
-          /* Work in progress.  For now we simply eliminate
-           * async calls and havoc the receiving variables.
-           */
-          foreach(var b in Program.Blocks()) {
-            List<Cmd> newCmds = new List<Cmd>();
-            foreach(var c in b.Cmds) {
-              CallCmd call = c as CallCmd;
-              if(call != null && QKeyValue.FindBoolAttribute(call.Proc.Attributes, "async_work_group_copy")) {
-                Debug.Assert(call.Outs.Count() == 1);
-                newCmds.Add(new HavocCmd(Token.NoToken, call.Outs));
-              } else {
-                newCmds.Add(c);
-              }
-            }
-            b.Cmds = newCmds;
           }
         }
 
