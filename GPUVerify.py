@@ -968,11 +968,12 @@ class GPUVerifyInstance (object):
 
     # We don't want messages to go to stdout
     stdoutFile = tempfile.SpooledTemporaryFile()
-    popenargs["stdout"] = stdoutFile
+    popenargs["stdout"] = self.out #stdoutFile
 
     # Redirect stderr to whatever stdout is redirected to
     if __name__ != '__main__':
       popenargs['stderr']=subprocess.PIPE
+
 
     # Redirect stdin, othewise terminal text becomes unreadable after timeout
     popenargs['stdin']=subprocess.PIPE
@@ -1161,16 +1162,19 @@ def parse_header (file):
   return code[1:],header_args
 
 # cache is of form map(code, list(known_safe))
-def subsumes (cached,new):
-  return any(all(v in ['*',new[k]] for k,v in trial.items()) for trial in cached)
-
-def in_cache (f,args,cache):
+def in_cache (f,args,success_cache,failure_cache):
   with open(f) as file:
     code = file.readlines()
-    while code[0].startswith("//"):
-      code = code[1:]
-    code = ''.join(code)
-    return code in cache and subsumes(cache[code],args)
+  while code[0].startswith("//"):
+    code = code[1:]
+  code = ''.join(code)
+  # If any match all arguments (or *)
+  if code in success_cache and any(all(v in ['*',args[k]] for k,v in trial.items()) for trial in success_cache[code]):
+    return True
+  # If any match all arguments
+  elif code in failure_cache and any(all(v == args[k] for k,v in trial.items()) for trial in failure_cache[code]):
+    return False
+  return None
 
 def add_to_cache (f,args,cache):
   with open(f) as file:
@@ -1184,42 +1188,52 @@ def add_to_cache (f,args,cache):
     if args.verbose:
       print("added to cache")
 
+# TODO: Alter in_cache and add_to_cache
 def verify_batch (files, success_cache={}):
   failure_cache = {}
-  results = {}
   success = []
   failure = []
-  for f in files:
+  for i,f in enumerate(files):
     x = parse_args([f])
+    rc = in_cache(f,x,success_cache,failure_cache)
     # Only check if we've never seen it before
-    if not (in_cache(f,x,success_cache) or in_cache(f,x,failure_cache)):
-      rc, out = main(x)
-      results[f] = out
-      if rc == ErrorCodes.SUCCESS:
-        add_to_cache(f,x,success_cache)
-        success.append((f,x))
-      else:
-        add_to_cache(f,x,failure_cache)
-        failure.append((f,x))
+    if rc is None:
+      rc = main(x,open(os.devnull,'w')) == ErrorCodes.SUCCESS
+      add_to_cache(f,x,success_cache if rc else failure_cache)
+    if rc:
+      success.append((f,x,i))
     else:
-      pass # In the cache
+      failure.append((f,x,i))
 
-  for s,args in success:
-    print("Kernel {} ({}) verified with: local_size={} global_size={} args={}".format(args['kernel_args'][0],
-                                                                                       s,
-                                                                                       ",".join(map(str,args['group_size'])),
-                                                                                       ",".join(map(str,args['global_size'])),
-                                                                                       ",".join(map(str,args['kernel_args'][1:]))))
+  print("GPUVerify kernel analyer checked {} kernels.".format(len(success) + len(failure)))
+  print("Successfully verified {} kernels.".format(len(success)))
+  print("Failed to verify {} kernels.".format(len(failure)))
 
   print("")
-  print("=== FAILURES ===")
-  for f,args in failure:
-    print("Kernel {} ({}) failed to verify with: local_size={} global_size={} args={}".format(args['kernel_args'][0],
-                                                                                       f,
-                                                                                       ",".join(map(str,args['group_size'])),
-                                                                                       ",".join(map(str,args['global_size'])),
-                                                                                       ",".join(map(str,args['kernel_args'][1:]))))
-    print(results[f])
+  print("Successes:")
+  for s,args,i in success:
+    print("[{}]: Verification of {} ({}) succeeded with: local_size={} global_size={} args={}"
+          .format(i,
+                  args['kernel_args'][0],
+                  s,
+                  ",".join(map(str,args['group_size'])),
+                  ",".join(map(str,args['global_size'])),
+                  ",".join(map(str,args['kernel_args'][1:]))
+                )
+    )
+
+  print("")
+  print("Failures:")
+  for f,args,i in failure:
+    print("[{}]: Verification of {} ({}) failed with: local_size={} global_size={} args={}"
+          .format(i,
+                  args['kernel_args'][0],
+                  f,
+                  ",".join(map(str,args['group_size'])),
+                  ",".join(map(str,args['global_size'])),
+                  ",".join(map(str,args['kernel_args'][1:]))
+                )
+    )
 
 def do_batch_mode (host_args): 
   kernels = []
@@ -1288,7 +1302,7 @@ def main(argv, out=sys.stdout):
     cleanUpHandler.clear() # Clean up for next use
 
   try:
-    returnCode, stdout = gv_instance.invoke()
+    returnCode = gv_instance.invoke()
   except GPUVerifyException as e:
     doCleanUp(timing=True, exitCode=e.code)
     raise
@@ -1298,7 +1312,7 @@ def main(argv, out=sys.stdout):
     raise
 
   doCleanUp(timing=True) # Do this outside try block so we don't call twice!
-  return returnCode, stdout
+  return returnCode
 
 debug = False
 
