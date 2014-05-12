@@ -96,14 +96,9 @@ namespace GPUVerify
      assignments.Add(c);
     }
    }
-   Function otherbv32 = (Function)verifier.ResContext.LookUpProcedure("__other_bv32");
-   if (otherbv32 == null)
-   {
-    List<Variable> myargs = new List<Variable>();
-    myargs.Add(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.GetBvType(32))));
-    otherbv32 = new Function(Token.NoToken, "__other_bv32", myargs, 
-     new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.GetBvType(32))));
-   }
+   // TODO: this is hard-coded to be bv32.  Is this safe, and if so, could it
+   // be more general?
+   Function otherbv32 = verifier.FindOrCreateOther(32);
    foreach (var v in guardVars)
    {
     foreach (AssignCmd c in assignments)

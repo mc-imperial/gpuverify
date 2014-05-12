@@ -453,10 +453,15 @@ namespace GPUVerify
                   .SelectMany(Item => Item)
                   .Select(Item => Item.Decl)
                   .Where(item => KernelArrayInfo.ContainsNonLocalArray(item));
+          IEnumerable<Variable> ArraysWrittenToThroughAsyncWorkGroupCopies =
+            Program.Blocks().Select(Item => Item.Cmds).SelectMany(Item => Item).
+              OfType<CallCmd>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "async_work_group_copy")).
+                Select(Item => ((IdentifierExpr)Item.Ins[0]).Decl);
           foreach(var v in KernelArrayInfo.getAllNonLocalArrays().Where(
-            Item => !WrittenArrays.Contains(Item))) {
+            Item => !WrittenArrays.Contains(Item) && !ArraysWrittenToThroughAsyncWorkGroupCopies.Contains(Item))) {
             KernelArrayInfo.getReadOnlyNonLocalArrays().Add(v);
           }
+
         }
 
         private void CheckSpecialConstantType(Constant C)
@@ -1804,6 +1809,17 @@ namespace GPUVerify
         internal static IdentifierExpr MakeAccessHasOccurredExpr(string varName, AccessType Access)
         {
             return new IdentifierExpr(Token.NoToken, MakeAccessHasOccurredVariable(varName, Access));
+        }
+
+        internal Function FindOrCreateOther(int BvWidth) {
+          Function other = (Function)ResContext.LookUpProcedure("__other_bv" + BvWidth);
+          if (other == null) {
+            List<Variable> myargs = new List<Variable>();
+            myargs.Add(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.GetBvType(BvWidth))));
+            other = new Function(Token.NoToken, "__other_bv" + BvWidth, myargs,
+             new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.GetBvType(BvWidth))));
+          }
+          return other;
         }
 
         private void MakeKernelDualised()

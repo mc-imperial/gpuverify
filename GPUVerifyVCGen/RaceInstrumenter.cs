@@ -1161,6 +1161,7 @@ namespace GPUVerify {
     private Implementation impl;
     private QKeyValue SourceLocationAttributes = null;
     private int AsyncIndexTempCounter = 0;
+    private int AsyncHandleTempCounter = 0;
 
     internal ImplementationInstrumenter(RaceInstrumenter RI, Implementation impl) {
       this.RI = RI;
@@ -1220,24 +1221,64 @@ namespace GPUVerify {
             Expr Size = call.Ins[4];
             Expr Handle = call.Ins[5];
 
+            // TODO: uniformity checks between the various parameters
+
+            // Introduce a temp to store a handle, to cater for when the passed handle
+            // is zero
+            IdentifierExpr HandleTemp = new IdentifierExpr(Token.NoToken,
+              new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle_temp_" + AsyncHandleTempCounter, Size.Type)));
+            AsyncHandleTempCounter++;
+            impl.LocVars.Add(HandleTemp.Decl);
+
+            // Make the handle nondeterminstic
+            result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { HandleTemp }));
+            // Assume that the handle is non-zero
+            result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(HandleTemp, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
+            // Assume that the handle is equal between threads
+            result.Add(new AssumeCmd(Token.NoToken, Expr.Eq(HandleTemp,
+              new NAryExpr(Token.NoToken, 
+                new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { HandleTemp }))));
+
+            // Select the handle temp if the supplied handle was zero, otherwise the supplied handle
+            result.Add(new AssignCmd(Token.NoToken,
+              new List<AssignLhs> {
+                new SimpleAssignLhs(Token.NoToken, call.Outs[0]) }, 
+              new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
+                new List<Expr> {
+                  Expr.Eq(Handle, verifier.IntRep.GetLiteral(0, verifier.size_t_bits)),
+                  HandleTemp,
+                  Handle }
+                )
+              }));
+
+            // Introduce a temp variable to represent the offset in the async copy range
+            // to be tracked
             IdentifierExpr IndexTemp = new IdentifierExpr(Token.NoToken,
               new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_index_temp_" + AsyncIndexTempCounter, Size.Type)));
             AsyncIndexTempCounter++;
-
             impl.LocVars.Add(IndexTemp.Decl);
-
+            // Make the offset arbitrary...
             result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { IndexTemp }));
+            // ...but between 0 and the supplied size
             result.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(IndexTemp, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
             result.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUlt(IndexTemp, Size)));
+            // Assume that the selected offset is uniform between the threads
+            result.Add(new AssumeCmd(Token.NoToken, Expr.Eq(IndexTemp,
+              new NAryExpr(Token.NoToken, 
+                new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { IndexTemp }))));
 
-            AddLogAndCheckCalls(result, 
-              new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)),
-              AccessType.WRITE,
-              null);
-            AddLogAndCheckCalls(result, 
-              new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)),
-              AccessType.WRITE,
-              null);
+            // Add race checking.  Importantly, add the check before the log, because we do
+            // not want to report a race due to multiple threads executing the same async
+            // work group copy
+            result.Add(MakeCheckCall(result, 
+              new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)), AccessType.WRITE,
+              null));
+            result.Add(MakeLogCall(new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)), AccessType.WRITE, null));
+
+            result.Add(MakeCheckCall(result, 
+              new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)), AccessType.READ,
+              null));
+            result.Add(MakeLogCall(new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)), AccessType.READ, null));
 
             continue;
 
