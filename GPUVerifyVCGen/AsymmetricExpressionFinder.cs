@@ -31,6 +31,8 @@ namespace GPUVerify
           "_WRITE_HAS_OCCURRED", "_WRITE_OFFSET", "_WRITE_VALUE",
           "_ATOMIC_HAS_OCCURRED", "_ATOMIC_OFFSET",
           "_WRITE_READ_BENIGN_FLAG",
+          "_READ_ASYNC_HANDLE",
+          "_WRITE_ASYNC_HANDLE",
           "_USED"
         };
 

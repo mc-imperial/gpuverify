@@ -24,11 +24,13 @@ namespace GPUVerify
       Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
       Variable AccessValueVariable = RaceInstrumentationUtil.MakeValueVariable(v.Name, Access, mt.Result);
       Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
+      Variable AccessAsyncHandleVariable = RaceInstrumentationUtil.MakeAsyncHandleVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
 
-      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
-      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
-      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
-      Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
+      Variable PredicateParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_P", Microsoft.Boogie.Type.Bool));
+      Variable OffsetParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_offset", mt.Arguments[0]));
+      Variable ValueParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value", mt.Result));
+      Variable ValueOldParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value_old", mt.Result));
+      Variable AsyncHandleParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", verifier.IntRep.GetIntType(verifier.size_t_bits)));
 
       Debug.Assert(!(mt.Result is MapType));
 
@@ -48,6 +50,12 @@ namespace GPUVerify
           Condition,
           Expr.Neq(new IdentifierExpr(Token.NoToken, ValueParameter),
             new IdentifierExpr(Token.NoToken, ValueOldParameter))));
+      }
+
+      if((Access == AccessType.READ || Access == AccessType.WRITE) && verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(v.Name)) {
+        LoggingCommands.Cmds.Add(MakeConditionalAssignment(AccessAsyncHandleVariable,
+          Condition,
+          Expr.Ident(AsyncHandleParameter)));
       }
 
       Implementation LogAccessImplementation = 

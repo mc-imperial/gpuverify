@@ -697,14 +697,17 @@ namespace GPUVerify {
     protected Procedure MakeLogAccessProcedureHeader(Variable v, AccessType Access) {
       List<Variable> inParams = new List<Variable>();
 
-      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
+      Variable PredicateParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_P", Microsoft.Boogie.Type.Bool));
 
       Debug.Assert(v.TypedIdent.Type is MapType);
       MapType mt = v.TypedIdent.Type as MapType;
       Debug.Assert(mt.Arguments.Count == 1);
-      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
-      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
-      Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
+      Variable OffsetParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_offset", mt.Arguments[0]));
+      Variable ValueParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value", mt.Result));
+      Variable ValueOldParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value_old", mt.Result));
+
+      Variable AsyncHandleParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", verifier.IntRep.GetIntType(verifier.size_t_bits)));
+
       Debug.Assert(!(mt.Result is MapType));
 
       inParams.Add(PredicateParameter);
@@ -714,6 +717,10 @@ namespace GPUVerify {
       }
       if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         inParams.Add(ValueOldParameter);
+      }
+      if((Access == AccessType.READ || Access == AccessType.WRITE) &&
+        verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(v.Name)) {
+        inParams.Add(AsyncHandleParameter);
       }
 
       string LogProcedureName = "_LOG_" + Access + "_" + v.Name;
@@ -1214,12 +1221,12 @@ namespace GPUVerify {
 
           if (QKeyValue.FindBoolAttribute(call.Attributes, "async_work_group_copy"))
           {
-            IdentifierExpr DstArray = (IdentifierExpr)call.Ins[0];
-            Expr DstOffset = call.Ins[1];
-            IdentifierExpr SrcArray = (IdentifierExpr)call.Ins[2];
-            Expr SrcOffset = call.Ins[3];
-            Expr Size = call.Ins[4];
-            Expr Handle = call.Ins[5];
+            IdentifierExpr DstArray = (IdentifierExpr)call.Outs[1];
+            Expr DstOffset = call.Ins[0];
+            IdentifierExpr SrcArray = (IdentifierExpr)call.Ins[1];
+            Expr SrcOffset = call.Ins[2];
+            Expr Size = call.Ins[3];
+            Expr Handle = call.Ins[4];
 
             // TODO: uniformity checks between the various parameters
 
@@ -1273,16 +1280,30 @@ namespace GPUVerify {
             result.Add(MakeCheckCall(result, 
               new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)), AccessType.WRITE,
               null));
-            result.Add(MakeLogCall(new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)), AccessType.WRITE, null));
+            result.Add(MakeLogCall(new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)), AccessType.WRITE, null, call.Outs[0]));
 
             result.Add(MakeCheckCall(result, 
               new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)), AccessType.READ,
               null));
-            result.Add(MakeLogCall(new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)), AccessType.READ, null));
+            result.Add(MakeLogCall(new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)), AccessType.READ, null, call.Outs[0]));
 
             continue;
 
           }
+
+          if (QKeyValue.FindBoolAttribute(call.Attributes, "wait_group_events"))
+          {
+            foreach(var Access in verifier.ArraysAccessedByAsyncWorkGroupCopy.Keys) {
+              foreach(var Array in verifier.ArraysAccessedByAsyncWorkGroupCopy[Access]) {
+                result.Add(new AssumeCmd(Token.NoToken,
+                  Expr.Imp(
+                    Expr.Eq(call.Ins[0], Expr.Ident(RaceInstrumentationUtil.MakeAsyncHandleVariable(Array, Access, verifier.IntRep.GetIntType(verifier.size_t_bits)))),
+                    Expr.Not(GPUVerifier.MakeAccessHasOccurredExpr(Array, Access))
+                  )));
+              }
+            }
+          }
+
         }
 
         if (c is AssignCmd) {
@@ -1317,7 +1338,7 @@ namespace GPUVerify {
 
     private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
       if (!GPUVerifyVCGenCommandLineOptions.OnlyWarp || Access == AccessType.WRITE) {
-        result.Add(MakeLogCall(ar, Access, Value));
+        result.Add(MakeLogCall(ar, Access, Value, null));
         if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
           result.Add(MakeUpdateBenignFlagCall(ar));
         }
@@ -1355,7 +1376,7 @@ namespace GPUVerify {
       return checkAccessCallCmd;
     }
 
-    private CallCmd MakeLogCall(AccessRecord ar, AccessType Access, Expr Value) {
+    private CallCmd MakeLogCall(AccessRecord ar, AccessType Access, Expr Value, Expr AsyncHandle) {
       if(SourceLocationAttributes == null) {
         ExitWithNoSourceError(ar.v, Access);
       }
@@ -1363,6 +1384,7 @@ namespace GPUVerify {
       inParamsLog.Add(ar.Index);
       MaybeAddValueParameter(inParamsLog, ar, Value, Access);
       MaybeAddValueOldParameter(inParamsLog, ar, Access);
+      MaybeAddAsyncHandleParameter(inParamsLog, ar, AsyncHandle, Access);
       Procedure logProcedure = RI.GetRaceCheckingProcedure(Token.NoToken, "_LOG_" + Access + "_" + ar.v.Name);
       verifier.OnlyThread1.Add(logProcedure.Name);
       CallCmd logAccessCallCmd = new CallCmd(Token.NoToken, logProcedure.Name, inParamsLog, new List<IdentifierExpr>());
@@ -1397,6 +1419,18 @@ namespace GPUVerify {
           Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
           e.Type = (ar.v.TypedIdent.Type as MapType).Result;
           parameters.Add(e);
+      }
+    }
+
+    private void MaybeAddAsyncHandleParameter(List<Expr> parameters, AccessRecord ar, Expr AsyncHandle, AccessType Access) {
+      if(verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(ar.v.Name)) {
+        if(AsyncHandle != null) {
+          parameters.Add(AsyncHandle);
+        } else {
+          parameters.Add(verifier.IntRep.GetLiteral(0, verifier.size_t_bits));
+        }
+      } else {
+        Debug.Assert(AsyncHandle == null);
       }
     }
 

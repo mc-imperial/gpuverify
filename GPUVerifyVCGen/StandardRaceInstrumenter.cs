@@ -23,19 +23,21 @@ namespace GPUVerify
       Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
       Variable AccessValueVariable = RaceInstrumentationUtil.MakeValueVariable(v.Name, Access, mt.Result);
       Variable AccessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
+      Variable AccessAsyncHandleVariable = RaceInstrumentationUtil.MakeAsyncHandleVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
 
-      Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
-      Variable OffsetParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_offset", mt.Arguments[0]));
-      Variable ValueParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value", mt.Result));
-      Variable ValueOldParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_value_old", mt.Result));
+      Variable PredicateParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_P", Microsoft.Boogie.Type.Bool));
+      Variable OffsetParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_offset", mt.Arguments[0]));
+      Variable ValueParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value", mt.Result));
+      Variable ValueOldParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value_old", mt.Result));
+      Variable AsyncHandleParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", verifier.IntRep.GetIntType(verifier.size_t_bits)));
 
       Debug.Assert(!(mt.Result is MapType));
 
       List<Variable> locals = new List<Variable>();
       string TrackName = (GPUVerifyVCGenCommandLineOptions.InvertedTracking ?
                               "do_not_track" : "track");
-      Variable TrackVariable = new LocalVariable(v.tok, 
-        new TypedIdent(v.tok, TrackName, Microsoft.Boogie.Type.Bool));
+      Variable TrackVariable = new LocalVariable(Token.NoToken, 
+        new TypedIdent(Token.NoToken, TrackName, Microsoft.Boogie.Type.Bool));
       locals.Add(TrackVariable);
 
       List<BigBlock> bigblocks = new List<BigBlock>();
@@ -74,6 +76,12 @@ namespace GPUVerify
           Condition,
           Expr.Neq(new IdentifierExpr(v.tok, ValueParameter),
             new IdentifierExpr(v.tok, ValueOldParameter))));
+      }
+      if((Access == AccessType.READ || Access == AccessType.WRITE) &&
+        verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(v.Name)) {
+        simpleCmds.Add(MakeConditionalAssignment(AccessAsyncHandleVariable,
+          Condition,
+          Expr.Ident(AsyncHandleParameter)));
       }
 
       bigblocks.Add(new BigBlock(v.tok, "_LOG_" + Access + "", simpleCmds, null, null));

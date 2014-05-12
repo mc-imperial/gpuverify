@@ -453,12 +453,8 @@ namespace GPUVerify
                   .SelectMany(Item => Item)
                   .Select(Item => Item.Decl)
                   .Where(item => KernelArrayInfo.ContainsNonLocalArray(item));
-          IEnumerable<Variable> ArraysWrittenToThroughAsyncWorkGroupCopies =
-            Program.Blocks().Select(Item => Item.Cmds).SelectMany(Item => Item).
-              OfType<CallCmd>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "async_work_group_copy")).
-                Select(Item => ((IdentifierExpr)Item.Ins[0]).Decl);
           foreach(var v in KernelArrayInfo.getAllNonLocalArrays().Where(
-            Item => !WrittenArrays.Contains(Item) && !ArraysWrittenToThroughAsyncWorkGroupCopies.Contains(Item))) {
+            Item => !WrittenArrays.Contains(Item))) {
             KernelArrayInfo.getReadOnlyNonLocalArrays().Add(v);
           }
 
@@ -671,9 +667,9 @@ namespace GPUVerify
             OfType<CallCmd>().Where(Item => QKeyValue.FindBoolAttribute(
               Item.Attributes, "async_work_group_copy"))) {
             Variable DstArray =
-              (AsyncCall.Ins[0] as IdentifierExpr).Decl;
+              (AsyncCall.Outs[1] as IdentifierExpr).Decl;
             Variable SrcArray =
-              (AsyncCall.Ins[2] as IdentifierExpr).Decl;
+              (AsyncCall.Ins[1] as IdentifierExpr).Decl;
             Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(DstArray));
             Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(SrcArray));
             ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Add(DstArray.Name);
