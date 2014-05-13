@@ -122,6 +122,7 @@ namespace GPUVerify {
           }
           var info = sr.ReadLine().Split(new char[] { '\x1D' })[number];
           var chain = info.Split(new char[] { '\x1E' });
+          bool first = true;
           foreach(var c in chain) {
             if(c != "") {
               var sourceInfo = c.Split(new char[] { '\x1F' });
@@ -129,11 +130,12 @@ namespace GPUVerify {
               int column = Convert.ToInt32(sourceInfo[1]);
               string file = sourceInfo[2];
               string directory = sourceInfo[3];
-              if(file.Contains("include-blang")) {
+              if(file.Contains("include-blang") && !first) {
                 // Do not keep source info if it is in one of our special header files
                 continue;
               }
               records.Add(new Record(line, column, file, directory));
+              first = false;
             }
           }
         }
