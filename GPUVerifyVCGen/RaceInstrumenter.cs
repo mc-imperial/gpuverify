@@ -1423,6 +1423,9 @@ namespace GPUVerify {
     }
 
     private void MaybeAddAsyncHandleParameter(List<Expr> parameters, AccessRecord ar, Expr AsyncHandle, AccessType Access) {
+      if(!(new AccessType[] { AccessType.READ, AccessType.WRITE }).Contains(Access)) {
+        return;
+      }
       if(verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(ar.v.Name)) {
         if(AsyncHandle != null) {
           parameters.Add(AsyncHandle);
