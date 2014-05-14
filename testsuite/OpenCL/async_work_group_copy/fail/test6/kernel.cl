@@ -7,6 +7,8 @@ kernel void foo(global float* __restrict p, global float * __restrict q) {
 
     local float my_p[N];
     local float my_q[N];
+
+    __assert(get_local_id(0));
     
     event_t handles[2];
 

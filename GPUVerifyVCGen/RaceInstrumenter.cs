@@ -1228,7 +1228,14 @@ namespace GPUVerify {
             Expr Size = call.Ins[3];
             Expr Handle = call.Ins[4];
 
-            // TODO: uniformity checks between the various parameters
+            // Assert threads are uniformly enabled
+            result.Add(AssertEqualBetweenThreadInSameGroup(Expr.Ident(verifier.FindOrCreateEnabledVariable())));
+            // Assert that the dst offsets are identical between threads
+            result.Add(AssertEqualBetweenThreadInSameGroup(DstOffset));
+            // Assert that the src offsets are identical between threads
+            result.Add(AssertEqualBetweenThreadInSameGroup(SrcOffset));
+            // Assert that the handles are identical between threads
+            result.Add(AssertEqualBetweenThreadInSameGroup(Handle));
 
             // Introduce a temp to store a handle, to cater for when the passed handle
             // is zero
@@ -1241,10 +1248,10 @@ namespace GPUVerify {
             result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { HandleTemp }));
             // Assume that the handle is non-zero
             result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(HandleTemp, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
-            // Assume that the handle is equal between threads
-            result.Add(new AssumeCmd(Token.NoToken, Expr.Eq(HandleTemp,
+            // Assume that the handle is equal between threads in the same group
+            result.Add(new AssumeCmd(Token.NoToken, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), Expr.Eq(HandleTemp,
               new NAryExpr(Token.NoToken, 
-                new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { HandleTemp }))));
+                new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { HandleTemp })))));
 
             // Select the handle temp if the supplied handle was zero, otherwise the supplied handle
             result.Add(new AssignCmd(Token.NoToken,
@@ -1269,10 +1276,10 @@ namespace GPUVerify {
             // ...but between 0 and the supplied size
             result.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(IndexTemp, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
             result.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUlt(IndexTemp, Size)));
-            // Assume that the selected offset is uniform between the threads
-            result.Add(new AssumeCmd(Token.NoToken, Expr.Eq(IndexTemp,
+            // Assume that the selected offset is uniform between the threads in the same group
+            result.Add(new AssumeCmd(Token.NoToken, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), Expr.Eq(IndexTemp,
               new NAryExpr(Token.NoToken, 
-                new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { IndexTemp }))));
+                new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { IndexTemp })))));
 
             // Add race checking.  Importantly, add the check before the log, because we do
             // not want to report a race due to multiple threads executing the same async
@@ -1334,6 +1341,15 @@ namespace GPUVerify {
 
       }
       return result;
+    }
+
+    private AssertCmd AssertEqualBetweenThreadInSameGroup(Expr E) {
+      AssertCmd Result = new AssertCmd(Token.NoToken, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), Expr.Eq(E,
+        new NAryExpr(Token.NoToken,
+          new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { E }))));
+      Result.Attributes = new QKeyValue(Token.NoToken, "sourceloc_num",
+        new List<object> { QKeyValue.FindExprAttribute(SourceLocationAttributes, "sourceloc_num") }, null);
+      return Result;
     }
 
     private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {

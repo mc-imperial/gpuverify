@@ -348,14 +348,7 @@ namespace GPUVerify
   private static void AddInvariantsForLoopsWhichAreControlDependentOnThreadOrGroupIDs(GPUVerifier verifier, IRegion region, Expr lhsOfImplication)
   {
    // Invariant #1: The thread is not enabled
-   string enabledVariableName = "__enabled";
-   Variable enabledVariable = (Variable)verifier.ResContext.LookUpVariable(enabledVariableName);
-   if (enabledVariable == null)
-   {
-    enabledVariable = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, enabledVariableName, Microsoft.Boogie.Type.Bool), false);
-    enabledVariable.AddAttribute("__enabled");
-    verifier.ResContext.AddVariable(enabledVariable, true);
-   }
+   Variable enabledVariable = verifier.FindOrCreateEnabledVariable();
    Expr invariantEnabled = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, enabledVariable)));
    verifier.AddCandidateInvariant(region, invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
 

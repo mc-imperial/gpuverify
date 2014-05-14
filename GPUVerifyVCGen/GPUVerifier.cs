@@ -2457,5 +2457,16 @@ namespace GPUVerify
           return TryGetArrayFromLogOrCheckProcedure(s, Access, "CHECK", out v);
         }
 
+        internal Variable FindOrCreateEnabledVariable() {
+          string enabledVariableName = "__enabled";
+          Variable enabledVariable = (Variable)ResContext.LookUpVariable(enabledVariableName);
+          if (enabledVariable == null) {
+            enabledVariable = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, enabledVariableName, Microsoft.Boogie.Type.Bool), false);
+            enabledVariable.AddAttribute("__enabled");
+            ResContext.AddVariable(enabledVariable, true);
+          }
+          return enabledVariable;
+        }
+
     }
 }
