@@ -122,7 +122,7 @@ namespace GPUVerify {
           }
           var info = sr.ReadLine().Split(new char[] { '\x1D' })[number];
           var chain = info.Split(new char[] { '\x1E' });
-          bool first = true;
+          Record blangRecord = null;
           foreach(var c in chain) {
             if(c != "") {
               var sourceInfo = c.Split(new char[] { '\x1F' });
@@ -130,14 +130,16 @@ namespace GPUVerify {
               int column = Convert.ToInt32(sourceInfo[1]);
               string file = sourceInfo[2];
               string directory = sourceInfo[3];
-              if(file.Contains("include-blang") && !first) {
+              if(file.Contains("include-blang")) {
                 // Do not keep source info if it is in one of our special header files
+                blangRecord = new Record(line, column, file, directory);
                 continue;
               }
               records.Add(new Record(line, column, file, directory));
-              first = false;
             }
           }
+          if (records.Count() == 0)
+            records.Add(blangRecord);
         }
       } catch (Exception e) {
         Console.Error.WriteLine("warning: getting souce loc info failed with: " + e.Message);
