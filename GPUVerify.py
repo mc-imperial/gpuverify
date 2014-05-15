@@ -552,19 +552,19 @@ def parse_args(argv):
 
       starts = defaultdict(lambda : "clang",
                            { '.bc': "opt", '.opt.bc': "bugle", '.gbpl': "vcgen",
-                             '.bpl.': "cruncher", '.cbpl': "boogie" })
+                             '.bpl': "cruncher", '.cbpl': "boogie" })
       args['start'] = starts[ext]
 
       if not args['stop']:
         args['stop'] = "boogie"
 
-      if not args['source_language']:
+      if not args['source_language'] and args['start'] in ['clang','opt','bugle']:
         if ext == '.cl':
           args['source_language'] = SourceLanguage.OpenCL
         elif ext == '.cu':
           args['source_language'] = SourceLanguage.CUDA
         else:
-          if ext == '.bc':
+          if ext in ['.bc','.opt.bc']:
             proc = subprocess.Popen([gvfindtools.llvmBinDir + "/llvm-nm", name],
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             lines,stderr = proc.communicate()
@@ -1026,6 +1026,10 @@ class GPUVerifyInstance (object):
 
   def invoke (self):
     """ Returns (returncode, outstring) """
+
+    timeout = False
+    success = True
+    stdout = ""
 
     if not self.skip["clang"]:
       success, timeout, stdout = self.RunTool("clang",
