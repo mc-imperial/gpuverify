@@ -622,10 +622,16 @@ namespace GPUVerify
 
    if (c is CallCmd)
    {
-    // Speculate invariants if we see atomics,
-    // which we need to race check
+    // Speculate invariants if we see atomics, async_work_group_copy, and
+    // wait_group_events, which relate to race checking
     CallCmd call = c as CallCmd;
-    if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
+    if (QKeyValue.FindBoolAttribute(call.Attributes, "atomic"))
+     return true;
+
+    if (QKeyValue.FindBoolAttribute(call.Attributes, "async_work_group_copy"))
+     return true;
+
+    if (QKeyValue.FindBoolAttribute(call.Attributes, "wait_group_events"))
      return true;
 
     // Speculate invariants if we see an unsafe barrier,

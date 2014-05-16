@@ -63,7 +63,7 @@ namespace GPUVerify
     public static bool PrintLoopStatistics = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
     public static List<string> KernelInterceptorParams = new List<string>();
-    public static bool EnableInessentialLoopDetection = false;
+    public static bool DisableInessentialLoopDetection = false;
 
     public static int Parse(string[] args)
     {
@@ -356,9 +356,9 @@ namespace GPUVerify
           PrintLoopStatistics = true;
           break;
 
-          case "-enableInessentialLoopDetection":
-          case "/enableInessentialLoopDetection":
-          EnableInessentialLoopDetection = true;
+          case "-disableInessentialLoopDetection":
+          case "/disableInessentialLoopDetection":
+          DisableInessentialLoopDetection = true;
           break;
 
           default:

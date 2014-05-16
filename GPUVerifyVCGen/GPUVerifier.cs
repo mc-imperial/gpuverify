@@ -532,7 +532,7 @@ namespace GPUVerify
 
               foreach (var impl in Program.Implementations().ToList())
                 {
-                    if (GPUVerifyVCGenCommandLineOptions.EnableInessentialLoopDetection)
+                    if (!GPUVerifyVCGenCommandLineOptions.DisableInessentialLoopDetection)
                         LoopInvariantGenerator.EstablishDisabledLoops(this, impl);
                     LoopInvariantGenerator.PreInstrument(this, impl);
                 }
