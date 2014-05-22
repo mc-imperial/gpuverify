@@ -626,6 +626,8 @@ class ThreadPool:
         raise
 
 def main(arg):
+    global GPUVerifyExecutable
+
     parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
     logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
     #Add command line options
@@ -652,6 +654,7 @@ def main(arg):
     parser.add_argument("--csv-file", type=str, default=None, help="Write timing data to a file (Note: requires --time-as-csv to be enabled)")
     parser.add_argument("--stop-on-fail", action="store_true", default=False, help="Stop on first failure")
     parser.add_argument("--shuffle", type=int, default=None, help="Permute the order of tests under evaluation")
+    parser.add_argument("--force-gpuverify-script", type=str, default=None, help="Force a different GPUVerify script to be used")
 
     #Mutually exclusive test run options
     runGroup = parser.add_mutually_exclusive_group()
@@ -663,6 +666,10 @@ def main(arg):
 
     logging.getLogger().setLevel(level=getattr(logging, args.log_level.upper(), None))
     logging.debug("Finished parsing arguments.")
+
+    if args.force_gpuverify_script != None:
+        GPUVerifyExecutable = args.force_gpuverify_script
+        logging.info('Forcing GPUVerify script to be {}'.format(GPUVerifyExecutable))
 
     #Check the user isn't trying something silly
     if(args.write_pickle == args.compare_run and len(args.write_pickle) > 0):
