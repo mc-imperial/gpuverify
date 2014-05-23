@@ -679,7 +679,7 @@ def processOptions(args):
   CommandLineOptions.vcgenOptions += sum([a.split(" ") for a in args['vcgen_options'] or []],[])
   CommandLineOptions.cruncherOptions += sum([a.split(" ") for a in args['cruncher_options'] or []],[])
   CommandLineOptions.boogieOptions += sum([a.split(" ") for a in args['boogie_options'] or []],[])
-  
+
   CommandLineOptions.vcgenOptions += ["/noCandidate:"+a for a in args['omit_infer'] or []]
   if args.kernel_args:
     CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str,args['kernel_args'])) ]
@@ -687,16 +687,16 @@ def processOptions(args):
     CommandLineOptions.boogieOptions   += [ "/proc:$" + args.kernel_args[0] ]
 
   CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file'] or []] or []
-  
+
   CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
   CommandLineOptions.cruncherOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
   CommandLineOptions.boogieOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
   CommandLineOptions.cruncherOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
-  
+
   if args['source_language'] == SourceLanguage.CUDA:
     CommandLineOptions.boogieOptions += [ "/sourceLanguage:cu" ]
     CommandLineOptions.cruncherOptions += [ "/sourceLanguage:cu" ]
-  
+
   return CommandLineOptions
 
 class GPUVerifyInstance (object):
@@ -886,13 +886,13 @@ class GPUVerifyInstance (object):
     CommandLineOptions.cruncherOptions += [ "/noinfer" ]
     CommandLineOptions.cruncherOptions += [ "/contractInfer" ]
     CommandLineOptions.cruncherOptions += [ "/concurrentHoudini" ]
-  
+
     if args.infer_info:
       CommandLineOptions.cruncherOptions += [ "/trace" ]
     if args.debug_houdini:
       CommandLineOptions.cruncherOptions += [ "/debugConcurrentHoudini" ]
-  
-    if args.solver == "cvc4":      
+
+    if args.solver == "cvc4":
       CommandLineOptions.cruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
       CommandLineOptions.cruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
       CommandLineOptions.cruncherOptions += [ "/proverOpt:LOGIC=" + args.logic ]
@@ -1239,7 +1239,7 @@ def verify_batch (files, success_cache={}):
                 )
     )
 
-def do_batch_mode (host_args): 
+def do_batch_mode (host_args):
   kernels = []
   for path, subdirs, files in os.walk(".gpuverify"):
     kernels += [path+os.sep+x for x in files]
@@ -1315,7 +1315,7 @@ def main(argv, out=sys.stdout):
     doCleanUp(timing=False, exitCode=0) # It doesn't matter what the exitCode is
     raise
 
-  doCleanUp(timing=True) # Do this outside try block so we don't call twice!
+  doCleanUp(timing=True, exitCode=returnCode[0]) # Do this outside try block so we don't call twice!
   return returnCode
 
 debug = False
@@ -1346,7 +1346,7 @@ if __name__ == '__main__':
   except KeyboardInterrupt:
     sys.exit(ErrorCodes.CTRL_C)
   except GPUVerifyException as e:
-    # We assume that globals are not cleaned up when running as a script so it 
+    # We assume that globals are not cleaned up when running as a script so it
     # is safe to read CommandLineOptions
     if (not (e.code in ignoredErrors)) or debug:
       if e.code == ErrorCodes.COMMAND_LINE_ERROR:
