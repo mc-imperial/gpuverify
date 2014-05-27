@@ -1167,8 +1167,6 @@ namespace GPUVerify {
     private GPUVerifier verifier;
     private Implementation impl;
     private QKeyValue SourceLocationAttributes = null;
-    private int AsyncIndexTempCounter = 0;
-    private int AsyncHandleTempCounter = 0;
 
     internal ImplementationInstrumenter(RaceInstrumenter RI, Implementation impl) {
       this.RI = RI;
@@ -1221,81 +1219,13 @@ namespace GPUVerify {
 
           if (QKeyValue.FindBoolAttribute(call.Attributes, "async_work_group_copy"))
           {
-            IdentifierExpr DstArray = (IdentifierExpr)call.Outs[1];
-            Expr DstOffset = call.Ins[0];
-            IdentifierExpr SrcArray = (IdentifierExpr)call.Ins[1];
-            Expr SrcOffset = call.Ins[2];
-            Expr Size = call.Ins[3];
-            Expr Handle = call.Ins[4];
-
-            // Assert threads are uniformly enabled
-            result.Add(AssertEqualBetweenThreadInSameGroup(Expr.Ident(verifier.FindOrCreateEnabledVariable())));
-            // Assert that the dst offsets are identical between threads
-            result.Add(AssertEqualBetweenThreadInSameGroup(DstOffset));
-            // Assert that the src offsets are identical between threads
-            result.Add(AssertEqualBetweenThreadInSameGroup(SrcOffset));
-            // Assert that the handles are identical between threads
-            result.Add(AssertEqualBetweenThreadInSameGroup(Handle));
-
-            // Introduce a temp to store a handle, to cater for when the passed handle
-            // is zero
-            IdentifierExpr HandleTemp = new IdentifierExpr(Token.NoToken,
-              new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle_temp_" + AsyncHandleTempCounter, Size.Type)));
-            AsyncHandleTempCounter++;
-            impl.LocVars.Add(HandleTemp.Decl);
-
-            // Make the handle nondeterminstic
-            result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { HandleTemp }));
-            // Assume that the handle is non-zero
-            result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(HandleTemp, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
-            // Assume that the handle is equal between threads in the same group
-            result.Add(new AssumeCmd(Token.NoToken, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), Expr.Eq(HandleTemp,
-              new NAryExpr(Token.NoToken, 
-                new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { HandleTemp })))));
-
-            // Select the handle temp if the supplied handle was zero, otherwise the supplied handle
-            result.Add(new AssignCmd(Token.NoToken,
-              new List<AssignLhs> {
-                new SimpleAssignLhs(Token.NoToken, call.Outs[0]) }, 
-              new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
-                new List<Expr> {
-                  Expr.Eq(Handle, verifier.IntRep.GetLiteral(0, verifier.size_t_bits)),
-                  HandleTemp,
-                  Handle }
-                )
-              }));
-
-            // Introduce a temp variable to represent the offset in the async copy range
-            // to be tracked
-            IdentifierExpr IndexTemp = new IdentifierExpr(Token.NoToken,
-              new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_index_temp_" + AsyncIndexTempCounter, Size.Type)));
-            AsyncIndexTempCounter++;
-            impl.LocVars.Add(IndexTemp.Decl);
-            // Make the offset arbitrary...
-            result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { IndexTemp }));
-            // ...but between 0 and the supplied size
-            result.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(IndexTemp, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
-            result.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUlt(IndexTemp, Size)));
-            // Assume that the selected offset is uniform between the threads in the same group
-            result.Add(new AssumeCmd(Token.NoToken, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), Expr.Eq(IndexTemp,
-              new NAryExpr(Token.NoToken, 
-                new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { IndexTemp })))));
-
-            // Add race checking.  Importantly, add the check before the log, because we do
-            // not want to report a race due to multiple threads executing the same async
-            // work group copy
-            result.Add(MakeCheckCall(result, 
-              new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)), AccessType.WRITE,
-              null));
-            result.Add(MakeLogCall(new AccessRecord(DstArray.Decl, verifier.IntRep.MakeAdd(DstOffset, IndexTemp)), AccessType.WRITE, null, call.Outs[0]));
-
-            result.Add(MakeCheckCall(result, 
-              new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)), AccessType.READ,
-              null));
-            result.Add(MakeLogCall(new AccessRecord(SrcArray.Decl, verifier.IntRep.MakeAdd(SrcOffset, IndexTemp)), AccessType.READ, null, call.Outs[0]));
-
+            Procedure AsyncWorkGroupCopy = FindOrCreateAsyncWorkGroupCopy(((IdentifierExpr)call.Outs[1]).Decl, ((IdentifierExpr)call.Ins[1]).Decl);
+            CallCmd AsyncWorkGroupCopyCall = new CallCmd(Token.NoToken, AsyncWorkGroupCopy.Name,
+              new List<Expr> { call.Ins[0], call.Ins[2], call.Ins[3], call.Ins[4] },
+              new List<IdentifierExpr> { call.Outs[0] });
+            AsyncWorkGroupCopyCall.Proc = AsyncWorkGroupCopy;
+            result.Add(AsyncWorkGroupCopyCall);
             continue;
-
           }
 
           if (QKeyValue.FindBoolAttribute(call.Attributes, "wait_group_events"))
@@ -1343,13 +1273,123 @@ namespace GPUVerify {
       return result;
     }
 
-    private AssertCmd AssertEqualBetweenThreadInSameGroup(Expr E) {
-      AssertCmd Result = new AssertCmd(Token.NoToken, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), Expr.Eq(E,
-        new NAryExpr(Token.NoToken,
-          new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { E }))));
-      Result.Attributes = new QKeyValue(Token.NoToken, "sourceloc_num",
-        new List<object> { QKeyValue.FindExprAttribute(SourceLocationAttributes, "sourceloc_num") }, null);
+    private Procedure FindOrCreateAsyncWorkGroupCopy(Variable DstArray, Variable SrcArray) {
+
+      string ProcedureName = "_ASYNC_WORK_GROUP_COPY_" + DstArray.Name + "_" + SrcArray.Name;
+
+      List<Procedure> CandidateProcedures =
+        verifier.Program.TopLevelDeclarations.OfType<Procedure>().Where(
+          Item => Item.Name == ProcedureName).ToList();
+      if(CandidateProcedures.Count() > 0) {
+        Debug.Assert(CandidateProcedures.Count() == 1);
+        return CandidateProcedures[0];
+      }
+
+      IdentifierExpr DstOffset = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "DstOffset", verifier.IntRep.GetIntType(verifier.size_t_bits))));
+      IdentifierExpr SrcOffset = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "SrcOffset", verifier.IntRep.GetIntType(verifier.size_t_bits))));
+      IdentifierExpr Size = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Size", verifier.IntRep.GetIntType(verifier.size_t_bits))));
+      IdentifierExpr Handle = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Handle", verifier.IntRep.GetIntType(verifier.size_t_bits))));
+      List<Variable> InParams = new List<Variable> {
+        DstOffset.Decl, SrcOffset.Decl, Size.Decl, Handle.Decl
+      };
+
+      IdentifierExpr ResultHandle = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "ResultHandle", verifier.IntRep.GetIntType(verifier.size_t_bits))));
+      List<Variable> OutParams = new List<Variable> {
+        ResultHandle.Decl
+      };
+
+      IdentifierExpr Index = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Index", verifier.IntRep.GetIntType(verifier.size_t_bits))));
+      IdentifierExpr IdX = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "IdX", GPUVerifier._X.TypedIdent.Type)));
+      IdentifierExpr IdY = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "IdY", GPUVerifier._Y.TypedIdent.Type)));
+      IdentifierExpr IdZ = Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "IdZ", GPUVerifier._Z.TypedIdent.Type)));
+      List<Variable> Locals = new List<Variable> {
+        Index.Decl,
+        IdX.Decl,
+        IdY.Decl,
+        IdZ.Decl
+      };
+
+      List<Requires> Preconditions = new List<Requires>() {
+        RequireEqualBetweenThreadsInSameGroup(Expr.Ident(verifier.FindOrCreateEnabledVariable())),
+        RequireEqualBetweenThreadsInSameGroup(DstOffset),
+        RequireEqualBetweenThreadsInSameGroup(SrcOffset),
+        RequireEqualBetweenThreadsInSameGroup(Size),
+        RequireEqualBetweenThreadsInSameGroup(Handle)
+      };
+
+      Block EntryBlock = new Block(Token.NoToken, "entry", new List<Cmd>(), null);
+      Block AccessBlock = new Block(Token.NoToken, "access", new List<Cmd>(), null);
+      Block NoAccessBlock = new Block(Token.NoToken, "no_access", new List<Cmd>(), null);
+      Block ExitBlock = new Block(Token.NoToken, "exit", new List<Cmd>(), null);
+      List<Block> Blocks = new List<Block> { EntryBlock, AccessBlock, ExitBlock };
+
+      EntryBlock.TransferCmd = new GotoCmd(Token.NoToken,
+        new List<string> { "access", "no_access" },
+        new List<Block> { AccessBlock, NoAccessBlock });
+      AccessBlock.TransferCmd = new GotoCmd(Token.NoToken,
+        new List<string> { "exit" },
+        new List<Block> { ExitBlock });
+      NoAccessBlock.TransferCmd = new GotoCmd(Token.NoToken,
+        new List<string> { "exit" },
+        new List<Block> { ExitBlock });
+      ExitBlock.TransferCmd = new ReturnCmd(Token.NoToken);
+      
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Neq(ResultHandle, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
+      EntryBlock.Cmds.Add(new AssignCmd(Token.NoToken, new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, ResultHandle) }, 
+              new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
+                new List<Expr> {
+                  Expr.Eq(Handle, verifier.IntRep.GetLiteral(0, verifier.size_t_bits)), ResultHandle, Handle
+                }) }));
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(ResultHandle)));
+
+      // Choose an arbitrary index within the async copy range
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(Index, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUlt(Index, Size)));
+
+      // Choose arbitrary numbers X, Y and Z.
+      // If X, Y and Z match the thread's local id, issue a read and write by this thread relative
+      // to the chosen index
+      Expr IdsMatch = Expr.And(Expr.Eq(IdX, Expr.Ident(GPUVerifier._X)),
+                      Expr.And(Expr.Eq(IdY, Expr.Ident(GPUVerifier._Y)),
+                               Expr.Eq(IdZ, Expr.Ident(GPUVerifier._Z))));
+      Expr WrittenValue = Expr.Select(Expr.Ident(SrcArray), new Expr[] { verifier.IntRep.MakeAdd(SrcOffset, Index) });
+      WrittenValue.Type = (SrcArray.TypedIdent.Type as MapType).Result;
+      Expr ReadValue = Expr.Select(Expr.Ident(DstArray), new Expr[] { verifier.IntRep.MakeAdd(DstOffset, Index) });
+      ReadValue.Type = (DstArray.TypedIdent.Type as MapType).Result;
+      AccessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, IdsMatch, new QKeyValue(Token.NoToken, "partition", new List<object>(), null)));
+      AccessBlock.Cmds.Add(MakeLogCall(new AccessRecord(DstArray, verifier.IntRep.MakeAdd(DstOffset, Index)), AccessType.WRITE, WrittenValue, ResultHandle));
+      AccessBlock.Cmds.Add(MakeCheckCall(AccessBlock.Cmds, new AccessRecord(DstArray, verifier.IntRep.MakeAdd(DstOffset, Index)), AccessType.WRITE, WrittenValue));
+      AccessBlock.Cmds.Add(MakeLogCall(new AccessRecord(SrcArray, verifier.IntRep.MakeAdd(SrcOffset, Index)), AccessType.READ, ReadValue, ResultHandle));
+      AccessBlock.Cmds.Add(MakeCheckCall(AccessBlock.Cmds, new AccessRecord(SrcArray, verifier.IntRep.MakeAdd(SrcOffset, Index)), AccessType.READ, ReadValue));
+
+      NoAccessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Not(IdsMatch), new QKeyValue(Token.NoToken, "partition", new List<object>(), null)));
+
+      Procedure AsyncWorkGroupCopyProcedure = new Procedure(Token.NoToken, ProcedureName, new List<TypeVariable>(),
+        InParams, OutParams, Preconditions,
+        new List<IdentifierExpr>(), new List<Ensures>());
+      GPUVerifier.AddInlineAttribute(AsyncWorkGroupCopyProcedure);
+
+      Implementation AsyncWorkGroupCopyImplementation = new Implementation(Token.NoToken,
+        ProcedureName, new List<TypeVariable>(), InParams, OutParams, Locals, Blocks);
+      AsyncWorkGroupCopyImplementation.Proc = AsyncWorkGroupCopyProcedure;
+      GPUVerifier.AddInlineAttribute(AsyncWorkGroupCopyImplementation);
+        
+      verifier.Program.TopLevelDeclarations.Add(AsyncWorkGroupCopyProcedure);
+      verifier.Program.TopLevelDeclarations.Add(AsyncWorkGroupCopyImplementation);
+
+      return AsyncWorkGroupCopyProcedure;
+
+    }
+
+    private Requires RequireEqualBetweenThreadsInSameGroup(Expr E) {
+      Requires Result = new Requires(false, EqualBetweenThreadsInSameGroup(E));
+      Result.Attributes = new QKeyValue(Token.NoToken, "sourceloc_num", new List<object> { QKeyValue.FindExprAttribute(SourceLocationAttributes, "sourceloc_num") }, null);
       return Result;
+    }
+
+    private Expr EqualBetweenThreadsInSameGroup(Expr E) {
+      return Expr.Imp(GPUVerifier.ThreadsInSameGroup(), Expr.Eq(E,
+              new NAryExpr(Token.NoToken, new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { E })));
     }
 
     private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
@@ -1423,6 +1463,8 @@ namespace GPUVerify {
           parameters.Add(Value);
         }
         else {
+          // TODO: Why do we do this?  Seems wrong to assume that if no Value is supplied
+          // then the value being written is the same as the value that was already there
           Expr e = Expr.Select(new IdentifierExpr(Token.NoToken, ar.v), new Expr[] { ar.Index });
           e.Type = (ar.v.TypedIdent.Type as MapType).Result;
           parameters.Add(e);

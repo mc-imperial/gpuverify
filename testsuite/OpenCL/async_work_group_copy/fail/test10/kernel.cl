@@ -12,7 +12,7 @@ kernel void foo(global float* p) {
     barrier(CLK_LOCAL_MEM_FENCE);
 
     // Race between work groups
-    event_t handle = async_work_group_copy(mine, p, N, 0);
+    event_t handle = async_work_group_copy(p, mine, N, 0);
 
     wait_group_events(1, &handle);
 
