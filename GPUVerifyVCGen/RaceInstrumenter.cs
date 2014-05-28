@@ -683,11 +683,17 @@ namespace GPUVerify {
       foreach (var kind in AccessType.Types)
       {
         Expr ResetAssumeGuard = Expr.Imp(ResetCondition,
-          Expr.Not(new IdentifierExpr(Token.NoToken,
-            GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind))));
+          Expr.Not(Expr.Ident(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind))));
 
         if (verifier.KernelArrayInfo.getGlobalArrays().Contains(v))
           ResetAssumeGuard = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), ResetAssumeGuard);
+
+        if (new AccessType[] { AccessType.READ, AccessType.WRITE }.Contains(kind)
+          && verifier.ArraysAccessedByAsyncWorkGroupCopy[kind].Contains(v.Name)) {
+          ResetAssumeGuard = Expr.Imp(
+            Expr.Eq(Expr.Ident(verifier.FindOrCreateAsyncHandleVariable(v.Name, kind)), verifier.FindOrCreateAsyncNoHandleConstant()),
+            ResetAssumeGuard);
+        }
 
         result.simpleCmds.Add(new AssumeCmd(Token.NoToken, ResetAssumeGuard));
       }
@@ -1247,7 +1253,7 @@ namespace GPUVerify {
                   new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
                     new List<Expr> {
                       Expr.Eq(Handle, HandleVariable),
-                      FindOrCreateAsyncNoHandleConstant(),
+                      verifier.FindOrCreateAsyncNoHandleConstant(),
                       HandleVariable }) }));
               }
             }
@@ -1284,19 +1290,6 @@ namespace GPUVerify {
 
       }
       return result;
-    }
-
-    private Expr FindOrCreateAsyncNoHandleConstant() {
-      string Name = "_ASYNC_NO_HANDLE";
-      var Candidates = verifier.Program.TopLevelDeclarations.OfType<Constant>().Where(Item => Item.Name == Name);
-      if(Candidates.Count() > 0) {
-        Debug.Assert(Candidates.Count() == 1);
-        return Expr.Ident(Candidates.ToList()[0]);
-      }
-      Constant AsyncNoHandleConstant = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, Name, verifier.IntRep.GetIntType(verifier.size_t_bits)), false);
-      Axiom EqualsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(AsyncNoHandleConstant), verifier.Zero(verifier.size_t_bits)));
-      verifier.Program.TopLevelDeclarations.AddRange(new Declaration[] { AsyncNoHandleConstant, EqualsZero });
-      return Expr.Ident(AsyncNoHandleConstant);
     }
 
     private Procedure FindOrCreateAsyncWorkGroupCopy(Variable DstArray, Variable SrcArray) {
@@ -1360,11 +1353,11 @@ namespace GPUVerify {
         new List<Block> { ExitBlock });
       ExitBlock.TransferCmd = new ReturnCmd(Token.NoToken);
       
-      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Neq(ResultHandle, FindOrCreateAsyncNoHandleConstant())));
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Neq(ResultHandle, verifier.FindOrCreateAsyncNoHandleConstant())));
       EntryBlock.Cmds.Add(new AssignCmd(Token.NoToken, new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, ResultHandle) }, 
               new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
                 new List<Expr> {
-                  Expr.Eq(Handle, FindOrCreateAsyncNoHandleConstant()), ResultHandle, Handle
+                  Expr.Eq(Handle, verifier.FindOrCreateAsyncNoHandleConstant()), ResultHandle, Handle
                 }) }));
       EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(ResultHandle)));
 
@@ -1514,7 +1507,7 @@ namespace GPUVerify {
         if(AsyncHandle != null) {
           parameters.Add(AsyncHandle);
         } else {
-          parameters.Add(FindOrCreateAsyncNoHandleConstant());
+          parameters.Add(verifier.FindOrCreateAsyncNoHandleConstant());
         }
       } else {
         Debug.Assert(AsyncHandle == null);

@@ -2468,5 +2468,18 @@ namespace GPUVerify
           return enabledVariable;
         }
 
+        internal Expr FindOrCreateAsyncNoHandleConstant() {
+          string Name = "_ASYNC_NO_HANDLE";
+          var Candidates = Program.TopLevelDeclarations.OfType<Constant>().Where(Item => Item.Name == Name);
+          if(Candidates.Count() > 0) {
+            Debug.Assert(Candidates.Count() == 1);
+            return Expr.Ident(Candidates.ToList()[0]);
+          }
+          Constant AsyncNoHandleConstant = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, Name, IntRep.GetIntType(size_t_bits)), false);
+          Axiom EqualsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(AsyncNoHandleConstant), Zero(size_t_bits)));
+          Program.TopLevelDeclarations.AddRange(new Declaration[] { AsyncNoHandleConstant, EqualsZero });
+          return Expr.Ident(AsyncNoHandleConstant);
+        }
+
     }
 }

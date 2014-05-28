@@ -1,4 +1,4 @@
-//pass
+//xfail:BOOGIE_ERROR
 //--local_size=64 --num_groups=128
 
 #define N 64
@@ -14,8 +14,9 @@ kernel void foo(global float* __restrict p, global float * __restrict q) {
     handles[1] = async_work_group_copy(my_q, q + N*get_group_id(0), N, 0);
 
     wait_group_events(2, handles);
-    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
+    // A barrier is also required to make this safe
+    
     p[get_global_id(0)] = 2*my_p[get_local_id(0)];
     q[get_global_id(0)] = 2*my_q[get_local_id(0)];
 
