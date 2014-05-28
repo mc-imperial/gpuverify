@@ -14,6 +14,7 @@ kernel void foo(global float* __restrict p, global float * __restrict q) {
     async_work_group_copy(my_q, q + N*get_group_id(0), N, joint_handle);
 
     wait_group_events(1, &joint_handle);
+    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
     p[get_global_id(0)] = 2*my_p[get_local_id(0)];
     q[get_global_id(0)] = 2*my_q[get_local_id(0)];
