@@ -159,7 +159,7 @@ namespace GPUVerify
     // REVISIT: really we only want to guess for /integer/ variables.
     if (BVWidth >= 8)
     {
-     var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetLiteral(0, BVWidth), new IdentifierExpr(v.tok, v));
+     var inv = verifier.IntRep.MakeSle(verifier.Zero(BVWidth), new IdentifierExpr(v.tok, v));
      verifier.AddCandidateInvariant(region, inv, "guardNonNeg", InferenceStages.BASIC_CANDIDATE_STAGE);
     }
    }

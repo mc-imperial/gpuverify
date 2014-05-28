@@ -129,7 +129,7 @@ namespace GPUVerify {
           var BIDescriptor = new UnaryBarrierInvariantDescriptor(
             verifier.uniformityAnalyser.IsUniform(Call.callee) ? Expr.True : Call.Ins[0],
             Expr.Neq(Call.Ins[verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1],
-              verifier.IntRep.GetLiteral(0, 1)),
+              verifier.Zero(1)),
               Call.Attributes,
               this, procName, verifier);
           for (var i = 1 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1); i < Call.Ins.Count; i++) {
@@ -146,7 +146,7 @@ namespace GPUVerify {
           var BIDescriptor = new BinaryBarrierInvariantDescriptor(
             verifier.uniformityAnalyser.IsUniform(Call.callee) ? Expr.True : Call.Ins[0],
             Expr.Neq(Call.Ins[verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1],
-              verifier.IntRep.GetLiteral(0, 1)),
+              verifier.Zero(1)),
               Call.Attributes,
               this, procName, verifier);
           for (var i = 1 + (verifier.uniformityAnalyser.IsUniform(Call.callee) ? 0 : 1); i < Call.Ins.Count; i += 2) {

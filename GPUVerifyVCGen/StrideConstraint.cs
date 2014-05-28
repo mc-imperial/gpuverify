@@ -21,7 +21,7 @@ class StrideConstraint {
 
   public static StrideConstraint Bottom(GPUVerifier verifier, Expr e) {
     return new ModStrideConstraint(verifier.IntRep.GetLiteral(1, e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits),
-                                   verifier.IntRep.GetLiteral(0, e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits));
+                                   verifier.Zero(e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits));
   }
 
   public bool IsBottom() {

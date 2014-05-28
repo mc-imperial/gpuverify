@@ -1273,6 +1273,19 @@ namespace GPUVerify {
       return result;
     }
 
+    private Expr FindOrCreateAsyncNoHandleConstant() {
+      string Name = "_ASYNC_NO_HANDLE";
+      var Candidates = verifier.Program.TopLevelDeclarations.OfType<Constant>().Where(Item => Item.Name == Name);
+      if(Candidates.Count() > 0) {
+        Debug.Assert(Candidates.Count() == 1);
+        return Expr.Ident(Candidates.ToList()[0]);
+      }
+      Constant AsyncNoHandleConstant = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, Name, verifier.IntRep.GetIntType(verifier.size_t_bits)), false);
+      Axiom EqualsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(AsyncNoHandleConstant), verifier.Zero(verifier.size_t_bits)));
+      verifier.Program.TopLevelDeclarations.AddRange(new Declaration[] { AsyncNoHandleConstant, EqualsZero });
+      return Expr.Ident(AsyncNoHandleConstant);
+    }
+
     private Procedure FindOrCreateAsyncWorkGroupCopy(Variable DstArray, Variable SrcArray) {
 
       string ProcedureName = "_ASYNC_WORK_GROUP_COPY_" + DstArray.Name + "_" + SrcArray.Name;
@@ -1334,27 +1347,29 @@ namespace GPUVerify {
         new List<Block> { ExitBlock });
       ExitBlock.TransferCmd = new ReturnCmd(Token.NoToken);
       
-      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Neq(ResultHandle, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Neq(ResultHandle, FindOrCreateAsyncNoHandleConstant())));
       EntryBlock.Cmds.Add(new AssignCmd(Token.NoToken, new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, ResultHandle) }, 
               new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
                 new List<Expr> {
-                  Expr.Eq(Handle, verifier.IntRep.GetLiteral(0, verifier.size_t_bits)), ResultHandle, Handle
+                  Expr.Eq(Handle, FindOrCreateAsyncNoHandleConstant()), ResultHandle, Handle
                 }) }));
       EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(ResultHandle)));
 
-      // Choose an arbitrary index within the async copy range
-      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(Index, verifier.IntRep.GetLiteral(0, verifier.size_t_bits))));
-      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUlt(Index, Size)));
+      // Choose arbitrary numbers X, Y and Z that are equal between the threads.
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(IdX)));
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(IdY)));
+      EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(IdZ)));
 
-      // Choose arbitrary numbers X, Y and Z.
       // If X, Y and Z match the thread's local id, issue a read and write by this thread relative
-      // to the chosen index
+      // to an arbitrarily chosen index in the range specified by the async copy
       Expr IdsMatch = Expr.And(Expr.Eq(IdX, Expr.Ident(GPUVerifier._X)),
                       Expr.And(Expr.Eq(IdY, Expr.Ident(GPUVerifier._Y)),
                                Expr.Eq(IdZ, Expr.Ident(GPUVerifier._Z))));
       Expr AccessedValue = Expr.Select(Expr.Ident(SrcArray), new Expr[] { verifier.IntRep.MakeAdd(SrcOffset, Index) });
       AccessedValue.Type = (SrcArray.TypedIdent.Type as MapType).Result;
       AccessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, IdsMatch, new QKeyValue(Token.NoToken, "partition", new List<object>(), null)));
+      AccessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(Index, verifier.Zero(verifier.size_t_bits))));
+      AccessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUlt(Index, Size)));
       AccessBlock.Cmds.Add(MakeLogCall(new AccessRecord(DstArray, verifier.IntRep.MakeAdd(DstOffset, Index)), AccessType.WRITE, AccessedValue, ResultHandle));
       AccessBlock.Cmds.Add(MakeCheckCall(AccessBlock.Cmds, new AccessRecord(DstArray, verifier.IntRep.MakeAdd(DstOffset, Index)), AccessType.WRITE, AccessedValue));
       AccessBlock.Cmds.Add(MakeLogCall(new AccessRecord(SrcArray, verifier.IntRep.MakeAdd(SrcOffset, Index)), AccessType.READ, AccessedValue, ResultHandle));
@@ -1486,7 +1501,7 @@ namespace GPUVerify {
         if(AsyncHandle != null) {
           parameters.Add(AsyncHandle);
         } else {
-          parameters.Add(verifier.IntRep.GetLiteral(0, verifier.size_t_bits));
+          parameters.Add(FindOrCreateAsyncNoHandleConstant());
         }
       } else {
         Debug.Assert(AsyncHandle == null);
