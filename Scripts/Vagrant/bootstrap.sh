@@ -144,7 +144,7 @@ echo $'Getting Bugle ...'
 echo $'=================\n'
 
 cd ${BUILD_ROOT}
-git clone git://git.pcc.me.uk/~peter/bugle.git ${BUILD_ROOT}/bugle/src
+git clone git://github.com/mc-imperial/bugle.git ${BUILD_ROOT}/bugle/src
 
 echo $'\n=================='
 echo $'Building Bugle ...'

@@ -286,7 +286,7 @@ def parse_args(argv):
 
     # nargs='?' because of needing to put KI in this script
     parser.add_argument("kernel", nargs='?', type=argparse.FileType('r'),
-                        help="a kernel to verify")
+                        help="Kernel to verify")
 
     general = parser.add_argument_group("GENERAL OPTIONS")
 
@@ -348,22 +348,22 @@ def parse_args(argv):
     numg = sizing.add_mutually_exclusive_group()
 
     lsize.add_argument("--local_size=",    dest='group_size', type=dimensions,
-                       help="Specify the dimensions of a work-group. \
-                       This corresponds to the `local_work_size` parameter \
-                       of `clEnqueueNDRangeKernel`.")
+                       help="Specify the dimensions of an OpenCL work-group. \
+                       This corresponds to the 'local_work_size' parameter \
+                       of 'clEnqueueNDRangeKernel'.")
     sizing.add_argument("--global_size=", dest='global_size', type=dimensions,
-                        help="Specify dimensions of the NDRange. \
-                        This corresponds to the `global_work_size` parameter \
-                        of `clEnqueueNDRangeKernel`. \
+                        help="Specify dimensions of the OpenCL NDRange. \
+                        This corresponds to the 'global_work_size' parameter \
+                        of 'clEnqueueNDRangeKernel'. \
                         Mutually exclusive with --num_groups")
     numg.add_argument("--num_groups=",    dest='num_groups',  type=dimensions,
-                      help="Specify the dimensions of a grid of work-groups. \
+                      help="Specify the dimensions of a grid of OpenCL work-groups. \
                       Mutually exclusive with --group_size")
 
     lsize.add_argument("--blockDim=",     dest='group_size',  type=dimensions,
-                       help="Specify the thread block size.")
+                       help="Specify the CUDA thread block size")
     numg.add_argument("--gridDim=",       dest='num_groups',  type=dimensions,
-                      help="Specify the grid of thread blocks.")
+                      help="Specify the CUDA grid size")
 
     advanced = parser.add_argument_group("ADVANCED OPTIONS")
 
@@ -401,9 +401,6 @@ def parse_args(argv):
     advanced.add_argument("--math-int",                     action='store_true',
                           help="Represent integer types using mathematical integers \
                           instead of bit-vectors")
-    advanced.add_argument("--inverted-tracking",            action='store_true',
-                          help="Use do_not_track instead of track. \
-                          This may result in faster detection of races for some solvers")
     advanced.add_argument("--no-annotations",               action='store_true',
                           help="Ignore all source-level annotations")
     advanced.add_argument("--only-requires",                action='store_true',
@@ -462,6 +459,8 @@ def parse_args(argv):
     development.add_argument("--debug",         action='store_true',
                              help="Enable debugging of GPUVerify components: \
                              exceptions will not be suppressed")
+    development.add_argument("--debug-houdini", action='store_true',
+                             help="Debug Houdini")
     development.add_argument("--keep-temps",    action='store_true',
                              help="Keep intermediate bc, gbpl, and cbpl files")
     development.add_argument("--gen-smt2",      action='store_true',
@@ -473,7 +472,7 @@ def parse_args(argv):
     development.add_argument("--opt-opt=",      dest='opt_options',
                              action='append',
                              help="Specify option to be passed to optimization pass")
-    development.add_argument("--bugle-opt",     dest='bugle_options',
+    development.add_argument("--bugle-opt=",    dest='bugle_options',
                              action='append',
                              help="Specify option to be passed to Bugle")
     development.add_argument("--vcgen-opt=",    dest='vcgen_options',
@@ -503,7 +502,8 @@ def parse_args(argv):
     inference.add_argument("--no-infer", dest='inference', action='store_false',
                            help="Turn off invariant inference")
     inference.add_argument("--omit-infer=", action='append',
-                           help="Do not generate invariants tagged 'X'")
+                           help="Do not generate invariants tagged 'X'",
+                           metavar="X")
     inference.add_argument("--staged-inference",   action='store_true',
                            help="Perform invariant inference in stages; \
                            this can boost performance for complex kernels \
@@ -514,9 +514,6 @@ def parse_args(argv):
                            default=-1,
                            help="Applies k-induction with k=X to all loops",
                            metavar="X")
-
-    undocumented = parser.add_argument_group("UNDOCUMENTED")
-    undocumented.add_argument("--debug-houdini", action='store_true')
 
     interceptor = parser.add_argument_group("BATCH MODE")
     interceptor.add_argument("--show-intercepted", action='store_true')
@@ -860,8 +857,6 @@ class GPUVerifyInstance (object):
       CommandLineOptions.vcgenOptions += [ "/noSmartPredication" ]
     if args.no_uniformity_analysis:
       CommandLineOptions.vcgenOptions += [ "/noUniformityAnalysis" ]
-    if args.inverted_tracking:
-      CommandLineOptions.vcgenOptions += [ "/invertedTracking" ]
     if args.asymmetric_asserts:
       CommandLineOptions.vcgenOptions += [ "/asymmetricAsserts" ]
     if args.staged_inference:
