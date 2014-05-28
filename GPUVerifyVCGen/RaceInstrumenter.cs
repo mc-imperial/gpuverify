@@ -1352,15 +1352,13 @@ namespace GPUVerify {
       Expr IdsMatch = Expr.And(Expr.Eq(IdX, Expr.Ident(GPUVerifier._X)),
                       Expr.And(Expr.Eq(IdY, Expr.Ident(GPUVerifier._Y)),
                                Expr.Eq(IdZ, Expr.Ident(GPUVerifier._Z))));
-      Expr WrittenValue = Expr.Select(Expr.Ident(SrcArray), new Expr[] { verifier.IntRep.MakeAdd(SrcOffset, Index) });
-      WrittenValue.Type = (SrcArray.TypedIdent.Type as MapType).Result;
-      Expr ReadValue = Expr.Select(Expr.Ident(DstArray), new Expr[] { verifier.IntRep.MakeAdd(DstOffset, Index) });
-      ReadValue.Type = (DstArray.TypedIdent.Type as MapType).Result;
+      Expr AccessedValue = Expr.Select(Expr.Ident(SrcArray), new Expr[] { verifier.IntRep.MakeAdd(SrcOffset, Index) });
+      AccessedValue.Type = (SrcArray.TypedIdent.Type as MapType).Result;
       AccessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, IdsMatch, new QKeyValue(Token.NoToken, "partition", new List<object>(), null)));
-      AccessBlock.Cmds.Add(MakeLogCall(new AccessRecord(DstArray, verifier.IntRep.MakeAdd(DstOffset, Index)), AccessType.WRITE, WrittenValue, ResultHandle));
-      AccessBlock.Cmds.Add(MakeCheckCall(AccessBlock.Cmds, new AccessRecord(DstArray, verifier.IntRep.MakeAdd(DstOffset, Index)), AccessType.WRITE, WrittenValue));
-      AccessBlock.Cmds.Add(MakeLogCall(new AccessRecord(SrcArray, verifier.IntRep.MakeAdd(SrcOffset, Index)), AccessType.READ, ReadValue, ResultHandle));
-      AccessBlock.Cmds.Add(MakeCheckCall(AccessBlock.Cmds, new AccessRecord(SrcArray, verifier.IntRep.MakeAdd(SrcOffset, Index)), AccessType.READ, ReadValue));
+      AccessBlock.Cmds.Add(MakeLogCall(new AccessRecord(DstArray, verifier.IntRep.MakeAdd(DstOffset, Index)), AccessType.WRITE, AccessedValue, ResultHandle));
+      AccessBlock.Cmds.Add(MakeCheckCall(AccessBlock.Cmds, new AccessRecord(DstArray, verifier.IntRep.MakeAdd(DstOffset, Index)), AccessType.WRITE, AccessedValue));
+      AccessBlock.Cmds.Add(MakeLogCall(new AccessRecord(SrcArray, verifier.IntRep.MakeAdd(SrcOffset, Index)), AccessType.READ, AccessedValue, ResultHandle));
+      AccessBlock.Cmds.Add(MakeCheckCall(AccessBlock.Cmds, new AccessRecord(SrcArray, verifier.IntRep.MakeAdd(SrcOffset, Index)), AccessType.READ, AccessedValue));
 
       NoAccessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Not(IdsMatch), new QKeyValue(Token.NoToken, "partition", new List<object>(), null)));
 
