@@ -1230,15 +1230,28 @@ namespace GPUVerify {
 
           if (QKeyValue.FindBoolAttribute(call.Attributes, "wait_group_events"))
           {
+            Expr Handle = call.Ins[0];
+
+            // Assert that the threads are uniformly enabled
+            result.Add(new AssertCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(Expr.Ident(verifier.FindOrCreateEnabledVariable()))));
+            // Assert that the handle passed is uniform
+            result.Add(new AssertCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(Handle)));
+
             foreach(var Access in verifier.ArraysAccessedByAsyncWorkGroupCopy.Keys) {
               foreach(var Array in verifier.ArraysAccessedByAsyncWorkGroupCopy[Access]) {
-                result.Add(new AssumeCmd(Token.NoToken,
-                  Expr.Imp(
-                    Expr.Eq(call.Ins[0], Expr.Ident(RaceInstrumentationUtil.MakeAsyncHandleVariable(Array, Access, verifier.IntRep.GetIntType(verifier.size_t_bits)))),
-                    Expr.Not(GPUVerifier.MakeAccessHasOccurredExpr(Array, Access))
-                  )));
+                // Set the handle associated with an array access to the "no handle"
+                // value if it's current handle matches the given handle
+                IdentifierExpr HandleVariable = Expr.Ident(RaceInstrumentationUtil.MakeAsyncHandleVariable(Array, Access, verifier.IntRep.GetIntType(verifier.size_t_bits)));
+                result.Add(new AssignCmd(Token.NoToken,
+                  new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, HandleVariable) },
+                  new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
+                    new List<Expr> {
+                      Expr.Eq(Handle, HandleVariable),
+                      FindOrCreateAsyncNoHandleConstant(),
+                      HandleVariable }) }));
               }
             }
+            continue;
           }
 
         }
