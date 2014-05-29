@@ -1,5 +1,5 @@
 //xfail:BOOGIE_ERROR
-//--blockDim=1024 --gridDim=1 --boogie-file=axioms.bpl --no-inline
+//--blockDim=1024 --gridDim=1 --boogie-file=${KERNEL_DIR}/axioms.bpl --no-inline
 //error: possible null pointer access
 
 typedef float(*funcType)(float*, unsigned int);
