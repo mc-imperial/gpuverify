@@ -569,28 +569,35 @@ def summariseTests(tests):
     print('#'*printBarWidth)
 
 class Worker(threading.Thread):
-    def __init__(self,theQueue):
+    def __init__(self,threadPool):
         threading.Thread.__init__(self)
-        self.theQueue = theQueue
+        self.threadPool = threadPool
 
         #We will be abruptly killed in main thread exits
         self.daemon = True
 
     def run(self):
         while True:
-            test=self.theQueue.get(block=True,timeout=None)
+            test=self.threadPool.theQueue.get(block=True,timeout=None)
             test.run()
+
+            if not test.testPassed and self.threadPool.stopOnFail:
+                # Try to stop everything!
+                logging.info('Trying to stop on first failure')
+                self.threadPool.halt()
+
             #Notify the Queue that we finished our task
-            self.theQueue.task_done()
+            self.threadPool.theQueue.task_done()
 
 class ThreadPool:
-    def __init__(self, numberOfThreads):
+    def __init__(self, numberOfThreads, stopOnFail=False):
         self.theQueue = Queue(0);
+        self.stopOnFail = stopOnFail
 
         #Create the Threads
         self.threads= []
         for tid in range(numberOfThreads):
-            self.threads.append( Worker(self.theQueue) )
+            self.threads.append( Worker(self) )
 
     def addTest(self, test):
         self.theQueue.put(test)
@@ -615,15 +622,19 @@ class ThreadPool:
           time.sleep(0.5)
       except KeyboardInterrupt:
         logging.error("Received keyboard interrupt. Clearing queue!")
+        self.halt()
+        raise
 
+    def halt(self):
+        """
+            Try to halt the thread pool
+        """
         while not self.theQueue.empty():
           try:
             self.theQueue.get()
             self.theQueue.task_done()
           except Queue.Empty:
             break #Handle potential race where the queue becomes empty whilst executing try block
-
-        raise
 
 def main(arg):
     global GPUVerifyExecutable
@@ -776,7 +787,7 @@ def main(arg):
 
     #run tests
     logging.info("Using " + str(args.threads) + " threads")
-    threadPool = ThreadPool(args.threads)
+    threadPool = ThreadPool(args.threads, args.stop_on_fail)
 
     logging.info("Running tests...")
 
