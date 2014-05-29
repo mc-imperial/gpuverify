@@ -1237,11 +1237,12 @@ namespace GPUVerify {
           if (QKeyValue.FindBoolAttribute(call.Attributes, "wait_group_events"))
           {
             Expr Handle = call.Ins[0];
+            var SourceLocAttributes = new QKeyValue(Token.NoToken, "sourceloc_num", new List<object> { QKeyValue.FindExprAttribute(call.Attributes, "sourceloc_num") }, null);
 
             // Assert that the threads are uniformly enabled
-            result.Add(new AssertCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(Expr.Ident(verifier.FindOrCreateEnabledVariable()))));
+            result.Add(new AssertCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(Expr.Ident(verifier.FindOrCreateEnabledVariable())), SourceLocAttributes));
             // Assert that the handle passed is uniform
-            result.Add(new AssertCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(Handle)));
+            result.Add(new AssertCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(Handle), SourceLocAttributes));
 
             foreach(var Access in verifier.ArraysAccessedByAsyncWorkGroupCopy.Keys) {
               foreach(var Array in verifier.ArraysAccessedByAsyncWorkGroupCopy[Access]) {
