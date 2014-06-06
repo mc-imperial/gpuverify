@@ -29,6 +29,7 @@ namespace GPUVerify {
     // Dimensionality of grid = GridHighestDim + 1
     public int GridHighestDim = 2;
     public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
+    public bool DisplayLoopAbstractions = false;
 
     public GVCommandLineOptions() :
       base("GPUVerify", "GPUVerify kernel analyser") {
@@ -75,6 +76,11 @@ namespace GPUVerify {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
           }
         }
+        return true;
+      }
+
+      if (name == "displayLoopAbstractions") {
+        DisplayLoopAbstractions = true;
         return true;
       }
 
