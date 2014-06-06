@@ -30,6 +30,9 @@ namespace GPUVerify
         if (!CommandLineOptions.Clo.Parse(args)) {
           Environment.Exit(1);
         }
+
+        ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParsePipelineString();
+
         if (CommandLineOptions.Clo.Files.Count == 0) {
           GVUtil.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
           Environment.Exit(1);

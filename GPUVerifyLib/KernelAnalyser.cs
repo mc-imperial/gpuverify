@@ -83,7 +83,7 @@ namespace GPUVerify
 
       // Collect mod sets
       if (CommandLineOptions.Clo.DoModSetAnalysis) {
-        Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(program);
+        new ModSetCollector().DoModSetAnalysis(program);
       }
 
       // Coalesce blocks

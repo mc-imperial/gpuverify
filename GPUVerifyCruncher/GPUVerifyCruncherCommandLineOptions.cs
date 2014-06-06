@@ -23,6 +23,7 @@ namespace GPUVerify
     
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
+    public string PipelineString = null;
     
     public GPUVerifyCruncherCommandLineOptions() :
       base() 
@@ -33,7 +34,8 @@ namespace GPUVerify
     {
       if (name == "sequential") {
         if (ps.ConfirmArgumentCount(1)) { 
-          ParsePipelineString(ps.args[ps.i]);
+          Debug.Assert(PipelineString == null);
+          PipelineString = ps.args[ps.i];
         }
         return true;
       }
@@ -41,7 +43,8 @@ namespace GPUVerify
       if (name == "parallel") {
         if (ps.ConfirmArgumentCount(1)) {
           Pipeline.Sequential = false;
-          ParsePipelineString(ps.args[ps.i]);
+          Debug.Assert(PipelineString == null);
+          PipelineString = ps.args[ps.i];
         }
         return true;
       }
@@ -64,13 +67,16 @@ namespace GPUVerify
       return base.ParseOption(name, ps);
     }
     
-    private void ParsePipelineString (string pipelineStr)
+    internal void ParsePipelineString ()
 	  {
+      if(PipelineString == null) {
+        return;
+      }
       const char lhsDelimiter = '[';
       const char rhsDelimiter = ']';
       const char engineDelimiter = '-';
-      Debug.Assert (pipelineStr[0] == lhsDelimiter && pipelineStr[pipelineStr.Length - 1] == rhsDelimiter);
-      string[] engines = pipelineStr.Substring(1, pipelineStr.Length - 2).Split(engineDelimiter);
+      Debug.Assert (PipelineString[0] == lhsDelimiter && PipelineString[PipelineString.Length - 1] == rhsDelimiter);
+      string[] engines = PipelineString.Substring(1, PipelineString.Length - 2).Split(engineDelimiter);
 	    foreach (string engineStr in engines) 
       {
         int lhsDelimiterIdx = engineStr.IndexOf(lhsDelimiter);

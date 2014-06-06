@@ -125,7 +125,7 @@ namespace GPUVerify
               Environment.Exit(1);
             }
 
-            Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
+            new ModSetCollector().DoModSetAnalysis(Program);
 
             CheckWellFormedness();
 
@@ -618,7 +618,7 @@ namespace GPUVerify
 
             // We now do modset analysis here because the previous passes add new
             // global variables
-            Microsoft.Boogie.ModSetCollector.DoModSetAnalysis(Program);
+            new ModSetCollector().DoModSetAnalysis(Program);
 
             if(GPUVerifyVCGenCommandLineOptions.OptimiseBarrierIntervals) {
               OptimiseBarrierIntervals();
