@@ -116,6 +116,41 @@ namespace GPUVerify {
       }
 
       DisplayParameterValues(error);
+
+      if(((GVCommandLineOptions)CommandLineOptions.Clo).DisplayLoopAbstractions) {
+        DisplayLoopAbstractions(error);
+      }
+
+    }
+
+    private void DisplayLoopAbstractions(Counterexample error) {
+      foreach(var b in error.Trace) {
+        if(b.Cmds.Count == 0) {
+          continue;
+        }
+        AssumeCmd a = b.Cmds[0] as AssumeCmd;
+        if(a == null) {
+          continue;
+        }
+        var StateName = QKeyValue.FindStringAttribute(a.Attributes, "captureState");
+        if(StateName == null || !StateName.Contains("loop_head_state")) {
+          continue;
+        }
+
+        Console.Error.WriteLine("Loop with state " + StateName + ":");
+
+        PopulateModelWithStatesIfNecessary(error);
+
+        Program originalProgram = GetOriginalProgram();
+        var CFG = originalProgram.ProcessLoops(GetOriginalImplementation(originalProgram));
+        Block header = FindLoopHeaderWithStateName(StateName, CFG);
+        Debug.Assert(header != null);
+        var ModifiedVars = VC.VCGen.VarsAssignedInLoop(CFG, header).Select(Item => Item.Name);
+        foreach (var p in impl.LocVars.Where(Item => ModifiedVars.Contains(Item.Name)))
+        {
+          Console.Error.WriteLine(p.Name + " = " + ExtractVariableValueFromCapturedState(p.Name, StateName, error.Model));
+        }
+      }
     }
 
     private void DisplayParameterValues(Counterexample error)
@@ -139,31 +174,34 @@ namespace GPUVerify {
         string stripped = GVUtil.StripThreadIdentifier(p.Name, out id).TrimStart(new char[] { '$' });
         Console.Error.Write("  " + stripped + " = ");
 
-        var func = error.Model.TryGetFunc(p.Name);
-        if (func != null)
-        {
-          var val = func.GetConstant();
-          if (val is Model.BitVector)
-          {
-            Console.Error.Write(((Model.BitVector)val).Numeral);
-          }
-          else if (val is Model.Uninterpreted)
-          {
-            Console.Error.Write("<irrelevant>");
-          }
-          else
-          {
-            Console.Error.Write("<unknown>");
-          }
-        }
-        else
-        {
-          Console.Error.Write("<unknown>");
-        }
+        var VariableName = p.Name;
+
+        Console.Error.Write(ExtractVariableValueFromModel(VariableName, error.Model));
         Console.Error.WriteLine(id == 1 ? " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")" :
                                (id == 2 ? " (" + SpecificNameForThread() + " " + thread2 + ", " + SpecificNameForGroup() + " " + group2 + ")" : ""));
       }
       Console.Error.WriteLine();
+    }
+
+    private static string ExtractValueFromModelElement(Model.Element Element) {
+      if (Element is Model.BitVector) {
+        return ((Model.BitVector)Element).Numeral;
+      } else if (Element is Model.Uninterpreted) {
+        return "<irrelevant>";
+      }
+      return "<unknown>";
+    }
+
+    private static string ExtractVariableValueFromCapturedState(string VariableName, string StateName, Model model) {
+      return ExtractValueFromModelElement(GetStateFromModel(StateName, model).TryGet(VariableName));
+    }
+
+    private static string ExtractVariableValueFromModel(string VariableName, Model model) {
+      var func = model.TryGetFunc(VariableName);
+      if (func != null) {
+        return ExtractValueFromModelElement(func.GetConstant());
+      }
+      return "<unknown>";
     }
 
     private void ReportRace(CallCounterexample CallCex) {
@@ -309,26 +347,9 @@ namespace GPUVerify {
         } else {
           ConflictingStatePrefix = ConflictingState;
         }
-        Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, true, false);
-        Implementation originalImplementation = originalProgram.Implementations().Where(Item => Item.Name.Equals(impl.Name)).ToList()[0];
-        var blockGraph = originalProgram.ProcessLoops(originalImplementation);
-        Block header = null;
-        foreach (var b in blockGraph.Headers)
-        {
-          foreach (var c in b.Cmds.OfType<AssumeCmd>())
-          {
-            var stateId = QKeyValue.FindStringAttribute(c.Attributes, "captureState");
-            if (stateId != null && stateId.Equals(ConflictingStatePrefix))
-            {
-              header = b;
-              break;
-            }
-          }
-          if (header != null)
-          {
-            break;
-          }
-        }
+        Program originalProgram = GetOriginalProgram();
+        var blockGraph = originalProgram.ProcessLoops(GetOriginalImplementation(originalProgram));
+        Block header = FindLoopHeaderWithStateName(ConflictingStatePrefix, blockGraph);
         Debug.Assert(header != null);
         HashSet<Block> LoopNodes = new HashSet<Block>(
           blockGraph.BackEdgeNodes(header).Select(Item => blockGraph.NaturalLoops(header, Item)).SelectMany(Item => Item)
@@ -344,6 +365,26 @@ namespace GPUVerify {
           new SourceLocationInfo(ConflictingAction.Attributes, GetSourceFileName(), ConflictingAction.tok)
         };
       }
+    }
+
+    private static Block FindLoopHeaderWithStateName(string StateName, Microsoft.Boogie.GraphUtil.Graph<Block> CFG) {
+      foreach (var b in CFG.Headers) {
+        foreach (var c in b.Cmds.OfType<AssumeCmd>()) {
+          var stateId = QKeyValue.FindStringAttribute(c.Attributes, "captureState");
+          if (stateId == StateName) {
+            return b;
+          }
+        }
+      }
+      return null;
+    }
+
+    private Implementation GetOriginalImplementation(Program Prog) {
+      return Prog.Implementations().Where(Item => Item.Name.Equals(impl.Name)).ToList()[0];
+    }
+
+    private static Program GetOriginalProgram() {
+      return GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, true, false);
     }
 
     private static AssumeCmd DetermineConflictingAction(CallCounterexample CallCex, string RaceyState, string AccessHasOccurred, string AccessOffset)
