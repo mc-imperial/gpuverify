@@ -15,6 +15,7 @@ using System.Linq;
 using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
+using Microsoft.Boogie.GraphUtil;
 using Microsoft.Basetypes;
 using System.Text.RegularExpressions;
 using System.Diagnostics.Contracts;
@@ -124,33 +125,113 @@ namespace GPUVerify {
     }
 
     private void DisplayLoopAbstractions(Counterexample error) {
-      foreach(var b in error.Trace) {
-        if(b.Cmds.Count == 0) {
-          continue;
-        }
-        AssumeCmd a = b.Cmds[0] as AssumeCmd;
-        if(a == null) {
-          continue;
-        }
-        var StateName = QKeyValue.FindStringAttribute(a.Attributes, "captureState");
-        if(StateName == null || !StateName.Contains("loop_head_state")) {
-          continue;
-        }
 
-        Console.Error.WriteLine("Loop with state " + StateName + ":");
+      PopulateModelWithStatesIfNecessary(error);
+      Program OriginalProgram = GetOriginalProgram();
+      var CFG = OriginalProgram.ProcessLoops(GetOriginalImplementation(OriginalProgram));
 
-        PopulateModelWithStatesIfNecessary(error);
+      for(int i = 0; i < error.Trace.Count(); i++) {
+        MaybeDisplayLoopHeadState(error.Trace[i], CFG, error.Model);
+        if(i < error.Trace.Count() - 1) {
+          MaybeDisplayLoopEntryState(error.Trace[i], error.Trace[i + 1], CFG, error.Model);
+        }
+        MaybeDisplayLoopBackEdgeState(error.Trace[i], CFG, error.Model);
+      }
+    }
 
-        Program originalProgram = GetOriginalProgram();
-        var CFG = originalProgram.ProcessLoops(GetOriginalImplementation(originalProgram));
-        Block header = FindLoopHeaderWithStateName(StateName, CFG);
-        Debug.Assert(header != null);
-        var ModifiedVars = VC.VCGen.VarsAssignedInLoop(CFG, header).Select(Item => Item.Name);
-        foreach (var p in impl.LocVars.Where(Item => ModifiedVars.Contains(Item.Name)))
-        {
-          Console.Error.WriteLine(p.Name + " = " + ExtractVariableValueFromCapturedState(p.Name, StateName, error.Model));
+    private void MaybeDisplayLoopEntryState(Block current, Block next, Graph<Block> CFG, Model model) {
+      var LoopHeadState = FindLoopHeadState(next);
+      if(LoopHeadState == null) {
+        return;
+      }
+      Block header = FindLoopHeaderWithStateName(LoopHeadState, CFG);
+
+      var LoopHeadStateSuffix = LoopHeadState.Substring("loop_head_state_".Count());
+      var RelevantLoopEntryStates = GetCaptureStates(current).Where(Item => Item.Contains("loop_entry_state_" + LoopHeadStateSuffix));
+      if(RelevantLoopEntryStates.Count() == 0) {
+        return;
+      }
+      Debug.Assert(RelevantLoopEntryStates.Count() == 1);
+      var LoopEntryState = RelevantLoopEntryStates.ToList()[0];
+
+      Console.WriteLine("On entry to " + LoopHeadState + ":");
+      var ReferencedVars = VC.VCGen.VarsReferencedInLoop(CFG, header).Select(Item => Item.Name);
+      foreach (var v in ReferencedVars)
+      {
+        Console.Error.WriteLine(v + " = " + ExtractVariableValueFromCapturedState(v, LoopEntryState, model));
+      }
+      Console.WriteLine();
+    }
+
+    private void MaybeDisplayLoopBackEdgeState(Block current, Graph<Block> CFG, Model model) {
+      
+      var RelevantLoopBackEdgeStates = GetCaptureStates(current).Where(Item => Item.Contains("loop_back_edge_state"));
+      if(RelevantLoopBackEdgeStates.Count() == 0) {
+        return;
+      }
+      Debug.Assert(RelevantLoopBackEdgeStates.Count() == 1);
+      var LoopBackEdgeState = RelevantLoopBackEdgeStates.ToList()[0];
+
+      Console.WriteLine("On taking back edge " + LoopBackEdgeState + ":");
+
+      var Header = FindHeaderForBackEdgeNode(CFG, FindNodeContainingCaptureState(CFG, LoopBackEdgeState));
+      foreach (var v in VC.VCGen.VarsReferencedInLoop(CFG, Header).Select(Item => Item.Name))
+      {
+        Console.Error.WriteLine(v + " = " + ExtractVariableValueFromCapturedState(v, LoopBackEdgeState, model));
+      }
+      Console.WriteLine();
+    }
+
+    private Block FindNodeContainingCaptureState(Graph<Block> CFG, string CaptureState) {
+      foreach(var b in CFG.Nodes) {
+        foreach(var c in b.Cmds.OfType<AssumeCmd>()) {
+          if(QKeyValue.FindStringAttribute(c.Attributes, "captureState") == CaptureState) {
+            return b;
+          }
         }
       }
+      return null;
+    }
+
+    private Block FindHeaderForBackEdgeNode(Graph<Block> CFG, Block BackEdgeNode) {
+      foreach(var Header in CFG.Headers) {
+        foreach(var CurrentBackEdgeNode in CFG.BackEdgeNodes(Header)) {
+          if(BackEdgeNode == CurrentBackEdgeNode) {
+            return Header;
+          }
+        }
+      }
+      return null;
+    }
+
+    private void MaybeDisplayLoopHeadState(Block Header, Microsoft.Boogie.GraphUtil.Graph<Block> CFG, Model Model) {
+      var StateName = FindLoopHeadState(Header);
+      if(StateName == null) {
+        return;
+      }
+      Console.Error.WriteLine("After 0 or more iterations of " + StateName + ":");
+      Block header = FindLoopHeaderWithStateName(StateName, CFG);
+      Debug.Assert(header != null);
+      var ReferencedVars = VC.VCGen.VarsReferencedInLoop(CFG, header).Select(Item => Item.Name);
+      foreach (var v in ReferencedVars)
+      {
+        Console.Error.WriteLine(v + " = " + ExtractVariableValueFromCapturedState(v, StateName, Model));
+      }
+      Console.WriteLine();
+    }
+
+    private string FindLoopHeadState(Block b) {
+      var RelevantLoopHeadStates = GetCaptureStates(b).Where(Item => Item.Contains("loop_head_state"));
+      if (RelevantLoopHeadStates.Count() == 0) {
+        return null;
+      }
+      Debug.Assert(RelevantLoopHeadStates.Count() == 1);
+      return RelevantLoopHeadStates.ToList()[0];
+    }
+
+    private IEnumerable<string> GetCaptureStates(Block b) {
+      return b.Cmds.OfType<AssumeCmd>().Select(Item =>
+        QKeyValue.FindStringAttribute(Item.Attributes, "captureState")).Where(Item => Item != null);
     }
 
     private void DisplayParameterValues(Counterexample error)
@@ -188,8 +269,10 @@ namespace GPUVerify {
         return ((Model.BitVector)Element).Numeral;
       } else if (Element is Model.Uninterpreted) {
         return "<irrelevant>";
+      } else if (Element == null) {
+        return "<null>";
       }
-      return "<unknown>";
+      return Element.ToString(); //"<unknown>";
     }
 
     private static string ExtractVariableValueFromCapturedState(string VariableName, string StateName, Model model) {
