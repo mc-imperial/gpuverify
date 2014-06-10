@@ -558,7 +558,7 @@ namespace Microsoft.Boogie
           Print.VerboseMessage("Waiting at barrier until Houdini delay has elapsed or all under-approximating engines have finished");
           Task.WaitAll(underApproximatingTasks.ToArray(), pipeline.GetHoudiniEngine().Delay * 1000);
         }
-        else if (pipeline.GetHoudiniEngine().SlidingSeconds == 0)
+        else if (pipeline.GetHoudiniEngine().SlidingSeconds > 0)
         {
           Print.VerboseMessage("Waiting at barrier until all under-approximating engines have finished");
           Task.WaitAll(underApproximatingTasks.ToArray());
