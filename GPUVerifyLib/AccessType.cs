@@ -10,6 +10,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace GPUVerify
 {
@@ -46,6 +47,17 @@ namespace GPUVerify
 
     public bool isReadOrWrite() {
       return this == READ || this == WRITE;
+    }
+
+    public string Direction() {
+      if(this == READ) {
+        return "from";
+      }
+      if(this == WRITE) {
+        return "to";
+      }
+      Debug.Assert(this == ATOMIC);
+      return "on";
     }
   }
 }
