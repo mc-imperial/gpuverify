@@ -226,9 +226,9 @@ Replace as appropriate or setup an environment variable.::
       cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
-   which you can install using ``easy_install``.::
+   which you can install using ``pip``.::
 
-    $ easy_install Sphinx
+    $ pip install Sphinx
     $ cd ${BUILD_ROOT}/gpuverify/Documentation
     $ make html
 
@@ -433,9 +433,9 @@ Replace as appropriate or setup an environment variable.::
       cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
-   which you can install using ``easy_install``.::
+   which you can install using ``pip``.::
 
-    $ easy_install Sphinx
+    $ pip install Sphinx
     $ cd ${BUILD_ROOT}/gpuverify/Documentation
     $ make html
 
@@ -627,9 +627,9 @@ drives.
       cvc4BinDir = rootDir + r"\cvc4\build"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
-   which you can install using ``easy_install``.::
+   which you can install using ``pip``.::
 
-    $ easy_install Sphinx
+    $ pip install Sphinx
     $ cd ${BUILD_ROOT}\gpuverify\Documentation
     $ make html
 
