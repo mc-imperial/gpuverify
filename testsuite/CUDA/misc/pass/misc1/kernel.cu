@@ -13,7 +13,7 @@ __global__ void helloCUDA(int x)
 
     //initialise data on shared memory
     for(int i = 0;
-            __invariant(__implies(__write(S), ((__write_offset(S)/sizeof(float)) % blockDim.x) == threadIdx.x)),
+            __invariant(__implies(__write(S), ((__write_offset_bytes(S)/sizeof(float)) % blockDim.x) == threadIdx.x)),
             i < x;
             i += (blockDim.x/32))
     {

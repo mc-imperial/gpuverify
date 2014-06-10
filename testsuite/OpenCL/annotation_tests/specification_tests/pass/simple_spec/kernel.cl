@@ -7,7 +7,7 @@
 void __spec_bar(__global int* p) {
   __requires(__no_read(p));
   __requires(__no_write(p));
-  __ensures(__write_implies(p, __write_offset(p)/sizeof(int) == get_global_id(0)));
+  __ensures(__write_implies(p, __write_offset_bytes(p)/sizeof(int) == get_global_id(0)));
   __writes_to(p);
 }
 

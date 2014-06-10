@@ -19,16 +19,16 @@ __global__ void k(int *A) {
 
 #ifndef BLOCK_DIVIDES_WIDTH
     // working set(1) using global invariants
-    /*A*/__global_invariant(__write_implies(A, (blockIdx.x*WIDTH) <= __write_offset(A)/sizeof(int))),
-    /*B*/__global_invariant(__write_implies(A,                       __write_offset(A)/sizeof(int) < (blockIdx.x+1)*WIDTH)),
+    /*A*/__global_invariant(__write_implies(A, (blockIdx.x*WIDTH) <= __write_offset_bytes(A)/sizeof(int))),
+    /*B*/__global_invariant(__write_implies(A,                       __write_offset_bytes(A)/sizeof(int) < (blockIdx.x+1)*WIDTH)),
     /*C*/__invariant(threadIdx.x <= i),
     /*D*/__invariant(               i <= WIDTH+blockDim.x),
          __invariant(i % blockDim.x == threadIdx.x),
-         __global_invariant(__write_implies(A, (((__write_offset(A)/sizeof(int)) % WIDTH) % blockDim.x) == threadIdx.x)),
+         __global_invariant(__write_implies(A, (((__write_offset_bytes(A)/sizeof(int)) % WIDTH) % blockDim.x) == threadIdx.x)),
 #else
     // working set(2) iff WIDTH % blockDim.x == 0
-    /*A*/__invariant(__write_implies(A, (blockIdx.x*WIDTH) <= __write_offset(A)/sizeof(int))),
-    /*B*/__invariant(__write_implies(A,                       __write_offset(A)/sizeof(int) < (blockIdx.x+1)*WIDTH)),
+    /*A*/__invariant(__write_implies(A, (blockIdx.x*WIDTH) <= __write_offset_bytes(A)/sizeof(int))),
+    /*B*/__invariant(__write_implies(A,                       __write_offset_bytes(A)/sizeof(int) < (blockIdx.x+1)*WIDTH)),
     /*C*/__invariant(threadIdx.x <= i),
     /*D*/__invariant(               i <= WIDTH+blockDim.x),
          __invariant(__uniform_int((i-threadIdx.x))),

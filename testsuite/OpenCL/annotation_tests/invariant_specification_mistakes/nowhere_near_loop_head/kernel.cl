@@ -12,7 +12,7 @@ __kernel void foo(__local float* p) {
 
         p[N*i + tid] = tid;
 
-        __invariant(__write_implies(p, ((__write_offset(p)/sizeof(float))%N) == tid));
+        __invariant(__write_implies(p, ((__write_offset_bytes(p)/sizeof(float))%N) == tid));
         
     }
     

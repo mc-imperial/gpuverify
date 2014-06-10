@@ -15,7 +15,7 @@ __global__ void k(unsigned int *d_Result) {
         __invariant(__uniform_bool(__enabled())),
         __invariant(__uniform_int(i)),
         __invariant(i >= 0),
-        __invariant(__implies(__write(s_Hist), (((__write_offset(s_Hist)/sizeof(unsigned int)) % THREAD_N) - threadIdx.x) == 0)),
+        __invariant(__implies(__write(s_Hist), (((__write_offset_bytes(s_Hist)/sizeof(unsigned int)) % THREAD_N) - threadIdx.x) == 0)),
         i < BIN_COUNT / 4; i++) {
       s_Hist[threadIdx.x + i * THREAD_N] = 0;
     }

@@ -3,8 +3,8 @@
 
 __kernel void foo( __global unsigned * globalCounter, __local unsigned *localCounter,  __global char * globalArray, __local char *localArray) {
 
-    while(__global_invariant(__write_implies(globalArray, __atomic_has_taken_value(globalCounter, 0, __write_offset(globalArray)))),
-          __global_invariant(__write_implies(localArray, __atomic_has_taken_value(localCounter, 0, __write_offset(localArray)))),
+    while(__global_invariant(__write_implies(globalArray, __atomic_has_taken_value(globalCounter, 0, __write_offset_bytes(globalArray)))),
+          __global_invariant(__write_implies(localArray, __atomic_has_taken_value(localCounter, 0, __write_offset_bytes(localArray)))),
              true) {
         unsigned globalIndex = atomic_inc(globalCounter);
         unsigned localIndex = atomic_inc(localCounter);

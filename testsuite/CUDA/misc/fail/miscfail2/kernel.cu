@@ -52,9 +52,9 @@ __global__ void helloCUDA(
 
             for(int j = 0;
                     //__invariant(0 <= j), //< the missing invariant
-                    __invariant(__implies(__write(sdata), ((__write_offset(sdata)/sizeof(float)) % blockDim.x) == threadIdx.x)),
+                    __invariant(__implies(__write(sdata), ((__write_offset_bytes(sdata)/sizeof(float)) % blockDim.x) == threadIdx.x)),
                     __invariant(!__read(sdata)),
-                    __invariant(__implies(__write(sdata), (__write_offset(sdata)/sizeof(float)) < (j/16)*blockDim.x)),
+                    __invariant(__implies(__write(sdata), (__write_offset_bytes(sdata)/sizeof(float)) < (j/16)*blockDim.x)),
                     __invariant((j % 16) == 0),
                     j < numPointsPerCurve;
                     j += 16)

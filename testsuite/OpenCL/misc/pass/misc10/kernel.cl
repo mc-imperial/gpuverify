@@ -6,6 +6,6 @@ __kernel void foo(__local int* p, __local int* q, int x) {
 
     r = x ? p : q;
 
-    volatile int z = __read_offset(r);
+    volatile int z = __read_offset_bytes(r);
     
 }

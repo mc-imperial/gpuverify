@@ -8,6 +8,6 @@ __kernel void foo(__local int* p, __local int* q, int x) {
 
     r = x ? p : q;
 
-    baz(__read_offset(r));
+    baz(__read_offset_bytes(r));
     
 }
