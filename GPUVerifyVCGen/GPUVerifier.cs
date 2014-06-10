@@ -809,7 +809,7 @@ namespace GPUVerify
 
         private void AddCaptureStates()
         {
-          AddCaptureStatesToLoopHeads();
+          AddCaptureStatesToLoops();
           AddCaptureStatesAfterProcedureCalls();
         }
 
@@ -831,21 +831,42 @@ namespace GPUVerify
           }
         }
 
-        private void AddCaptureStatesToLoopHeads()
+        private void AddCaptureStatesToLoops()
         {
-          // Add the ability to get the state at the start of each
-          // loops head block,
-          int counter = 0;
+          // Add the ability to get the state right before entering each loop,
+          // at the loop head itself, and right before taking a back-edge
+          int LoopCounter = 0;
           foreach(var impl in Program.Implementations()) {
-            foreach(var b in Program.ProcessLoops(impl).Headers) {
-              List<Cmd> NewCmds = new List<Cmd>();
-              NewCmds.Add(new AssumeCmd(Token.NoToken, Expr.True, 
-                new QKeyValue(Token.NoToken, "captureState", new List<object> { "loop_head_state_" + counter }, null)));
-              NewCmds.AddRange(b.Cmds);
-              counter++;
-              b.Cmds = NewCmds;
+            var CFG = Program.GraphFromImpl(impl);
+            CFG.ComputeLoops();
+            foreach(var Header in CFG.Headers) {
+              AddStateCaptureToLoopHead(LoopCounter, Header);
+              AppendStateCaptureToBlocks("loop_back_edge_state", LoopCounter, CFG.BackEdgeNodes(Header));
+              AppendStateCaptureToBlocks("loop_entry_state", LoopCounter, LoopEntryEdgeNodes(CFG, Header));
+              LoopCounter++;
             }
           }
+        }
+
+        private static IEnumerable<Block> LoopEntryEdgeNodes(Microsoft.Boogie.GraphUtil.Graph<Block> CFG, Block Header) {
+          return CFG.Predecessors(Header).Where(Item => !CFG.BackEdgeNodes(Header).Contains(Item));
+        }
+
+        private void AppendStateCaptureToBlocks(string StateNamePrefix, int LoopCounter, IEnumerable<Block> Blocks) {
+          int Counter = 0;
+          foreach (var n in Blocks) {
+            n.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.True,
+              new QKeyValue(Token.NoToken, "captureState", new List<object> { StateNamePrefix + "_" + LoopCounter + "_" + Counter }, null)));
+            Counter++;
+          }
+        }
+
+        private static void AddStateCaptureToLoopHead(int LoopCounter, Block b) {
+          List<Cmd> NewCmds = new List<Cmd>();
+          NewCmds.Add(new AssumeCmd(Token.NoToken, Expr.True,
+            new QKeyValue(Token.NoToken, "captureState", new List<object> { "loop_head_state_" + LoopCounter }, null)));
+          NewCmds.AddRange(b.Cmds);
+          b.Cmds = NewCmds;
         }
 
         private void CheckUserSuppliedLoopInvariants()
