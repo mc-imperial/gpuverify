@@ -296,7 +296,7 @@ namespace GPUVerify {
         return;
       }
 
-      string funName = QKeyValue.FindStringAttribute(impl.Attributes, "original_name");
+      string funName = QKeyValue.FindStringAttribute(impl.Attributes, "source_name");
       Debug.Assert(funName != null);
 
       Console.Error.WriteLine("Bitwise values of parameters of '" + funName + "':");
@@ -357,8 +357,8 @@ namespace GPUVerify {
 
       string RaceyArrayName = GetArrayName(CallCex.FailingRequires);
       Debug.Assert(RaceyArrayName != null);
-      string RaceyArrayOriginalName = GetArrayOriginalName(CallCex.FailingRequires);
-      Debug.Assert(RaceyArrayOriginalName != null);
+      string RaceyArraySourceName = GetArraySourceName(CallCex.FailingRequires);
+      Debug.Assert(RaceyArraySourceName != null);
 
       IEnumerable<SourceLocationInfo> PossibleSourcesForFirstAccess = GetPossibleSourceLocationsForFirstAccessInRace(CallCex, RaceyArrayName, AccessType.Create(access1),
         GetStateName(CallCex));
@@ -367,7 +367,7 @@ namespace GPUVerify {
       ulong RaceyOffset = GetOffsetInBytes(CallCex);
 
       ErrorWriteLine("\n" + SourceInfoForSecondAccess.Top().GetFile() + ":", "possible " + raceName + " race on ((char*)" +
-        RaceyArrayOriginalName + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
+        RaceyArraySourceName + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
@@ -872,8 +872,8 @@ namespace GPUVerify {
       return arrName;
     }
 
-    private string GetArrayOriginalName(Requires requires) {
-      string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "original_name");
+    private string GetArraySourceName(Requires requires) {
+      string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "source_name");
       Debug.Assert(arrName != null);
       return arrName;
     }

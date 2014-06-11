@@ -37,7 +37,7 @@ namespace GPUVerify
         public ResolutionContext ResContext;
 
         public Dictionary<Procedure, Implementation> KernelProcedures;
-        public Dictionary<string, string> GlobalArrayOriginalNames;
+        public Dictionary<string, string> GlobalArraySourceNames;
 
         private HashSet<Procedure> BarrierProcedures = new HashSet<Procedure>();
         private Dictionary<Tuple<Variable,AccessType,bool>,Procedure> WarpSyncs = new Dictionary<Tuple<Variable,AccessType,bool>,Procedure>();
@@ -129,11 +129,11 @@ namespace GPUVerify
 
             CheckWellFormedness();
 
-            GlobalArrayOriginalNames = new Dictionary<string,string>();
+            GlobalArraySourceNames = new Dictionary<string,string>();
             foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
-                string originalName = QKeyValue.FindStringAttribute(g.Attributes, "original_name");
-                if (originalName != null)
-                  GlobalArrayOriginalNames[g.Name] = originalName;
+                string sourceName = QKeyValue.FindStringAttribute(g.Attributes, "source_name");
+                if (sourceName != null)
+                  GlobalArraySourceNames[g.Name] = sourceName;
             }
 
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
