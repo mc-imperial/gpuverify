@@ -393,10 +393,15 @@ namespace GPUVerify {
     }
 
     private static string ArrayOffsetString(CallCounterexample Cex, string RaceyArraySourceName) {
-      uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
-      uint SourceElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "source_elem_width", int.MaxValue);
-      Debug.Assert(ElemWidth != int.MaxValue);
-      Debug.Assert(SourceElemWidth != int.MaxValue);
+      uint ElemWidthBits = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
+      uint SourceElemWidthBits = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "source_elem_width", int.MaxValue);
+      Debug.Assert(ElemWidthBits != int.MaxValue);
+      Debug.Assert(SourceElemWidthBits != int.MaxValue);
+      Debug.Assert((ElemWidthBits % 8) == 0);
+      Debug.Assert((SourceElemWidthBits % 8) == 0);
+
+      uint ElemWidthBytes = ElemWidthBits / 8;
+      uint SourceElemWidthBytes = SourceElemWidthBits / 8;
 
       var OffsetModelElement =
         (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
@@ -404,13 +409,25 @@ namespace GPUVerify {
            Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
         : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
 
-      if(ElemWidth == SourceElemWidth) {
-        ulong Offset = Convert.ToUInt64(OffsetModelElement.Numeral);
+      ulong Offset = Convert.ToUInt64(OffsetModelElement.Numeral);
+      ulong OffsetInBytes = Offset * ElemWidthBytes;
+
+      if(QKeyValue.FindBoolAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "source_is_multi_dimensional")) {
+        return ("((char*)" + RaceyArraySourceName + ")[" + OffsetInBytes + "]");
+      }
+
+      ulong OffsetInSourceElements = OffsetInBytes / SourceElemWidthBytes;
+      ulong RemainingBytes = OffsetInBytes % SourceElemWidthBytes; 
+      
+      if(ElemWidthBytes == SourceElemWidthBytes) {
         return RaceyArraySourceName + "[" + Offset + "]";
       }
 
-      ulong OffsetInBytes = (Convert.ToUInt64(OffsetModelElement.Numeral) * ElemWidth) / 8;
-      return ("((char*)" + RaceyArraySourceName + ")[" + OffsetInBytes + "]");
+      if(ElemWidthBytes == 1) {
+        return RaceyArraySourceName + "[" + OffsetInSourceElements + "] (byte " + RemainingBytes + ")";
+      }
+
+      return RaceyArraySourceName + "[" + OffsetInSourceElements + "] (bytes " + RemainingBytes + ".." + (RemainingBytes + ElemWidthBytes - 1) + ")";
 
     }
 
