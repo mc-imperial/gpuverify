@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--local_size=1024 --num_groups=1 --no-inline
-//kernel.cl: error: possible atomic-write race on \(\(char\*\)A\)\[48\]:
+//kernel.cl: error: possible atomic-write race on A\[12\]:
 //Write by work item 12 in work group 0
 //Atomic by work item \d+ in work group 0
 

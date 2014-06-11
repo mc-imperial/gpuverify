@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--blockDim=128 --gridDim=128 --warp-sync=32 --no-inline
-//kernel.cu: error: possible read-write race on \(\(char\*\)A\)
+//kernel.cu: error: possible read-write race on A
 
 __global__ void foo(int* A) {
 

@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--blockDim=512 --gridDim=64 --loop-unwind=2 --no-inline
-//kernel.cu: error: possible write-write race on \(\(char\*\)[_a-zA-Z0-9:]*B\)
+//kernel.cu: error: possible write-write race on B
 #include <cuda.h>
 
 extern "C" {

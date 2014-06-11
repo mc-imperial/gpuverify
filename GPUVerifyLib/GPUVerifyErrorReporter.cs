@@ -364,10 +364,9 @@ namespace GPUVerify {
         GetStateName(CallCex));
       SourceLocationInfo SourceInfoForSecondAccess = new SourceLocationInfo(GetAttributes(CallCex.FailingCall), GetSourceFileName(), CallCex.FailingCall.tok);
 
-      ulong RaceyOffset = GetOffsetInBytes(CallCex);
-
-      ErrorWriteLine("\n" + SourceInfoForSecondAccess.Top().GetFile() + ":", "possible " + raceName + " race on ((char*)" +
-        RaceyArraySourceName + ")[" + RaceyOffset + "]:\n", ErrorMsgType.Error);
+      ErrorWriteLine("\n" + SourceInfoForSecondAccess.Top().GetFile() + ":", "possible " + raceName + " race on " +
+        ArrayOffsetString(CallCex, RaceyArraySourceName) +
+        ":\n", ErrorMsgType.Error);
 
       string thread1, thread2, group1, group2;
       GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
@@ -391,6 +390,28 @@ namespace GPUVerify {
         }
         Console.Error.WriteLine();
       }
+    }
+
+    private static string ArrayOffsetString(CallCounterexample Cex, string RaceyArraySourceName) {
+      uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
+      uint SourceElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "source_elem_width", int.MaxValue);
+      Debug.Assert(ElemWidth != int.MaxValue);
+      Debug.Assert(SourceElemWidth != int.MaxValue);
+
+      var OffsetModelElement =
+        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+        ? GetStateFromModel(GetStateName(Cex),
+           Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
+        : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
+
+      if(ElemWidth == SourceElemWidth) {
+        ulong Offset = Convert.ToUInt64(OffsetModelElement.Numeral);
+        return RaceyArraySourceName + "[" + Offset + "]";
+      }
+
+      ulong OffsetInBytes = (Convert.ToUInt64(OffsetModelElement.Numeral) * ElemWidth) / 8;
+      return ("((char*)" + RaceyArraySourceName + ")[" + OffsetInBytes + "]");
+
     }
 
     private static string GetStateName(CallCounterexample CallCex)
@@ -624,17 +645,6 @@ namespace GPUVerify {
         }
       }
       return state;
-    }
-
-    private static ulong GetOffsetInBytes(CallCounterexample Cex) {
-      uint ElemWidth = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
-      Debug.Assert(ElemWidth != int.MaxValue);
-      var element =
-        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
-        ? GetStateFromModel(GetStateName(Cex),
-           Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
-        : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
-      return (Convert.ToUInt64(element.Numeral) * ElemWidth) / 8;
     }
 
     private static Variable ExtractAccessHasOccurredVar(CallCounterexample err) {
