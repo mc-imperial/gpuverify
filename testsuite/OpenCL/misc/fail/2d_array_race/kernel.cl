@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--local_size=[64,64] --global_size=[256,256]
-//kernel.cl: error: possible write-read race on \(\(char\*\)L\)\[
+//kernel.cl: error: possible write-read race on L\[\d+\]\[\d+\]
                                                          
 kernel void example(global int *G) {
 

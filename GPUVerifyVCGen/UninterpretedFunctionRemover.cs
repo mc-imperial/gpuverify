@@ -9,12 +9,6 @@ namespace GPUVerify
 {
   class UninterpretedFunctionRemover
   {
-    private GPUVerifier verifier;
-
-    public UninterpretedFunctionRemover(GPUVerifier verifier)
-    {
-      this.verifier = verifier;
-    }
 
     internal void Eliminate(Program Program)
     {

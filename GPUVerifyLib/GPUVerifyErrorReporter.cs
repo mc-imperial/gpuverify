@@ -423,22 +423,37 @@ namespace GPUVerify {
       ulong Offset = Convert.ToUInt64(OffsetModelElement.Numeral);
       ulong OffsetInBytes = Offset * ElemWidthBytes;
 
-      if (QKeyValue.FindBoolAttribute(AccessHasOccurredVar.Attributes, "source_is_multi_dimensional")) {
-        return ("((char*)" + RaceyArraySourceName + ")[" + OffsetInBytes + "]");
+      var DimensionsString = QKeyValue.FindStringAttribute(AccessHasOccurredVar.Attributes, "source_dimensions");
+      var Dimensions = DimensionsString.Split(new char[] { ',' });
+      Debug.Assert(Dimensions.Count() > 0);
+      Debug.Assert(Dimensions[0] == "*");
+
+      ulong[] DimensionStrides = new ulong[Dimensions.Count()];
+      DimensionStrides[Dimensions.Count() - 1] = 1;
+      for(int i = Dimensions.Count() - 2; i >= 0; i--) {
+        DimensionStrides[i] = DimensionStrides[i + 1] * Convert.ToUInt64(Dimensions[i + 1]);
       }
 
       ulong OffsetInSourceElements = OffsetInBytes / SourceElemWidthBytes;
-      ulong RemainingBytes = OffsetInBytes % SourceElemWidthBytes;
+      ulong LeftOverBytes = OffsetInBytes % SourceElemWidthBytes;
 
-      if (ElemWidthBytes == SourceElemWidthBytes) {
-        return RaceyArraySourceName + "[" + Offset + "]";
+      string Result = RaceyArraySourceName;
+      ulong Remainder = OffsetInSourceElements;
+      foreach(var Stride in DimensionStrides) {
+        Result += "[" + (Remainder / Stride) + "]";
+        Remainder = Remainder % Stride;
       }
 
-      if (ElemWidthBytes == 1) {
-        return RaceyArraySourceName + "[" + OffsetInSourceElements + "] (byte " + RemainingBytes + ")";
+      if (ElemWidthBytes != SourceElemWidthBytes) {
+        if (ElemWidthBytes == 1) {
+          Result += " (byte " + LeftOverBytes + ")";
+        } else {
+          Result += " (bytes " + LeftOverBytes + ".." + (LeftOverBytes + ElemWidthBytes - 1) + ")";
+        }
       }
 
-      return RaceyArraySourceName + "[" + OffsetInSourceElements + "] (bytes " + RemainingBytes + ".." + (RemainingBytes + ElemWidthBytes - 1) + ")";
+      return Result;
+
     }
 
     private static string GetStateName(CallCounterexample CallCex)

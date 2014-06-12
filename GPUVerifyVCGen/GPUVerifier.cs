@@ -793,7 +793,7 @@ namespace GPUVerify
 
         private void NonDeterminiseUninterpretedFunctions()
         {
-          var UFRemover = new UninterpretedFunctionRemover(this);
+          var UFRemover = new UninterpretedFunctionRemover();
           UFRemover.Eliminate(Program);
         }
 
