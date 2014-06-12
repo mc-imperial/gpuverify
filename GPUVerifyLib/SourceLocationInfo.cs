@@ -54,6 +54,22 @@ namespace GPUVerify {
         return GetFile() + ":" + GetLine() + ":" + GetColumn();
       }
 
+      public override bool Equals(object obj) {
+        if(!(obj is Record)) {
+          return false;
+        }
+        Record ThatRecord = obj as Record;
+        return line == ThatRecord.line &&
+               column == ThatRecord.column &&
+               file == ThatRecord.file &&
+               directory == ThatRecord.directory;
+      }
+
+      public override int GetHashCode() {
+        // A naive hash code function
+        return line + column + file.GetHashCode() + directory.GetHashCode();
+      }
+
     }
 
     private List<Record> records;
@@ -89,6 +105,7 @@ namespace GPUVerify {
 
         return 0;
       }
+
     }
 
     public class SourceLocationInfoComparison : IComparer<SourceLocationInfo> {
@@ -205,6 +222,31 @@ namespace GPUVerify {
         returnString = " " + returnString;
       }
       return returnString;
+    }
+
+    public override bool Equals(object obj) {
+      if(!(obj is SourceLocationInfo)) {
+        return false;
+      }
+      SourceLocationInfo ThatSourceLocationInfo = obj as SourceLocationInfo;
+      if(this.records.Count() != ThatSourceLocationInfo.records.Count()) {
+        return false;
+      }
+      foreach(var Pair in this.records.Zip(ThatSourceLocationInfo.records)) {
+        if(!Pair.Item1.Equals(Pair.Item2)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    public override int GetHashCode() {
+      // A naive hashcode function
+      int result = 0;
+      foreach(var record in records) {
+        result += record.GetHashCode();
+      }
+      return result;
     }
 
   }

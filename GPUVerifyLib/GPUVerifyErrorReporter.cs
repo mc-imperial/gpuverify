@@ -195,10 +195,11 @@ namespace GPUVerify {
             string ArrayName;
             AccessType Access;
             GetArrayNameAndAccessTypeFromAccessHasOccurredVariable(v, out ArrayName, out Access);
+            var AccessOffsetVar = OriginalProgram.TopLevelDeclarations.OfType<Variable>().Where(Item =>
+              Item.Name == RaceInstrumentationUtil.MakeOffsetVariableName(ArrayName, Access)).ToList()[0];
             if(ExtractVariableValueFromCapturedState(v.Name, CapturedState, Model) == "true") {
-              var OffsetVariableName = RaceInstrumentationUtil.MakeOffsetVariableName(ArrayName, Access);
-              Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " " + ArrayName.TrimStart(new char[] { '$' })
-                + "[" + ExtractVariableValueFromCapturedState(OffsetVariableName, CapturedState, Model) + "]"
+              Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " "
+                + ArrayOffsetString(Model, CapturedState, v, AccessOffsetVar, ArrayName.TrimStart(new char[] { '$' }))
                 + " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")");
             }
             break;
@@ -393,8 +394,18 @@ namespace GPUVerify {
     }
 
     private static string ArrayOffsetString(CallCounterexample Cex, string RaceyArraySourceName) {
-      uint ElemWidthBits = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "elem_width", int.MaxValue);
-      uint SourceElemWidthBits = (uint)QKeyValue.FindIntAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "source_elem_width", int.MaxValue);
+      Variable AccessOffsetVar = ExtractOffsetVar(Cex);
+      Variable AccessHasOccurredVar = ExtractAccessHasOccurredVar(Cex);
+      string StateName = GetStateName(Cex);
+      Model Model = Cex.Model;
+
+      return ArrayOffsetString(Model, StateName, AccessHasOccurredVar, AccessOffsetVar, RaceyArraySourceName);
+
+    }
+
+    private static string ArrayOffsetString(Model Model, string StateName, Variable AccessHasOccurredVar, Variable AccessOffsetVar, string RaceyArraySourceName) {
+      uint ElemWidthBits = (uint)QKeyValue.FindIntAttribute(AccessHasOccurredVar.Attributes, "elem_width", int.MaxValue);
+      uint SourceElemWidthBits = (uint)QKeyValue.FindIntAttribute(AccessHasOccurredVar.Attributes, "source_elem_width", int.MaxValue);
       Debug.Assert(ElemWidthBits != int.MaxValue);
       Debug.Assert(SourceElemWidthBits != int.MaxValue);
       Debug.Assert((ElemWidthBits % 8) == 0);
@@ -405,30 +416,29 @@ namespace GPUVerify {
 
       var OffsetModelElement =
         (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
-        ? GetStateFromModel(GetStateName(Cex),
-           Cex.Model).TryGet(ExtractOffsetVar(Cex).Name)
-        : Cex.Model.TryGetFunc(ExtractOffsetVar(Cex).Name).GetConstant()) as Model.Number;
+        ? GetStateFromModel(StateName,
+           Model).TryGet(AccessOffsetVar.Name)
+        : Model.TryGetFunc(AccessOffsetVar.Name).GetConstant()) as Model.Number;
 
       ulong Offset = Convert.ToUInt64(OffsetModelElement.Numeral);
       ulong OffsetInBytes = Offset * ElemWidthBytes;
 
-      if(QKeyValue.FindBoolAttribute(ExtractAccessHasOccurredVar(Cex).Attributes, "source_is_multi_dimensional")) {
+      if (QKeyValue.FindBoolAttribute(AccessHasOccurredVar.Attributes, "source_is_multi_dimensional")) {
         return ("((char*)" + RaceyArraySourceName + ")[" + OffsetInBytes + "]");
       }
 
       ulong OffsetInSourceElements = OffsetInBytes / SourceElemWidthBytes;
-      ulong RemainingBytes = OffsetInBytes % SourceElemWidthBytes; 
-      
-      if(ElemWidthBytes == SourceElemWidthBytes) {
+      ulong RemainingBytes = OffsetInBytes % SourceElemWidthBytes;
+
+      if (ElemWidthBytes == SourceElemWidthBytes) {
         return RaceyArraySourceName + "[" + Offset + "]";
       }
 
-      if(ElemWidthBytes == 1) {
+      if (ElemWidthBytes == 1) {
         return RaceyArraySourceName + "[" + OffsetInSourceElements + "] (byte " + RemainingBytes + ")";
       }
 
       return RaceyArraySourceName + "[" + OffsetInSourceElements + "] (bytes " + RemainingBytes + ".." + (RemainingBytes + ElemWidthBytes - 1) + ")";
-
     }
 
     private static string GetStateName(CallCounterexample CallCex)
