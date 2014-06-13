@@ -152,9 +152,19 @@ namespace GPUVerify {
       }
       Debug.Assert(RelevantLoopEntryStates.Count() == 1);
       var LoopEntryState = RelevantLoopEntryStates.ToList()[0];
-      Console.WriteLine("On entry to " + LoopHeadState + " from " + LoopEntryState + ":");
+      Console.WriteLine("On entry to loop headed at " + GetSourceLocationForBasicBlock(Header).Top() + ":");
       ShowRaceInstrumentationVariables(Model, LoopEntryState, OriginalProgram);
       ShowVariablesReferencedInLoop(CFG, Model, LoopEntryState, Header);
+    }
+
+    private SourceLocationInfo GetSourceLocationForBasicBlock(Block Header) {
+      foreach(var a in Header.Cmds.OfType<AssertCmd>()) {
+        if(QKeyValue.FindBoolAttribute(a.Attributes, "block_sourceloc")) {
+          return new SourceLocationInfo(a.Attributes, GetSourceFileName(), Header.tok);
+        }
+      }
+      Debug.Assert(false);
+      return null;
     }
 
     private void MaybeDisplayLoopBackEdgeState(Block current, Graph<Block> CFG, Model Model, Program OriginalProgram) {
@@ -168,9 +178,11 @@ namespace GPUVerify {
         return;
       }
 
-      Console.WriteLine("On taking back edge " + LoopBackEdgeState + ":");
+      var OriginalHeader = FindHeaderForBackEdgeNode(CFG, FindNodeContainingCaptureState(CFG, LoopBackEdgeState));
+      Console.WriteLine("On taking back edge to head of loop at " + 
+        GetSourceLocationForBasicBlock(OriginalHeader).Top() + ":");
       ShowRaceInstrumentationVariables(Model, LoopBackEdgeState, OriginalProgram);
-      ShowVariablesReferencedInLoop(CFG, Model, LoopBackEdgeState, FindHeaderForBackEdgeNode(CFG, FindNodeContainingCaptureState(CFG, LoopBackEdgeState)));
+      ShowVariablesReferencedInLoop(CFG, Model, LoopBackEdgeState, OriginalHeader);
     }
 
     private void MaybeDisplayLoopHeadState(Block Header, Graph<Block> CFG, Model Model, Program OriginalProgram) {
@@ -180,7 +192,8 @@ namespace GPUVerify {
       }
       Block OriginalHeader = FindLoopHeaderWithStateName(StateName, CFG);
       Debug.Assert(Header != null);
-      Console.Error.WriteLine("After 0 or more iterations of " + StateName + ":");
+      Console.Error.WriteLine("After 0 or more iterations of loop headed at "
+        + GetSourceLocationForBasicBlock(OriginalHeader).Top() + ":");
       ShowRaceInstrumentationVariables(Model, StateName, OriginalProgram);
       ShowVariablesReferencedInLoop(CFG, Model, StateName, OriginalHeader);
     }
