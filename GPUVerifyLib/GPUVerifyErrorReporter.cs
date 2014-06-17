@@ -211,9 +211,14 @@ namespace GPUVerify {
             var AccessOffsetVar = OriginalProgram.TopLevelDeclarations.OfType<Variable>().Where(Item =>
               Item.Name == RaceInstrumentationUtil.MakeOffsetVariableName(ArrayName, Access)).ToList()[0];
             if(ExtractVariableValueFromCapturedState(v.Name, CapturedState, Model) == "true") {
-              Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " "
-                + ArrayOffsetString(Model, CapturedState, v, AccessOffsetVar, ArrayName.TrimStart(new char[] { '$' }))
-                + " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")");
+              if(GetStateFromModel(CapturedState, Model).TryGet(AccessOffsetVar.Name) is Model.Number) {
+                Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " "
+                  + ArrayOffsetString(Model, CapturedState, v, AccessOffsetVar, ArrayName.TrimStart(new char[] { '$' }))
+                  + " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")");
+              } else {
+                Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " " + ArrayName.TrimStart(new char[] { '$' })
+                  + " (unknown offset)" + " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")");
+              }
             }
             break;
           }
