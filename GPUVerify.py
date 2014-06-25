@@ -206,8 +206,9 @@ clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
                      ]
 clangOpenCLIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
 clangOpenCLDefines = [ "cl_khr_fp64",
+                       "cl_khr_fp16",
                        "cl_clang_storage_class_specifiers",
-                       "__OPENCL_VERSION__"
+                       "__OPENCL_VERSION__=120"
                      ]
 
 clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
