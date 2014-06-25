@@ -1,3 +1,6 @@
+//xfail:BOOGIE_ERROR
+//--blockDim=1024 --gridDim=1024 --no-inline
+
 #define tid (blockIdx.x*blockDim.x + threadIdx.x)
 
 typedef void(*funcType)(float*);
