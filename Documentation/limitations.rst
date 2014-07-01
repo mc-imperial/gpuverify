@@ -47,3 +47,5 @@ Known Sources of Unsoundness in GPUVerify
       }
 
     }
+
+* GPUVerify assumes that atomic operations do not wrap-around.
