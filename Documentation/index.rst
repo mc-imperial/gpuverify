@@ -17,6 +17,7 @@ Contents:
    advanced_features
    developer_guide
    trouble_shooting
+   limitations
 
 Search documentation
 ====================
