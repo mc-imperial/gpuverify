@@ -48,4 +48,15 @@ Known Sources of Unsoundness in GPUVerify
 
     }
 
-* GPUVerify assumes that atomic operations do not wrap-around.
+* GPUVerify assumes that atomic operations do not overflow or underflow the
+  values on which they act.
+
+* If an array ``a`` occurs read-only in a kernel, then ``__read(a)`` annotation
+  always evaluates to false. As a consequence, the following OpenCL kernel
+  successfully verifies::
+
+    __kernel void foo(__global int* a, __global int* b) {
+      b[get_global_id(0)] = a[0];
+      __assert(!__read(a));
+    }
+

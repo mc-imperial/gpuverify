@@ -24,6 +24,7 @@ Search documentation
 
 .. * :ref:`genindex`
 .. * :ref:`modindex`
+
 * :ref:`search`
 
 Documentation TODO list
