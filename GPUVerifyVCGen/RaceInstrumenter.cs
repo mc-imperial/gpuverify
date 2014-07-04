@@ -51,6 +51,23 @@ namespace GPUVerify {
       }
     }
 
+    public void AddDefaultContracts()
+    {
+      // Here we add pre- and post-conditions that are guaranteed to be true
+      // by construction.
+      foreach(Procedure Proc in verifier.Program.TopLevelDeclarations.OfType<Procedure>().
+        Where(Item => !verifier.ProcedureIsInlined(Item))) {
+        foreach(var a in verifier.KernelArrayInfo.getGroupSharedArrays().Where(
+          Item => !verifier.KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(Item))) {
+          foreach(var Access in AccessType.Types) {
+            Proc.Requires.Add(new Requires(false, Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup())));
+            Proc.Ensures.Add(new Ensures(false, Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup())));
+          }
+        }
+      }
+    }
+
+
     private void AddNoAccessCandidateInvariants(IRegion region, Variable v) {
 
       // Reasoning: if READ_HAS_OCCURRED_v is not in the modifies set for the

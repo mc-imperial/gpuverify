@@ -74,5 +74,10 @@ namespace GPUVerify
 
         }
 
+        public void AddDefaultContracts()
+        {
+
+        }
+
     }
 }

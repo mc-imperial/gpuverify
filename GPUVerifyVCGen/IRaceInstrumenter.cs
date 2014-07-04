@@ -34,5 +34,7 @@ namespace GPUVerify
 
         void AddDefaultLoopInvariants();
 
+        void AddDefaultContracts();
+
     }
 }
