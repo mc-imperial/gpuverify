@@ -1222,13 +1222,8 @@ namespace GPUVerify
             GeneratePreconditionsForDimension("Y");
             GeneratePreconditionsForDimension("Z");
 
-            foreach (Declaration D in Program.TopLevelDeclarations)
+            foreach (Procedure Proc in Program.TopLevelDeclarations.OfType<Procedure>())
             {
-                if (!(D is Procedure))
-                {
-                    continue;
-                }
-                Procedure Proc = D as Procedure;
                 if (ProcedureIsInlined(Proc) || ProcedureHasNoImplementation(Proc))
                 {
                     continue;
