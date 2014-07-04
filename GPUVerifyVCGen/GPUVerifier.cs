@@ -1217,6 +1217,7 @@ namespace GPUVerify
         private void GenerateStandardKernelContract()
         {
             RaceInstrumenter.AddKernelPrecondition();
+            RaceInstrumenter.AddDefaultLoopInvariants();
 
             GeneratePreconditionsForDimension("X");
             GeneratePreconditionsForDimension("Y");

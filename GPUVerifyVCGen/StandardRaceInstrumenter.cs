@@ -61,6 +61,10 @@ namespace GPUVerify
          Expr.Not(new IdentifierExpr(v.tok, TrackVariable)) : 
                   new IdentifierExpr(v.tok, TrackVariable)));
 
+      if(verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
+        Condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), Condition);
+      }
+
       simpleCmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable,
           Condition, Expr.True));
       simpleCmds.Add(MakeConditionalAssignment(AccessOffsetVariable,

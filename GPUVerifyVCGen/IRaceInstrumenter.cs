@@ -19,6 +19,7 @@ namespace GPUVerify
     interface IRaceInstrumenter
     {
         void AddRaceCheckingCandidateInvariants(Implementation impl, IRegion region);
+
         void AddKernelPrecondition();
 
         void AddRaceCheckingInstrumentation();
@@ -30,6 +31,8 @@ namespace GPUVerify
         void AddRaceCheckingCandidateRequires(Procedure Proc);
 
         void AddRaceCheckingCandidateEnsures(Procedure Proc);
+
+        void AddDefaultLoopInvariants();
 
     }
 }

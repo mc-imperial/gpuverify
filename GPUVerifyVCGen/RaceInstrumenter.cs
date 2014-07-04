@@ -32,6 +32,25 @@ namespace GPUVerify {
       this.verifier = verifier;
     }
 
+    public void AddDefaultLoopInvariants()
+    {
+      // Here we add invariants that are guaranteed to be true
+      // by construction.
+      foreach(IRegion Region in verifier.Program.Implementations().Select(
+        Item => verifier.RootRegion(Item).SubRegions()).SelectMany(Item => Item)) {
+
+        foreach(var a in verifier.KernelArrayInfo.getGroupSharedArrays().Where(
+          Item => !verifier.KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(Item))) {
+          foreach(var Access in AccessType.Types) {
+            Region.AddInvariant(new AssertCmd(Token.NoToken,
+              Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup()),
+              new QKeyValue(Token.NoToken, "tag", new List<object> { "groupSharedArraysDisjointAcrossGroups" }, null)));
+          }
+        }
+
+      }
+    }
+
     private void AddNoAccessCandidateInvariants(IRegion region, Variable v) {
 
       // Reasoning: if READ_HAS_OCCURRED_v is not in the modifies set for the
@@ -69,13 +88,13 @@ namespace GPUVerify {
     }
 
     private void AddNoAccessCandidateInvariant(IRegion region, Variable v, AccessType Access) {
-      Expr candidate = NoAccessExpr(v, Access);
+      Expr candidate = NoAccessHasOccurredExpr(v, Access);
       verifier.AddCandidateInvariant(region, candidate, "no" + Access.ToString().ToLower(), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
     }
 
     private void AddSameWarpNoAccessCandidateInvariant(IRegion region, Variable v, AccessType Access) {
       if (!GPUVerifyVCGenCommandLineOptions.WarpSync) return;
-      Expr candidate = Expr.Imp(Expr.And(GPUVerifier.ThreadsInSameGroup(), verifier.ThreadsInSameWarp()), NoAccessExpr(v, Access));
+      Expr candidate = Expr.Imp(Expr.And(GPUVerifier.ThreadsInSameGroup(), verifier.ThreadsInSameWarp()), NoAccessHasOccurredExpr(v, Access));
       verifier.AddCandidateInvariant(region, candidate, "sameWarpNoAccess", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE, "do_not_predicate");
     }
 
@@ -808,11 +827,11 @@ namespace GPUVerify {
     }
 
     private void AddNoAccessCandidateRequires(Procedure Proc, Variable v, AccessType Access) {
-      verifier.AddCandidateRequires(Proc, NoAccessExpr(v, Access), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+      verifier.AddCandidateRequires(Proc, NoAccessHasOccurredExpr(v, Access), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
     }
 
     private void AddNoAccessCandidateEnsures(Procedure Proc, Variable v, AccessType Access) {
-      verifier.AddCandidateEnsures(Proc, NoAccessExpr(v, Access), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+      verifier.AddCandidateEnsures(Proc, NoAccessHasOccurredExpr(v, Access), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
     }
 
     private HashSet<Expr> GetOffsetsAccessed(IRegion region, Variable v, AccessType Access) {
@@ -1058,10 +1077,12 @@ namespace GPUVerify {
       return new AssertCmd(Token.NoToken, BuildAccessOccurredFalseExpr(name, Access));
     }
 
-    protected Expr NoAccessExpr(Variable v, AccessType Access) {
-      Variable AccessHasOccurred = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
-      Expr expr = Expr.Not(new IdentifierExpr(v.tok, AccessHasOccurred));
-      return expr;
+    private Expr AccessHasOccurredExpr(Variable v, AccessType Access) {
+      return new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access));
+    }
+
+    private Expr NoAccessHasOccurredExpr(Variable v, AccessType Access) {
+      return Expr.Not(AccessHasOccurredExpr(v, Access));
     }
 
 

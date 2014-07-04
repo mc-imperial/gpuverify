@@ -68,5 +68,11 @@ namespace GPUVerify
         {
 
         }
+
+        public void AddDefaultLoopInvariants()
+        {
+
+        }
+
     }
 }
