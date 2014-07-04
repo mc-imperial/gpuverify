@@ -483,6 +483,8 @@ namespace GPUVerify
               PrintLoopStatistics();
             }
 
+            RemoveUnnecessaryBlockSourceLocations();
+
             CheckUserSuppliedLoopInvariants();
 
             IdentifyArraysAccessedAsynchronously();
@@ -660,6 +662,30 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private void RemoveUnnecessaryBlockSourceLocations() {
+          // This is a work-around for the fact that Boogie sometimes
+          // yields stack overflows (esp. under Windows).  To shorten
+          // the Boogie program, we remove source location information
+          // for non-loop head blocks.  These are not required, and
+          // can end up bloating the program.
+          // The longer-term solution is to avoid the stack overflows
+          // in Boogie
+          foreach(var Impl in Program.Implementations()) {
+            var blockGraph = Program.ProcessLoops(Impl);
+            foreach(var b in Impl.Blocks.Where(Item => !blockGraph.Headers.Contains(Item))) {
+              List<Cmd> newCmds = new List<Cmd>();
+              foreach(var c in b.Cmds) {
+                var ac = c as AssertCmd;
+                if(ac != null && QKeyValue.FindBoolAttribute(ac.Attributes, "block_sourceloc")) {
+                  continue;
+                }
+                newCmds.Add(c);
+              }
+              b.Cmds = newCmds;
+            }
+          }
         }
 
         private void IdentifyArraysAccessedAsynchronously() {
