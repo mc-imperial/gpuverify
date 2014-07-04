@@ -17,12 +17,14 @@ Contents:
    advanced_features
    developer_guide
    trouble_shooting
+   limitations
 
 Search documentation
 ====================
 
 .. * :ref:`genindex`
 .. * :ref:`modindex`
+
 * :ref:`search`
 
 Documentation TODO list
