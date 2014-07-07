@@ -28,6 +28,14 @@ namespace GPUVerify
     { 
     }
   }
+  
+  class TimeLimitException : Exception
+  {
+    public TimeLimitException(string message)
+         : base(message)
+    { 
+    }
+  }
 
   internal static class BinaryOps
   {
@@ -176,6 +184,9 @@ namespace GPUVerify
     private HashSet<Block> HeadersFromWhichToExitEarly = new HashSet<Block>();
     private int Executions = 0;
     private Random Random;
+    
+    // To time execution
+    private Stopwatch stopwatch = new Stopwatch();
 
     public IEnumerable<string> KilledCandidates()
     {
@@ -203,7 +214,8 @@ namespace GPUVerify
       ComputeLoopExits(loopInfo);            
       // Determine whether there are loops that could be executed indepedently
       ComputeDisjointLoops(impl, loopInfo);
-            
+      
+      stopwatch.Start();
       DoInterpretation(program, impl);
     }
 
@@ -556,9 +568,12 @@ namespace GPUVerify
         // Start intrepreting at the entry basic block
         Block block = impl.Blocks[0];
         
-        // Continue until the exit basic block is reached or we exhaust the loop header count
+        // Continue until the exit basic block is reached or 
+        // we exhaust the loop header count or
+        // we exhaust the time limit 
         while (block != null &&
-               GlobalHeaderCount < Engine.LoopHeaderLimit)
+               GlobalHeaderCount < Engine.LoopHeaderLimit &&
+               stopwatch.Elapsed.Seconds < Engine.TimeLimit)
         {
           if (Engine.LoopEscape > 0 &&
               HeaderToLoopBody.Keys.Contains(block) &&

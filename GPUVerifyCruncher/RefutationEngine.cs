@@ -346,13 +346,22 @@ namespace Microsoft.Boogie
       return LoopEscapingParameter;
     }
     
+    private static EngineParameter<int> TimeLimitParameter;
+    public static EngineParameter<int> GetTimeLimitParameter()
+    {
+      if (TimeLimitParameter == null)
+        TimeLimitParameter = new EngineParameter<int>("timelimit", int.MaxValue);
+      return TimeLimitParameter;
+    }
+    
     public new static List<EngineParameter> GetAllowedParameters()
     {
-      return new List<EngineParameter> { GetLoopHeaderLimitParameter(), GetLoopEscapingParameter() };
+      return new List<EngineParameter> { GetLoopHeaderLimitParameter(), GetLoopEscapingParameter(), GetTimeLimitParameter() };
     }
     
     public int LoopHeaderLimit { get; set; }
     public int LoopEscape { get; set; }
+    public int TimeLimit { get; set; }
   
     public DynamicAnalysis ():
       base(Int32.MaxValue, true)
