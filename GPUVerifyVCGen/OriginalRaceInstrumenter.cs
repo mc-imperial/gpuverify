@@ -18,10 +18,10 @@ using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-  class StandardRaceInstrumenter : RaceInstrumenter
+  class OriginalRaceInstrumenter : RaceInstrumenter
   {
 
-    internal StandardRaceInstrumenter(GPUVerifier verifier) : base(verifier) { }
+    internal OriginalRaceInstrumenter(GPUVerifier verifier) : base(verifier) { }
 
     protected override void AddLogAccessProcedure(Variable v, AccessType Access) {
       Procedure LogAccessProcedure = MakeLogAccessProcedureHeader(v, Access);
