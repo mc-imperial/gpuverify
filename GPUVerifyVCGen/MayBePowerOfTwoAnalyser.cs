@@ -177,12 +177,16 @@ namespace GPUVerify
 
             if (lit.Val is BvConst)
             {
-                return (lit.Val as BvConst).Value.ToInt == x;
+                if (((BvConst)lit.Val).Value.InInt32) {
+                    return ((BvConst)lit.Val).Value.ToIntSafe == x;
+                }
             }
 
             if (lit.Val is Microsoft.Basetypes.BigNum)
             {
-                return ((Microsoft.Basetypes.BigNum)lit.Val).ToInt == x;
+                if (((Microsoft.Basetypes.BigNum)lit.Val).InInt32) {
+                    return ((Microsoft.Basetypes.BigNum)lit.Val).ToInt == x;
+                }
             }
 
             return false;
