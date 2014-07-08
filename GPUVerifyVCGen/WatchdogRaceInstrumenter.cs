@@ -58,7 +58,15 @@ namespace GPUVerify
 
       Condition = Expr.And(new IdentifierExpr(Token.NoToken, PredicateParameter), Condition);
 
-      LoggingCommands.Cmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable, Condition, Expr.True));
+      if (GPUVerifyVCGenCommandLineOptions.OnlyWarp) {
+        LoggingCommands.Cmds.Add(new AssignCmd(Token.NoToken, 
+                                               new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, Expr.Ident(AccessHasOccurredVariable)) },
+                                               new List<Expr> { Condition }));
+      }
+      else {
+        LoggingCommands.Cmds.Add(MakeConditionalAssignment(AccessHasOccurredVariable, Condition, Expr.True));
+      }
+
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         LoggingCommands.Cmds.Add(MakeConditionalAssignment(AccessBenignFlagVariable,
           Condition,
