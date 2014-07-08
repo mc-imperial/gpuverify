@@ -53,12 +53,63 @@ namespace GPUVerify
     if (verifier.RegionHasLoopInvariantsDisabled(region))
      continue;
 
+    GenerateCandidateForEnabledness(verifier, impl, region);
     GenerateCandidateForReducedStrengthStrideVariables(verifier, impl, region);
     GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
     GenerateCandidateForNonUniformGuardVariables(verifier, impl, region);
     GenerateCandidateForLoopBounds(verifier, impl, region);
-   GenerateCandidateForLoopsWhichAreControlDependentOnThreadOrGroupIDs(verifier, impl, region);
+    GenerateCandidateForLoopsWhichAreControlDependentOnThreadOrGroupIDs(verifier, impl, region);
    }
+  }
+
+  private static void GenerateCandidateForEnabledness(GPUVerifier verifier, Implementation impl, IRegion region) {
+    Block header = region.Header();
+    if(verifier.uniformityAnalyser.IsUniform(impl.Name, header)) {
+      return;
+    }
+
+    var CFG = Program.GraphFromImpl(impl);
+    Dictionary<Block, HashSet<Block>> ControlDependence = CFG.ControlDependence();
+    ControlDependence.TransitiveClosure();
+    CFG.ComputeLoops();
+    var LoopNodes = CFG.BackEdgeNodes(header).Select(Item => CFG.NaturalLoops(header, Item)).SelectMany(Item => Item);
+
+    Expr CombinedGuard = null;
+    foreach(var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
+      foreach(var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item))) {
+        var Guard = MaybeExtractGuard(verifier, impl, succ);
+        if(Guard != null) {
+          CombinedGuard = CombinedGuard == null ? Guard : Expr.And(CombinedGuard, Guard);
+          break;
+        }
+      }
+    }
+
+    foreach(var succ in CFG.Successors(header).Where(Item => LoopNodes.Contains(Item))) {
+      var Guard = MaybeExtractGuard(verifier, impl, succ);
+      if(Guard != null) {
+        CombinedGuard = CombinedGuard == null ? Guard : Expr.And(CombinedGuard, Guard);
+        break;
+      }
+    }
+
+    if(CombinedGuard != null) {
+      verifier.AddCandidateInvariant(region, Expr.Imp(CombinedGuard, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsForEnabledness", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+    }
+
+  }
+    
+
+  private static Expr MaybeExtractGuard(GPUVerifier verifier, Implementation impl, Block b) {
+    if(b.Cmds.Count() > 0) {
+      var a = b.Cmds[0] as AssumeCmd;
+      if(a != null && QKeyValue.FindBoolAttribute(a.Attributes, "partition")) {
+        if(a.Expr is IdentifierExpr) {
+          return verifier.varDefAnalyses[impl].DefOfVariableName(((IdentifierExpr)a.Expr).Name);
+        }
+      }
+    }
+    return null;
   }
 
   private static void GenerateCandidateForNonUniformGuardVariables(GPUVerifier verifier, Implementation impl, IRegion region)
