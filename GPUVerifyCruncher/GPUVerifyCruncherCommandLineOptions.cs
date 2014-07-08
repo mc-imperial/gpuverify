@@ -171,6 +171,9 @@ namespace GPUVerify
           dynamicEngine.LoopEscape = ParseIntParameter(parameters, 
                                                        DynamicAnalysis.GetLoopEscapingParameter().Name, 
                                                        DynamicAnalysis.GetLoopEscapingParameter().DefaultValue);
+          dynamicEngine.TimeLimit = ParseIntParameter(parameters, 
+                                                      DynamicAnalysis.GetTimeLimitParameter().Name, 
+                                                      DynamicAnalysis.GetTimeLimitParameter().DefaultValue);
           Pipeline.AddEngine(dynamicEngine);
         }
         else
