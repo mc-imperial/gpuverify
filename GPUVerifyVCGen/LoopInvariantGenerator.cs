@@ -53,13 +53,78 @@ namespace GPUVerify
     if (verifier.RegionHasLoopInvariantsDisabled(region))
      continue;
 
-    GenerateCandidateForEnabledness(verifier, impl, region);
     GenerateCandidateForReducedStrengthStrideVariables(verifier, impl, region);
     GenerateCandidateForNonNegativeGuardVariables(verifier, impl, region);
     GenerateCandidateForNonUniformGuardVariables(verifier, impl, region);
     GenerateCandidateForLoopBounds(verifier, impl, region);
     GenerateCandidateForLoopsWhichAreControlDependentOnThreadOrGroupIDs(verifier, impl, region);
+    GenerateCandidateForEnabledness(verifier, impl, region);
+    GenerateCandidateForEnablednessWhenAccessingSharedArrays(verifier, impl, region);
    }
+  }
+
+  private static void GenerateCandidateForEnablednessWhenAccessingSharedArrays(GPUVerifier verifier, Implementation impl, IRegion region) {
+    Block header = region.Header();
+    if(verifier.uniformityAnalyser.IsUniform(impl.Name, header)) {
+      return;
+    }
+
+    var CFG = Program.GraphFromImpl(impl);
+    Dictionary<Block, HashSet<Block>> ControlDependence = CFG.ControlDependence();
+    ControlDependence.TransitiveClosure();
+    CFG.ComputeLoops();
+    var LoopNodes = CFG.BackEdgeNodes(header).Select(Item => CFG.NaturalLoops(header, Item)).SelectMany(Item => Item);
+
+    Expr CombinedGuard = null;
+    foreach(var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
+      foreach(var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item))) {
+        var Guard = MaybeExtractGuard(verifier, impl, succ);
+        if(Guard != null) {
+          CombinedGuard = CombinedGuard == null ? Guard : Expr.And(CombinedGuard, Guard);
+          break;
+        }
+      }
+    }
+
+    if(CombinedGuard == null) {
+      return;
+    }
+
+    IEnumerable<Variable> ReadVariables;
+    IEnumerable<Variable> WrittenVariables;
+    GetReadAndWrittenVariables(region, out ReadVariables, out WrittenVariables);
+
+    foreach(var v in ReadVariables.Where(Item => verifier.KernelArrayInfo.getGroupSharedArrays().Contains(Item)
+      && !verifier.KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(Item))) {
+      verifier.AddCandidateInvariant(region,
+        Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.READ)),
+                  CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE, "do_not_predicate");
+    }
+
+    foreach(var v in WrittenVariables.Where(Item => verifier.KernelArrayInfo.getGroupSharedArrays().Contains(Item))) {
+      verifier.AddCandidateInvariant(region,
+        Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
+                  CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE, "do_not_predicate");
+    }
+  
+  }
+
+  private static void GetReadAndWrittenVariables(IRegion region, out IEnumerable<Variable> ReadVariables, out IEnumerable<Variable> WrittenVariables) {
+    var readVisitor = new VariablesOccurringInExpressionVisitor();
+    var writeVisitor = new VariablesOccurringInExpressionVisitor();
+    foreach (AssignCmd assignment in region.Cmds().OfType<AssignCmd>()) {
+      var mapLhss = assignment.Lhss.OfType<MapAssignLhs>();
+      foreach (var LhsRhs in mapLhss.Zip(assignment.Rhss)) {
+        writeVisitor.Visit(LhsRhs.Item1);
+        readVisitor.Visit(LhsRhs.Item2);
+      }
+      var simpleLhss = assignment.Lhss.OfType<SimpleAssignLhs>();
+      foreach (var LhsRhs in simpleLhss.Zip(assignment.Rhss)) {
+        readVisitor.Visit(LhsRhs.Item2);
+      }
+    }
+    ReadVariables = readVisitor.GetVariables();
+    WrittenVariables = writeVisitor.GetVariables();
   }
 
   private static void GenerateCandidateForEnabledness(GPUVerifier verifier, Implementation impl, IRegion region) {
@@ -404,25 +469,12 @@ namespace GPUVerify
    verifier.AddCandidateInvariant(region, invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
 
    // Retrieve the variables read and written in the loop body
-   var readVisitor = new VariablesOccurringInExpressionVisitor();
-   var writeVisitor = new VariablesOccurringInExpressionVisitor();
-   foreach (AssignCmd assignment in region.Cmds().OfType<AssignCmd>())
-   {
-    var mapLhss = assignment.Lhss.OfType<MapAssignLhs>();
-    foreach (var LhsRhs in mapLhss.Zip(assignment.Rhss))
-    {
-     writeVisitor.Visit(LhsRhs.Item1);
-     readVisitor.Visit(LhsRhs.Item2);
-    }
-    var simpleLhss = assignment.Lhss.OfType<SimpleAssignLhs>();
-    foreach (var LhsRhs in simpleLhss.Zip(assignment.Rhss))
-    {
-     readVisitor.Visit(LhsRhs.Item2);
-    }
-   }
+   IEnumerable<Variable> ReadVariables;
+   IEnumerable<Variable> WrittenVariables;
+   GetReadAndWrittenVariables(region, out ReadVariables, out WrittenVariables);
 
    // Invariant #2: Arrays in global or group-shared memory are not written
-   foreach (Variable found in writeVisitor.GetVariables().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "global")
+   foreach (Variable found in WrittenVariables.Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "global")
       || QKeyValue.FindBoolAttribute(x.Attributes, "group_shared")))
    {
     Variable writeHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_WRITE_HAS_OCCURRED_" + found.Name);
@@ -432,7 +484,7 @@ namespace GPUVerify
    }
 
    // Invariant #3: Arrays in global or group-shared memory are not read
-   foreach (Variable found in readVisitor.GetVariables().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "global")
+   foreach (Variable found in ReadVariables.Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "global")
       || QKeyValue.FindBoolAttribute(x.Attributes, "group_shared")))
    {
     Variable readHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_READ_HAS_OCCURRED_" + found.Name);
