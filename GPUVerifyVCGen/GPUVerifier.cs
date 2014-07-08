@@ -148,8 +148,8 @@ namespace GPUVerify
             {
               this.RaceInstrumenter = new NullRaceInstrumenter();
             } else {
-              if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
-                this.RaceInstrumenter = new StandardRaceInstrumenter(this);
+              if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
+                this.RaceInstrumenter = new OriginalRaceInstrumenter(this);
               } else {
                 Debug.Assert(
                   RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE ||
@@ -1643,7 +1643,7 @@ namespace GPUVerify
                 }
             }
 
-            if(RaceInstrumentationUtil.RaceCheckingMethod != RaceCheckingMethod.STANDARD) {
+            if(RaceInstrumentationUtil.RaceCheckingMethod != RaceCheckingMethod.ORIGINAL) {
               bigblocks.Add(new BigBlock(Token.NoToken, null, new List<Cmd> {
                 new HavocCmd(Token.NoToken, new List<IdentifierExpr> {
                   new IdentifierExpr(Token.NoToken, new GlobalVariable(Token.NoToken,

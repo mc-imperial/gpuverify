@@ -433,7 +433,7 @@ namespace GPUVerify {
       uint SourceElemWidthBytes = SourceElemWidthBits / 8;
 
       var OffsetModelElement =
-        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
         ? GetStateFromModel(StateName,
            Model).TryGet(AccessOffsetVar.Name)
         : Model.TryGetFunc(AccessOffsetVar.Name).GetConstant()) as Model.Number;
@@ -636,7 +636,7 @@ namespace GPUVerify {
 
           Model.Boolean AHO_value = state.TryGet(AccessHasOccurred) as Model.Boolean;
           Model.BitVector AO_value = 
-            (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD
+            (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
             ? state.TryGet(AccessOffset)
             : CallCex.Model.TryGetFunc(AccessOffset).GetConstant()) as Model.BitVector;
 

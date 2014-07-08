@@ -18,13 +18,13 @@ namespace GPUVerify
 {
 
   public enum RaceCheckingMethod {
-    STANDARD, WATCHDOG_SINGLE, WATCHDOG_MULTIPLE
+    ORIGINAL, WATCHDOG_SINGLE, WATCHDOG_MULTIPLE
   }
   
   public class RaceInstrumentationUtil
   {
 
-    public static RaceCheckingMethod RaceCheckingMethod = RaceCheckingMethod.STANDARD;
+    public static RaceCheckingMethod RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
 
     public static string MakeOffsetVariableName(string Name, AccessType Access)
     {
@@ -46,14 +46,14 @@ namespace GPUVerify
     {
       var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeOffsetVariableName(Name, Access),
           Type);
-      if(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
+      if(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
         return new GlobalVariable(Token.NoToken, Ident);
       }
       return new Constant(Token.NoToken, Ident, false);
     }
 
     public static string MakeValueVariableName(string Name, AccessType Access) {
-      if(RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
+      if(RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
         return "_" + Access + "_VALUE_" + Name;
       }
       return "_WATCHED_VALUE_" + Name;
@@ -62,7 +62,7 @@ namespace GPUVerify
     public static Variable MakeValueVariable(string Name, AccessType Access, Microsoft.Boogie.Type Type) {
       var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeValueVariableName(Name, Access),
           Type);
-      if(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD) {
+      if(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
         return new GlobalVariable(Token.NoToken, Ident);
       }
       return new Constant(Token.NoToken, Ident, false);

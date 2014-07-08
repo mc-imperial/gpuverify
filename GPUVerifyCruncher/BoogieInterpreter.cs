@@ -870,7 +870,7 @@ namespace GPUVerify
           {
             Tuple<string, List<BitVector>> offsets = offsetVariableValues[i];
             BitVector offset = offsets.Item2[indices[i]];
-            if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.STANDARD)
+            if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL)
               Memory.Store(offsets.Item1, offset);
             else if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE)
               Memory.Store("_WATCHED_OFFSET_", offset);

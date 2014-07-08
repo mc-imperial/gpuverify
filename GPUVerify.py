@@ -445,8 +445,8 @@ def parse_args(argv):
                          help="Only check intra-warp races")
 
     advanced.add_argument("--race-instrumenter=",
-                          choices=["standard","watchdog-single","watchdog-multiple"],
-                          default="standard",
+                          choices=["original","watchdog-single","watchdog-multiple"],
+                          default="watchdog-single",
                           help="Choose which method of race instrumentation to use")
     advanced.add_argument("--solver=", choices=["z3","cvc4"], default="z3",
                           help="Choose which SMT theorem prover to use in the backend. \
@@ -911,6 +911,11 @@ class GPUVerifyInstance (object):
     CommandLineOptions.boogieOptions += CommandLineOptions.defaultOptions
     CommandLineOptions.cruncherOptions += [ bplFilename ]
 
+    if args.race_instrumenter == "original":
+      CommandLineOptions.bugleOptions += [ "-race-instrumentation=original" ]
+      CommandLineOptions.vcgenOptions += [ "/watchdogRaceChecking:ORIGINAL" ]
+      CommandLineOptions.cruncherOptions += [ "/watchdogRaceChecking:ORIGINAL" ]
+      CommandLineOptions.boogieOptions += [ "/watchdogRaceChecking:ORIGINAL" ]
     if args.race_instrumenter == "watchdog-single":
       CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-single" ]
       CommandLineOptions.vcgenOptions += [ "/watchdogRaceChecking:SINGLE" ]
