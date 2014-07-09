@@ -594,7 +594,6 @@ namespace GPUVerify
             block = TransferControl(block);
           }
         }
-
       }
       catch (UnhandledException e)
       {
@@ -804,22 +803,28 @@ namespace GPUVerify
                 assertBoolean = capture.Value;
               }
             }
-            ExprTree tree = GetExprTree(assert.Expr);
-            if (!AssertStatus.ContainsKey(assertBoolean))
-              AssertStatus[assertBoolean] = BitVector.True;
-            if (AssertStatus[assertBoolean].Equals(BitVector.True))
-            {
-              // Does the expression tree have offset variables?
-              if (tree.offsetVariables.Count > 0)
+         
+            if (assertBoolean != null)
+            {   
+              ExprTree tree = GetExprTree(assert.Expr);
+           
+              if (!AssertStatus.ContainsKey(assertBoolean))
+                AssertStatus[assertBoolean] = BitVector.True;
+              
+              if (AssertStatus[assertBoolean].Equals(BitVector.True))
               {
-                // If so, evaluate the expression tree using the Cartesian product of all
-                // distinct offset values 
-                EvaluateAssertWithOffsets(program, impl, tree, assert, assertBoolean);
-              }
-              else
-              {
-                // If not, it's a straightforward evaluation
-                EvaluateAssert(program, impl, tree, assert, assertBoolean);
+                // Does the expression tree have offset variables?
+                if (tree.offsetVariables.Count > 0)
+                {
+                  // If so, evaluate the expression tree using the Cartesian product of all
+                  // distinct offset values 
+                  EvaluateAssertWithOffsets(program, impl, tree, assert, assertBoolean);
+                }
+                else
+                {
+                  // If not, it's a straightforward evaluation
+                  EvaluateAssert(program, impl, tree, assert, assertBoolean);
+                }
               }
             }
           }
