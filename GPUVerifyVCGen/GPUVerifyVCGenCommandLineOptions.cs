@@ -337,14 +337,16 @@ namespace GPUVerify
           NonDeterminiseUninterpretedFunctions = true;
           break;
 
-          case "-watchdogRaceChecking":
-          case "/watchdogRaceChecking":
-          if (!hasColonArgument || (afterColon != "SINGLE" && afterColon != "MULTIPLE"))
+          case "-raceChecking":
+          case "/raceChecking":
+          if (!hasColonArgument || (afterColon != "ORIGINAL" && afterColon != "SINGLE" && afterColon != "MULTIPLE"))
           {
-            Console.WriteLine("Error: one of 'SINGLE' or 'MULTIPLE' expected after " + beforeColon + " argument");
+            Console.WriteLine("Error: one of 'ORIGINAL', 'SINGLE' or 'MULTIPLE' expected after " + beforeColon + " argument");
             Environment.Exit(1);
           }
-          if(afterColon == "SINGLE") {
+          if(afterColon == "ORIGINAL") {
+            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.ORIGINAL;
+          } else if(afterColon == "SINGLE") {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
           } else {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;

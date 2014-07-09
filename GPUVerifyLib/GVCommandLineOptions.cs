@@ -68,9 +68,11 @@ namespace GPUVerify {
         return true;
       }
 
-      if (name == "watchdogRaceChecking") {
+      if (name == "raceChecking") {
         if (ps.ConfirmArgumentCount(1)) {
-          if(ps.args[ps.i] == "SINGLE") {
+          if(ps.args[ps.i] == "ORIGINAL") {
+            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.ORIGINAL;
+          } else if(ps.args[ps.i] == "SINGLE") {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
           } else if(ps.args[ps.i] == "MULTIPLE") {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;

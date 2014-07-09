@@ -913,19 +913,19 @@ class GPUVerifyInstance (object):
 
     if args.race_instrumenter == "original":
       CommandLineOptions.bugleOptions += [ "-race-instrumentation=original" ]
-      CommandLineOptions.vcgenOptions += [ "/watchdogRaceChecking:ORIGINAL" ]
-      CommandLineOptions.cruncherOptions += [ "/watchdogRaceChecking:ORIGINAL" ]
-      CommandLineOptions.boogieOptions += [ "/watchdogRaceChecking:ORIGINAL" ]
+      CommandLineOptions.vcgenOptions += [ "/raceChecking:ORIGINAL" ]
+      CommandLineOptions.cruncherOptions += [ "/raceChecking:ORIGINAL" ]
+      CommandLineOptions.boogieOptions += [ "/raceChecking:ORIGINAL" ]
     if args.race_instrumenter == "watchdog-single":
       CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-single" ]
-      CommandLineOptions.vcgenOptions += [ "/watchdogRaceChecking:SINGLE" ]
-      CommandLineOptions.cruncherOptions += [ "/watchdogRaceChecking:SINGLE" ]
-      CommandLineOptions.boogieOptions += [ "/watchdogRaceChecking:SINGLE" ]
+      CommandLineOptions.vcgenOptions += [ "/raceChecking:SINGLE" ]
+      CommandLineOptions.cruncherOptions += [ "/raceChecking:SINGLE" ]
+      CommandLineOptions.boogieOptions += [ "/raceChecking:SINGLE" ]
     if args.race_instrumenter == "watchdog-multiple":
       CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-multiple" ]
-      CommandLineOptions.vcgenOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
-      CommandLineOptions.cruncherOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
-      CommandLineOptions.boogieOptions += [ "/watchdogRaceChecking:MULTIPLE" ]
+      CommandLineOptions.vcgenOptions += [ "/raceChecking:MULTIPLE" ]
+      CommandLineOptions.cruncherOptions += [ "/raceChecking:MULTIPLE" ]
+      CommandLineOptions.boogieOptions += [ "/raceChecking:MULTIPLE" ]
 
     if args.inference and (not args.mode == AnalysisMode.FINDBUGS):
       CommandLineOptions.boogieOptions += [ cbplFilename ]
