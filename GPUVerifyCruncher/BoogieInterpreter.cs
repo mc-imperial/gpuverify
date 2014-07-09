@@ -827,10 +827,6 @@ namespace GPUVerify
                 }
               }
             }
-            else
-            {
-              Print.WarningMessage(String.Format("No Boolean label associated with assert cmd {0}", assert));
-            }
           }
         }
         else if (cmd is HavocCmd)
