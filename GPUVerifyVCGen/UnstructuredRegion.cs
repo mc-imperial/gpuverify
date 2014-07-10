@@ -23,6 +23,21 @@ class UnstructuredRegion : IRegion {
   Dictionary<Block, HashSet<Block>> loopNodes = new Dictionary<Block, HashSet<Block>>();
   Dictionary<Block, Block> innermostHeader = new Dictionary<Block, Block>();
   Expr guard;
+  
+  public HashSet<Variable> PartitionVariablesOfRegion() {
+    if (header == null) return new HashSet<Variable>();
+    HashSet<Variable> partitionVars = new HashSet<Variable>();
+    foreach (Block loopNode in loopNodes[header]) {
+      var visitor = new VariablesOccurringInExpressionVisitor();
+      foreach (Block succ in blockGraph.Successors(loopNode)) {
+        foreach (var assume in succ.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) {
+          visitor.Visit(assume.Expr);
+          partitionVars.UnionWith(visitor.GetVariables());
+        }
+      }
+    }
+    return partitionVars;
+  }
 
   public HashSet<Variable> PartitionVariablesOfHeader() {
     if (header == null) return new HashSet<Variable>();

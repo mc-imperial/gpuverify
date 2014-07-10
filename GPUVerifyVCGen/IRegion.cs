@@ -28,6 +28,7 @@ interface IRegion {
   void AddLoopInvariantDisabledTag();
   List<PredicateCmd> RemoveInvariants();
   HashSet<Variable> PartitionVariablesOfHeader();
+  HashSet<Variable> PartitionVariablesOfRegion();
 }
 
 }
