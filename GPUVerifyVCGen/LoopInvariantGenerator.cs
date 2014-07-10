@@ -305,7 +305,6 @@ namespace GPUVerify
    HashSet<Variable> partitionVars = region.PartitionVariablesOfRegion();
    foreach (Variable v in partitionVars)
    {
-   Console.WriteLine(v);
     // Find the expression which defines a particular partition variable.
     // Visit the expression and rip out any variable in the mod set of the loop.
     // We assume that any variable satisfying these conditions is a loop counter
@@ -315,10 +314,8 @@ namespace GPUVerify
     HashSet<Variable> loopCounters = new HashSet<Variable>();
     foreach (Variable variable in visitor.GetVariables())
     {
-    Console.WriteLine(variable);
         if (modifiedVariables.Contains(variable))
         {
-          
             loopCounters.Add(variable);
         }
     }
