@@ -485,6 +485,8 @@ namespace GPUVerify
 
             RemoveUnnecessaryBlockSourceLocations();
 
+            PropagateProcedureWideInvariants();
+
             CheckUserSuppliedLoopInvariants();
 
             IdentifyArraysAccessedAsynchronously();
@@ -662,6 +664,16 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private void PropagateProcedureWideInvariants() {
+          foreach(var Impl in Program.Implementations()) {
+            foreach(var Inv in Impl.Proc.Requires.Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "procedure_wide_invariant"))) {
+              foreach(var Region in RootRegion(Impl).SubRegions()) {
+                Region.AddInvariant(new AssertCmd(Token.NoToken, Inv.Condition, (QKeyValue)Inv.Attributes.Clone()));
+              }
+            }
+          }
         }
 
         private void RemoveUnnecessaryBlockSourceLocations() {
