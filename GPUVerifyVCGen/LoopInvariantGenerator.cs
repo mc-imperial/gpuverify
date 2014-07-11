@@ -299,26 +299,27 @@ namespace GPUVerify
   }
 
   private static void GenerateCandidateForLoopBounds(GPUVerifier verifier, Implementation impl, IRegion region)
-  {
-   HashSet<Variable> modifiedVariables = GetModifiedVariables(region);
-   // Get the partition variables associated with the header
-   HashSet<Variable> partitionVars = region.PartitionVariablesOfRegion();
-   foreach (Variable v in partitionVars)
-   {
-    // Find the expression which defines a particular partition variable.
-    // Visit the expression and rip out any variable in the mod set of the loop.
-    // We assume that any variable satisfying these conditions is a loop counter
-    Expr partitionDefExpr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
-    var visitor = new VariablesOccurringInExpressionVisitor();
-    visitor.Visit(partitionDefExpr);
-    HashSet<Variable> loopCounters = new HashSet<Variable>();
-    foreach (Variable variable in visitor.GetVariables())
     {
-        if (modifiedVariables.Contains(variable))
+      HashSet<Variable> loopCounters = new HashSet<Variable>();
+      HashSet<Variable> modifiedVariables = GetModifiedVariables(region);
+      // Get the partition variables associated with the header
+      HashSet<Variable> partitionVars = region.PartitionVariablesOfRegion();
+      foreach (Variable v in partitionVars)
+      {
+        // Find the expression which defines a particular partition variable.
+        // Visit the expression and rip out any variable in the mod set of the loop.
+        // We assume that any variable satisfying these conditions is a loop counter
+        Expr partitionDefExpr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+        var visitor = new VariablesOccurringInExpressionVisitor();
+        visitor.Visit(partitionDefExpr);
+        foreach (Variable variable in visitor.GetVariables())
         {
+          if (modifiedVariables.Contains(variable))
+          {
             loopCounters.Add(variable);
+          }
         }
-    }
+      }
 
     foreach (Variable loopCounter in loopCounters)
     {
@@ -339,7 +340,6 @@ namespace GPUVerify
        }
       }
      }
-    }
    }
   }
 
