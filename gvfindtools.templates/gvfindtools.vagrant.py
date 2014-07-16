@@ -47,6 +47,9 @@ cvc4SrcDir = rootDir + "/CVC4/src"
 # The path to the directory containing cvc4.exe
 cvc4BinDir = rootDir + "/CVC4/install/bin"
 
+# Default solver should be one of ['z3','cvc4']
+defaultSolver = 'z3'
+
 def init(prefixPath):
   """This method does nothing"""
   pass

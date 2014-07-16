@@ -448,9 +448,9 @@ def parse_args(argv):
                           choices=["original","watchdog-single","watchdog-multiple"],
                           default="watchdog-single",
                           help="Choose which method of race instrumentation to use")
-    advanced.add_argument("--solver=", choices=["z3","cvc4"], default="z3",
+    advanced.add_argument("--solver=", choices=["z3","cvc4"], default=gvfindtools.defaultSolver,
                           help="Choose which SMT theorem prover to use in the backend. \
-                          Default is z3")
+                          Default is " + gvfindtools.defaultSolver)
     advanced.add_argument("--logic=", choices=["ALL_SUPPORTED","QF_ALL_SUPPORTED"],
                           default="QF_ALL_SUPPORTED",
                           help="Define the logic for the CVC4 SMT solver backend. \

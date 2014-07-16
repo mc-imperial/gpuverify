@@ -22,6 +22,7 @@ z3SrcDir = None
 z3BinDir = None
 cvc4SrcDir=None
 cvc4BinDir=None
+defaultSolver=None
 
 def init(pathPrefix):
   """Modify this modules variables by adding a path prefix"""
@@ -69,3 +70,6 @@ def init(pathPrefix):
 
   # The path to the directory containing cvc4.exe
   cvc4BinDir = pathPrefix + os.sep + "bin"
+
+  # Default solver should be one of ['z3','cvc4']
+  defaultSolver = 'z3'
