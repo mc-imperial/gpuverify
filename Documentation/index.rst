@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 2
 
    overview
+   tutorial
    installation
    basic_usage
    advanced_features
