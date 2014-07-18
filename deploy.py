@@ -287,6 +287,10 @@ def main(argv):
 
   #Specify actions to perform
   deployActions = [
+  # tutorial
+  FileCopy(GPUVerifyRoot + os.sep + "Documentation", "tutorial.rst", deployDir),
+  MoveFile(deployDir + os.sep + 'tutorial.rst', deployDir + os.sep + 'TUTORIAL.TXT'),
+
   # libclc
   DirCopy(gvfindtools.libclcInstallDir, gvfindtoolsdeploy.libclcInstallDir),
   FileCopy(gvfindtools.libclcSrcDir, 'LICENSE.TXT', licenseDest),
