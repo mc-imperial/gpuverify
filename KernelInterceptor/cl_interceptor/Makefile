@@ -1,5 +1,5 @@
 CXX ?= g++
-CXXFLAGS ?=
+CXXFLAGS ?= -g -O0
 
 # OPENCL INCLUDES BASED ON OS
 UNAME := $(shell uname)
