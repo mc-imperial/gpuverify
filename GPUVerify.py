@@ -48,8 +48,12 @@ class ConfigurationError(Exception):
 try:
   import psutil
 except ImportError:
-  raise ConfigurationError("psutil required. "
-                           "`pip install psutil` to get it.")
+  sys.stderr.write("GPUVerify requires Python to be equipped with the psutil module.\n")
+  sys.stderr.write("On Windows we recommend installing psutil from a prebuilt binary:\n")
+  sys.stderr.write("  https://pypi.python.org/pypi?:action=display&name=psutil#downloads\n")
+  sys.stderr.write("On Linux/OSX, we recommend installing psutil with pip:\n")
+  sys.stderr.write("  pip install psutil\n")
+  sys.exit(1)
 
 # Try to import the paths need for GPUVerify's tools
 try:
