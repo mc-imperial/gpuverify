@@ -62,7 +62,7 @@ namespace GPUVerify
     {
       public static void EmitProgram(Program prog, string filename, string extension = "bpl")
       {
-        using (TokenTextWriter writer = new TokenTextWriter(filename + "." + extension)) {
+        using (TokenTextWriter writer = new TokenTextWriter(filename + "." + extension, false)) {
           prog.Emit(writer);
         }
       }
@@ -130,8 +130,8 @@ namespace GPUVerify
           CommandLineOptions.Clo.PrintDesugarings = false;
         }
         using (TokenTextWriter writer = filename == "-" ?
-               new TokenTextWriter("<console>", Console.Out) :
-               new TokenTextWriter(filename)) {
+               new TokenTextWriter("<console>", Console.Out, false) :
+               new TokenTextWriter(filename, false)) {
           if (CommandLineOptions.Clo.ShowEnv != CommandLineOptions.ShowEnvironment.Never) {
             writer.WriteLine("// " + CommandLineOptions.Clo.Version);
             writer.WriteLine("// " + CommandLineOptions.Clo.Environment);
@@ -217,6 +217,25 @@ namespace GPUVerify
 
       public static void DumpExceptionInformation(Exception e)
       {
+
+        if(e.ToString().Contains("An attempt was made to load an assembly from a network location")) {
+          Console.Error.WriteLine();
+          Console.Error.WriteLine("GPUVerify has had trouble loading one of its components due to security settings.");
+          Console.Error.WriteLine();
+          Console.Error.WriteLine("In order to run GPUVerify successfully you need to unblock the archive before unzipping it.");
+          Console.Error.WriteLine();
+          Console.Error.WriteLine("To do this:");
+          Console.Error.WriteLine(" - Right click on the .zip file");
+          Console.Error.WriteLine(" - Click \"Properties\"");
+          Console.Error.WriteLine(" - At the bottom of the \"General\" tab you should see:");
+          Console.Error.WriteLine("     Security: This file came from another computer and might be blocked");
+          Console.Error.WriteLine("     to help protect this computer.");
+          Console.Error.WriteLine(" - Click \"Unblock\"");
+          Console.Error.WriteLine(" - Click \"OK\"");
+          Console.Error.WriteLine("Once this is done, unzip GPUVerify afresh and this issue should be resolved.");
+          Environment.Exit(1);
+        }
+
         const string DUMP_FILE = "__gvdump.txt";
 
         #region Give generic internal error messsage
@@ -243,7 +262,7 @@ namespace GPUVerify
         #endregion
 
         #region Write details of the exception to the dump file
-        using (TokenTextWriter writer = new TokenTextWriter(DUMP_FILE)) {
+        using (TokenTextWriter writer = new TokenTextWriter(DUMP_FILE, false)) {
           writer.Write("Exception ToString:");
           writer.Write("===================");
           writer.Write(e.ToString());

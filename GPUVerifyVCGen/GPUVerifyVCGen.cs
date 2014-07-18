@@ -50,12 +50,13 @@ namespace GPUVerify
 
             parseProcessOutput();
           } catch (Exception e) {
-            Console.Error.WriteLine("Exception thrown in GPUVerifyVCGen");
-            Console.Error.WriteLine(e);
-
             if(GPUVerifyVCGenCommandLineOptions.DebugGPUVerify) {
+              Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
+              Console.Error.WriteLine(e);
               throw e;
             }
+
+            GVUtil.IO.DumpExceptionInformation(e);
 
             Environment.Exit(1);
           }

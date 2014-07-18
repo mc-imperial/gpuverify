@@ -725,7 +725,7 @@ namespace GPUVerify
         private void PrintLoopStatistics() {
           // For each implementation, dump the number of loops and the depth of the deepest loop nest to a file
           var loopsOutputFile = Path.GetFileNameWithoutExtension(GPUVerifyVCGenCommandLineOptions.inputFiles[0]) + ".loops";
-          using (TokenTextWriter writer = new TokenTextWriter(loopsOutputFile)) {
+          using (TokenTextWriter writer = new TokenTextWriter(loopsOutputFile, false)) {
             foreach(var impl in Program.Implementations()) {
               writer.WriteLine("Implementation: " + impl.Name);
               writer.WriteLine("Number of loops: " + RootRegion(impl).SubRegions().Count());
