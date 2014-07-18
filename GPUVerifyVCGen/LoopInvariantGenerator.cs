@@ -139,27 +139,32 @@ namespace GPUVerify
     CFG.ComputeLoops();
     var LoopNodes = CFG.BackEdgeNodes(header).Select(Item => CFG.NaturalLoops(header, Item)).SelectMany(Item => Item);
 
-    Expr CombinedGuard = null;
+    Expr GuardEnclosingLoop = null;
     foreach(var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
       foreach(var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item))) {
         var Guard = MaybeExtractGuard(verifier, impl, succ);
         if(Guard != null) {
-          CombinedGuard = CombinedGuard == null ? Guard : Expr.And(CombinedGuard, Guard);
+          GuardEnclosingLoop = GuardEnclosingLoop == null ? Guard : Expr.And(GuardEnclosingLoop, Guard);
           break;
         }
       }
     }
 
+    Expr GuardIncludingLoopCondition = null;
     foreach(var succ in CFG.Successors(header).Where(Item => LoopNodes.Contains(Item))) {
       var Guard = MaybeExtractGuard(verifier, impl, succ);
       if(Guard != null) {
-        CombinedGuard = CombinedGuard == null ? Guard : Expr.And(CombinedGuard, Guard);
+        GuardIncludingLoopCondition = GuardEnclosingLoop == null ? Guard : Expr.And(GuardEnclosingLoop, Guard);
         break;
       }
     }
 
-    if(CombinedGuard != null) {
-      verifier.AddCandidateInvariant(region, Expr.Imp(CombinedGuard, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsForEnabledness", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+    if(GuardIncludingLoopCondition != null) {
+      verifier.AddCandidateInvariant(region, Expr.Imp(GuardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+    }
+
+    if(GuardEnclosingLoop != null) {
+      verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Ident(verifier.FindOrCreateEnabledVariable()), GuardEnclosingLoop), "conditionsImpliedByEnabledness", InferenceStages.BASIC_CANDIDATE_STAGE);
     }
 
   }
