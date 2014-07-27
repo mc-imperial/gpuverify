@@ -168,7 +168,7 @@ namespace GPUVerify
     }
 
   }
-    
+
 
   private static Expr MaybeExtractGuard(GPUVerifier verifier, Implementation impl, Block b) {
     if(b.Cmds.Count() > 0) {
