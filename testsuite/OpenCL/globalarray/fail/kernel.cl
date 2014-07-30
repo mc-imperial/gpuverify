@@ -13,7 +13,7 @@ __kernel void globalarray(__global float* p) {
 
   char c;
 
-  __constant char* cp = A;
+  __constant char* cp = (__constant char*) A;
 
   c = cp[0];
 
