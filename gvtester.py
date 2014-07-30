@@ -750,7 +750,7 @@ def main(arg):
     kernelFilesIgnored=[]
     if (args.ignore_file):
       for f in args.ignore_file:
-        kernels = [line.strip() for line in open(f) if not line.startswith('#')]
+        kernels = [line.strip() for line in open(f) if not (line.startswith('#') or line.startswith('\n'))]
         for kernel in kernels:
           if kernel.endswith('cu'):
             cudaCountIgnored+=1
