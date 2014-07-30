@@ -1,6 +1,7 @@
 //pass
 //--local_size=1024 --num_groups=1 --no-inline
-
+#pragma OPENCL EXTENSION cl_khr_int64_base_atomics : enable
+#pragma OPENCL EXTENSION cl_khr_int64_extended_atomics : enable
 kernel void definitions (local long int* G, local unsigned long int* H, global long int* I, global unsigned long int* J)
 {
   atom_add(G,10);
