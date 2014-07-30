@@ -6,6 +6,7 @@ import os
 import sys
 import argparse
 import logging
+import pprint
 import re
 import subprocess
 import pickle
@@ -758,10 +759,20 @@ def main(arg):
           elif kernel.endswith('misc'):
             miscCountIgnored+=1
           else:
-            logging.debug("Not a valid kernel:\"{}\"".format(kernel))
+            logging.error("Not a valid kernel:\"{}\"".format(kernel))
             return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
-          kernelFilesIgnored.append(os.path.join(recursionRootPath,kernel))
+
+          kernelToIgnore = os.path.join(recursionRootPath, kernel)
+          if not os.path.exists(kernelToIgnore):
+            logging.error('The kernel file "{}" to ignore does not exist'.format(kernelToIgnore))
+            return GPUVerifyErrorCodes.CONFIGURATION_ERROR
+
+          kernelFilesIgnored.append(kernelToIgnore)
+        oldLength = len(kernelFiles)
         kernelFiles = list(set(kernelFiles) - set(kernelFilesIgnored))
+        logging.debug('kernelFiles:{}'.format(pprint.pformat(kernelFiles)))
+        logging.debug('kernelFilesIgnored:{}'.format(pprint.pformat(kernelFilesIgnored)))
+        assert len(kernelFiles) < oldLength, "Failed to remove kernel file from list of kernels"
 
       logging.info("Found    {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount,cudaCount,miscCount))
       logging.info("Ignoring {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCountIgnored,cudaCountIgnored,miscCountIgnored))
