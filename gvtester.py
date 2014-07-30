@@ -752,27 +752,28 @@ def main(arg):
       for f in args.ignore_file:
         kernels = [line.strip() for line in open(f) if not (line.startswith('#') or line.startswith('\n'))]
         for kernel in kernels:
-          if kernel.endswith('cu'):
-            cudaCountIgnored+=1
-          elif kernel.endswith('cl'):
-            openCLCountIgnored+=1
-          elif kernel.endswith('misc'):
-            miscCountIgnored+=1
-          else:
-            logging.error("Not a valid kernel:\"{}\"".format(kernel))
-            return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
-
           kernelToIgnore = os.path.join(recursionRootPath, kernel)
           if not os.path.exists(kernelToIgnore):
             logging.error('The kernel file "{}" to ignore does not exist'.format(kernelToIgnore))
             return GPUVerifyErrorCodes.CONFIGURATION_ERROR
 
-          kernelFilesIgnored.append(kernelToIgnore)
-        oldLength = len(kernelFiles)
-        kernelFiles = list(set(kernelFiles) - set(kernelFilesIgnored))
+          try:
+            kernelFiles.remove(kernelToIgnore)
+            # Maintain the list just for DEBUG output
+            kernelFilesIgnored.append(kernelToIgnore)
+
+            if kernel.endswith('cu'):
+              cudaCountIgnored+=1
+            elif kernel.endswith('cl'):
+              openCLCountIgnored+=1
+            elif kernel.endswith('misc'):
+              miscCountIgnored+=1
+          except ValueError as e:
+            # The kernel wasn't in list
+            logging.warning('Could not ignore kernel "{}" because it was not in the list of found kernels'.format(kernelToIgnore))
+
         logging.debug('kernelFiles:{}'.format(pprint.pformat(kernelFiles)))
         logging.debug('kernelFilesIgnored:{}'.format(pprint.pformat(kernelFilesIgnored)))
-        assert len(kernelFiles) < oldLength, "Failed to remove kernel file from list of kernels"
 
       logging.info("Found    {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount,cudaCount,miscCount))
       logging.info("Ignoring {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCountIgnored,cudaCountIgnored,miscCountIgnored))
