@@ -723,7 +723,7 @@ def main(arg):
               miscCount+=1
           else:
             logging.debug("Not a valid kernel:\"{}\"".format(kernel))
-            return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
+            return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
           kernelFiles.append(os.path.join(recursionRootPath,kernel))
 
     else:
@@ -760,7 +760,7 @@ def main(arg):
             miscCountIgnored+=1
           else:
             logging.error("Not a valid kernel:\"{}\"".format(kernel))
-            return GPUVerifyErrorCodes.FILE_SEARCH_ERROR
+            return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
 
           kernelToIgnore = os.path.join(recursionRootPath, kernel)
           if not os.path.exists(kernelToIgnore):
