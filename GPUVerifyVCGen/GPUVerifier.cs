@@ -578,7 +578,7 @@ namespace GPUVerify
                 EmitProgram(outputFilename + "_merged_pre_predication");
             }
 
-            if (GPUVerifyVCGenCommandLineOptions.WarpSync && GPUVerifyVCGenCommandLineOptions.WarpMethod.Equals("resync"))
+            if (GPUVerifyVCGenCommandLineOptions.WarpSync)
             {
               AddWarpSyncs();
             }
@@ -652,11 +652,8 @@ namespace GPUVerify
             AddCaptureStates();
 
             if (GPUVerifyVCGenCommandLineOptions.WarpSync)
-            {
-              switch (GPUVerifyVCGenCommandLineOptions.WarpMethod) {
-                case "resync" : GenerateWarpSyncs(); break;
-                case "twopass" : if (GPUVerifyVCGenCommandLineOptions.NoWarp) DoNoWarp(); else DoOnlyWarp(); break;
-              }
+            {		    
+              GenerateWarpSyncs();
             }
 
             EmitProgram(outputFilename);
@@ -2263,46 +2260,6 @@ namespace GPUVerify
           return IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",thread)), IntRep.MakeAdd(
                 IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",thread)), Expr.Ident(GetGroupSize("X"))), 
                 IntRep.MakeMul(Expr.Ident(MakeThreadId("Z",thread)), IntRep.MakeMul(Expr.Ident(GetGroupSize("X")),Expr.Ident(GetGroupSize("Y"))))));
-        }
-
-        private void DoOnlyWarp()
-        {
-          Expr condition = Expr.And(ThreadsInSameGroup(), ThreadsInSameWarp());
-          Program.TopLevelDeclarations.Add(new Axiom(Token.NoToken, condition));
-
-          foreach (Implementation impl in Program.TopLevelDeclarations.OfType<Implementation>())
-          {
-            impl.Blocks = impl.Blocks.Select(WarpResets).ToList();
-          }
-        }
-
-        private Block WarpResets(Block b)
-        {
-          var result = new List<Cmd>();
-          foreach (Cmd c in b.Cmds)
-          {
-            result.Add(c);
-            if (c is CallCmd)
-            {
-              CallCmd call = c as CallCmd;
-              if (call.callee.StartsWith("_CHECK_WRITE"))
-              {
-                foreach (Variable v in KernelArrayInfo.getAllNonLocalArrays())
-                {
-                  if (v.Name.Equals(call.callee.Substring(13)) && (!ArrayModelledAdversarially(v) || v.Name.Contains("_NOT_ACCESSED")))
-                    result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr>(new IdentifierExpr[] {new IdentifierExpr(Token.NoToken,v)})));
-                }
-              }
-            }
-          }
-          b.Cmds = result;
-          return b;
-        }
-
-        private void DoNoWarp()
-        {
-          Expr condition = Expr.Imp(ThreadsInSameGroup(), Expr.Not(ThreadsInSameWarp()));
-          Program.TopLevelDeclarations.Add(new Axiom(Token.NoToken, condition));
         }
 
         private void AddWarpSyncs()

@@ -435,11 +435,6 @@ def parse_args(argv):
                           Defaults to 'resync' analysis method, \
                           unless one of the following two options are set",
                           metavar="X")
-    twopass = advanced.add_mutually_exclusive_group()
-    twopass.add_argument("--no-warp",   action='store_true',
-                         help="Only check inter-warp races")
-    twopass.add_argument("--only-warp", action='store_true',
-                         help="Only check intra-warp races")
 
     advanced.add_argument("--race-instrumenter=",
                           choices=["original","watchdog-single","watchdog-multiple"],
@@ -823,10 +818,6 @@ class GPUVerifyInstance (object):
 
     if args.warp_sync:
       CommandLineOptions.vcgenOptions += [ "/doWarpSync:" + str(args.warp_sync) ]
-      if args.no_warp:
-        CommandLineOptions.vcgenOptions += [ "/noWarp" ]
-      if args.only_warp:
-        CommandLineOptions.vcgenOptions += [ "/onlyWarp" ]
     if args.no_refined_atomics:
       CommandLineOptions.vcgenOptions += [ "/noRefinedAtomics" ]
     if args.adversarial_abstraction:

@@ -53,13 +53,8 @@ namespace GPUVerify
 
       List<Cmd> simpleCmds = new List<Cmd>();
 
-      if (GPUVerifyVCGenCommandLineOptions.OnlyWarp) {
-        simpleCmds.Add(AssignCmd.SimpleAssign(v.tok, Expr.Ident(TrackVariable), Expr.True));
-      }
-      else {
-        // Havoc tracking variable
-        simpleCmds.Add(new HavocCmd(v.tok, new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
-      }
+      // Havoc tracking variable
+      simpleCmds.Add(new HavocCmd(v.tok, new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(v.tok, TrackVariable) })));
 
       Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter),
         new IdentifierExpr(v.tok, TrackVariable));
