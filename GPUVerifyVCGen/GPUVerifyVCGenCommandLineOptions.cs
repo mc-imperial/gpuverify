@@ -36,7 +36,6 @@ namespace GPUVerify
     public static bool ShowAccessBreaking = false;
     public static bool ShowMayBePowerOfTwoAnalysis = false;
     public static bool ShowArrayControlFlowAnalysis = false;
-    public static bool SmartPredication = true;
     public static bool OnlyIntraGroupRaceChecking = false;
     public static bool NoBenign = false;
     public static bool AsymmetricAsserts = false;
@@ -184,11 +183,6 @@ namespace GPUVerify
           case "-showArrayControlFlowAnalysis":
           case "/showArrayControlFlowAnalysis":
           ShowArrayControlFlowAnalysis = true;
-          break;
-
-          case "-noSmartPredication":
-          case "/noSmartPredication":
-          SmartPredication = false;
           break;
 
           case "-onlyIntraGroupRaceChecking":
@@ -379,11 +373,11 @@ namespace GPUVerify
   /print:file                   : output bpl file
 
   /kernelArgs:[K,v1,...,vn]     : If K is a kernel whose non-array parameters
-                                    are (x1,...,xn), then add the following 
+                                    are (x1,...,xn), then add the following
                                     precondition:
                                     __requires(x1==v1 && ... && xn==vn)
-                                    An asterisk can be used to denote an 
-                                    unconstrained parameter 
+                                    An asterisk can be used to denote an
+                                    unconstrained parameter
 
   Debugging GPUVerifyVCGen
   ------------------------
@@ -396,8 +390,6 @@ namespace GPUVerify
 
   Optimisations
   -------------
-  /noSmartPredication           : use simple, general predication instead of
-                                    default smarter method
   /noUniformityAnalysis         : do not apply uniformity analysis to restrict
                                     predication
 
@@ -416,8 +408,6 @@ namespace GPUVerify
                                     can be wrong, hindering verification
   /arrayEqualities              : generate equality candidate invariants for
                                     array variables
-  /callSiteAnalysis             : generate procedure preconditions based on
-                                    procedure call sites
 
   Property checking
   -----------------

@@ -419,8 +419,6 @@ def parse_args(argv):
     advanced.add_argument("--no-loop-predicate-invariants", action='store_true',
                           help="Turn off automatic generation of loop invariants \
                           related to predicates, which can be incorrect")
-    advanced.add_argument("--no-smart-predication",         action='store_true',
-                          help="Turn off smart predication")
     advanced.add_argument("--no-uniformity-analysis",       action='store_true',
                           help="Turn off uniformity analysis")
     advanced.add_argument("--no-refined-atomics",           action='store_true',
@@ -856,8 +854,6 @@ class GPUVerifyInstance (object):
       CommandLineOptions.vcgenOptions += [ "/noConstantWriteChecks" ]
     if args.no_loop_predicate_invariants:
       CommandLineOptions.vcgenOptions += [ "/noLoopPredicateInvariants" ]
-    if args.no_smart_predication:
-      CommandLineOptions.vcgenOptions += [ "/noSmartPredication" ]
     if args.no_uniformity_analysis:
       CommandLineOptions.vcgenOptions += [ "/noUniformityAnalysis" ]
     if args.asymmetric_asserts:

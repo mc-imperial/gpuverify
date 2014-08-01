@@ -1878,15 +1878,7 @@ namespace GPUVerify
 
         private void MakeKernelPredicated()
         {
-            if (GPUVerifyVCGenCommandLineOptions.SmartPredication)
-            {
-                SmartBlockPredicator.Predicate(Program, proc => true, uniformityAnalyser);
-            }
-            else
-            {
-                BlockPredicator.Predicate(Program, /*createCandidateInvariants=*/GPUVerifyVCGenCommandLineOptions.Inference);
-            }
-            return;
+          SmartBlockPredicator.Predicate(Program, proc => true, uniformityAnalyser);
         }
 
         private int Check()
