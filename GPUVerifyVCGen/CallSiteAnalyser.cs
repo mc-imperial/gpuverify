@@ -65,11 +65,6 @@ namespace GPUVerify
             {
               CallCmd callCmd = c as CallCmd;
 
-              // Only consider non-inlined procedures
-              if (QKeyValue.FindIntAttribute(callCmd.Proc.Attributes,
-                                             "inline", -1) != -1)
-                continue;
-
               if (!CallSites.ContainsKey(callCmd.Proc))
                 {
                   CallSites[callCmd.Proc] = new List<CallCmd>();
@@ -93,11 +88,8 @@ namespace GPUVerify
 
       foreach (CallCmd callCmd in CallSites[p])
         {
-          if (callCmd.Ins[arg] == null)
+          if (callCmd.Ins[arg] == null || !(callCmd.Ins[arg] is LiteralExpr))
             return;
-
-          if (!(callCmd.Ins[arg] is LiteralExpr))
-            continue;
 
           LiteralExpr l = callCmd.Ins[arg] as LiteralExpr;
 
@@ -105,12 +97,12 @@ namespace GPUVerify
             literal = l;
           else if (!literal.Equals(l))
             return;
-
-          Expr e;
-          e = new IdentifierExpr(Token.NoToken, p.InParams[arg]);
-          e = Expr.Eq(e, literal);
-          p.Requires.Add(new Requires(false, e));
         }
+
+        Expr e;
+        e = new IdentifierExpr(Token.NoToken, p.InParams[arg]);
+        e = Expr.Eq(e, literal);
+        p.Requires.Add(new Requires(false, e));
     }
   }
 }

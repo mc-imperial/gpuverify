@@ -1,5 +1,5 @@
 //pass
-//--local_size=64 --num_groups=64 --call-site-analysis --no-inline
+//--local_size=64 --num_groups=64 --no-inline
 
 void bar(__local float* pAlias)
 {

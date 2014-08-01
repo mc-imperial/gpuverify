@@ -401,8 +401,6 @@ def parse_args(argv):
                           type=lambda x: SourceLanguage.OpenCL if x == "cl" else SourceLanguage.CUDA,
                           help="Bitcode language if passing in a bitcode file")
 
-    advanced.add_argument("--call-site-analysis",           action='store_true',
-                          help="Turn on call site analysis")
     advanced.add_argument("--math-int",                     action='store_true',
                           help="Represent integer types using mathematical integers \
                           instead of bit-vectors")
@@ -867,8 +865,6 @@ class GPUVerifyInstance (object):
     if args.staged_inference:
       CommandLineOptions.vcgenOptions += [ "/stagedInference" ]
       CommandLineOptions.cruncherOptions += [ "/stagedInference" ]
-    if args.call_site_analysis:
-      CommandLineOptions.vcgenOptions += [ "/callSiteAnalysis" ]
 
     CommandLineOptions.vcgenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 

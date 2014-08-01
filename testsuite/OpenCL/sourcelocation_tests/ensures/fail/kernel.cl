@@ -14,7 +14,8 @@ int bar(int a) {
 
 __kernel void foo() {
 
-  int x;
+  int x, y;
   x = bar(5);
+  y = bar(6);
 
 }

@@ -526,10 +526,7 @@ namespace GPUVerify
 
             DoArrayControlFlowAnalysis();
 
-            if (GPUVerifyVCGenCommandLineOptions.DoCallSiteAnalysis)
-            {
-                DoCallSiteAnalysis();
-            }
+            DoCallSiteAnalysis();
 
             if (GPUVerifyVCGenCommandLineOptions.Inference)
             {

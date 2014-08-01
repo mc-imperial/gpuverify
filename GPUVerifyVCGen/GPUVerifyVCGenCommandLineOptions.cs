@@ -57,7 +57,6 @@ namespace GPUVerify
     public static bool NonDeterminiseUninterpretedFunctions = false;
     public static bool IdentifySafeBarriers = true;
     public static bool CheckSingleNonInlinedImpl = false;
-    public static bool DoCallSiteAnalysis = false;
     public static bool PruneInfeasibleEdges = true;
     public static bool PrintLoopStatistics = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
@@ -304,11 +303,6 @@ namespace GPUVerify
           case "-checkSingleNonInlinedImpl":
           case "/checkSingleNonInlinedImpl":
           CheckSingleNonInlinedImpl = true;
-          break;
-
-          case "-callSiteAnalysis":
-          case "/callSiteAnalysis":
-          DoCallSiteAnalysis = true;
           break;
 
           case "-noCandidate":
