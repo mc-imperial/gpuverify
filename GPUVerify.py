@@ -397,9 +397,6 @@ def parse_args(argv):
     advanced.add_argument("--boogie-file=", type=argparse.FileType('r'), action='append',
                           help="Specify a supporting .bpl file to be used \
                           during verification", metavar="X.bpl")
-    advanced.add_argument("--bugle-lang=", dest='source_language', choices=["cl","cu"],
-                          type=lambda x: SourceLanguage.OpenCL if x == "cl" else SourceLanguage.CUDA,
-                          help="Bitcode language if passing in a bitcode file")
 
     advanced.add_argument("--math-int",                     action='store_true',
                           help="Represent integer types using mathematical integers \
