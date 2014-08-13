@@ -237,6 +237,50 @@ class StripFile(DeployTask):
     logging.info('Stripping "' + self.path + '"')
     subprocess.call(['strip', self.path])
 
+class EmbedMonoRuntime(DeployTask):
+  def __init__(self, exePath, outputPath, assemblies=None, staticLink=True):
+    self.exePath = exePath
+    self.outputPath = outputPath
+    self.staticLink = staticLink
+    self.assemblies = assemblies
+
+    assert os.path.isabs(self.exePath)
+    assert not os.path.isdir(self.exePath)
+    assert os.path.isabs(self.outputPath)
+    assert not os.path.isdir(self.outputPath)
+
+  def run(self):
+    workdir = os.path.dirname(self.exePath)
+    cmdLine = ['mkbundle',
+               '-L', workdir, # Search for dlls in same directory as exe
+               '--deps',
+               '-o', self.outputPath
+              ]
+
+    if self.staticLink:
+      cmdLine.append('--static')
+
+    cmdLine.append(self.exePath) # The compiled .NET program that we will create a bundle for
+
+    if self.assemblies != None:
+      assert type(self.assemblies) == list
+      cmdLine.extend(self.assemblies)
+
+    logging.debug('Running {}'.format(cmdLine))
+    retCode = subprocess.call(cmdLine)
+
+    if retCode != 0:
+      logging.error('Failed to embed mono runtime for {}'.format(self.exePath))
+      sys.exit(1)
+
+class RemoveFile(DeployTask):
+  def __init__(self, fileToRemove):
+    self.fileToRemove = fileToRemove
+
+  def run(self):
+    logging.debug('Removing file {}'.format(self.fileToRemove))
+    os.remove(self.fileToRemove)
+
 def main(argv):
   des=('Deploys GPUVerify to a directory by copying the necessary '
       'files from the development directory so that GPUVerify can '
@@ -254,6 +298,12 @@ def main(argv):
                       help = "solvers to include in deployment (all, z3, cvc4)",
                       type = str,
                       default = 'all'
+                     )
+  parser.add_argument("-m",
+                      "--embed-mono-runtime",
+                      help="If enabled embed the mono runtime in the C# tools" if os.name == 'posix' else argparse.SUPPRESS,
+                      action = "store_true",
+                      default = False
                      )
 
   args = parser.parse_args()
@@ -355,6 +405,39 @@ def main(argv):
     IfUsing('posix', FileCopy(kiSrc + os.sep + "cl_interceptor", 'libcl_interceptor.a', kiDest)),
     IfUsing('nt', FileCopy(kiSrc + os.sep + "x64" + os.sep + "Debug", 'cl_interceptor.lib', kiDest)),
   ])
+
+  # Embed mono runtime
+  if args.embed_mono_runtime:
+    # Make a list of the assemblies that need embedding and the GPUVerify executable names
+    _ignored, _ignored, files = next(os.walk(gvfindtools.gpuVerifyBinDir))
+
+    assemblies = list(filter(lambda f: f.endswith('.dll'), files))
+    gpuverifyExecutables = list(filter(lambda f: f.startswith('GPUVerify') and f.endswith('.exe'), files))
+    assert len(assemblies) > 0
+    assert len(gpuverifyExecutables) > 0
+
+    for tool in gpuverifyExecutables:
+      deployActions.append(
+        EmbedMonoRuntime(exePath = gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + tool,
+                         outputPath = gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + tool + ".mono",
+                         assemblies = assemblies
+                        )
+      )
+
+    # Delete the assemblies after creating the bundled executables
+    for fileToRemove in assemblies + gpuverifyExecutables:
+      deployActions.append(
+          RemoveFile(gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + fileToRemove)
+      )
+
+    # Finally rename the bundled executables (e.g. GPUVerifyVCGen.exe.mono -> GPUVerifyVCGen.exe)
+    for executable in gpuverifyExecutables:
+      deployActions.append(
+        MoveFile( srcpath = gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + executable + '.mono',
+                  destpath = gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + executable
+        )
+      )
+
 
   for action in deployActions:
     action.run()
