@@ -71,7 +71,7 @@ except NameError:
   class WindowsError(Exception):
     pass
 
-if os.name == 'posix':
+if gvfindtools.useMono:
   # Check mono in path
   if distutils.spawn.find_executable('mono') == None:
     raise ConfigurationError("Could not find the mono executable in your PATH")
@@ -699,13 +699,13 @@ class GPUVerifyInstance (object):
 
     self.out = out
 
-    if os.name == 'posix':
+    if gvfindtools.useMono:
       if args.debug:
         self.mono = [ 'mono' , '--debug' ]
       else:
         self.mono = [ 'mono' ]
     else:
-      self.mono = [] # Presumably using Windows so don't need mono
+      self.mono = []
 
     self.timing = {}
 

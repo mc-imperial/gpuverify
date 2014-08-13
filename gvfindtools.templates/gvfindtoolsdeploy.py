@@ -24,6 +24,9 @@ cvc4SrcDir=None
 cvc4BinDir=None
 defaultSolver=None
 
+# deploy.py will do a substitution for @USE_MONO@
+useMono = True if '@USE_MONO@' == 'True' else False
+
 def init(pathPrefix):
   """Modify this modules variables by adding a path prefix"""
 

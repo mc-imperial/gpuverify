@@ -8,6 +8,7 @@ import shutil
 import re
 import datetime
 import subprocess
+import fileinput
 
 import getversion
 
@@ -266,7 +267,7 @@ class EmbedMonoRuntime(DeployTask):
       assert type(self.assemblies) == list
       cmdLine.extend(self.assemblies)
 
-    logging.debug('Running {}'.format(cmdLine))
+    logging.info('Running {}'.format(cmdLine))
     retCode = subprocess.call(cmdLine)
 
     if retCode != 0:
@@ -278,8 +279,35 @@ class RemoveFile(DeployTask):
     self.fileToRemove = fileToRemove
 
   def run(self):
-    logging.debug('Removing file {}'.format(self.fileToRemove))
+    logging.info('Removing file {}'.format(self.fileToRemove))
+    if not os.path.isfile(self.fileToRemove):
+      logging.error('File "' + self.path + '" does not exist')
+      sys.exit(1)
+
     os.remove(self.fileToRemove)
+
+class InPlaceSubstitution(DeployTask):
+  def __init__(self, filePath, subs):
+    self.filePath = filePath
+    self.subs = subs
+
+    assert os.path.isabs(self.filePath)
+    assert type(self.subs) == dict
+
+  def run(self):
+    logging.info('Doing substitutions in file "{}" using subs {}'.format(self.filePath, self.subs))
+    for line in fileinput.input(self.filePath,inplace=True):
+      newLine = line
+      for key, replacement in self.subs.items():
+        oldLine = newLine
+        newLine = line.replace( '@' + key + '@', replacement)
+
+        if oldLine != newLine:
+          logging.debug('****Replacement\n"{original}"\nwith\n"{replacement}"\n'.format(original=oldLine.rstrip('\n'), replacement=newLine.rstrip('\n')))
+
+      # Finally write new line value to file
+      sys.stdout.write(newLine)
+
 
 def main(argv):
   des=('Deploys GPUVerify to a directory by copying the necessary '
@@ -358,7 +386,7 @@ def main(argv):
   MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'gpuverify-boogie.txt'),
   IfUsing('posix',FileCopy(GPUVerifyRoot, 'gpuverify', deployDir)),
   IfUsing('nt',FileCopy(GPUVerifyRoot, 'GPUVerify.bat', deployDir)),
-  FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir),
+  FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir), # Note this will patched later
   MoveFile(deployDir + os.sep + 'gvfindtoolsdeploy.py', deployDir + os.sep + 'gvfindtools.py'),
   RegexFileCopy(gvfindtools.gpuVerifyBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBinDir),
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
@@ -438,6 +466,13 @@ def main(argv):
         )
       )
 
+  substitutions = { 'USE_MONO': str(not args.embed_mono_runtime) }
+
+  # Write out gvfindtools.py with any necessary substitutions
+  deployActions.append( InPlaceSubstitution(filePath= deployDir + os.sep + 'gvfindtools.py',
+                                            subs = substitutions
+                                           )
+                      )
 
   for action in deployActions:
     action.run()

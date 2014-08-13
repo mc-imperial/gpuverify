@@ -3,6 +3,7 @@
 
     These paths must be absolute paths.
 """
+import os
 import sys
 
 rootDir = "/home/vagrant/GPUVerify"
@@ -49,6 +50,9 @@ cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 # Default solver should be one of ['z3','cvc4']
 defaultSolver = 'z3'
+
+# If true mono will prepended to every command involving CIL executables
+useMono = True if os.name == 'posix' else False
 
 def init(prefixPath):
   """This method does nothing"""
