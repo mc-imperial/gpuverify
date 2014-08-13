@@ -1,5 +1,5 @@
 #!/usr/bin/env python2.7
-# vim: set shiftwidth=4 tabstop=4 expandtab softtabstop=4:
+# vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 import sys
 import os
 import argparse
