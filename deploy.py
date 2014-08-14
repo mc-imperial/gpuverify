@@ -466,7 +466,7 @@ def main(argv):
         )
       )
 
-  substitutions = { 'USE_MONO': str(not args.embed_mono_runtime) }
+  substitutions = { 'USE_MONO': str((not args.embed_mono_runtime) and os.name == 'posix') }
 
   # Write out gvfindtools.py with any necessary substitutions
   deployActions.append( InPlaceSubstitution(filePath= deployDir + os.sep + 'gvfindtools.py',
