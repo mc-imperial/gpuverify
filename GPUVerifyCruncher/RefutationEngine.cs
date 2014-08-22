@@ -488,6 +488,10 @@ namespace Microsoft.Boogie
       else
       {       
         ErrorCode = 1; 
+      }
+      
+      if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).WriteKilledInvariantsToFile)
+      {
         DumpKilledInvariants(pipeline.ToString());
       }
     }

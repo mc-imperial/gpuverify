@@ -21,6 +21,7 @@ namespace GPUVerify
     // Assume a sequential pipeline unless the user selects otherwise
     public Pipeline Pipeline = new Pipeline(sequential: true);
     
+    public bool WriteKilledInvariantsToFile = false;
     public bool ReplaceLoopInvariantAssertions = false;
     public bool EnableBarrierDivergenceChecks = false;
     public string PipelineString = null;
@@ -51,6 +52,11 @@ namespace GPUVerify
       
       if (name == "noHoudini") {
         Pipeline.runHoudini = false;
+        return true;
+      }
+      
+      if (name == "writeKilledInvariantsToFile") {
+        WriteKilledInvariantsToFile = true;
         return true;
       }
 
