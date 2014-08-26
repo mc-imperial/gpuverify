@@ -431,9 +431,7 @@ def parse_args(argv):
                           metavar="K,v1,...,vn")
 
     advanced.add_argument("--warp-sync=", type=non_negative,
-                          help="Synchronize threads within warps of size X. \
-                          Defaults to 'resync' analysis method, \
-                          unless one of the following two options are set",
+                          help="Synchronize threads within warps of size X.",
                           metavar="X")
 
     advanced.add_argument("--race-instrumenter=",
