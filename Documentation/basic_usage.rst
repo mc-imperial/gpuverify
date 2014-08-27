@@ -525,11 +525,6 @@ Check atomics as racy against reads (r), writes (w), both (rw), or none (none) (
 
 Choose which SMT Theorem Prover to use in the backend.  Available options: 'Z3' or 'cvc4' (default is 'Z3')
 
-``--logic=X``
-^^^^^^^^^^^^^
-
-Define the logic to be used by the CVC4 SMT solver backend (default is QF_ALL_SUPPORTED)
-
 Invariant inference options
 ---------------------------
 

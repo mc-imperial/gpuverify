@@ -428,10 +428,6 @@ def parse_args(argv):
     advanced.add_argument("--solver=", choices=["z3","cvc4"], default=gvfindtools.defaultSolver,
                           help="Choose which SMT theorem prover to use in the backend. \
                           Default is " + gvfindtools.defaultSolver)
-    advanced.add_argument("--logic=", choices=["ALL_SUPPORTED","QF_ALL_SUPPORTED"],
-                          default="QF_ALL_SUPPORTED",
-                          help="Define the logic for the CVC4 SMT solver backend. \
-                          Default is QF_ALL_SUPPORTED")
 
     development = parser.add_argument_group("DEVELOPMENT OPTIONS")
     development.add_argument("--debug",         action='store_true',
@@ -852,10 +848,10 @@ class GPUVerifyInstance (object):
     if args.solver == "cvc4":
       CommandLineOptions.cruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
       CommandLineOptions.cruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
-      CommandLineOptions.cruncherOptions += [ "/proverOpt:LOGIC=" + args.logic ]
+      CommandLineOptions.cruncherOptions += [ "/proverOpt:LOGIC=QF_ALL_SUPPORTED" ]
       CommandLineOptions.boogieOptions += [ "/proverOpt:SOLVER=cvc4" ]
       CommandLineOptions.boogieOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
-      CommandLineOptions.boogieOptions += [ "/proverOpt:LOGIC=" + args.logic ]
+      CommandLineOptions.boogieOptions += [ "/proverOpt:LOGIC=QF_ALL_SUPPORTED" ]
     else:
       CommandLineOptions.cruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
       CommandLineOptions.boogieOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
