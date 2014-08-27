@@ -107,7 +107,6 @@ class GPUVerifyTool(object):
 
     #A whitelist of allowed options
     safeOptions=['--adversarial-abstraction',
-                 '--array-equalities',
                  '--asymmetric-asserts',
                  r'--atomic=(r|rw|none)',
                  # '--debug', # developer option, should not be visible
@@ -118,20 +117,14 @@ class GPUVerifyTool(object):
                  '--math-int',
                  '--no-annotations',
                  '--no-barrier-access-checks',
-                 '--no-benign',
-                 '--no-constant-write-checks',
+                 '--no-benign-tolerance',
                  '--no-infer',
                  '--no-loop-predicate-invariants',
-                 '--no-refinded-atomics',
-                 # '--no-smart-predication', # Most likely broken, disable
-                 '--no-uniformity-analysis',
                  '--only-divergence',
                  '--only-intra-group',
                  '--only-requires',
-                 # '--parallel-inference', # Might bog down machine completely
                  '--time',
                  '--staged-inference',
-                 # r'--scheduling=[a-z-]+', # Not sure if safe
                  '--verify',
                  # '--verbose', # developer option, should not be visible
                  r'--warp-sync=\d{1,3}',

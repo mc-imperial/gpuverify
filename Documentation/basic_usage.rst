@@ -11,7 +11,7 @@ OpenCL
 
 To invoke GPUVerify on an OpenCL kernel, do::
 
-  gpuverify --local_size=<work-group-dimensions> --num_groups=<grid-dimensions> <OpenCL file> 
+  gpuverify --local_size=<work-group-dimensions> --num_groups=<grid-dimensions> <OpenCL file>
 
 Here, ``<work-group-dimensions>`` is a vector specifying the dimensionality of each work group, ``<grid-dimensions>`` is a vector specifying the dimensionality of the grid of work groups, and ``<OpenCL file>`` is an OpenCL file with extension ``.cl``.
 
@@ -23,11 +23,11 @@ For brevity, a 1D vector ``[x]`` can be written as simply ``x``. So,
 for instance, to check ``kernel.cl`` with respect to a single work
 group which is a (32x32) arrangement of work-items, you can specify::
 
-  gpuverify --num_groups=1 --local_size=[32,32] kernel.cl 
+  gpuverify --num_groups=1 --local_size=[32,32] kernel.cl
 
 which is equivalent to::
 
-  gpuverify --num_groups=[1] --local_size=[32,32] kernel.cl 
+  gpuverify --num_groups=[1] --local_size=[32,32] kernel.cl
 
 An alternative to specifying the grid of workgroups using ``--num-groups=`` is
 to use the ``--global_size=`` argument instead. This allows the size of the
@@ -66,7 +66,7 @@ group which is a (32x32) arrangement of work-items, you can specify::
 
 which is equivalent to::
 
-  gpuverify --gridDim=[1] --blockDim=[32,32] kernel.cu 
+  gpuverify --gridDim=[1] --blockDim=[32,32] kernel.cu
 
 
 Usage modes
@@ -247,7 +247,7 @@ all threads in a thread block will reach the same barrier::
 ::
 
   barrier-div-cuda.cu:6:5: error: barrier may be reached by non-uniform control flow
-     __syncthreads(); 
+     __syncthreads();
 
 
 Command Line Options
@@ -294,8 +294,8 @@ Give Boogie, the verifier on which GPUVerify is built, a hard memory
 limit of X megabytes.  Specifying a memout of 0 disables the
 memout. The default is 0, i.e. no memory limit.
 
-``--no-benign``
-^^^^^^^^^^^^^^^
+``--no-benign-tolerance``
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 By default, GPUVerify tries to tolerate certain kinds of (arguably)
 *benign* data races.  For example, if GPUVerify can figure out that in
@@ -314,9 +314,7 @@ Also, it may be the case (though we have not evaluated this
 systematically) that tolerating benign races carries some performance
 overhead in terms of verification time.
 
-To disable tolerance of benign races, specify ``--no-benign``.
-
-.. todo:: Maybe this option should be ``--no-benign-tolerance``.  Just ``--no-benign`` is perhaps a bit misleading: one might think it means "don't warn be about benign races"; actually, it means the opposite.
+To disable tolerance of benign races, specify ``--no-benign-tolerance``.
 
 ``--only-divergence``
 ^^^^^^^^^^^^^^^^^^^^^
@@ -374,11 +372,6 @@ Completely abstract shared state, so that reads are nondeterministic.
 
 See also :ref:`equality-abstraction`.
 
-``--array-equalities``
-^^^^^^^^^^^^^^^^^^^^^^
-
-During invariant inference, generate equality candidate invariants for array variables.  This is not done by default as it can be very expensive.
-
 ``--asymmetric-asserts``
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -407,13 +400,6 @@ If you run GPUVerify directly on an LLVM bitcode file, you'll need to tell Bugle
 ^^^^^^^^^^^^^^^^^^^
 
 Use this to pass a command-line option directly to Bugle, the component of GPUVerify that translates LLVM bitcode into Boogie.
-
-``--call-site-analysis``
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-Turn on call site analysis.
-
-.. todo: I [Ally] do not know what this analysis is.
 
 ``--clang-opt=...``
 ^^^^^^^^^^^^^^^^^^^
@@ -470,35 +456,10 @@ Ignore all source-level annotations except for requires
 
 Turn off access checks for barrier invariants
 
-``--no-constant-write-checks``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Turn off access checks for writes to constant space
-
 ``--no-inline``
 ^^^^^^^^^^^^^^^
 
 Turn off automatic inlining by Bugle
-
-``--no-loop-predicate-invariants``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Turn off automatic generation of loop invariants related to predicates, which can be incorrect
-
-``--no-smart-predication``
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Turn off smart predication
-
-``--no-source-loc-infer``
-^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Turn off inference of source location information
-
-``--no-uniformity-analysis``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Turn off uniformity analysis
 
 ``--only-log``
 ^^^^^^^^^^^^^^
@@ -537,10 +498,10 @@ Stop after generating bpl
 
 Print timing as CSV row with label
 
-``--vcgen-timeout=``\X
+``--timeout=``\X
 ^^^^^^^^^^^^^^^^^^^^^^
 
-Allow VCGen to run for X seconds.
+Allow each tool to run for X seconds.
 
 ``--vcgen-opt=...``
 ^^^^^^^^^^^^^^^^^^^
@@ -550,9 +511,7 @@ Specify option to be passed to be passed to VC generation engine
 ``--warp-sync=``\X
 ^^^^^^^^^^^^^^^^^^
 
-Synchronize threads within warps, sized X, defaulting to 32
-
-.. todo: Sounds like this is on by default, but it is not.  So what does "default" mean here?
+Synchronize threads within warps, sized X
 
 ``--atomic=``\X
 ^^^^^^^^^^^^^^^
@@ -560,10 +519,6 @@ Synchronize threads within warps, sized X, defaulting to 32
 Check atomics as racy against reads (r), writes (w), both (rw), or none (none) (default is ``--atomic=rw``)
 
 .. todo: Should this go, now that OpenCL 2 suggests what the rules are?
-
-``--no-refined-atomics``
-^^^^^^^^^^^^^^^^^^^^^^^^
-Don't do abstraction refinement on the return values from atomics
 
 ``--solver=``\X
 ^^^^^^^^^^^^^^^
@@ -583,35 +538,10 @@ Invariant inference options
 
 Turn off invariant inference
 
-``--infer-timeout=``\X
-^^^^^^^^^^^^^^^^^^^^^^
-
-Allow GPUVerifyCruncher to run for X seconds.
-
 ``--staged-inference``
 ^^^^^^^^^^^^^^^^^^^^^^
 
 Perform invariant inference in stages; this can sometimes boost performance for complex kernels
-
-``--parallel-inference``
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-Use multiple solver instances in parallel to potentially accelerate invariant inference
-
-``--dynamic-analysis``
-^^^^^^^^^^^^^^^^^^^^^^
-
-Use dynamic analysis to falsify invariants.
-
-``--scheduling=``\X
-^^^^^^^^^^^^^^^^^^^
-
-Choose a parallel scheduling strategy from the following: 'default', 'unsound-first' or 'brute-force'. The 'default' strategy executes first any dynamic engines, then any unsound static engines and then the sound static engines. The 'unsound-first' strategy executes any unsound engines (either static or dynamic) together before the soundengines.  The 'brute-force' strategy executes all engines together but performance is highly non-deterministic.
-
-``--infer-config-file=``\X\ ``.cfg``
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Specify a custom configuration file to be used during invariant inference
 
 ``--infer-info``
 ^^^^^^^^^^^^^^^^
@@ -625,7 +555,7 @@ OpenCL-specific options
 ^^^^^^^^^^^^^^^^^^^^
 
 Specify whether work-group is 1D, 2D 3D and specify size for each dimension.  Use X, [X,Y] and [X,Y,Z] for a 1D, 2D and 3D work group, respectively.
-This corresponds to the `local_work_size` parameter of clEnqueueNDRangeKernel().  
+This corresponds to the `local_work_size` parameter of clEnqueueNDRangeKernel().
 
 ``--num_groups=...``
 ^^^^^^^^^^^^^^^^^^^^
@@ -650,5 +580,3 @@ Specify whether thread block is 1D, 2D or 3D and specify size for each dimension
 ``--gridDim=...``
 ^^^^^^^^^^^^^^^^^
 Specify whether grid of thread blocks is 1D, 2D or 3D and specify size for each dimension.  Use X, [X,Y] and [X,Y,Z] for a !D, 2D and 3D grid, respectively.
-
-

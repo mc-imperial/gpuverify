@@ -313,7 +313,7 @@ def parse_args(argv):
                          Implies --findbugs",
                          metavar="X")
 
-    general.add_argument("--no-benign",        action='store_true',
+    general.add_argument("--no-benign-tolerance", action='store_true',
                          help="Do not tolerate benign data races")
     general.add_argument("--only-divergence",  action='store_true',
                          help="Only check for barrier divergence, not races")
@@ -807,7 +807,7 @@ class GPUVerifyInstance (object):
       CommandLineOptions.vcgenOptions += [ "/adversarialAbstraction" ]
     if args.equality_abstraction:
       CommandLineOptions.vcgenOptions += [ "/equalityAbstraction" ]
-    if args.no_benign:
+    if args.no_benign_tolerance:
       CommandLineOptions.vcgenOptions += [ "/noBenign" ]
     if args.only_divergence:
       CommandLineOptions.vcgenOptions += [ "/onlyDivergence" ]
