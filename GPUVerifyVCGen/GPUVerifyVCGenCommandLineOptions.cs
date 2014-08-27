@@ -27,7 +27,6 @@ namespace GPUVerify
     public static bool AdversarialAbstraction = false;
     public static bool EqualityAbstraction = false;
     public static bool Inference = true;
-    public static bool ArrayEqualities = false;
     public static bool BarrierAccessChecks = true;
     public static bool ShowStages = false;
     public static bool ShowUniformityAnalysis = false;
@@ -149,11 +148,6 @@ namespace GPUVerify
           case "-noInfer":
           case "/noInfer":
           Inference = false;
-          break;
-
-          case "-arrayEqualities":
-          case "/arrayEqualities":
-          ArrayEqualities = true;
           break;
 
           case "-showUniformityAnalysis":
@@ -380,8 +374,6 @@ namespace GPUVerify
   Invariant inference
   -------------------
   /noInfer                      : turn off automatic invariant inference
-  /arrayEqualities              : generate equality candidate invariants for
-                                    array variables
 
   Property checking
   -----------------

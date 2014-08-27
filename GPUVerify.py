@@ -385,10 +385,6 @@ def parse_args(argv):
     abstraction.add_argument("--equality-abstraction",    action='store_true',
                              help="At barriers, make shared arrays non-deterministic \
                              but consistent between threads")
-
-    advanced.add_argument("--array-equalities",   action='store_true',
-                          help="Generate equality candidate invariants \
-                          for array variables")
     advanced.add_argument("--asymmetric-asserts", action='store_true',
                           help="Emit assertions only for the first thread. \
                           Sound, and may lead to faster verification, \

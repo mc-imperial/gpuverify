@@ -73,7 +73,6 @@ namespace GPUVerify
     Dictionary<Block, HashSet<Block>> ControlDependence = CFG.ControlDependence();
     ControlDependence.TransitiveClosure();
     CFG.ComputeLoops();
-    var LoopNodes = CFG.BackEdgeNodes(header).Select(Item => CFG.NaturalLoops(header, Item)).SelectMany(Item => Item);
 
     Expr CombinedGuard = null;
     foreach(var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
@@ -106,7 +105,7 @@ namespace GPUVerify
         Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
                   CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE, "do_not_predicate");
     }
-  
+
   }
 
   private static void GetReadAndWrittenVariables(IRegion region, out IEnumerable<Variable> ReadVariables, out IEnumerable<Variable> WrittenVariables) {
@@ -525,15 +524,6 @@ namespace GPUVerify
    AddCandidateInvariants(LocalVars, Impl);
   }
 
-  private void AddEqualityCandidateInvariant(IRegion region, string LoopPredicate, Variable v)
-  {
-   verifier.AddCandidateInvariant(region,
-    Expr.Eq(
-     new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable)),
-     new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable))
-    ), "equality", InferenceStages.BASIC_CANDIDATE_STAGE);
-  }
-
   private void AddPredicatedEqualityCandidateInvariant(IRegion region, string LoopPredicate, Variable v)
   {
    verifier.AddCandidateInvariant(region, Expr.Imp(
@@ -649,16 +639,6 @@ namespace GPUVerify
      AddPredicatedEqualityCandidateInvariant(region, LoopPredicate, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lv, Microsoft.Boogie.Type.Int)));
     }
 
-    if (GPUVerifyVCGenCommandLineOptions.ArrayEqualities)
-    {
-     foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays())
-     {
-      if (!verifier.ArrayModelledAdversarially(v))
-      {
-       AddEqualityCandidateInvariant(region, LoopPredicate, v);
-      }
-     }
-    }
    }
   }
 
