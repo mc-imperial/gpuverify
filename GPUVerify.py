@@ -5,12 +5,9 @@ from __future__ import print_function
 import pickle
 import argparse
 import os
-import signal
 import subprocess
 import sys
 import timeit
-import threading
-import multiprocessing # Only for determining number of CPU cores available
 import getversion
 import pprint
 import tempfile
