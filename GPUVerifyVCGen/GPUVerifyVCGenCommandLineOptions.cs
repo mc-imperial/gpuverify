@@ -380,9 +380,6 @@ namespace GPUVerify
   Invariant inference
   -------------------
   /noInfer                      : turn off automatic invariant inference
-  /noLoopPredicateInvariants    : turn off automatic generation of invariants
-                                    about loop predicates.  Occasionally they
-                                    can be wrong, hindering verification
   /arrayEqualities              : generate equality candidate invariants for
                                     array variables
 

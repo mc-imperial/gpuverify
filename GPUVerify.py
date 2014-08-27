@@ -410,10 +410,7 @@ def parse_args(argv):
     advanced.add_argument("--no-barrier-access-checks",     action='store_true',
                           help="Turn off access checks for barrier invariants")
     advanced.add_argument("--no-inline",                    action='store_true',
-                          help="Turn off automatic inlining by Bugle")
-    advanced.add_argument("--no-loop-predicate-invariants", action='store_true',
-                          help="Turn off automatic generation of loop invariants \
-                          related to predicates, which can be incorrect")
+                          help="Turn off automatic function inlining")
     advanced.add_argument("--only-log",                     action='store_true',
                           help="Log accesses to arrays, but do not check for races. \
                           This can be useful for determining access pattern invariants")
@@ -828,8 +825,6 @@ class GPUVerifyInstance (object):
       CommandLineOptions.vcgenOptions += [ "/noInfer" ]
     if args.no_barrier_access_checks:
       CommandLineOptions.vcgenOptions += [ "/noBarrierAccessChecks" ]
-    if args.no_loop_predicate_invariants:
-      CommandLineOptions.vcgenOptions += [ "/noLoopPredicateInvariants" ]
     if args.asymmetric_asserts:
       CommandLineOptions.vcgenOptions += [ "/asymmetricAsserts" ]
     if args.staged_inference:
