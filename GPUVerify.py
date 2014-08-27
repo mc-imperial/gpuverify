@@ -414,10 +414,6 @@ def parse_args(argv):
     advanced.add_argument("--no-loop-predicate-invariants", action='store_true',
                           help="Turn off automatic generation of loop invariants \
                           related to predicates, which can be incorrect")
-    advanced.add_argument("--no-uniformity-analysis",       action='store_true',
-                          help="Turn off uniformity analysis")
-    advanced.add_argument("--no-refined-atomics",           action='store_true',
-                          help="Disable return-value abstraction refinement for atomics")
     advanced.add_argument("--only-log",                     action='store_true',
                           help="Log accesses to arrays, but do not check for races. \
                           This can be useful for determining access pattern invariants")
@@ -814,8 +810,6 @@ class GPUVerifyInstance (object):
 
     if args.warp_sync:
       CommandLineOptions.vcgenOptions += [ "/doWarpSync:" + str(args.warp_sync) ]
-    if args.no_refined_atomics:
-      CommandLineOptions.vcgenOptions += [ "/noRefinedAtomics" ]
     if args.adversarial_abstraction:
       CommandLineOptions.vcgenOptions += [ "/adversarialAbstraction" ]
     if args.equality_abstraction:
@@ -836,8 +830,6 @@ class GPUVerifyInstance (object):
       CommandLineOptions.vcgenOptions += [ "/noBarrierAccessChecks" ]
     if args.no_loop_predicate_invariants:
       CommandLineOptions.vcgenOptions += [ "/noLoopPredicateInvariants" ]
-    if args.no_uniformity_analysis:
-      CommandLineOptions.vcgenOptions += [ "/noUniformityAnalysis" ]
     if args.asymmetric_asserts:
       CommandLineOptions.vcgenOptions += [ "/asymmetricAsserts" ]
     if args.staged_inference:
