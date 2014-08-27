@@ -433,8 +433,6 @@ def parse_args(argv):
     development.add_argument("--debug",         action='store_true',
                              help="Enable debugging of GPUVerify components: \
                              exceptions will not be suppressed")
-    development.add_argument("--debug-houdini", action='store_true',
-                             help="Debug Houdini")
     development.add_argument("--keep-temps",    action='store_true',
                              help="Keep intermediate bc, gbpl, and cbpl files")
     development.add_argument("--gen-smt2",      action='store_true',
@@ -842,8 +840,6 @@ class GPUVerifyInstance (object):
 
     if args.infer_info:
       CommandLineOptions.cruncherOptions += [ "/trace" ]
-    if args.debug_houdini:
-      CommandLineOptions.cruncherOptions += [ "/debugConcurrentHoudini" ]
 
     if args.solver == "cvc4":
       CommandLineOptions.cruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
