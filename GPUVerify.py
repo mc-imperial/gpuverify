@@ -409,8 +409,6 @@ def parse_args(argv):
                           help="Interpret all source-level invariants as candidates")
     advanced.add_argument("--no-barrier-access-checks",     action='store_true',
                           help="Turn off access checks for barrier invariants")
-    advanced.add_argument("--no-constant-write-checks",     action='store_true',
-                          help="Turn off access checks for writes to constant space")
     advanced.add_argument("--no-inline",                    action='store_true',
                           help="Turn off automatic inlining by Bugle")
     advanced.add_argument("--no-loop-predicate-invariants", action='store_true',
@@ -836,8 +834,6 @@ class GPUVerifyInstance (object):
       CommandLineOptions.vcgenOptions += [ "/noInfer" ]
     if args.no_barrier_access_checks:
       CommandLineOptions.vcgenOptions += [ "/noBarrierAccessChecks" ]
-    if args.no_constant_write_checks:
-      CommandLineOptions.vcgenOptions += [ "/noConstantWriteChecks" ]
     if args.no_loop_predicate_invariants:
       CommandLineOptions.vcgenOptions += [ "/noLoopPredicateInvariants" ]
     if args.no_uniformity_analysis:

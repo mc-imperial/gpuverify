@@ -141,9 +141,8 @@ namespace GPUVerify
                 this.NoAccessInstrumenter = new NoAccessInstrumenter(this);
             }
 
-            if (GPUVerifyVCGenCommandLineOptions.ConstantWriteChecks) {
-                this.ConstantWriteInstrumenter = new ConstantWriteInstrumenter(this);
-            }
+            this.ConstantWriteInstrumenter = new ConstantWriteInstrumenter(this);
+
             if (GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
               this.RaceInstrumenter = new NullRaceInstrumenter();
@@ -544,9 +543,7 @@ namespace GPUVerify
 
             }
 
-            if (GPUVerifyVCGenCommandLineOptions.ConstantWriteChecks) {
-                ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
-            }
+            ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
 
             if (GPUVerifyVCGenCommandLineOptions.KernelInterceptorParams.Count > 0) {
               AddParamsAsPreconditions();
@@ -652,7 +649,7 @@ namespace GPUVerify
             AddCaptureStates();
 
             if (GPUVerifyVCGenCommandLineOptions.WarpSync)
-            {		    
+            {
               GenerateWarpSyncs();
             }
 
@@ -771,10 +768,10 @@ namespace GPUVerify
             // hence no requires clause needed.
             if (val=="*") continue;
 
-	    BigInteger arg = BigInteger.Parse(val,NumberStyles.HexNumber);
+            BigInteger arg = BigInteger.Parse(val,NumberStyles.HexNumber);
 
             Expr val_expr =
-		    IntRep.GetLiteral(arg, ((BvType)v.TypedIdent.Type).Bits);
+                IntRep.GetLiteral(arg, ((BvType)v.TypedIdent.Type).Bits);
             Expr v_eq_val = Expr.Eq(v_expr, val_expr);
             proc.Requires.Add(new Requires(false, v_eq_val));
             // Console.WriteLine("__requires(" + v.Name + "==" + val + ")");
