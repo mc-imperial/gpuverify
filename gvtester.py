@@ -2,6 +2,9 @@
 # encoding: utf-8
 # vim: set shiftwidth=4 tabstop=4 expandtab softtabstop=4:
 from __future__ import print_function
+
+from GPUVerifyScript.error_codes import ErrorCodes
+
 import os
 import sys
 import argparse
@@ -21,8 +24,6 @@ except ImportError:
 
 import threading
 import multiprocessing # Only for determining number of CPU cores available
-
-from error_codes import ErrorCodes
 
 GPUVerifyExecutable=sys.path[0] + os.sep + "GPUVerify.py"
 

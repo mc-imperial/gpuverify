@@ -2,9 +2,6 @@
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 from __future__ import print_function
 
-from error_codes import ErrorCodes
-import getversion
-
 import pickle
 import argparse
 import os
@@ -25,12 +22,6 @@ else:
   # use StringIO instead
   import StringIO as io
 
-class ConfigurationError(Exception):
-  def __init__ (self, msg):
-    self.msg = msg
-  def __str__ (self):
-    return "GPUVerify: CONFIGURATION_ERROR error ({}): {}".format(ErrorCodes.CONFIGURATION_ERROR,self.msg)
-
 # To properly kill child processes cross platform
 try:
   import psutil
@@ -41,6 +32,15 @@ except ImportError:
   sys.stderr.write("On Linux/OSX, we recommend installing psutil with pip:\n")
   sys.stderr.write("  pip install psutil\n")
   sys.exit(1)
+
+from GPUVerifyScript.error_codes import ErrorCodes
+import getversion
+
+class ConfigurationError(Exception):
+  def __init__ (self, msg):
+    self.msg = msg
+  def __str__ (self):
+    return "GPUVerify: CONFIGURATION_ERROR error ({}): {}".format(ErrorCodes.CONFIGURATION_ERROR,self.msg)
 
 # Try to import the paths need for GPUVerify's tools
 try:

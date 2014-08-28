@@ -5,11 +5,9 @@ import gvfindtools
 import subprocess
 """ This module is responsible for trying to determine the GPUVerify version"""
 
-GPUVerifyDeployVersionFile= os.path.join(
-                                          os.path.abspath( os.path.dirname(__file__) ),
-                                          '.gvdeployversion'
-                                        )
-GPUVerifyRevisionErrorMessage='Error getting version information'
+GPUVerifyDirectory = os.path.abspath( os.path.dirname(__file__))
+GPUVerifyDeployVersionFile = os.path.join(GPUVerifyDirectory, '.gvdeployversion')
+GPUVerifyRevisionErrorMessage = 'Error getting version information'
 
 def getsha(path, showLocalRev=False):
   oldpath = os.getcwd()
@@ -17,18 +15,14 @@ def getsha(path, showLocalRev=False):
   if os.path.isdir(os.path.join(path,'.git')):
     if showLocalRev: raise Exception('Not supported')
     sha = subprocess.check_output(['git','rev-parse','HEAD'])
-
   elif os.path.isdir(os.path.join(path,'.hg')):
     templateKeyword = '{rev}' if showLocalRev else '{node}'
     sha = subprocess.check_output(['hg','log','-r','-1','--template', templateKeyword])
-
   elif os.path.isdir(os.path.join(path,'.svn')):
-    # The revision number is global is svn
+    # The revision number is global for svn
     sha = subprocess.check_output(['svnversion'])
-
   elif path == getattr(gvfindtools, 'llvmSrcDir', None):
     sha = subprocess.check_output([getattr(gvfindtools, 'llvmBinDir', None) + '/llvm-config', '--version'])
-
   else:
     sha = "Error [%s] path is not recognised as a git, mercurial or svn repository" % path
   os.chdir(oldpath)
@@ -42,7 +36,6 @@ def getVersionStringFromRepos():
     # This method is used so if a member (e.g. libclcSrcDir)
     # doesn't exist in gvfindtools then we just set None
     # rather than raising an exception.
-    # YUCK: This makes things very inelegant
     def repoTuple(toolName, **kargs ):
       getLocalRev = ( 'getLocalRev' in kargs )
 
@@ -56,10 +49,10 @@ def getVersionStringFromRepos():
     for tool, path, localRev in [ repoTuple('llvm', gvft='llvmSrcDir'),
                                   repoTuple('bugle', gvft='bugleSrcDir'),
                                   repoTuple('libclc', gvft='libclcSrcDir'),
-                                  repoTuple('vcgen', path=os.path.dirname(__file__)),
+                                  repoTuple('vcgen', path=GPUVerifyDirectory),
                                   repoTuple('z3', gvft='z3SrcDir'),
                                   repoTuple('cvc4', gvft='cvc4SrcDir'),
-                                  repoTuple('local-revision', path=os.path.dirname(__file__), getLocalRev=True) # GPUVerifyRise4Fun depends on this
+                                  repoTuple('local-revision', path=GPUVerifyDirectory, getLocalRev=True) # GPUVerifyRise4Fun depends on this
                                 ]:
       try:
           vs.append(tool.ljust(15) + ": ")
@@ -82,13 +75,13 @@ def getVersionString():
   """
   vs="GPUVerify:"
 
-  hgPath = os.path.join( os.path.dirname(__file__), '.hg')
+  hgPath = os.path.join(GPUVerifyDirectory, '.hg')
   # Look for Mercurial
   if os.path.isdir(hgPath):
-    vs += "Development version\n"
+    vs += " Development version\n"
     vs += getVersionStringFromRepos()
   else:
-    vs +="Deployment version\nBuilt from\n"
+    vs +=" Deployment version\nBuilt from\n"
 
     errorMessage = "Error Could not read version from file " + GPUVerifyDeployVersionFile + "\n"
     #Try to open file

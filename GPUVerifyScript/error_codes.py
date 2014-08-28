@@ -1,4 +1,4 @@
-"""Module defining the error codes used by GPUVerify and gvtester"""
+"""Module defining the error codes used by GPUVerify and gvtester."""
 
 class ErrorCodes(object):
   SUCCESS = 0
@@ -11,4 +11,5 @@ class ErrorCodes(object):
   TIMEOUT = 7
   CTRL_C = 8
   CONFIGURATION_ERROR = 9
-  REGEX_MISMATCH_ERROR = 10 # Only used by gvtester
+  JSON_ERROR = 10
+  REGEX_MISMATCH_ERROR = 100 # Only used by gvtester

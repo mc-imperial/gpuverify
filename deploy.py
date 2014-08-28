@@ -72,7 +72,7 @@ class FileCopy(DeployTask):
       sys.exit(1)
 
     self.makeDestinationDir()
-    logging.info("Copying \"" + self.srcpath + 
+    logging.info("Copying \"" + self.srcpath +
                  "\" to \"" + self.destination + "\"")
     shutil.copy(self.srcpath, self.destination)
 
@@ -119,11 +119,11 @@ class DirCopy(DeployTask):
     self.removeDestination()
 
     if self.copyOnlyRegex == None:
-      logging.info("Recursively copying \"" + self.srcdir + 
+      logging.info("Recursively copying \"" + self.srcdir +
                    "\" into \"" + self.destination + "\"")
       shutil.copytree(self.srcdir,self.destination)
     else:
-      logging.info("Recursively copying only files that match \"" + 
+      logging.info("Recursively copying only files that match \"" +
                    self.copyOnlyRegex.pattern + "\" from \"" + self.srcdir +
                    "\" into \"" + self.destination + "\"")
       shutil.copytree(self.srcdir,self.destination,ignore=self.listFilesToIgnore)
@@ -391,6 +391,7 @@ def main(argv):
   RegexFileCopy(gvfindtools.gpuVerifyBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBinDir),
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
   DirCopy(os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite')),
+  DirCopy(os.path.join(GPUVerifyRoot ,'GPUVerifyScript'), os.path.join(deployDir, 'GPUVerifyScript'), copyOnlyRegex=r'^.+\.py$'),
   # llvm, clang
   FileCopy(gvfindtools.llvmSrcDir, 'LICENSE.TXT', licenseDest),
   MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'llvm.txt'),
