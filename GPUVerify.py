@@ -2,13 +2,15 @@
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 from __future__ import print_function
 
+from error_codes import ErrorCodes
+import getversion
+
 import pickle
 import argparse
 import os
 import subprocess
 import sys
 import timeit
-import getversion
 import pprint
 import tempfile
 from collections import defaultdict, namedtuple
@@ -22,18 +24,6 @@ else:
   # very well because it expects unicode strings
   # use StringIO instead
   import StringIO as io
-
-class ErrorCodes(object):
-  SUCCESS = 0
-  COMMAND_LINE_ERROR = 1
-  CLANG_ERROR = 2
-  OPT_ERROR = 3
-  BUGLE_ERROR = 4
-  GPUVERIFYVCGEN_ERROR = 5
-  BOOGIE_ERROR = 6
-  TIMEOUT = 7
-  CTRL_C = 8
-  CONFIGURATION_ERROR = 9
 
 class ConfigurationError(Exception):
   def __init__ (self, msg):
@@ -78,27 +68,6 @@ class ArgumentParserError(Exception):
     self.msg = msg
   def __str__ (self):
     return "GPUVerify: COMMAND_LINE_ERROR error ({}): {}".format(ErrorCodes.COMMAND_LINE_ERROR,self.msg)
-
-class GPUVerifyException(Exception):
-  def __init__(self, code, msg=None):
-    self.code = code
-    self.msg = msg
-
-  def __str__(self):
-    codeString = None
-    for cs in [ x for x in dir(ErrorCodes) if not x.startswith('_') ]:
-      if getattr(ErrorCodes, cs) == self.code:
-        codeString = cs
-
-    if codeString == None:
-      codeString = 'UNKNOWN'
-
-    retStr = 'GPUVerify: {} error ({})'.format(codeString, self.code)
-
-    if self.msg:
-      retStr = retStr + ': ' + self.msg
-
-    return retStr
 
 class BatchCaller(object):
   """
@@ -1226,18 +1195,6 @@ def main(argv, out=sys.stdout):
 
       This is the entry point that should be used if you want
       to use this file as a module rather than as a script.
-
-      If verification fails in any way then a GPUVerifyException
-      will be raised. If verification was successful ErrorCodes.SUCCESS
-      will be returned.
-
-      Example:
-
-      import GPUVerify
-      try:
-        GPUVerify.main(['--local_size=32','--num_groups=2','your_kernel.cl'])
-      except GPUVerifyVerification as e:
-        # Handle error
   """
   gv_instance = GPUVerifyInstance(argv, out)
   def handleTiming (exitCode):
@@ -1258,9 +1215,6 @@ def main(argv, out=sys.stdout):
 
   try:
     returnCode = gv_instance.invoke()
-  except GPUVerifyException as e:
-    doCleanUp(timing=True, exitCode=e.code)
-    raise
   except Exception:
     # Something went very wrong
     doCleanUp(timing=False, exitCode=0) # It doesn't matter what the exitCode is
@@ -1272,13 +1226,6 @@ def main(argv, out=sys.stdout):
 debug = False
 
 if __name__ == '__main__':
-  """
-  Entry point for GPUVerify as a script
-  """
-
-  # These are the exception error codes that won't be printed if they are thrown
-  ignoredErrors = [ ErrorCodes.SUCCESS, ErrorCodes.BOOGIE_ERROR ]
-
   try:
     args = parse_args(sys.argv[1:] or [ '--help' ])
     debug = args.debug
@@ -1296,16 +1243,5 @@ if __name__ == '__main__':
     sys.exit(ErrorCodes.COMMAND_LINE_ERROR)
   except KeyboardInterrupt:
     sys.exit(ErrorCodes.CTRL_C)
-  except GPUVerifyException as e:
-    # We assume that globals are not cleaned up when running as a script so it
-    # is safe to read CommandLineOptions
-    if (not (e.code in ignoredErrors)) or debug:
-      if e.code == ErrorCodes.COMMAND_LINE_ERROR:
-        # For command line errors only show the message and not internal details
-        print('GPUVerify: {0}'.format(e.msg), file=sys.stderr)
-      else:
-        # Show all exception info for everything else not ignored
-        print(str(e), file=sys.stderr)
-    sys.exit(e.code)
 
   sys.exit(ErrorCodes.SUCCESS)

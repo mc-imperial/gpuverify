@@ -22,7 +22,7 @@ except ImportError:
 import threading
 import multiprocessing # Only for determining number of CPU cores available
 
-from GPUVerify import ErrorCodes
+from error_codes import ErrorCodes
 
 GPUVerifyExecutable=sys.path[0] + os.sep + "GPUVerify.py"
 
@@ -33,30 +33,12 @@ class GPUVerifyErrorCodes(ErrorCodes):
         to map error codes to strings.
 
         The error codes used in this class represent the
-        potential exit codes of GPUVerify. We add
-        REGEX_MISMATCH_ERROR as that is a possible point of failure
-        during testing
+        potential exit codes of GPUVerify.
     """
-    # It is unlikely we'll have more than 99 error codes in the parent
-    REGEX_MISMATCH_ERROR=100
 
     errorCodeToString = {} #Overwritten by static_init()
     @classmethod
     def static_init(cls):
-        base=cls.__bases__[0] #Get our parent class
-
-        #Assign correct error code number to REGEX_MISMATCH_ERROR
-        codes=[e for e in dir(base) if not e.startswith('_') ]
-
-        #find the largest code
-        largest=getattr(base,codes[0])
-        for num in [ getattr(base,x) for x in codes ]:
-            if num > largest : largest=num
-
-        # Check that REGEX_MISMATCH_ERROR doesn't conflict
-        # with an existing error code
-        assert largest < cls.REGEX_MISMATCH_ERROR
-
         #Build reverse mapping dictionary { num:string }
         codes=[e for e in dir(cls) if not e.startswith('_')]
         for (num,string) in [( getattr(cls,x), x)  for x in codes if type(getattr(cls,x)) == int]:
