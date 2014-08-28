@@ -263,6 +263,9 @@ namespace GPUVerify {
        *      d = (access/ys) - (c*xs/ys)
        */
       public IEnumerable<Expr> GenerateCandidateInvariants(GPUVerifier verifier, Variable v, AccessType Access) {
+        // Mixing of ids of type bv32 and offests of type bv64 is
+        // possible with CUDA, and incompatble with the current code.
+        if (verifier.size_t_bits == 64) return Enumerable.Empty<Expr>();
         if (!CanAccessBreak) return Enumerable.Empty<Expr>();
 
         var result = new List<Expr>();

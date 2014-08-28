@@ -338,11 +338,9 @@ def parse_args(argv):
 
     advanced = parser.add_argument_group("ADVANCED OPTIONS")
 
-    bitwidth = advanced.add_mutually_exclusive_group()
-    bitwidth.add_argument("--32-bit", dest='size_t', action='store_const', const=32,
-                          help="Assume 32-bit pointer size (default)")
-    bitwidth.add_argument("--64-bit", dest='size_t', action='store_const', const=64,
-                          help="Assume 64-bit pointer size")
+    advanced.add_argument("--pointer-bitwidth=", dest='size_t', type=non_negative,
+                          choices=[32, 64], default=32,
+                          help="Set the pointer bitwidth. Default is 32")
 
     abstraction = advanced.add_mutually_exclusive_group()
     abstraction.add_argument("--adversarial-abstraction", action='store_true',
@@ -535,9 +533,6 @@ def parse_args(argv):
       if args.verbose:
         print("Got {} groups of size {}".format("x".join(map(str,args['num_groups'])),
                                                 "x".join(map(str,args['group_size']))))
-
-    if not args['size_t']:
-        args['size_t'] = 32
 
     if args.loop_unwind:
       args.mode = AnalysisMode.FINDBUGS

@@ -21,7 +21,7 @@ namespace GPUVerify
     class VariableDualiser : Duplicator
     {
       static internal HashSet<string> otherFunctionNames =
-        new HashSet<string>(new string[] { "__other_bool", "__other_bv32", "__other_arrayId" });
+        new HashSet<string>(new string[] { "__other_bool", "__other_bv32", "__other_bv64", "__other_arrayId" });
 
         private int id;
         private UniformityAnalyser uniformityAnalyser;
