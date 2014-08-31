@@ -11,4 +11,6 @@ class ErrorCodes(object):
   TIMEOUT = 7
   CTRL_C = 8
   CONFIGURATION_ERROR = 9
-  REGEX_MISMATCH_ERROR = 100 # Only used by gvtester
+  JSON_ERROR = 10
+  # The following is only used by gvtester.
+  REGEX_MISMATCH_ERROR = 100
