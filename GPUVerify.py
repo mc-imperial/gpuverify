@@ -3,7 +3,6 @@
 from __future__ import print_function
 
 import pickle
-import argparse
 import os
 import subprocess
 import sys
@@ -33,6 +32,8 @@ except ImportError:
   sys.stderr.write("  pip install psutil\n")
   sys.exit(1)
 
+from GPUVerifyScript.argument_parser import ArgumentParserError, parse_arguments
+from GPUVerifyScript.constants import AnalysisMode, SourceLanguage
 from GPUVerifyScript.error_codes import ErrorCodes
 import getversion
 
@@ -63,11 +64,6 @@ if gvfindtools.useMono:
   if distutils.spawn.find_executable('mono') == None:
     raise ConfigurationError("Could not find the mono executable in your PATH")
 
-class ArgumentParserError(Exception):
-  def __init__ (self, msg):
-    self.msg = msg
-  def __str__ (self):
-    return "GPUVerify: COMMAND_LINE_ERROR error ({}): {}".format(ErrorCodes.COMMAND_LINE_ERROR,self.msg)
 
 class BatchCaller(object):
   """
@@ -121,22 +117,6 @@ cleanUpHandler = BatchCaller()
 Tools = ["clang", "opt", "bugle", "gpuverifyvcgen", "gpuverifycruncher", "gpuverifyboogiedriver"]
 Extensions = { 'clang': ".bc", 'opt': ".opt.bc", 'bugle': ".gbpl", 'gpuverifyvcgen': ".bpl", 'gpuverifycruncher': ".cbpl" }
 
-
-
-""" We support three analysis modes """
-class AnalysisMode(object):
-  """ ALL is the default mode.  Right now it is the same as VERIFY,
-      but in future this mode will run verification and bug-finding in parallel
-  """
-  ALL=0
-  FINDBUGS=1
-  VERIFY=2
-
-""" We support OpenCL and CUDA """
-class SourceLanguage(object):
-  Unknown=0
-  OpenCL=1
-  CUDA=2
 
 clangCoreIncludes = [ gvfindtools.bugleSrcDir + "/include-blang" ]
 
@@ -223,12 +203,7 @@ def SplitFilenameExt(f):
 def GPUVerifyWarn(msg):
   print("GPUVerify: warning: " + msg)
 
-class GPUVerifyArgumentParser(argparse.ArgumentParser):
-  def error (self, message):
-    raise ArgumentParserError(message)
-
-class ShowVersionAction(argparse.Action):
-  def __call__ (self,a,b,c,d=None):
+def ShowVersion():
     """ This will check if using gpuverify from development directory.
         If so this will invoke Mercurial to find out version information.
         If this is a deployed version we will try to read the version from
@@ -252,217 +227,16 @@ class ldict(dict):
 
 
 def parse_args(argv):
-    parser = GPUVerifyArgumentParser(description="GPUVerify frontend",
-                                     usage="gpuverify [options] <kernel>")
-
-    # nargs='?' because of needing to put KI in this script
-    parser.add_argument("kernel", nargs='?', type=argparse.FileType('r'),
-                        help="Kernel to verify")
-
-    general = parser.add_argument_group("GENERAL OPTIONS")
-
-    general.add_argument("--version", nargs=0, action=ShowVersionAction)
-
-    general.add_argument("-D", dest='defines',  action='append',
-                         help="Define symbol", metavar="<value>")
-    general.add_argument("-I", dest='includes', action='append',
-                         help="Add directory to include search path", metavar="<value>")
-
-    mode = general.add_mutually_exclusive_group()
-    mode.add_argument("--findbugs", dest='mode', action='store_const',
-                      const=AnalysisMode.FINDBUGS, help="Run tool in bug-finding mode")
-    mode.add_argument("--verify",   dest='mode', action='store_const',
-                      const=AnalysisMode.VERIFY, help="Run tool in verification mode")
-
-    general.add_argument("--loop-unwind=", type=non_negative, #default=2,
-                         help="Explore traces that pass through at most X loop heads. \
-                         Implies --findbugs",
-                         metavar="X")
-
-    general.add_argument("--no-benign-tolerance", action='store_true',
-                         help="Do not tolerate benign data races")
-    general.add_argument("--only-divergence",  action='store_true',
-                         help="Only check for barrier divergence, not races")
-    general.add_argument("--only-intra-group", action='store_true',
-                         help="Do not check for inter-group races")
-
-    verbosity = general.add_mutually_exclusive_group()
-    verbosity.add_argument("--verbose", action='store_true',
-                           help="Show subcommands and use verbose output")
-    verbosity.add_argument("--silent",  action='store_true',
-                           help="Silent on success; only show errors/timing")
-
-    general.add_argument("--time", action='store_true', help="Show timing information")
-    general.add_argument("--time-as-csv=",
-                         help="Print timing as CSV with label X", metavar="X")
-
-    general.add_argument("--timeout=", type=non_negative, default=300,
-                         help="Allow each component to run for X seconds before giving up. \
-                         A timout of 0 disables the timeout. \
-                         Default is 300s", metavar="X")
-    general.add_argument("--memout=",  type=non_negative, default=0,
-                         help="Give Boogie a hard memory limit of X megabytes. \
-                         A memout of 0 disables the memout. \
-                         Default is unlimited.", metavar="X")
-
-    general.add_argument("--opencl", dest='source_language', action='store_const',
-                         const=SourceLanguage.OpenCL, help="Force OpenCL")
-    general.add_argument("--cuda",   dest='source_language', action='store_const',
-                         const=SourceLanguage.CUDA,   help="Force CUDA")
-
-    sizing = parser.add_argument_group("SIZING",
-                                       "Define the dimensionality and size of each \
-                                       dimension as a 1-, 2-, or 3-tuple, \
-                                       optionally wrapped in []. E.g., [1,2] or 2,3,4. \
-                                       Use * for an unconstrained value")
-    lsize = sizing.add_mutually_exclusive_group()
-    numg = sizing.add_mutually_exclusive_group()
-
-    lsize.add_argument("--local_size=",    dest='group_size', type=dimensions,
-                       help="Specify the dimensions of an OpenCL work-group. \
-                       This corresponds to the 'local_work_size' parameter \
-                       of 'clEnqueueNDRangeKernel'.")
-    sizing.add_argument("--global_size=", dest='global_size', type=dimensions,
-                        help="Specify dimensions of the OpenCL NDRange. \
-                        This corresponds to the 'global_work_size' parameter \
-                        of 'clEnqueueNDRangeKernel'. \
-                        Mutually exclusive with --num_groups")
-    numg.add_argument("--num_groups=",    dest='num_groups',  type=dimensions,
-                      help="Specify the dimensions of a grid of OpenCL work-groups. \
-                      Mutually exclusive with --group_size")
-
-    lsize.add_argument("--blockDim=",     dest='group_size',  type=dimensions,
-                       help="Specify the CUDA thread block size")
-    numg.add_argument("--gridDim=",       dest='num_groups',  type=dimensions,
-                      help="Specify the CUDA grid size")
-
-    advanced = parser.add_argument_group("ADVANCED OPTIONS")
-
-    advanced.add_argument("--pointer-bitwidth=", dest='size_t', type=non_negative,
-                          choices=[32, 64], default=32,
-                          help="Set the pointer bitwidth. Default is 32")
-
-    abstraction = advanced.add_mutually_exclusive_group()
-    abstraction.add_argument("--adversarial-abstraction", action='store_true',
-                             help="Completely abstract shared state, \
-                             so that reads are non-deterministic")
-    abstraction.add_argument("--equality-abstraction",    action='store_true',
-                             help="At barriers, make shared arrays non-deterministic \
-                             but consistent between threads")
-    advanced.add_argument("--asymmetric-asserts", action='store_true',
-                          help="Emit assertions only for the first thread. \
-                          Sound, and may lead to faster verification, \
-                          but can yield false positives")
-
-    advanced.add_argument("--boogie-file=", type=argparse.FileType('r'), action='append',
-                          help="Specify a supporting .bpl file to be used \
-                          during verification", metavar="X.bpl")
-
-    advanced.add_argument("--math-int",                     action='store_true',
-                          help="Represent integer types using mathematical integers \
-                          instead of bit-vectors")
-    advanced.add_argument("--no-annotations",               action='store_true',
-                          help="Ignore all source-level annotations")
-    advanced.add_argument("--only-requires",                action='store_true',
-                          help="Ignore all source-level annotations except for requires")
-    advanced.add_argument("--invariants-as-candidates",     action='store_true',
-                          help="Interpret all source-level invariants as candidates")
-    advanced.add_argument("--no-barrier-access-checks",     action='store_true',
-                          help="Turn off access checks for barrier invariants")
-    advanced.add_argument("--no-inline",                    action='store_true',
-                          help="Turn off automatic function inlining")
-    advanced.add_argument("--only-log",                     action='store_true',
-                          help="Log accesses to arrays, but do not check for races. \
-                          This can be useful for determining access pattern invariants")
-
-    advanced.add_argument("--kernel-args=", type=params,
-                          help="For kernel K with scalar parameters (x1,...,xn), \
-                          adds the precondition (x1==v1 && ... && xn=vn). \
-                          Use * to denote an unconstrained parameter",
-                          metavar="K,v1,...,vn")
-
-    advanced.add_argument("--warp-sync=", type=non_negative,
-                          help="Synchronize threads within warps of size X.",
-                          metavar="X")
-
-    advanced.add_argument("--race-instrumenter=",
-                          choices=["original","watchdog-single","watchdog-multiple"],
-                          default="watchdog-single",
-                          help="Choose which method of race instrumentation to use")
-    advanced.add_argument("--solver=", choices=["z3","cvc4"], default=gvfindtools.defaultSolver,
-                          help="Choose which SMT theorem prover to use in the backend. \
-                          Default is " + gvfindtools.defaultSolver)
-
-    development = parser.add_argument_group("DEVELOPMENT OPTIONS")
-    development.add_argument("--debug",         action='store_true',
-                             help="Enable debugging of GPUVerify components: \
-                             exceptions will not be suppressed")
-    development.add_argument("--keep-temps",    action='store_true',
-                             help="Keep intermediate bc, gbpl, and cbpl files")
-    development.add_argument("--gen-smt2",      action='store_true',
-                             help="Generate smt2 file")
-
-    development.add_argument("--clang-opt=",    dest='clang_options',
-                             action='append',
-                             help="Specify option to be passed to Clang")
-    development.add_argument("--opt-opt=",      dest='opt_options',
-                             action='append',
-                             help="Specify option to be passed to optimization pass")
-    development.add_argument("--bugle-opt=",    dest='bugle_options',
-                             action='append',
-                             help="Specify option to be passed to Bugle")
-    development.add_argument("--vcgen-opt=",    dest='vcgen_options',
-                             action='append',
-                             help="Specify option to be passed to generation")
-    development.add_argument("--cruncher-opt=", dest='cruncher_options',
-                             action='append',
-                             help="Specify option to be passed to cruncher")
-    development.add_argument("--boogie-opt=",   dest='boogie_options',
-                             action='append',
-                             help="Specify option to be passed to Boogie")
-
-    development.add_argument("--stop-at-opt",  dest='stop',
-                             action='store_const', const="opt",
-                             help="Stop after LLVM optimization pass")
-    development.add_argument("--stop-at-gbpl", dest='stop',
-                             action='store_const', const="bugle",
-                             help="Stop after generating gbpl")
-    development.add_argument("--stop-at-bpl",  dest='stop',
-                             action='store_const', const="vcgen",
-                             help="Stop after generating bpl")
-    development.add_argument("--stop-at-cbpl", dest='stop',
-                             action='store_const', const="cruncher",
-                             help="Stop after generating an annotated bpl")
-
-    inference = parser.add_argument_group("INVARIANT INFERENCE OPTIONS")
-    inference.add_argument("--no-infer", dest='inference', action='store_false',
-                           help="Turn off invariant inference")
-    inference.add_argument("--omit-infer=", action='append',
-                           help="Do not generate invariants tagged 'X'",
-                           metavar="X")
-    inference.add_argument("--staged-inference",   action='store_true',
-                           help="Perform invariant inference in stages; \
-                           this can boost performance for complex kernels \
-                           (but this is not guaranteed)")
-    inference.add_argument("--infer-info",         action='store_true',
-                           help="Prints information about the process")
-    inference.add_argument("--k-induction-depth=", type=non_negative,
-                           default=-1,
-                           help="Applies k-induction with k=X to all loops",
-                           metavar="X")
-
-    interceptor = parser.add_argument_group("BATCH MODE")
-    interceptor.add_argument("--show-intercepted", action='store_true')
-    interceptor.add_argument("--check-intercepted=", type=non_negative,
-                             action='append', metavar="X")
-    interceptor.add_argument("--check-all-intercepted", action='store_true')
-    interceptor.add_argument("--cache")
-
+    # Not properly named currently
+    parser = parse_arguments(argv, gvfindtools.defaultSolver)
 
     def to_ldict (parsed):
       return ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in vars(parsed).items())
 
     args = to_ldict(parser.parse_args(argv))
+
+    if args.version:
+      ShowVersion()
 
     if not args.batch_mode:
       if not args['kernel']:
@@ -511,9 +285,7 @@ def parse_args(argv):
             parser.error("Could not infer source language")
 
       # Use '//' to ensure flooring division for Python3
-      if args.num_groups and args.global_size:
-        parser.error("--num_groups and --global_size are mutually exclusive.")
-      elif args.group_size and args.global_size:
+      if args.group_size and args.global_size:
         if len(args.group_size) != len(args.global_size):
           parser.error("Dimensions of --local_size and --global_size must match.")
         args['num_groups'] = [(a//b) for (a,b) in zip(args.global_size,args.group_size)]
@@ -544,32 +316,6 @@ def parse_args(argv):
 
     return args
 
-def dimensions (string):
-  string = string.strip()
-  string = string[1:-1] if string[0]+string[-1] == "[]" else string
-  values = [x if x == '*' else int(x) for x in string.split(",")]
-  if (len(values) not in [1,2,3]) or len([x for x in values if x > 0]) < len(values):
-    raise argparse.ArgumentTypeError("Dimensions must be a vector of 1-3 positive integers")
-  return values
-
-def params (string):
-  string = string.strip()
-  string = string[1:-1] if string[0]+string[-1] == "[]" else string
-  values = string.split(",")
-  if not all(x == '*' or x.startswith("0x") for x in values[1:]):
-    raise argparse.ArgumentTypeError("kernel args are hex values or *")
-  values = values[:1] + [x if x == '*' else x[len("0x"):] for x in values[1:]]
-  return values
-
-def non_negative (string):
-  try:
-    i = int(string)
-    if i < 0:
-      raise argparse.ArgumentTypeError("negative value " + i + " provided as argument")
-    return i
-  except ValueError:
-    raise argparse.ArgumentTypeError("Argument must be a positive integer")
-
 
 def processOptions(args):
   CommandLineOptions = copy.deepcopy(DefaultCmdLineOptions())
@@ -587,8 +333,8 @@ def processOptions(args):
 
   CommandLineOptions.sourceFiles.append(args['kernel'].name)
 
-  CommandLineOptions.defines += args['defines'] or []
-  CommandLineOptions.includes += args['includes'] or []
+  CommandLineOptions.defines += args['defines']
+  CommandLineOptions.includes += args['includes']
 
   # Must be added after include of opencl or cuda header
   if args['no_annotations'] or args['only_requires']:
@@ -603,12 +349,12 @@ def processOptions(args):
     clangOpenCLOptions.extend(candidateAnnotationsHeader)
     clangCUDAOptions.extend(candidateAnnotationsHeader)
 
-  CommandLineOptions.clangOptions += sum([a.split(" ") for a in args['clang_options'] or []],[])
-  CommandLineOptions.optOptions += sum([a.split(" ") for a in args['opt_options'] or []],[])
-  CommandLineOptions.bugleOptions += sum([a.split(" ") for a in args['bugle_options'] or []],[])
-  CommandLineOptions.vcgenOptions += sum([a.split(" ") for a in args['vcgen_options'] or []],[])
-  CommandLineOptions.cruncherOptions += sum([a.split(" ") for a in args['cruncher_options'] or []],[])
-  CommandLineOptions.boogieOptions += sum([a.split(" ") for a in args['boogie_options'] or []],[])
+  CommandLineOptions.clangOptions += sum([a.split(" ") for a in args['clang_options']],[])
+  CommandLineOptions.optOptions += sum([a.split(" ") for a in args['opt_options']],[])
+  CommandLineOptions.bugleOptions += sum([a.split(" ") for a in args['bugle_options']],[])
+  CommandLineOptions.vcgenOptions += sum([a.split(" ") for a in args['vcgen_options']],[])
+  CommandLineOptions.cruncherOptions += sum([a.split(" ") for a in args['cruncher_options']],[])
+  CommandLineOptions.boogieOptions += sum([a.split(" ") for a in args['boogie_options']],[])
 
   CommandLineOptions.vcgenOptions += ["/noCandidate:"+a for a in args['omit_infer'] or []]
   if args.kernel_args:
@@ -616,7 +362,7 @@ def processOptions(args):
     CommandLineOptions.cruncherOptions += [ "/proc:$" + args.kernel_args[0] ]
     CommandLineOptions.boogieOptions   += [ "/proc:$" + args.kernel_args[0] ]
 
-  CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file'] or []] or []
+  CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file']]
 
   CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
   CommandLineOptions.cruncherOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
@@ -787,7 +533,7 @@ class GPUVerifyInstance (object):
     if args.mode == AnalysisMode.FINDBUGS:
       CommandLineOptions.boogieOptions += [ "/loopUnroll:" + str(args.loop_unwind) ]
 
-    if args.k_induction_depth >= 0:
+    if args.k_induction_depth > 0:
       CommandLineOptions.cruncherOptions += [ "/kInductionDepth:" + str(args.k_induction_depth) ]
       CommandLineOptions.boogieOptions += [ "/kInductionDepth:" + str(args.k_induction_depth) ]
 

@@ -48,6 +48,7 @@ def __check_scalar_argument(data):
   for key, value in data.iteritems():
     if key == "value":
       __check_hex_string(value, "Scalar kernel argument value")
+      data[key] = value[len("0x"):]
 
 def __check_array_argument(data):
   for key, value in data.iteritems():
@@ -173,7 +174,9 @@ def json_load(json_filename):
   all required values are present and whether all values are of the right type.
 
   The function also extracts 'defines' and 'includes' from the compiler-flags
-  value and returns a named tuple (defines, includes) instead of a string.
+  value and returns a named tuple (defines, includes) instead of a string. In
+  the case of scalar argument values '0x' is removed from the beginning of the
+  hex string.
   """
   try:
     fp = open(json_filename, "r")
