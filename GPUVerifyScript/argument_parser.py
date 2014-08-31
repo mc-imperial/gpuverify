@@ -1,6 +1,9 @@
 """Module for parsing GPUVerify command line arguments"""
 
 import argparse
+from collections import defaultdict
+import os
+import subprocess
 
 from constants import AnalysisMode, SourceLanguage
 from error_codes import ErrorCodes
@@ -21,7 +24,7 @@ def __non_negative(string):
   try:
     i = int(string)
   except ValueError:
-    raise argparse.ArgumentTypeError("Argument must be a non-negative integer")
+    raise argparse.ArgumentTypeError("argument must be a non-negative integer")
 
   if i < 0:
     raise argparse.ArgumentTypeError("negative value {} given as argument" \
@@ -45,20 +48,20 @@ def __dimensions(string):
   string = string.strip()
 
   if len(string) == 0:
-    raise argparse.ArgumentTypeError("Dimensions must be vectors of length 1-3")
+    raise argparse.ArgumentTypeError("aimensions must be vectors of length 1-3")
 
   string = string[1:-1] if string[0] == "[" and string[-1] == "]" else string
 
   try:
     values = [x if x == '*' else int(x) for x in string.split(",")]
   except ValueError:
-    raise argparse.ArgumentTypeError("A dimension must be a positive integer")
+    raise argparse.ArgumentTypeError("a dimension must be a positive integer")
 
   if len(values) == 0 or len(values) > 3:
-    raise argparse.ArgumentTypeError("Dimensions must be vectors of length 1-3")
+    raise argparse.ArgumentTypeError("dimensions must be vectors of length 1-3")
 
   if len([x for x in values if x > 0]) < len(values):
-    raise argparse.ArgumentTypeError("A dimension must be a positive integer")
+    raise argparse.ArgumentTypeError("a dimension must be a positive integer")
 
   return values
 
@@ -66,11 +69,11 @@ def __kernel_arguments(string):
   values = string.strip().split(",")
 
   if (len(values) < 1):
-    raise argparse.ArgumentTypeError("Kernel arguments should include a kernel \
+    raise argparse.ArgumentTypeError("kernel arguments should include a kernel \
       entry point as first element")
 
   if not all(x == '*' or x.startswith("0x") for x in values[1:]):
-    raise argparse.ArgumentTypeError("Kernel arguments must be hex values or *")
+    raise argparse.ArgumentTypeError("kernel arguments must be hex values or *")
 
   return [values[0]] + [x if x == '*' else x[len("0x"):] for x in values[1:]]
 
@@ -124,7 +127,7 @@ def __build_parser(default_solver):
     metavar = "X", help = "Allow each component to run for at most X seconds. \
     A timeout of 0 disables the timeout. The default is 300s")
   general.add_argument("--memout=",  type = __non_negative, default = 0,
-    metavar = "X",  help="Give Boogie a hard memory limit of X megabytes. \
+    metavar = "X",  help = "Give Boogie a hard memory limit of X megabytes. \
     A value of 0 disables the memout. The default is disabled.")
 
   language = general.add_mutually_exclusive_group()
@@ -151,16 +154,16 @@ def __build_parser(default_solver):
     exclusive with --num_groups")
   numg.add_argument("--num_groups=", dest = 'num_groups', type = __dimensions,
     help = "Specify the dimensions of a grid of OpenCL work-groups. Mutually \
-    exclusive with --group_size")
+    exclusive with --global_size")
 
-  lsize.add_argument("--blockDim=", dest = 'group_size',  type = __dimensions,
+  lsize.add_argument("--blockDim=", dest = 'group_size', type = __dimensions,
     help = "Specify the CUDA thread block size")
   numg.add_argument("--gridDim=", dest = 'num_groups', type = __dimensions,
     help = "Specify the CUDA grid size")
 
   advanced = parser.add_argument_group("ADVANCED OPTIONS")
   advanced.add_argument("--pointer-bitwidth=", dest = 'size_t', type = int,
-    choices = [32, 64], default = 32, help="Set the pointer bitwidth. The \
+    choices = [32, 64], default = 32, help = "Set the pointer bitwidth. The \
     default is 32")
 
   abstraction = advanced.add_mutually_exclusive_group()
@@ -171,7 +174,7 @@ def __build_parser(default_solver):
     between threads")
 
   advanced.add_argument("--asymmetric-asserts", action = 'store_true',
-    help="Emit assertions only for the first thread. Sound, and may lead to \
+    help = "Emit assertions only for the first thread. Sound, and may lead to \
     faster verification, but can yield false positives")
 
   advanced.add_argument("--boogie-file=", type = argparse.FileType('r'),
@@ -195,7 +198,7 @@ def __build_parser(default_solver):
   advanced.add_argument("--no-inline", action = 'store_true',
     help = "Turn off automatic function inlining")
   advanced.add_argument("--only-log", action = 'store_true',
-    help="Log accesses to arrays, but do not check for races. This can be \
+    help = "Log accesses to arrays, but do not check for races. This can be \
    useful for determining access pattern invariants")
 
   advanced.add_argument("--kernel-args=", type = __kernel_arguments,
@@ -204,11 +207,11 @@ def __build_parser(default_solver):
     to denote an unconstrained parameter")
 
   advanced.add_argument("--warp-sync=", type = __positive, metavar = "X",
-    help="Synchronize threads within warps of size X.")
+    help = "Synchronize threads within warps of size X.")
 
   advanced.add_argument("--race-instrumenter=", choices = ["original",
     "watchdog-single", "watchdog-multiple"], default = "watchdog-single",
-    help="Choose which method of race instrumentation to use")
+    help = "Choose which method of race instrumentation to use")
 
   advanced.add_argument("--solver=", choices = ["z3", "cvc4"],
     default = default_solver, help = "Select the SMT theorem solver to use as \
@@ -254,12 +257,12 @@ def __build_parser(default_solver):
   inference.add_argument("--omit-infer=", action = 'append', metavar = "X",
     help = "Do not generate invariants tagged 'X'")
   inference.add_argument("--staged-inference", action = 'store_true',
-    help="Perform invariant inference in stages; this can boost performance \
+    help = "Perform invariant inference in stages; this can boost performance \
     for complex kernels (but this is not guaranteed)")
   inference.add_argument("--infer-info", action = 'store_true',
     help = "Prints information about the invariant inference process")
   inference.add_argument("--k-induction-depth=", type = __positive, default = 0,
-    metavar = "X", help="Applies k-induction with k=X to all loops")
+    metavar = "X", help = "Applies k-induction with k=X to all loops")
 
   interceptor = parser.add_argument_group("BATCH MODE")
   interceptor.add_argument("--show-intercepted", action = 'store_true')
@@ -270,5 +273,95 @@ def __build_parser(default_solver):
 
   return parser
 
-def parse_arguments(argv, default_solver):
-  return __build_parser(default_solver)
+class __ldict(dict):
+  def __getattr__(self, name):
+    if name in self:
+      return self[name]
+    elif name == "batch_mode":
+      return any(self[x] for x in ['show_intercepted','check_intercepted',
+                                   'check_all_intercepted'])
+    else:
+      raise AttributeError(name)
+
+  def __setattr__(self, name, value):
+    self[name] = value
+
+def __to_ldict(parsed):
+  def strip_equals(string):
+    return string[:-1] if string.endswith('=') else string
+
+  return __ldict({strip_equals(k) : v for k, v in vars(parsed).items()})
+
+def __split_filename_ext(f):
+  filename, ext = os.path.splitext(f)
+  if filename.endswith(".opt") and ext == ".bc":
+    filename, _ = os.path.splitext(filename)
+    ext = ".opt.bc"
+  return filename, ext
+
+def __get_start_stop(args):
+  starts = defaultdict(lambda : "clang", {".bc": "opt", ".opt.bc": "bugle",
+    ".gbpl": "vcgen", ".bpl": "cruncher", ".cbpl": "boogie"})
+  start = starts[args.kernel_ext]
+
+  if not args.stop:
+    stop = "boogie"
+
+  return start, stop
+
+def __get_source_language(args, parser, llvm_bin_dir):
+  if args.source_language:
+    return source_language
+
+  if args.kernel_ext == ".cl":
+    return SourceLanguage.OpenCL
+  if args.kernel_ext == ".cu":
+    return SourceLanguage.CUDA
+
+  if args.kernel_ext in [".bc", ".opt.bc"]:
+    command = [os.path.join(llvm_bin_dir,"llvm-nm"), args.kernel.name]
+    popenargs = {"stdout" : subprocess.PIPE, "stderr" : subprocess.STDOUT,
+      "stdin" : subprocess.PIPE}
+    proc = subprocess.Popen(command, **popenargs)
+    lines, _ = proc.communicate()
+  else:
+    lines = ''.join(args['kernel'].readlines())
+
+  if any(x in lines for x in ["get_local_size", "get_global_size", "__kernel"]):
+    return SourceLanguage.OpenCL
+  elif any(x in lines for x in ["blockDim", "__global__"]):
+    return SourceLanguage.CUDA
+  else:
+    parser.error("Could not infer source language")
+
+def parse_arguments(argv, default_solver, llvm_bin_dir):
+  parser = __build_parser(default_solver)
+  args = __to_ldict(parser.parse_args(argv))
+
+  if not args.loop_unwind and not args.mode:
+    args.mode = AnalysisMode.ALL
+  elif args.loop_unwind:
+    args.mode = AnalysisMode.FINDBUGS
+  elif args.mode == AnalysisMode.FINDBUGS and not args.loop_unwind:
+    args.loop_unwind = 2
+
+  if args.batch_mode:
+    if args.stop:
+      parser.error("Stop-at arguments incompatible with batch mode")
+    if args.group_size or args.num_groups or args.global_size:
+      parser.error("Sizing arguments incompatible with batch mode")
+
+  # Remainder of processing only required in "normal" mode
+  if args.batch_mode or args.version:
+    return args
+
+  if not args.kernel:
+    parser.error("Must provide kernel file in normal mode")
+
+  args.kernel_name, args.kernel_ext = __split_filename_ext(args.kernel.name)
+  args.start, args.stop = __get_start_stop(args)
+
+  if not args.source_language and args.start in ["clang", "opt", "bugle"]:
+    args.source_language = __get_source_language(args, parser, llvm_bin_dir)
+
+  return args

@@ -9,7 +9,7 @@ import sys
 import timeit
 import pprint
 import tempfile
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 import copy
 import distutils.spawn
 
@@ -193,13 +193,6 @@ class DefaultCmdLineOptions(object):
              "vcgen": False,
              "cruncher": False }
 
-def SplitFilenameExt(f):
-  filename, ext = os.path.splitext(f)
-  if filename.endswith(".opt") and ext == ".bc":
-    filename, unused_ext_ = os.path.splitext(filename)
-    ext = ".opt.bc"
-  return filename, ext
-
 def GPUVerifyWarn(msg):
   print("GPUVerify: warning: " + msg)
 
@@ -212,37 +205,13 @@ def ShowVersion():
     print(getversion.getVersionString())
     sys.exit()
 
-class ldict(dict):
-  def __getattr__ (self, method_name):
-    if method_name in self:
-      return self[method_name]
-    elif method_name == "batch_mode":
-      return any(self[x] for x in
-                 ['show_intercepted','check_intercepted',
-                  'check_all_intercepted'])
-    elif method_name == "dimensions":
-      return len(self['group_size'])
-    else:
-      raise AttributeError(method_name)
-
-
 def parse_args(argv):
-    # Not properly named currently
-    parser = parse_arguments(argv, gvfindtools.defaultSolver)
-
-    def to_ldict (parsed):
-      return ldict((k[:-1],v) if k.endswith('=') else (k,v) for k,v in vars(parsed).items())
-
-    args = to_ldict(parser.parse_args(argv))
+    args = parse_arguments(argv, gvfindtools.defaultSolver, gvfindtools.llvmBinDir)
 
     if args.version:
       ShowVersion()
 
     if not args.batch_mode:
-      if not args['kernel']:
-        parser.error("Must provide a kernel for normal mode")
-      name = args['kernel'].name
-
       # Try reading the first line of the kernel file as arguments
       header = args.kernel.readline()
       if header.startswith("//"):
@@ -254,35 +223,6 @@ def parse_args(argv):
           args = file_args
         except Exception as e:
           pass # Probably doesn't parse -- worth a try
-
-      _unused,ext = SplitFilenameExt(name)
-
-      starts = defaultdict(lambda : "clang",
-                           { '.bc': "opt", '.opt.bc': "bugle", '.gbpl': "vcgen",
-                             '.bpl': "cruncher", '.cbpl': "boogie" })
-      args['start'] = starts[ext]
-
-      if not args['stop']:
-        args['stop'] = "boogie"
-
-      if not args['source_language'] and args['start'] in ['clang','opt','bugle']:
-        if ext == '.cl':
-          args['source_language'] = SourceLanguage.OpenCL
-        elif ext == '.cu':
-          args['source_language'] = SourceLanguage.CUDA
-        else:
-          if ext in ['.bc','.opt.bc']:
-            proc = subprocess.Popen([gvfindtools.llvmBinDir + "/llvm-nm", name],
-                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            lines,stderr = proc.communicate()
-          else:
-            lines = ''.join(args['kernel'].readlines())
-          if any(x in lines for x in ["get_local_size","get_global_size","__kernel"]):
-            args['source_language'] = SourceLanguage.OpenCL
-          elif "blockDim" in lines:
-            args['source_language'] = SourceLanguage.CUDA
-          else:
-            parser.error("Could not infer source language")
 
       # Use '//' to ensure flooring division for Python3
       if args.group_size and args.global_size:
@@ -306,20 +246,12 @@ def parse_args(argv):
         print("Got {} groups of size {}".format("x".join(map(str,args['num_groups'])),
                                                 "x".join(map(str,args['group_size']))))
 
-    if args.loop_unwind:
-      args.mode = AnalysisMode.FINDBUGS
-    if args.mode == AnalysisMode.FINDBUGS and not args.loop_unwind:
-      args.loop_unwind = 2
-
-    if not args['mode']:
-        args['mode'] = AnalysisMode.ALL
-
     return args
 
 
 def processOptions(args):
   CommandLineOptions = copy.deepcopy(DefaultCmdLineOptions())
-  _f, ext = SplitFilenameExt(args['kernel'].name)
+  ext = args.kernel_ext
   if ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
     CommandLineOptions.skip["clang"] = True
   if ext in [        ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
@@ -402,7 +334,7 @@ class GPUVerifyInstance (object):
 
     cleanUpHandler.setVerbose(args.verbose)
 
-    filename, ext = SplitFilenameExt(args['kernel'].name)
+    filename, ext = args.kernel_name, args.kernel_ext
 
     CommandLineOptions.defines += [ '__BUGLE_' + str(args.size_t) + '__' ]
     if (args.size_t == 32):
@@ -431,7 +363,6 @@ class GPUVerifyInstance (object):
         else:
           CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(index) + "=" + str(value) ]
 
-      assert(args.size_t in [32,64])
       if (args.size_t == 32):
         CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
                                              "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--.bc" ]
@@ -757,8 +688,8 @@ class GPUVerifyInstance (object):
     if self.mode == AnalysisMode.FINDBUGS:
       print("No defects were found while analysing: " + ", ".join(self.sourceFiles), file=string_builder)
       print("Notes:", file=string_builder)
-      print("- use --loop-unwind=N with N > " + str(self.loopUnwindDepth) + " to search for deeper bugs", file=string_builder)
-      print("- re-run in verification mode to try to prove absence of defects", file=string_builder)
+      print("- Use --loop-unwind=N with N > " + str(self.loopUnwindDepth) + " to search for deeper bugs.", file=string_builder)
+      print("- Re-run in verification mode to try to prove absence of defects.", file=string_builder)
     else:
       print("Verified: " + ", ".join(self.sourceFiles), file=string_builder)
       if not self.onlyDivergence:
