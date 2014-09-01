@@ -177,10 +177,9 @@ def json_load(json_filename):
   b) Computes num-groups from global-size and local-size.
   """
   try:
-    fp = open(json_filename, "r")
-    data = json.load(fp)
-    fp.close()
-    __process_json(data)
+    with open(json_filename, "r") as fp:
+      data = json.load(fp)
+      __process_json(data)
   except IOError as e:
     raise JSONError(str(e))
   except ValueError as e:

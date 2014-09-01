@@ -212,25 +212,11 @@ def parse_args(argv):
     if args.version:
       ShowVersion()
 
-    if not args.batch_mode:
-      # Try reading the first line of the kernel file as arguments
-      header = args.kernel.readline()
-      if header.startswith("//"):
-        try:
-          p = parser.parse_args(strip_dudspace(header[len("//"):].rstrip().split(" ")))
-          file_args = to_ldict(p)
-          # Then override anything set via the command line
-          update_args(file_args,args)
-          args = file_args
-        except Exception as e:
-          pass # Probably doesn't parse -- worth a try
-
-      if args.verbose and args.num_groups and args.group_size:
-        print("Got {} groups of size {}".format("x".join(map(str,args.num_groups)),
-                                                "x".join(map(str,args.group_size))))
+    if not args.batch_mode and args.verbose and args.num_groups and args.group_size:
+      print("Got {} groups of size {}".format("x".join(map(str,args.num_groups)),
+                                              "x".join(map(str,args.group_size))))
 
     return args
-
 
 def processOptions(args):
   CommandLineOptions = copy.deepcopy(DefaultCmdLineOptions())
@@ -715,24 +701,9 @@ class GPUVerifyInstance (object):
       else:
         return "- no tools ran"
 
-
-def update_args (base, new):
-  for k,v in new.items():
-    if not base[k] and v:
-      if base.verbose or new.verbose:
-        print("Setting {} to {}".format(k,v))
-      base[k] = v
-    elif v and base[k] != v:
-      if base.verbose or new.verbose:
-        print("Supplanting {}={} for {}".format(k,base[k],v))
-      base[k] = v
-
-def strip_dudspace (argv):
-  return [x for x in argv if x != ""]
-
 def parse_header (file):
   code = [x.rstrip() for x in file.readlines()]
-  header_args = strip_dudspace(code[0][len("//"):].split(" "))
+  header_args = code[0][len("//"):].split()
   return code[1:],header_args
 
 # cache is of form map(code, list(known_safe))
@@ -768,8 +739,13 @@ def verify_batch (files, success_cache={}):
   success = []
   failure = []
   for i,f in enumerate(files):
-    x = parse_args([f])
-    rc = in_cache(f,x,success_cache,failure_cache)
+    with open(f, "r") as kernel_file:
+      kernel_args = [f]
+      header = kernel_file.readline()
+      if header.startswith("//"):
+        kernel_args += header[len("//"):].split()
+      x = parse_args(kernel_args)
+      rc = in_cache(f,x,success_cache,failure_cache)
     # Only check if we've never seen it before
     if rc is None:
       rc = main(x,open(os.devnull,'w')) == ErrorCodes.SUCCESS
