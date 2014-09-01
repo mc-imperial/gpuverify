@@ -232,36 +232,23 @@ def processOptions(args):
 
   CommandLineOptions.sourceFiles.append(args['kernel'].name)
 
-  CommandLineOptions.defines += args['defines']
-  CommandLineOptions.includes += args['includes']
+  CommandLineOptions.defines += args.defines
+  CommandLineOptions.includes += args.includes
 
-  # Must be added after include of opencl or cuda header
-  if args['no_annotations'] or args['only_requires']:
-    noAnnotationsHeader = [ "-include", "annotations/no_annotations.h" ]
-    clangOpenCLOptions.extend(noAnnotationsHeader)
-    clangCUDAOptions.extend(noAnnotationsHeader)
-    if args['only_requires']:
-      clangOpenCLDefines.append("ONLY_REQUIRES")
-      clangCUDADefines.append("ONLY_REQUIRES")
-  if args['invariants_as_candidates']:
-    candidateAnnotationsHeader = [ "-include", "annotations/candidate_annotations.h" ]
-    clangOpenCLOptions.extend(candidateAnnotationsHeader)
-    clangCUDAOptions.extend(candidateAnnotationsHeader)
+  CommandLineOptions.clangOptions += sum([a.split() for a in args.clang_options],[])
+  CommandLineOptions.optOptions += sum([a.split() for a in args.opt_options],[])
+  CommandLineOptions.bugleOptions += sum([a.split() for a in args.bugle_options],[])
+  CommandLineOptions.vcgenOptions += sum([a.split() for a in args.vcgen_options],[])
+  CommandLineOptions.cruncherOptions += sum([a.split() for a in args.cruncher_options],[])
+  CommandLineOptions.boogieOptions += sum([a.split() for a in args.boogie_options],[])
 
-  CommandLineOptions.clangOptions += sum([a.split(" ") for a in args['clang_options']],[])
-  CommandLineOptions.optOptions += sum([a.split(" ") for a in args['opt_options']],[])
-  CommandLineOptions.bugleOptions += sum([a.split(" ") for a in args['bugle_options']],[])
-  CommandLineOptions.vcgenOptions += sum([a.split(" ") for a in args['vcgen_options']],[])
-  CommandLineOptions.cruncherOptions += sum([a.split(" ") for a in args['cruncher_options']],[])
-  CommandLineOptions.boogieOptions += sum([a.split(" ") for a in args['boogie_options']],[])
-
-  CommandLineOptions.vcgenOptions += ["/noCandidate:"+a for a in args['omit_infer'] or []]
+  CommandLineOptions.vcgenOptions += ["/noCandidate:" + a for a in args.omit_infer or []]
   if args.kernel_args:
-    CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str,args['kernel_args'])) ]
+    CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str, args.kernel_args)) ]
     CommandLineOptions.cruncherOptions += [ "/proc:$" + args.kernel_args[0] ]
     CommandLineOptions.boogieOptions   += [ "/proc:$" + args.kernel_args[0] ]
 
-  CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file']]
+  CommandLineOptions.cruncherOptions += [x.name for x in args.boogie_file]
 
   if args.group_size:
     CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
@@ -270,7 +257,7 @@ def processOptions(args):
     CommandLineOptions.boogieOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
     CommandLineOptions.cruncherOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
 
-  if args['source_language'] == SourceLanguage.CUDA:
+  if args.source_language == SourceLanguage.CUDA:
     CommandLineOptions.boogieOptions += [ "/sourceLanguage:cu" ]
     CommandLineOptions.cruncherOptions += [ "/sourceLanguage:cu" ]
 
@@ -297,13 +284,12 @@ class GPUVerifyInstance (object):
     self.timing = {}
 
     CommandLineOptions = processOptions(args)
-    args.bugle_lang = "cl" if args.source_language == SourceLanguage.OpenCL else "cu"
 
     self.stop = args.stop
 
     cleanUpHandler.setVerbose(args.verbose)
 
-    filename, ext = args.kernel_name, args.kernel_ext
+    filename = args.kernel_name
 
     CommandLineOptions.defines += [ '__BUGLE_' + str(args.size_t) + '__' ]
     if (args.size_t == 32):
@@ -316,21 +302,30 @@ class GPUVerifyInstance (object):
       CommandLineOptions.clangOptions += clangInlineOptions
       CommandLineOptions.includes += clangOpenCLIncludes
       CommandLineOptions.defines += clangOpenCLDefines
+
+      # Must be added after include of opencl header
+      if args.no_annotations or args.only_requires:
+        CommandLineOptions.clangOptions += [ "-include", "annotations/no_annotations.h" ]
+        if args.only_requires:
+          CommandLineOptions.defines.append("ONLY_REQUIRES")
+      if args.invariants_as_candidates:
+        CommandLineOptions.clangOptions += [ "-include", "annotations/candidate_annotations.h" ]
+
       CommandLineOptions.defines.append("__" + str(len(args.group_size)) + "D_WORK_GROUP")
       CommandLineOptions.defines.append("__" + str(len(args.num_groups)) + "D_GRID")
       for (index, value) in enumerate(args.group_size):
         if value == '*':
-          CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(index) + "_FREE" ]
+          CommandLineOptions.defines.append("__LOCAL_SIZE_" + str(index) + "_FREE")
         else:
-          CommandLineOptions.defines += [ "__LOCAL_SIZE_" + str(index) + "=" + str(value) ]
+          CommandLineOptions.defines.append("__LOCAL_SIZE_" + str(index) + "=" + str(value))
       for (index, value) in enumerate(args.num_groups):
         if value == '*':
-          CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(index) + "_FREE" ]
+          CommandLineOptions.defines.append("__NUM_GROUPS_" + str(index) + "_FREE")
         elif type(value) is tuple:
-          CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(index) + "_FREE" ]
-          CommandLineOptions.defines += [ "__GLOBAL_SIZE_" + str(index) + "=" + str(value[1]) ]
+          CommandLineOptions.defines.append("__NUM_GROUPS_" + str(index) + "_FREE")
+          CommandLineOptions.defines.append("__GLOBAL_SIZE_" + str(index) + "=" + str(value[1]))
         else:
-          CommandLineOptions.defines += [ "__NUM_GROUPS_" + str(index) + "=" + str(value) ]
+          CommandLineOptions.defines.append("__NUM_GROUPS_" + str(index) + "=" + str(value))
 
       if (args.size_t == 32):
         CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
@@ -343,18 +338,27 @@ class GPUVerifyInstance (object):
       CommandLineOptions.clangOptions += clangCUDAOptions
       CommandLineOptions.includes += clangCUDAIncludes
       CommandLineOptions.defines += clangCUDADefines
+
+      # Must be added after include of cuda header
+      if args.no_annotations or args.only_requires:
+        CommandLineOptions.clangOptions += [ "-include", "annotations/no_annotations.h" ]
+        if args.only_requires:
+          CommandLineOptions.defines.append("ONLY_REQUIRES")
+      if args.invariants_as_candidates:
+        CommandLineOptions.clangOptions += [ "-include", "annotations/candidate_annotations.h" ]
+
       CommandLineOptions.defines.append("__" + str(len(args.group_size)) + "D_THREAD_BLOCK")
       CommandLineOptions.defines.append("__" + str(len(args.num_groups)) + "D_GRID")
       for (index, value) in enumerate(args.group_size):
         if value == '*':
-          CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(index) + "_FREE" ]
+          CommandLineOptions.defines.append("__BLOCK_DIM_" + str(index) + "_FREE")
         else:
-          CommandLineOptions.defines += [ "__BLOCK_DIM_" + str(index) + "=" + str(value) ]
+          CommandLineOptions.defines.append("__BLOCK_DIM_" + str(index) + "=" + str(value))
       for (index, value) in enumerate(args.num_groups):
         if value == '*':
-          CommandLineOptions.defines += [ "__GRID_DIM_" + str(index) + "_FREE" ]
+          CommandLineOptions.defines.append("__GRID_DIM_" + str(index) + "_FREE")
         else:
-          CommandLineOptions.defines += [ "__GRID_DIM_" + str(index) + "=" + str(value) ]
+          CommandLineOptions.defines.append("__GRID_DIM_" + str(index) + "=" + str(value))
 
     # Intermediate filenames
     bcFilename = filename + '.bc'
@@ -365,10 +369,9 @@ class GPUVerifyInstance (object):
     locFilename = filename + '.loc'
     smt2Filename = filename + '.smt2'
     if not args.keep_temps:
-      inputFilename = filename + ext
       def DeleteFile(filename):
         """ Delete the filename if it exists; but don't delete the original input """
-        if filename == inputFilename: return
+        if filename == args.kernel.name: return
         try: os.remove(filename)
         except OSError: pass
       cleanUpHandler.register(DeleteFile, bcFilename)
@@ -379,15 +382,12 @@ class GPUVerifyInstance (object):
       if not args.stop == 'vcgen': cleanUpHandler.register(DeleteFile, bplFilename)
 
     CommandLineOptions.clangOptions += ["-o", bcFilename]
-    CommandLineOptions.clangOptions += ["-x", "cl" if args.source_language == SourceLanguage.OpenCL else "cuda", (filename + ext)]
+    CommandLineOptions.clangOptions += ["-x", "cl" if args.source_language == SourceLanguage.OpenCL else "cuda", args.kernel.name]
 
     CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
-    if args.start == 'clang':
+    if not CommandLineOptions.skip['bugle']:
       CommandLineOptions.bugleOptions += [ "-l", "cl" if args.source_language == SourceLanguage.OpenCL else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
-    elif not CommandLineOptions.skip['bugle']:
-      assert args.bugle_lang in [ "cl", "cu" ]
-      CommandLineOptions.bugleOptions += [ "-l", args.bugle_lang, "-s", locFilename, "-o", gbplFilename, optFilename ]
 
     if not CommandLineOptions.skip['bugle'] and args.kernel_arrays:
       CommandLineOptions.bugleOptions += [ "-kernel-array-sizes=" + ','.join(map(str,args['kernel_arrays'])) ]
