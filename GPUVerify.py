@@ -35,6 +35,7 @@ except ImportError:
 from GPUVerifyScript.argument_parser import ArgumentParserError, parse_arguments
 from GPUVerifyScript.constants import AnalysisMode, SourceLanguage
 from GPUVerifyScript.error_codes import ErrorCodes
+from GPUVerifyScript.util import GlobalSizeError, get_num_groups
 import getversion
 
 class ConfigurationError(Exception):
@@ -224,27 +225,9 @@ def parse_args(argv):
         except Exception as e:
           pass # Probably doesn't parse -- worth a try
 
-      # Use '//' to ensure flooring division for Python3
-      if args.group_size and args.global_size:
-        if len(args.group_size) != len(args.global_size):
-          parser.error("Dimensions of --local_size and --global_size must match.")
-        args['num_groups'] = [(a//b) for (a,b) in zip(args.global_size,args.group_size)]
-        # The below returns a sequence of dimensions that aren't integer multiples
-        for i in (i for (i, a,b,c) in zip(list(range(len(args.num_groups))),
-                                          args.num_groups,args.group_size,args.global_size) if a * b != c):
-          parser.error("Dimension " + str(i) +
-                       " of global_size does not divide by the same dimension in local_size")
-      elif args.group_size and args.num_groups:
-        pass
-      else:
-        if args.source_language == SourceLanguage.OpenCL:
-          parser.error("Must specify thread dimensions with --local_size and --global_size")
-        else:
-          parser.error("Must specify thread dimensions with --blockDim and --gridDim")
-
-      if args.verbose:
-        print("Got {} groups of size {}".format("x".join(map(str,args['num_groups'])),
-                                                "x".join(map(str,args['group_size']))))
+      if args.verbose and args.num_groups and args.group_size:
+        print("Got {} groups of size {}".format("x".join(map(str,args.num_groups)),
+                                                "x".join(map(str,args.group_size))))
 
     return args
 
@@ -296,10 +279,12 @@ def processOptions(args):
 
   CommandLineOptions.cruncherOptions += [x.name for x in args['boogie_file']]
 
-  CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
-  CommandLineOptions.cruncherOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
-  CommandLineOptions.boogieOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
-  CommandLineOptions.cruncherOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
+  if args.group_size:
+    CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
+    CommandLineOptions.cruncherOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
+  if args.num_groups:
+    CommandLineOptions.boogieOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
+    CommandLineOptions.cruncherOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
 
   if args['source_language'] == SourceLanguage.CUDA:
     CommandLineOptions.boogieOptions += [ "/sourceLanguage:cu" ]
@@ -342,7 +327,7 @@ class GPUVerifyInstance (object):
     elif (args.size_t == 64):
       CommandLineOptions.clangOptions += [ "-target", "nvptx64--" ]
 
-    if args.source_language == SourceLanguage.OpenCL:
+    if args.source_language == SourceLanguage.OpenCL and args.start == "clang":
       CommandLineOptions.clangOptions += clangOpenCLOptions
       CommandLineOptions.clangOptions += clangInlineOptions
       CommandLineOptions.includes += clangOpenCLIncludes

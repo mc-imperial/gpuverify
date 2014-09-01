@@ -7,7 +7,7 @@ import subprocess
 
 from constants import AnalysisMode, SourceLanguage
 from error_codes import ErrorCodes
-from util import is_hex_string
+from util import is_hex_string, GlobalSizeError, get_num_groups
 
 class ArgumentParserError(Exception):
   def __init__(self, msg):
@@ -70,8 +70,8 @@ def __kernel_arguments(string):
   values = string.strip().split(",")
 
   if (len(values) < 1):
-    raise argparse.ArgumentTypeError("kernel arguments should include a kernel \
-      entry point as first element")
+    raise argparse.ArgumentTypeError("kernel arguments should include a " +
+      "kernel entry point as first element")
 
   if not all(x == '*' or is_hex_string(x) for x in values[1:]):
     raise argparse.ArgumentTypeError("kernel arguments must be hex values or *")
@@ -335,6 +335,24 @@ def __get_source_language(args, parser, llvm_bin_dir):
   else:
     parser.error("Could not infer source language")
 
+def __get_num_groups(args, parser):
+  if args.group_size and args.global_size:
+    try:
+      return get_num_groups(args.group_size, args.global_size)
+    except GlobalSizeError as e:
+      parser.error(str(e))
+  elif args.group_size and args.num_groups:
+    return args.num_groups
+  elif args.start == "clang":
+    if args.source_language == SourceLanguage.OpenCL:
+      parser.error("Must specify thread dimensions with --local_size and " +
+        "--global_size")
+    elif args.source_language == SourceLanguage.CUDA:
+      parser.error("Must specify thread dimensions with --blockDim and " +
+        "--gridDim")
+
+  return None
+
 def parse_arguments(argv, default_solver, llvm_bin_dir):
   parser = __build_parser(default_solver)
   args = __to_ldict(parser.parse_args(argv))
@@ -364,5 +382,7 @@ def parse_arguments(argv, default_solver, llvm_bin_dir):
 
   if not args.source_language and args.start in ["clang", "opt", "bugle"]:
     args.source_language = __get_source_language(args, parser, llvm_bin_dir)
+
+  args.num_groups = __get_num_groups(args, parser)
 
   return args

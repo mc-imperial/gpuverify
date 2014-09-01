@@ -4,7 +4,7 @@ import json
 from collections import namedtuple
 
 from error_codes import ErrorCodes
-from util import is_hex_string
+from util import is_hex_string, GlobalSizeError, get_num_groups
 
 class JSONError(Exception):
   """Exception type returned by json_load."""
@@ -35,7 +35,7 @@ def __check_array_of_positive_numbers(data, object_name):
   if not type(data) is list:
     raise JSONError(object_name + " expects an array of numbers > 0")
 
-  if not all(type(i) is int and i <= 0):
+  if not all(type(i) is int and i > 0 for i in data):
     raise JSONError(object_name + " expects an array of numbers > 0")
 
 def __check_scalar_argument(data):
@@ -140,6 +140,11 @@ def __process_opencl_entry(data):
     elif key == "host-api-calls":
       __check_host_api_calls(value)
 
+  try:
+    data["num-groups"] = get_num_groups(data["local-size"], data["global-size"])
+  except GlobalSizeError as e:
+    raise JSONError(str(e))
+
 def __process_kernel_entry(data):
   if not type(data) is dict:
     raise JSONError("kernel invocation entries need to be objects")
@@ -166,8 +171,10 @@ def json_load(json_filename):
   raises a JSONError in case an error is encountered. It is checked whether
   all required values are present and whether all values are of the right type.
 
-  The function also extracts 'defines' and 'includes' from the compiler-flags
-  value and returns a named tuple (defines, includes) instead of a string.
+  The function also:
+  a) Extracts 'defines' and 'includes' from the compiler-flags value and
+     returns a named tuple (defines, includes) instead of a string.
+  b) Computes num-groups from global-size and local-size.
   """
   try:
     fp = open(json_filename, "r")
