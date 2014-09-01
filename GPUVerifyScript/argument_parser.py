@@ -220,9 +220,7 @@ def __build_parser(default_solver):
     (x1, ..., xn), adds the precondition (x1 == v1 && ... && xn == vn). Use * \
     to denote an unconstrained parameter")
   advanced.add_argument("--kernel-arrays=", type = __kernel_arrays,
-    metavar = "K,s1,...,sn", help = "For kernel K with array parameters \
-    (p1, ..., pn), assume that sizeof(p1) == s1, ... sizeof(pn) == sn. Use * \
-    to denote an unconstrained size")
+    metavar = "K,s1,...,sn", help = argparse.SUPPRESS)
 
   advanced.add_argument("--warp-sync=", type = __positive, metavar = "X",
     help = "Synchronize threads within warps of size X.")
@@ -290,8 +288,7 @@ def __build_parser(default_solver):
   interceptor.add_argument("--cache")
 
   json = parser.add_argument_group("JSON MODE")
-  json.add_argument("--json", action = 'store_true', help = "The kernels to be \
-    verified are specified through a JSON configuration file")
+  json.add_argument("--json", action = 'store_true', help = argparse.SUPPRESS)
 
   return parser
 
