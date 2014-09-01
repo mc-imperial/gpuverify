@@ -1,10 +1,10 @@
 """Module for loading JSON files with GPUVerify invocation data."""
 
-from error_codes import ErrorCodes
-
 import json
 from collections import namedtuple
-import StringIO
+
+from error_codes import ErrorCodes
+from util import is_hex_string
 
 class JSONError(Exception):
   """Exception type returned by json_load."""
@@ -22,12 +22,7 @@ def __check_string(data, object_name):
 def __check_hex_string(data, object_name):
   if not type(data) is unicode:
     raise JSONError(object_name + " expects hex string")
-  if not data.startswith("0x"):
-    raise JSONError(object_name + " expects hex string")
-
-  try:
-    int(data, 16)
-  except ValueError as e:
+  if not is_hex_string(data):
     raise JSONError(object_name + " expects hex string")
 
 def __check_positive_number(data, object_name):
@@ -40,15 +35,13 @@ def __check_array_of_positive_numbers(data, object_name):
   if not type(data) is list:
     raise JSONError(object_name + " expects an array of numbers > 0")
 
-  for i in data:
-    if not type(i) is int or i <= 0:
-      raise JSONError(object_name + " expects an array of numbers > 0")
+  if not all(type(i) is int and i <= 0):
+    raise JSONError(object_name + " expects an array of numbers > 0")
 
 def __check_scalar_argument(data):
   for key, value in data.iteritems():
     if key == "value":
       __check_hex_string(value, "Scalar kernel argument value")
-      data[key] = value[len("0x"):]
 
 def __check_array_argument(data):
   for key, value in data.iteritems():
@@ -85,8 +78,8 @@ def __check_host_api_call(data):
   if not "line-number" in data:
     raise JSONError("api calls require a 'line-number' value")
 
-  for key, value in data.iteritems():
-    if key == "function-name" or key == "compilation-unit":
+  for key, value in data.items():
+    if key in ["function-name", "compilation-unit"]:
       __check_string(value, key)
     elif key == "line-number":
       __check_positive_number(value, key)
@@ -134,8 +127,8 @@ def __process_opencl_entry(data):
   if not "entry-point" in data:
     raise JSONError("kernel invocation entries require an 'entry-point' value")
 
-  for key, value in data.iteritems():
-    if key == "language" or key == "kernel-file" or key == "entry-point":
+  for key, value in data.items():
+    if key in ["language", "kernel-file", "entry-point"]:
       __check_string(value, key)
     elif key == "local-size" or key == "global-size":
       __check_array_of_positive_numbers(value, key)
@@ -174,9 +167,7 @@ def json_load(json_filename):
   all required values are present and whether all values are of the right type.
 
   The function also extracts 'defines' and 'includes' from the compiler-flags
-  value and returns a named tuple (defines, includes) instead of a string. In
-  the case of scalar argument values '0x' is removed from the beginning of the
-  hex string.
+  value and returns a named tuple (defines, includes) instead of a string.
   """
   try:
     fp = open(json_filename, "r")

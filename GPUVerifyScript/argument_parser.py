@@ -7,6 +7,7 @@ import subprocess
 
 from constants import AnalysisMode, SourceLanguage
 from error_codes import ErrorCodes
+from util import is_hex_string
 
 class ArgumentParserError(Exception):
   def __init__(self, msg):
@@ -48,7 +49,7 @@ def __dimensions(string):
   string = string.strip()
 
   if len(string) == 0:
-    raise argparse.ArgumentTypeError("aimensions must be vectors of length 1-3")
+    raise argparse.ArgumentTypeError("dimensions must be vectors of length 1-3")
 
   string = string[1:-1] if string[0] == "[" and string[-1] == "]" else string
 
@@ -72,10 +73,10 @@ def __kernel_arguments(string):
     raise argparse.ArgumentTypeError("kernel arguments should include a kernel \
       entry point as first element")
 
-  if not all(x == '*' or x.startswith("0x") for x in values[1:]):
+  if not all(x == '*' or is_hex_string(x) for x in values[1:]):
     raise argparse.ArgumentTypeError("kernel arguments must be hex values or *")
 
-  return [values[0]] + [x if x == '*' else x[len("0x"):] for x in values[1:]]
+  return values
 
 def __build_parser(default_solver):
   parser = __ArgumentParser( description = "GPUVerify frontend",

@@ -768,13 +768,18 @@ namespace GPUVerify
             // hence no requires clause needed.
             if (val=="*") continue;
 
+            if (!val.StartsWith("0x")) {
+              Console.WriteLine("Error: Invalid hex string");
+              Environment.Exit(1);
+            }
+
+            val = val.Substring(2);
             BigInteger arg = BigInteger.Parse(val,NumberStyles.HexNumber);
 
             Expr val_expr =
                 IntRep.GetLiteral(arg, ((BvType)v.TypedIdent.Type).Bits);
             Expr v_eq_val = Expr.Eq(v_expr, val_expr);
             proc.Requires.Add(new Requires(false, v_eq_val));
-            // Console.WriteLine("__requires(" + v.Name + "==" + val + ")");
           }
         }
 
