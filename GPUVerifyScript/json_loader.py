@@ -15,6 +15,16 @@ class JSONError(Exception):
     return "GPUVerify: JSON_ERROR error ({}): {}" \
       .format(ErrorCodes.JSON_ERROR, self.msg)
 
+class __ldict(dict):
+  def __getattr__(self, name):
+    if name in self:
+      return self[name]
+    else:
+      raise AttributeError(name)
+
+  def __setattr__(self, name, value):
+    self[name] = value
+
 def __check_string(data, object_name):
   if not type(data) is unicode:
     raise JSONError(object_name + " expects string")
@@ -63,7 +73,7 @@ def __check_argument(data):
 
 def __check_kernel_arguments(data):
   if not type(data) is list:
-    raise JSONError("kernel-arguments expects array")
+    raise JSONError("kernel_arguments expects array")
 
   for i in data:
     __check_argument(i)
@@ -71,22 +81,22 @@ def __check_kernel_arguments(data):
 def __check_host_api_call(data):
   if not type(data) is dict:
     raise JSONError("api calls need to be objects")
-  if not "function-name" in data:
-    raise JSONError("api calls require a 'function-name' value")
-  if not "compilation-unit" in data:
-    raise JSONError("api calls require a 'compilation-unit' value")
-  if not "line-number" in data:
-    raise JSONError("api calls require a 'line-number' value")
+  if not "function_name" in data:
+    raise JSONError("api calls require a 'function_name' value")
+  if not "compilation_unit" in data:
+    raise JSONError("api calls require a 'compilation_unit' value")
+  if not "line_number" in data:
+    raise JSONError("api calls require a 'line_number' value")
 
   for key, value in data.items():
-    if key in ["function-name", "compilation-unit"]:
+    if key in ["function_name", "compilation_unit"]:
       __check_string(value, key)
-    elif key == "line-number":
+    elif key == "line_number":
       __check_positive_number(value, key)
 
 def __check_host_api_calls(data):
   if not type(data) is list:
-    raise JSONError("host-api-calls expects array")
+    raise JSONError("host_api_calls expects array")
 
   for i in data:
     __check_host_api_call(i)
@@ -118,30 +128,32 @@ def __extract_defines_and_includes(compiler_flags):
   return DefinesIncludes(defines, includes)
 
 def __process_opencl_entry(data):
-  if not "kernel-file" in data:
-    raise JSONError("kernel invocation entries require a 'kernel-file' value")
-  if not "local-size" in data:
-    raise JSONError("kernel invocation entries require a 'local-size' value")
-  if not "global-size" in data:
-    raise JSONError("kernel invocation entries require a 'global-size' value")
-  if not "entry-point" in data:
-    raise JSONError("kernel invocation entries require an 'entry-point' value")
+  if not "kernel_file" in data:
+    raise JSONError("kernel invocation entries require a 'kernel_file' value")
+  if not "local_size" in data:
+    raise JSONError("kernel invocation entries require a 'local_size' value")
+  if not "global_size" in data:
+    raise JSONError("kernel invocation entries require a 'global_size' value")
+  if not "entry_point" in data:
+    raise JSONError("kernel invocation entries require an 'entry_point' value")
 
   for key, value in data.items():
-    if key in ["language", "kernel-file", "entry-point"]:
+    if key in ["language", "kernel_file", "entry_point"]:
       __check_string(value, key)
-    elif key == "local-size" or key == "global-size":
+    elif key == "local_size" or key == "global_size":
       __check_array_of_positive_numbers(value, key)
-    elif key == "compiler-flags":
+    elif key == "compiler_flags":
       __check_string(value, key)
       data[key] = __extract_defines_and_includes(value)
-    elif key == "kernel-arguments":
+    elif key == "kernel_arguments":
       __check_kernel_arguments(value)
-    elif key == "host-api-calls":
+      data[key] = [__ldict(arg) for arg in value]
+    elif key == "host_api_calls":
       __check_host_api_calls(value)
+      data[key] = [__ldict(call) for call in value]
 
   try:
-    data["num-groups"] = get_num_groups(data["local-size"], data["global-size"])
+    data["num_groups"] = get_num_groups(data["local_size"], data["global_size"])
   except GlobalSizeError as e:
     raise JSONError(str(e))
 
@@ -164,27 +176,23 @@ def __process_json(data):
   for i in data:
     __process_kernel_entry(i)
 
-def json_load(json_filename):
-  """Load GPUVerify invocation data from json_file.
+def json_load(json_file):
+  """Load GPUVerify invocation data from json_file object.
 
   The function either returns a dictionary structured as the JSON file, or
   raises a JSONError in case an error is encountered. It is checked whether
   all required values are present and whether all values are of the right type.
 
   The function also:
-  a) Extracts 'defines' and 'includes' from the compiler-flags value and
+  a) Extracts 'defines' and 'includes' from the compiler_flags value and
      returns a named tuple (defines, includes) instead of a string.
-  b) Computes num-groups from global-size and local-size.
+  b) Computes num_groups from global_size and local_size.
   """
   try:
-    with open(json_filename, "r") as fp:
-      data = json.load(fp)
-      __process_json(data)
-  except IOError as e:
-    raise JSONError(str(e))
+    data = json.load(json_file)
+    __process_json(data)
+    return [__ldict(kernel) for kernel in data]
   except ValueError as e:
     raise JSONError(str(e))
   except JSONError:
     raise
-
-  return data

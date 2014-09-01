@@ -1,13 +1,21 @@
 """Module defining some utility functions used in various places."""
 
 def is_hex_string(string):
-  """Check if a string defines a hex value"""
+  """Check if a string represents a hex value"""
   if not string.startswith("0x"):
     return False
 
   try:
     int(string, 16)
     return True
+  except ValueError as e:
+    return False
+
+def is_positive_string(string):
+  """Check if a string defines a positive integer value"""
+  try:
+    val = int(string)
+    return val > 0
   except ValueError as e:
     return False
 

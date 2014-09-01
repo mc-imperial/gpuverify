@@ -35,7 +35,7 @@ except ImportError:
 from GPUVerifyScript.argument_parser import ArgumentParserError, parse_arguments
 from GPUVerifyScript.constants import AnalysisMode, SourceLanguage
 from GPUVerifyScript.error_codes import ErrorCodes
-from GPUVerifyScript.util import GlobalSizeError, get_num_groups
+from GPUVerifyScript.json_loader import JSONError, json_load
 import getversion
 
 class ConfigurationError(Exception):
@@ -176,9 +176,10 @@ class DefaultCmdLineOptions(object):
   """
   def __init__(self):
     self.sourceFiles = [] # The OpenCL or CUDA files to be processed
-    self.includes = clangCoreIncludes
-    self.defines = clangCoreDefines
-    self.clangOptions = list(clangCoreOptions) # Make sure we make a copy so we don't change the global list
+    # Make sure we make a copy so we don't change the global list
+    self.includes = list(clangCoreIncludes)
+    self.defines = list(clangCoreDefines)
+    self.clangOptions = list(clangCoreOptions)
     self.optOptions = [ "-mem2reg", "-globaldce" ]
     self.defaultOptions = [ "/nologo", "/typeEncoding:m", "/mv:-",
                        "/doModSetAnalysis", "/useArrayTheory",
@@ -387,6 +388,9 @@ class GPUVerifyInstance (object):
     elif not CommandLineOptions.skip['bugle']:
       assert args.bugle_lang in [ "cl", "cu" ]
       CommandLineOptions.bugleOptions += [ "-l", args.bugle_lang, "-s", locFilename, "-o", gbplFilename, optFilename ]
+
+    if not CommandLineOptions.skip['bugle'] and args.kernel_arrays:
+      CommandLineOptions.bugleOptions += [ "-kernel-array-sizes=" + ','.join(map(str,args['kernel_arrays'])) ]
 
     if args.math_int:
       CommandLineOptions.bugleOptions += [ "-i", "math" ]
@@ -811,6 +815,37 @@ def do_batch_mode (host_args):
   if args.cache:
     pickle.dump(success_cache,open(args.cache,"w"))
 
+def do_json_mode(args):
+  kernels = json_load(args.kernel)
+  base_path = os.path.dirname(args.kernel.name)
+
+  for kernel in kernels:
+    kernel_args = copy.deepcopy(args)
+    kernel_name = os.path.join(base_path, kernel.kernel_file)
+    kernel_args.kernel = open(kernel_name, "r")
+    kernel_args.kernel_name, kernel_args.kernel_ext = \
+      os.path.splitext(kernel_name)
+    kernel_args.source_language = SourceLanguage.OpenCL
+    kernel_args.group_size = kernel.local_size
+    kernel_args.global_size = kernel.global_size
+    kernel_args.num_groups = kernel.num_groups
+    if "compiler_flags" in kernel:
+      kernel_args.defines += kernel.compiler_flags.defines
+      kernel_args.includes += kernel.compiler_flags.includes
+    if "kernel_arguments" in kernel:
+      scalar_args = \
+        [arg for arg in kernel.kernel_arguments if arg.type == "scalar"]
+      scalar_vals = \
+        [arg.value if "value" in arg else "*" for arg in scalar_args]
+      kernel_args.kernel_args = [kernel.entry_point] + scalar_vals
+      array_args = \
+        [arg for arg in kernel.kernel_arguments if arg.type == "array"]
+      array_sizes = \
+        [arg.size if "size" in arg else "*" for arg in array_args]
+      kernel_args.kernel_arrays = [kernel.entry_point] + array_sizes
+    _, out = main(kernel_args)
+    sys.stdout.write(out)
+
 def main(argv, out=sys.stdout):
   """ This wraps GPUVerify's real main function so
       that we can handle exceptions and trigger our own exit
@@ -854,6 +889,8 @@ if __name__ == '__main__':
     debug = args.debug
     if args.batch_mode:
       do_batch_mode(args)
+    elif args.json:
+      do_json_mode(args)
     else:
       rc, out = main(args)
       sys.stdout.write(out)
@@ -864,6 +901,9 @@ if __name__ == '__main__':
   except ArgumentParserError as e:
     print(str(e), file=sys.stderr)
     sys.exit(ErrorCodes.COMMAND_LINE_ERROR)
+  except JSONError as e:
+    print(str(e), file=sys.stderr)
+    sys.exit(ErrorCodes.JSON_ERROR)
   except KeyboardInterrupt:
     sys.exit(ErrorCodes.CTRL_C)
 

@@ -7,7 +7,8 @@ import subprocess
 
 from constants import AnalysisMode, SourceLanguage
 from error_codes import ErrorCodes
-from util import is_hex_string, GlobalSizeError, get_num_groups
+from util import is_hex_string, is_positive_string, GlobalSizeError, \
+  get_num_groups
 
 class ArgumentParserError(Exception):
   def __init__(self, msg):
@@ -75,6 +76,18 @@ def __kernel_arguments(string):
 
   if not all(x == '*' or is_hex_string(x) for x in values[1:]):
     raise argparse.ArgumentTypeError("kernel arguments must be hex values or *")
+
+  return values
+
+def __kernel_arrays(string):
+  values = string.strip().split(",")
+
+  if (len(values) < 1):
+    raise argparse.ArgumentTypeError("kernel arrays should include a " +
+      "kernel entry point as first element")
+
+  if not all(x == '*' or is_positive_string(x) for x in values[1:]):
+    raise argparse.ArgumentTypeError("kernel arguments must be ints or *")
 
   return values
 
@@ -206,6 +219,10 @@ def __build_parser(default_solver):
     metavar = "K,v1,...,vn", help = "For kernel K with scalar parameters \
     (x1, ..., xn), adds the precondition (x1 == v1 && ... && xn == vn). Use * \
     to denote an unconstrained parameter")
+  advanced.add_argument("--kernel-arrays=", type = __kernel_arrays,
+    metavar = "K,s1,...,sn", help = "For kernel K with array parameters \
+    (p1, ..., pn), assume that sizeof(p1) == s1, ... sizeof(pn) == sn. Use * \
+    to denote an unconstrained size")
 
   advanced.add_argument("--warp-sync=", type = __positive, metavar = "X",
     help = "Synchronize threads within warps of size X.")
@@ -253,7 +270,7 @@ def __build_parser(default_solver):
     const = "cruncher", help = "Stop after generating an annotated bpl file")
 
   inference = parser.add_argument_group("INVARIANT INFERENCE OPTIONS")
-  inference.add_argument("--no-infer", dest = 'inference', default = True,
+  inference.add_argument("--no-infer", dest = 'inference',
     action = 'store_false', help = "Turn off invariant inference")
   inference.add_argument("--omit-infer=", action = 'append', metavar = "X",
     help = "Do not generate invariants tagged 'X'")
@@ -271,6 +288,10 @@ def __build_parser(default_solver):
     action = 'append', metavar = "X")
   interceptor.add_argument("--check-all-intercepted", action = 'store_true')
   interceptor.add_argument("--cache")
+
+  json = parser.add_argument_group("JSON MODE")
+  json.add_argument("--json", action = 'store_true', help = "The kernels to be \
+    verified are specified through a JSON configuration file")
 
   return parser
 
@@ -300,15 +321,10 @@ def __split_filename_ext(f):
     ext = ".opt.bc"
   return filename, ext
 
-def __get_start_stop(args):
+def __get_start(args):
   starts = defaultdict(lambda : "clang", {".bc": "opt", ".opt.bc": "bugle",
     ".gbpl": "vcgen", ".bpl": "cruncher", ".cbpl": "boogie"})
-  start = starts[args.kernel_ext]
-
-  if not args.stop:
-    stop = "boogie"
-
-  return start, stop
+  return starts[args.kernel_ext]
 
 def __get_source_language(args, parser, llvm_bin_dir):
   if args.source_language:
@@ -369,16 +385,31 @@ def parse_arguments(argv, default_solver, llvm_bin_dir):
       parser.error("Stop-at arguments incompatible with batch mode")
     if args.group_size or args.num_groups or args.global_size:
       parser.error("Sizing arguments incompatible with batch mode")
+    if args.json:
+      parser.error("JSON mode incompatible with batch mode")
 
   # Remainder of processing only required in "normal" mode
   if args.batch_mode or args.version:
     return args
 
-  if not args.kernel:
-    parser.error("Must provide kernel file in normal mode")
+  if args.json:
+    if args.group_size or args.num_groups or args.global_size:
+      parser.error("Sizing arguments incompatible with JSON mode")
+    if not args.kernel:
+      parser.error("Must provide JSON file in JSON mode")
+  else:
+    if not args.kernel:
+      parser.error("Must provide kernel file in normal mode")
+
+  if not args.stop:
+    args.stop = "boogie"
+
+  if args.json:
+    args.start = "clang"
+    return args
 
   args.kernel_name, args.kernel_ext = __split_filename_ext(args.kernel.name)
-  args.start, args.stop = __get_start_stop(args)
+  args.start = __get_start(args)
 
   if not args.source_language and args.start in ["clang", "opt", "bugle"]:
     args.source_language = __get_source_language(args, parser, llvm_bin_dir)
