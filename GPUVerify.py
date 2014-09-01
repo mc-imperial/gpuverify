@@ -194,9 +194,6 @@ class DefaultCmdLineOptions(object):
              "vcgen": False,
              "cruncher": False }
 
-def GPUVerifyWarn(msg):
-  print("GPUVerify: warning: " + msg)
-
 def ShowVersion():
     """ This will check if using gpuverify from development directory.
         If so this will invoke Mercurial to find out version information.
