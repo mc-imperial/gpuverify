@@ -5,9 +5,9 @@ from collections import defaultdict
 import os
 import subprocess
 
-from constants import AnalysisMode, SourceLanguage
-from error_codes import ErrorCodes
-from util import is_hex_string, is_positive_string, GlobalSizeError, \
+from .constants import AnalysisMode, SourceLanguage
+from .error_codes import ErrorCodes
+from .util import is_hex_string, is_positive_string, GlobalSizeError, \
   get_num_groups
 
 class ArgumentParserError(Exception):

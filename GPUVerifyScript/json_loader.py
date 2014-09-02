@@ -3,8 +3,8 @@
 import json
 from collections import namedtuple
 
-from error_codes import ErrorCodes
-from util import is_hex_string, GlobalSizeError, get_num_groups
+from .error_codes import ErrorCodes
+from .util import is_hex_string, GlobalSizeError, get_num_groups
 
 class JSONError(Exception):
   """Exception type returned by json_load."""
@@ -49,12 +49,12 @@ def __check_array_of_positive_numbers(data, object_name):
     raise JSONError(object_name + " expects an array of numbers > 0")
 
 def __check_scalar_argument(data):
-  for key, value in data.iteritems():
+  for key, value in data.items():
     if key == "value":
       __check_hex_string(value, "Scalar kernel argument value")
 
 def __check_array_argument(data):
-  for key, value in data.iteritems():
+  for key, value in data.items():
     if key == "size":
       __check_positive_number(value, "Array kernel argument size")
 
