@@ -17,6 +17,7 @@ Contents:
    basic_usage
    advanced_features
    developer_guide
+   json_format
    trouble_shooting
    limitations
 
