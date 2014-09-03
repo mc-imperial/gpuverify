@@ -50,13 +50,21 @@ def __check_array_of_positive_numbers(data, object_name):
 
 def __check_scalar_argument(data):
   for key, value in data.items():
-    if key == "value":
+    if key == "type":
+      pass
+    elif key == "value":
       __check_hex_string(value, "Scalar kernel argument value")
+    else:
+      raise JSONError("Unknown value " + str(key))
 
 def __check_array_argument(data):
   for key, value in data.items():
-    if key == "size":
+    if key == "type":
+      pass
+    elif key == "size":
       __check_positive_number(value, "Array kernel argument size")
+    else:
+      raise JSONError("Unknown value " + str(key))
 
 def __check_argument(data):
   if not type(data) is dict:
@@ -93,6 +101,8 @@ def __check_host_api_call(data):
       __check_string(value, key)
     elif key == "line_number":
       __check_positive_number(value, key)
+    else:
+      raise JSONError("Unknown value " + str(key))
 
 def __check_host_api_calls(data):
   if not type(data) is list:
@@ -137,10 +147,10 @@ def __process_opencl_entry(data):
   if not "entry_point" in data:
     raise JSONError("kernel invocation entries require an 'entry_point' value")
 
-  for key, value in data.items():
+  for key, value in list(data.items()):
     if key in ["language", "kernel_file", "entry_point"]:
       __check_string(value, key)
-    elif key == "local_size" or key == "global_size":
+    elif key in ["local_size", "global_size"]:
       __check_array_of_positive_numbers(value, key)
     elif key == "compiler_flags":
       __check_string(value, key)
@@ -151,6 +161,8 @@ def __process_opencl_entry(data):
     elif key == "host_api_calls":
       __check_host_api_calls(value)
       data[key] = [__ldict(call) for call in value]
+    else:
+      raise JSONError("Unknown value " + str(key))
 
   try:
     data["num_groups"] = get_num_groups(data["local_size"], data["global_size"])
