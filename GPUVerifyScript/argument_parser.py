@@ -1,7 +1,6 @@
 """Module for parsing GPUVerify command line arguments"""
 
 import argparse
-from collections import defaultdict
 import os
 import subprocess
 
@@ -318,10 +317,8 @@ def __split_filename_ext(f):
     ext = ".opt.bc"
   return filename, ext
 
-def __get_start(args):
-  starts = defaultdict(lambda : "clang", {".bc": "opt", ".opt.bc": "bugle",
-    ".gbpl": "vcgen", ".bpl": "cruncher", ".cbpl": "boogie"})
-  return starts[args.kernel_ext]
+def __need_source_language(ext):
+  return ext not in [".gbpl", ".bpl", ".cbpl"]
 
 def __get_source_language(args, parser, llvm_bin_dir):
   if args.source_language:
@@ -402,13 +399,11 @@ def parse_arguments(argv, default_solver, llvm_bin_dir):
     args.stop = "boogie"
 
   if args.json:
-    args.start = "clang"
     return args
 
   args.kernel_name, args.kernel_ext = __split_filename_ext(args.kernel.name)
-  args.start = __get_start(args)
 
-  if not args.source_language and args.start in ["clang", "opt", "bugle"]:
+  if not args.source_language and __need_source_language(args.kernel_ext):
     args.source_language = __get_source_language(args, parser, llvm_bin_dir)
 
   args.num_groups = __get_num_groups(args, parser)

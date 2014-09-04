@@ -296,7 +296,7 @@ class GPUVerifyInstance (object):
     elif (args.size_t == 64):
       CommandLineOptions.clangOptions += [ "-target", "nvptx64--" ]
 
-    if args.source_language == SourceLanguage.OpenCL and args.start == "clang":
+    if args.source_language == SourceLanguage.OpenCL and not CommandLineOptions.skip["clang"]:
       CommandLineOptions.clangOptions += clangOpenCLOptions
       CommandLineOptions.clangOptions += clangInlineOptions
       CommandLineOptions.includes += clangOpenCLIncludes
