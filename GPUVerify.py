@@ -21,17 +21,6 @@ else:
   # use StringIO instead
   import StringIO as io
 
-# To properly kill child processes cross platform
-try:
-  import psutil
-except ImportError:
-  sys.stderr.write("GPUVerify requires Python to be equipped with the psutil module.\n")
-  sys.stderr.write("On Windows we recommend installing psutil from a prebuilt binary:\n")
-  sys.stderr.write("  https://pypi.python.org/pypi?:action=display&name=psutil#downloads\n")
-  sys.stderr.write("On Linux/OSX, we recommend installing psutil with pip:\n")
-  sys.stderr.write("  pip install psutil\n")
-  sys.exit(1)
-
 from GPUVerifyScript.argument_parser import ArgumentParserError, parse_arguments
 from GPUVerifyScript.constants import AnalysisMode, SourceLanguage
 from GPUVerifyScript.error_codes import ErrorCodes
@@ -43,6 +32,17 @@ class ConfigurationError(Exception):
     self.msg = msg
   def __str__ (self):
     return "GPUVerify: CONFIGURATION_ERROR error ({}): {}".format(ErrorCodes.CONFIGURATION_ERROR,self.msg)
+
+# To properly kill child processes cross platform
+try:
+  import psutil
+except ImportError:
+  sys.stderr.write("GPUVerify requires Python to be equipped with the psutil module.\n")
+  sys.stderr.write("On Windows we recommend installing psutil from a prebuilt binary:\n")
+  sys.stderr.write("  https://pypi.python.org/pypi?:action=display&name=psutil#downloads\n")
+  sys.stderr.write("On Linux/OSX, we recommend installing psutil with pip:\n")
+  sys.stderr.write("  pip install psutil\n")
+  raise ConfigurationError("Module psutil not found")
 
 # Try to import the paths need for GPUVerify's tools
 try:
@@ -83,8 +83,7 @@ class BatchCaller(object):
     self.verbose = v
 
   def register(self, function, *nargs, **kargs):
-    """
-    Register function.
+    """Register function.
 
     function : The function to call
 
@@ -95,7 +94,7 @@ class BatchCaller(object):
     self.calls.append(call)
 
   def call(self, inReverse=False):
-    """ Call registered functions
+    """Call registered functions
     """
     if inReverse:
       self.calls.reverse()
@@ -107,8 +106,7 @@ class BatchCaller(object):
       call.function(*(call.nargs), **(call.kargs))
 
   def clear(self):
-    """
-      Remove all registered calls
+    """Remove all registered calls
     """
     self.calls = [ ]
 
@@ -118,93 +116,23 @@ cleanUpHandler = BatchCaller()
 Tools = ["clang", "opt", "bugle", "gpuverifyvcgen", "gpuverifycruncher", "gpuverifyboogiedriver"]
 Extensions = { 'clang': ".bc", 'opt': ".opt.bc", 'bugle': ".gbpl", 'gpuverifyvcgen': ".bpl", 'gpuverifycruncher': ".cbpl" }
 
-
-clangCoreIncludes = [ gvfindtools.bugleSrcDir + "/include-blang" ]
-
-clangCoreDefines = [ ]
-
-clangCoreOptions = [ "-Wall",
-                     "-g",
-                     "-gcolumn-info",
-                     "-emit-llvm",
-                     "-c"
-                   ]
-
 if os.name == "posix":
-  if os.path.isfile(gvfindtools.bugleBinDir \
-                    + "/libbugleInlineCheckPlugin.so"):
-    bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
-                             + "/libbugleInlineCheckPlugin.so"
-  elif os.path.isfile(gvfindtools.bugleBinDir \
-                      + "/libbugleInlineCheckPlugin.dylib"):
-    bugleInlineCheckPlugin = gvfindtools.bugleBinDir \
-                             + "/libbugleInlineCheckPlugin.dylib"
+  linux_plugin = gvfindtools.bugleBinDir + "/libbugleInlineCheckPlugin.so"
+  mac_plugin = gvfindtools.bugleBinDir + "/libbugleInlineCheckPlugin.dylib"
+  if os.path.isfile(linux_plugin):
+    bugleInlineCheckPlugin = linux_plugin
+  elif os.path.isfile(mac_plugin):
+    bugleInlineCheckPlugin = mac_plugin
   else:
     raise ConfigurationError('Could not find Bugle Inline Check plugin')
 
-  clangInlineOptions = [ "-Xclang", "-load",
-                         "-Xclang", bugleInlineCheckPlugin,
-                         "-Xclang", "-add-plugin",
-                         "-Xclang", "inline-check"
-                       ]
-else:
-  clangInlineOptions = []
-
-clangOpenCLOptions = [ "-Xclang", "-cl-std=CL1.2",
-                       "-O0",
-                       "-fno-builtin",
-                       "-include", "opencl.h"
-                     ]
-clangOpenCLIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
-clangOpenCLDefines = [ "cl_khr_fp64",
-                       "cl_khr_fp16",
-                       "cl_clang_storage_class_specifiers",
-                       "__OPENCL_VERSION__=120"
-                     ]
-
-clangCUDAOptions = [ "-Xclang", "-fcuda-is-device",
-                     "-include", "cuda.h"
-                   ]
-
-clangCUDAIncludes = [ gvfindtools.libclcInstallDir + "/include" ]
-clangCUDADefines = [ "__CUDA_ARCH__" ]
-
-""" Options for the tool """
-class DefaultCmdLineOptions(object):
-  """
-  This class defines some of the default options for the tool
-  """
-  def __init__(self):
-    self.sourceFiles = [] # The OpenCL or CUDA files to be processed
-    # Make sure we make a copy so we don't change the global list
-    self.includes = list(clangCoreIncludes)
-    self.defines = list(clangCoreDefines)
-    self.clangOptions = list(clangCoreOptions)
-    self.optOptions = [ ]
-    self.vcgenOptions = [ ]
-    self.cruncherOptions = []
-    self.boogieOptions = []
-    self.bugleOptions = []
-    self.skip = { "clang": False,
-             "opt": False,
-             "bugle": False,
-             "vcgen": False,
-             "cruncher": False }
-
-def ShowVersion():
-    """ This will check if using gpuverify from development directory.
-        If so this will invoke Mercurial to find out version information.
-        If this is a deployed version we will try to read the version from
-        a file instead
-    """
-    print(getversion.getVersionString())
-    sys.exit()
-
 def parse_args(argv):
-    args = parse_arguments(argv, gvfindtools.defaultSolver, gvfindtools.llvmBinDir)
+    args = parse_arguments(argv, gvfindtools.defaultSolver,
+      gvfindtools.llvmBinDir)
 
     if args.version:
-      ShowVersion()
+      print(getversion.getVersionString())
+      sys.exit(ErrorCodes.SUCCESS)
 
     if not args.batch_mode and args.verbose and args.num_groups and args.group_size:
       print("Got {} groups of size {}".format("x".join(map(str,args.num_groups)),
@@ -212,39 +140,8 @@ def parse_args(argv):
 
     return args
 
-def processOptions(args):
-  CommandLineOptions = copy.deepcopy(DefaultCmdLineOptions())
-  ext = args.kernel_ext
-  if ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
-    CommandLineOptions.skip["clang"] = True
-  if ext in [        ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
-    CommandLineOptions.skip["opt"] = True
-  if ext in [                   ".gbpl", ".bpl", ".cbpl" ]:
-    CommandLineOptions.skip["bugle"] = True
-  if ext in [                            ".bpl", ".cbpl" ]:
-    CommandLineOptions.skip["vcgen"] = True
-  if ext in [                                    ".cbpl" ]:
-    CommandLineOptions.skip["cruncher"] = True
-
-  CommandLineOptions.sourceFiles.append(args['kernel'].name)
-
-  CommandLineOptions.defines += args.defines
-  CommandLineOptions.includes += args.includes
-
-  CommandLineOptions.clangOptions += sum([a.split() for a in args.clang_options],[])
-
-  return CommandLineOptions
-
 class GPUVerifyInstance (object):
-
-  def __init__ (self, args, out=None):
-    """
-    This function should NOT be called directly instead call main()
-    It is assumed that argv has had sys.argv[0] removed
-    """
-
-    self.out = out
-
+  def __init__ (self, args, out = None):
     if gvfindtools.useMono:
       if args.debug:
         self.mono = [ 'mono' , '--debug' ]
@@ -253,84 +150,24 @@ class GPUVerifyInstance (object):
     else:
       self.mono = []
 
-    self.timing = {}
-
-    CommandLineOptions = processOptions(args)
-
-    self.stop = args.stop
-
     cleanUpHandler.setVerbose(args.verbose)
 
     filename = args.kernel_name
+    ext = args.kernel_ext
 
-    CommandLineOptions.defines += [ '__BUGLE_' + str(args.size_t) + '__' ]
-    if (args.size_t == 32):
-      CommandLineOptions.clangOptions += [ "-target", "nvptx--" ]
-    elif (args.size_t == 64):
-      CommandLineOptions.clangOptions += [ "-target", "nvptx64--" ]
+    self.skip = {"clang": False, "opt": False, "bugle": False, "vcgen": False,
+      "cruncher": False}
 
-    if args.source_language == SourceLanguage.OpenCL and not CommandLineOptions.skip["clang"]:
-      CommandLineOptions.clangOptions += clangOpenCLOptions
-      CommandLineOptions.clangOptions += clangInlineOptions
-      CommandLineOptions.includes += clangOpenCLIncludes
-      CommandLineOptions.defines += clangOpenCLDefines
-
-      # Must be added after include of opencl header
-      if args.no_annotations or args.only_requires:
-        CommandLineOptions.clangOptions += [ "-include", "annotations/no_annotations.h" ]
-        if args.only_requires:
-          CommandLineOptions.defines.append("ONLY_REQUIRES")
-      if args.invariants_as_candidates:
-        CommandLineOptions.clangOptions += [ "-include", "annotations/candidate_annotations.h" ]
-
-      CommandLineOptions.defines.append("__" + str(len(args.group_size)) + "D_WORK_GROUP")
-      CommandLineOptions.defines.append("__" + str(len(args.num_groups)) + "D_GRID")
-      for (index, value) in enumerate(args.group_size):
-        if value == '*':
-          CommandLineOptions.defines.append("__LOCAL_SIZE_" + str(index) + "_FREE")
-        else:
-          CommandLineOptions.defines.append("__LOCAL_SIZE_" + str(index) + "=" + str(value))
-      for (index, value) in enumerate(args.num_groups):
-        if value == '*':
-          CommandLineOptions.defines.append("__NUM_GROUPS_" + str(index) + "_FREE")
-        elif type(value) is tuple:
-          CommandLineOptions.defines.append("__NUM_GROUPS_" + str(index) + "_FREE")
-          CommandLineOptions.defines.append("__GLOBAL_SIZE_" + str(index) + "=" + str(value[1]))
-        else:
-          CommandLineOptions.defines.append("__NUM_GROUPS_" + str(index) + "=" + str(value))
-
-      if (args.size_t == 32):
-        CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
-                                             "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx--.bc" ]
-      elif (args.size_t == 64):
-        CommandLineOptions.clangOptions += [ "-Xclang", "-mlink-bitcode-file",
-                                             "-Xclang", gvfindtools.libclcInstallDir + "/lib/clc/nvptx64--.bc" ]
-
-    elif args.source_language == SourceLanguage.CUDA:
-      CommandLineOptions.clangOptions += clangCUDAOptions
-      CommandLineOptions.includes += clangCUDAIncludes
-      CommandLineOptions.defines += clangCUDADefines
-
-      # Must be added after include of cuda header
-      if args.no_annotations or args.only_requires:
-        CommandLineOptions.clangOptions += [ "-include", "annotations/no_annotations.h" ]
-        if args.only_requires:
-          CommandLineOptions.defines.append("ONLY_REQUIRES")
-      if args.invariants_as_candidates:
-        CommandLineOptions.clangOptions += [ "-include", "annotations/candidate_annotations.h" ]
-
-      CommandLineOptions.defines.append("__" + str(len(args.group_size)) + "D_THREAD_BLOCK")
-      CommandLineOptions.defines.append("__" + str(len(args.num_groups)) + "D_GRID")
-      for (index, value) in enumerate(args.group_size):
-        if value == '*':
-          CommandLineOptions.defines.append("__BLOCK_DIM_" + str(index) + "_FREE")
-        else:
-          CommandLineOptions.defines.append("__BLOCK_DIM_" + str(index) + "=" + str(value))
-      for (index, value) in enumerate(args.num_groups):
-        if value == '*':
-          CommandLineOptions.defines.append("__GRID_DIM_" + str(index) + "_FREE")
-        else:
-          CommandLineOptions.defines.append("__GRID_DIM_" + str(index) + "=" + str(value))
+    if ext in [ ".bc", ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
+      self.skip["clang"] = True
+    if ext in [        ".opt.bc", ".gbpl", ".bpl", ".cbpl" ]:
+      self.skip["opt"] = True
+    if ext in [                   ".gbpl", ".bpl", ".cbpl" ]:
+      self.skip["bugle"] = True
+    if ext in [                            ".bpl", ".cbpl" ]:
+      self.skip["vcgen"] = True
+    if ext in [                                    ".cbpl" ]:
+      self.skip["cruncher"] = True
 
     # Intermediate filenames
     bcFilename = filename + '.bc'
@@ -339,55 +176,59 @@ class GPUVerifyInstance (object):
     cbplFilename = filename + '.cbpl'
     bplFilename = filename + '.bpl'
     locFilename = filename + '.loc'
-    smt2Filename = filename + '.smt2'
+
     if not args.keep_temps:
       def DeleteFile(filename):
-        """ Delete the filename if it exists; but don't delete the original input """
-        if filename == args.kernel.name: return
-        try: os.remove(filename)
-        except OSError: pass
+        """Delete filename if it exists; but do not delete original input"""
+        if filename == args.kernel.name:
+          return
+        try:
+          os.remove(filename)
+        except OSError:
+          pass
+
       cleanUpHandler.register(DeleteFile, bcFilename)
-      if not args.stop == 'opt': cleanUpHandler.register(DeleteFile, optFilename)
-      if not args.stop == 'bugle': cleanUpHandler.register(DeleteFile, gbplFilename)
-      if not args.stop == 'bugle': cleanUpHandler.register(DeleteFile, locFilename)
-      if not args.stop == 'cruncher': cleanUpHandler.register(DeleteFile, cbplFilename)
-      if not args.stop == 'vcgen': cleanUpHandler.register(DeleteFile, bplFilename)
+      if not args.stop == 'opt':
+        cleanUpHandler.register(DeleteFile, optFilename)
+      if not args.stop == 'bugle':
+        cleanUpHandler.register(DeleteFile, gbplFilename)
+        cleanUpHandler.register(DeleteFile, locFilename)
+      if not args.stop == 'cruncher':
+        cleanUpHandler.register(DeleteFile, cbplFilename)
+      if not args.stop == 'vcgen':
+        cleanUpHandler.register(DeleteFile, bplFilename)
 
-    CommandLineOptions.clangOptions += ["-o", bcFilename]
-    CommandLineOptions.clangOptions += ["-x", "cl" if args.source_language == SourceLanguage.OpenCL else "cuda", args.kernel.name]
+    self.defines = self.getDefines(args)
+    self.includes = self.getIncludes(args)
 
-    CommandLineOptions.optOptions += self.getOptOptions(args)
-    CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
+    self.clangOptions = self.getClangOptions(args)
+    self.clangOptions += ["-o", bcFilename, args.kernel.name]
 
-    CommandLineOptions.bugleOptions += self.getBugleOptions(args)
-    if not CommandLineOptions.skip['bugle']:
-      CommandLineOptions.bugleOptions += ["-s", locFilename, "-o", gbplFilename, optFilename ]
+    self.optOptions = self.getOptOptions(args)
+    self.optOptions += ["-o", optFilename, bcFilename]
 
-    CommandLineOptions.vcgenOptions += self.getVCGenOptions(args)
-    CommandLineOptions.vcgenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
+    self.bugleOptions = self.getBugleOptions(args)
+    self.bugleOptions += ["-s", locFilename, "-o", gbplFilename, optFilename]
 
-    CommandLineOptions.cruncherOptions += self.setupCruncherOptions(args)
-    CommandLineOptions.boogieOptions += self.setupBoogieOptions(args)
-    CommandLineOptions.cruncherOptions += [ bplFilename ]
+    # The .bpl suffix needs to be ignored for /print:
+    self.vcgenOptions = self.getVCGenOptions(args)
+    self.vcgenOptions += ["/print:" + filename, gbplFilename]
 
-    if args.inference and (not args.mode == AnalysisMode.FINDBUGS):
-      CommandLineOptions.boogieOptions += [ cbplFilename ]
+    self.cruncherOptions = self.getCruncherOptions(args)
+    self.cruncherOptions += [bplFilename]
+
+    self.boogieOptions = self.getBoogieOptions(args)
+    if args.inference and args.mode != AnalysisMode.FINDBUGS:
+      self.boogieOptions += [ cbplFilename ]
     else:
-      CommandLineOptions.boogieOptions += [ bplFilename ]
-      CommandLineOptions.skip['cruncher'] = True
+      self.boogieOptions += [ bplFilename ]
+      self.skip["cruncher"] = True
 
-    self.includes = CommandLineOptions.includes
-    self.defines = CommandLineOptions.defines
-    self.clangOptions = CommandLineOptions.clangOptions
-    self.optOptions = CommandLineOptions.optOptions
-    self.bugleOptions = CommandLineOptions.bugleOptions
-    self.vcgenOptions = CommandLineOptions.vcgenOptions
-    self.cruncherOptions = CommandLineOptions.cruncherOptions
-    self.boogieOptions = CommandLineOptions.boogieOptions
-
-    self.skip = CommandLineOptions.skip
+    self.timing = {}
+    self.out = out
+    self.stop = args.stop
     self.mode = args.mode
-    self.sourceFiles = CommandLineOptions.sourceFiles
+    self.sourceFiles = [args.kernel.name]
     self.SL = args.source_language
     self.loopUnwindDepth = args.loop_unwind
     self.onlyDivergence = args.only_divergence
@@ -399,6 +240,99 @@ class GPUVerifyInstance (object):
     self.timeCSVLabel = args.time_as_csv
     self.debug = args.debug
     self.timeout = args.timeout
+
+  def getDefines(self, args):
+    defines = ['__BUGLE_' + str(args.size_t) + '__']
+
+    if args.source_language == SourceLanguage.CUDA:
+      defines += ["__CUDA_ARCH__"]
+      defines.append("__" + str(len(args.group_size)) + "D_THREAD_BLOCK")
+      defines.append("__" + str(len(args.num_groups)) + "D_GRID")
+
+      for index, value in enumerate(args.group_size):
+        if value == '*':
+          defines.append("__BLOCK_DIM_" + str(index) + "_FREE")
+        else:
+          defines.append("__BLOCK_DIM_" + str(index) + "=" + str(value))
+
+      for index, value in enumerate(args.num_groups):
+        if value == '*':
+          defines.append("__GRID_DIM_" + str(index) + "_FREE")
+        else:
+          defines.append("__GRID_DIM_" + str(index) + "=" + str(value))
+
+    elif args.source_language == SourceLanguage.OpenCL:
+      defines += ["cl_khr_fp64", "cl_khr_fp16",
+        "cl_clang_storage_class_specifiers", "__OPENCL_VERSION__=120"]
+      defines.append("__" + str(len(args.group_size)) + "D_WORK_GROUP")
+      defines.append("__" + str(len(args.num_groups)) + "D_GRID")
+
+      for index, value in enumerate(args.group_size):
+        if value == '*':
+          defines.append("__LOCAL_SIZE_" + str(index) + "_FREE")
+        else:
+          defines.append("__LOCAL_SIZE_" + str(index) + "=" + str(value))
+
+      for index, value in enumerate(args.num_groups):
+        if value == '*':
+          defines.append("__NUM_GROUPS_" + str(index) + "_FREE")
+        elif type(value) is tuple:
+          defines.append("__NUM_GROUPS_" + str(index) + "_FREE")
+          defines.append("__GLOBAL_SIZE_" + str(index) + "=" + str(value[1]))
+        else:
+          defines.append("__NUM_GROUPS_" + str(index) + "=" + str(value))
+
+    if args.only_requires:
+      defines.append("ONLY_REQUIRES")
+
+    defines += args.defines
+    return defines
+
+  def getIncludes(self, args):
+    includes = [gvfindtools.bugleSrcDir + "/include-blang"]
+
+    if args.source_language == SourceLanguage.CUDA:
+      pass
+    elif  args.source_language == SourceLanguage.OpenCL:
+      includes.append(gvfindtools.libclcInstallDir + "/include")
+
+    includes += args.defines
+    return includes
+
+  def getClangOptions(self, args):
+    options = ["-Wall", "-g", "-gcolumn-info", "-emit-llvm", "-c"]
+
+    if (args.size_t == 32):
+      options += [ "-target", "nvptx--" ]
+    elif (args.size_t == 64):
+      options += [ "-target", "nvptx64--" ]
+
+    if args.source_language == SourceLanguage.CUDA:
+      options += ["-x", "cuda"]
+      options += ["-Xclang", "-fcuda-is-device", "-include", "cuda.h"]
+    elif args.source_language == SourceLanguage.OpenCL:
+      options += ["-x", "cl"]
+      options += ["-Xclang", "-cl-std=CL1.2", "-O0", "-fno-builtin",
+        "-include", "opencl.h"]
+
+      if os.name == "posix":
+        options += ["-Xclang", "-load", "-Xclang", bugleInlineCheckPlugin,
+          "-Xclang", "-add-plugin", "-Xclang", "inline-check"]
+
+      options += ["-Xclang", "-mlink-bitcode-file", "-Xclang"]
+      if (args.size_t == 32):
+        options.append(gvfindtools.libclcInstallDir + "/lib/clc/nvptx--.bc")
+      elif (args.size_t == 64):
+        options.append(gvfindtools.libclcInstallDir + "/lib/clc/nvptx64--.bc")
+
+    # Must be added after include of opencl/cuda header
+    if args.no_annotations or args.only_requires:
+      options += [ "-include", "annotations/no_annotations.h" ]
+    if args.invariants_as_candidates:
+      options += [ "-include", "annotations/candidate_annotations.h" ]
+
+    options += sum([a.split() for a in args.clang_options], [])
+    return options
 
   def getSourceLanguageString(self, args):
     if args.source_language == SourceLanguage.CUDA:
@@ -530,7 +464,7 @@ class GPUVerifyInstance (object):
 
     return options
 
-  def setupCruncherOptions(self, args):
+  def getCruncherOptions(self, args):
     options = self.getSharedCruncherAndBoogieOptions(args)
     options += ["/noinfer", "/contractInfer", "/concurrentHoudini"]
 
@@ -544,7 +478,7 @@ class GPUVerifyInstance (object):
     options += sum([a.split() for a in args.cruncher_options], [])
     return options
 
-  def setupBoogieOptions(self, args):
+  def getBoogieOptions(self, args):
     options = self.getSharedCruncherAndBoogieOptions(args)
 
     if args.mode == AnalysisMode.FINDBUGS:
