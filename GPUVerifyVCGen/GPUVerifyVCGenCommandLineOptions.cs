@@ -54,7 +54,7 @@ namespace GPUVerify
     public static bool PruneInfeasibleEdges = true;
     public static bool PrintLoopStatistics = false;
     public static List<string> DoNotGenerateCandidates = new List<string>();
-    public static List<string> KernelInterceptorParams = new List<string>();
+    public static List<List<string>> KernelInterceptorParams = new List<List<string>>();
     public static bool DisableInessentialLoopDetection = false;
 
     public static int Parse(string[] args)
@@ -95,12 +95,13 @@ namespace GPUVerify
             Console.WriteLine("Error: parameter list must be enclosed in square brackets or not at all.");
             Environment.Exit(1);
           }
-          KernelInterceptorParams = new List<string>(afterColon.Split(','));
-          if (KernelInterceptorParams.Count == 0 || KernelInterceptorParams.Any(x => x.Length == 0))
+          List<string> KernelArgs = new List<string>(afterColon.Split(','));
+          if (KernelArgs.Count == 0 || KernelArgs.Any(x => x.Length == 0))
           {
             Console.WriteLine("Error: Cannot have empty parameters");
             Environment.Exit(1);
           }
+          KernelInterceptorParams.Add(KernelArgs);
           break;
 
           case "-help":
