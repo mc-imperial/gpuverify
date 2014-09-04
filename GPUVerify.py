@@ -243,9 +243,16 @@ def processOptions(args):
   CommandLineOptions.boogieOptions += sum([a.split() for a in args.boogie_options],[])
 
   CommandLineOptions.vcgenOptions += ["/noCandidate:" + a for a in args.omit_infer or []]
-  if args.kernel_args:
-    CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str, args.kernel_args)) ]
-    CommandLineOptions.bugleOptions += [ "-k", args.kernel_args[0], "-only-explicit-entry-points" ]
+  for ka in args.kernel_args:
+    CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str, ka)) ]
+    CommandLineOptions.bugleOptions += [ "-k", ka[0] ]
+
+  for ka in args.kernel_arrays:
+    CommandLineOptions.bugleOptions += [ "-kernel-array-sizes=" + ','.join(map(str, ka)) ]
+    CommandLineOptions.bugleOptions += [ "-k", ka[0] ]
+
+  if len(args.kernel_args) != 0 or len(args.kernel_arrays):
+    CommandLineOptions.bugleOptions += [ "-only-explicit-entry-points" ]
 
   CommandLineOptions.cruncherOptions += [x.name for x in args.boogie_file]
 
@@ -387,9 +394,6 @@ class GPUVerifyInstance (object):
 
     if not CommandLineOptions.skip['bugle']:
       CommandLineOptions.bugleOptions += [ "-l", "cl" if args.source_language == SourceLanguage.OpenCL else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
-
-    if not CommandLineOptions.skip['bugle'] and args.kernel_arrays:
-      CommandLineOptions.bugleOptions += [ "-kernel-array-sizes=" + ','.join(map(str,args['kernel_arrays'])) ]
 
     if args.math_int:
       CommandLineOptions.bugleOptions += [ "-i", "math" ]
@@ -836,12 +840,12 @@ def do_json_mode(args):
         [arg for arg in kernel.kernel_arguments if arg.type == "scalar"]
       scalar_vals = \
         [arg.value if "value" in arg else "*" for arg in scalar_args]
-      kernel_args.kernel_args = [kernel.entry_point] + scalar_vals
+      kernel_args.kernel_args = [[kernel.entry_point] + scalar_vals]
       array_args = \
         [arg for arg in kernel.kernel_arguments if arg.type == "array"]
       array_sizes = \
         [arg.size if "size" in arg else "*" for arg in array_args]
-      kernel_args.kernel_arrays = [kernel.entry_point] + array_sizes
+      kernel_args.kernel_arrays = [[kernel.entry_point] + array_sizes]
     _, out = main(kernel_args)
     sys.stdout.write(out)
 

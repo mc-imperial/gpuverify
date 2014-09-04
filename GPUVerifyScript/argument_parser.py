@@ -215,11 +215,12 @@ def __build_parser(default_solver):
    useful for determining access pattern invariants")
 
   advanced.add_argument("--kernel-args=", type = __kernel_arguments,
-    metavar = "K,v1,...,vn", help = "For kernel K with scalar parameters \
-    (x1, ..., xn), adds the precondition (x1 == v1 && ... && xn == vn). Use * \
-    to denote an unconstrained parameter")
+    default = [], action = 'append', metavar = "K,v1,...,vn", help = "For \
+    kernel K with scalar parameters (x1, ..., xn), adds the precondition \
+    (x1 == v1 && ... && xn == vn). Use * to denote an unconstrained parameter")
   advanced.add_argument("--kernel-arrays=", type = __kernel_arrays,
-    metavar = "K,s1,...,sn", help = argparse.SUPPRESS)
+    default = [], action = 'append', metavar = "K,s1,...,sn",
+    help = argparse.SUPPRESS)
 
   advanced.add_argument("--warp-sync=", type = __positive, metavar = "X",
     help = "Synchronize threads within warps of size X.")
