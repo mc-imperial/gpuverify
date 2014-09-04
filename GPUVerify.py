@@ -251,7 +251,7 @@ def processOptions(args):
     CommandLineOptions.bugleOptions += [ "-kernel-array-sizes=" + ','.join(map(str, ka)) ]
     CommandLineOptions.bugleOptions += [ "-k", ka[0] ]
 
-  if len(args.kernel_args) != 0 or len(args.kernel_arrays):
+  if len(args.kernel_args) > 0 or len(args.kernel_arrays) > 0:
     CommandLineOptions.bugleOptions += [ "-only-explicit-entry-points" ]
 
   CommandLineOptions.cruncherOptions += [x.name for x in args.boogie_file]
