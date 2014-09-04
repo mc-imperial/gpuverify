@@ -825,7 +825,10 @@ def do_json_mode(args):
   for kernel in kernels:
     kernel_args = copy.deepcopy(args)
     kernel_name = os.path.join(base_path, kernel.kernel_file)
-    kernel_args.kernel = open(kernel_name, "r")
+    try:
+      kernel_args.kernel = open(kernel_name, "r")
+    except IOError as e:
+      raise JSONError(str(e))
     kernel_args.kernel_name, kernel_args.kernel_ext = \
       os.path.splitext(kernel_name)
     kernel_args.source_language = SourceLanguage.OpenCL
