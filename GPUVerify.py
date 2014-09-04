@@ -245,8 +245,7 @@ def processOptions(args):
   CommandLineOptions.vcgenOptions += ["/noCandidate:" + a for a in args.omit_infer or []]
   if args.kernel_args:
     CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str, args.kernel_args)) ]
-    CommandLineOptions.cruncherOptions += [ "/proc:$" + args.kernel_args[0] ]
-    CommandLineOptions.boogieOptions   += [ "/proc:$" + args.kernel_args[0] ]
+    CommandLineOptions.bugleOptions += [ "-k", args.kernel_args[0], "-only-explicit-entry-points" ]
 
   CommandLineOptions.cruncherOptions += [x.name for x in args.boogie_file]
 
