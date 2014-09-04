@@ -139,9 +139,6 @@ def __build_parser(default_solver):
   general.add_argument("--timeout=", type = __non_negative, default = 300,
     metavar = "X", help = "Allow each component to run for at most X seconds. \
     A timeout of 0 disables the timeout. The default is 300s")
-  general.add_argument("--memout=",  type = __non_negative, default = 0,
-    metavar = "X",  help = "Give Boogie a hard memory limit of X megabytes. \
-    A value of 0 disables the memout. The default is disabled.")
 
   language = general.add_mutually_exclusive_group()
   language.add_argument("--opencl", dest = 'source_language',
@@ -271,8 +268,8 @@ def __build_parser(default_solver):
   inference = parser.add_argument_group("INVARIANT INFERENCE OPTIONS")
   inference.add_argument("--no-infer", dest = 'inference',
     action = 'store_false', help = "Turn off invariant inference")
-  inference.add_argument("--omit-infer=", action = 'append', metavar = "X",
-    help = "Do not generate invariants tagged 'X'")
+  inference.add_argument("--omit-infer=", default = [], action = 'append',
+    metavar = "X", help = "Do not generate invariants tagged 'X'")
   inference.add_argument("--staged-inference", action = 'store_true',
     help = "Perform invariant inference in stages; this can boost performance \
     for complex kernels (but this is not guaranteed)")

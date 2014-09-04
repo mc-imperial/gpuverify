@@ -180,12 +180,8 @@ class DefaultCmdLineOptions(object):
     self.includes = list(clangCoreIncludes)
     self.defines = list(clangCoreDefines)
     self.clangOptions = list(clangCoreOptions)
-    self.optOptions = [ "-mem2reg", "-globaldce" ]
-    self.defaultOptions = [ "/nologo", "/typeEncoding:m", "/mv:-",
-                       "/doModSetAnalysis", "/useArrayTheory",
-                       "/doNotUseLabels", "/enhancedErrorMessages:1"
-                     ]
-    self.vcgenOptions = [ "/noPruneInfeasibleEdges" ]
+    self.optOptions = [ ]
+    self.vcgenOptions = [ ]
     self.cruncherOptions = []
     self.boogieOptions = []
     self.bugleOptions = []
@@ -236,36 +232,6 @@ def processOptions(args):
   CommandLineOptions.includes += args.includes
 
   CommandLineOptions.clangOptions += sum([a.split() for a in args.clang_options],[])
-  CommandLineOptions.optOptions += sum([a.split() for a in args.opt_options],[])
-  CommandLineOptions.bugleOptions += sum([a.split() for a in args.bugle_options],[])
-  CommandLineOptions.vcgenOptions += sum([a.split() for a in args.vcgen_options],[])
-  CommandLineOptions.cruncherOptions += sum([a.split() for a in args.cruncher_options],[])
-  CommandLineOptions.boogieOptions += sum([a.split() for a in args.boogie_options],[])
-
-  CommandLineOptions.vcgenOptions += ["/noCandidate:" + a for a in args.omit_infer or []]
-  for ka in args.kernel_args:
-    CommandLineOptions.vcgenOptions += [ "/kernelArgs:" + ','.join(map(str, ka)) ]
-    CommandLineOptions.bugleOptions += [ "-k", ka[0] ]
-
-  for ka in args.kernel_arrays:
-    CommandLineOptions.bugleOptions += [ "-kernel-array-sizes=" + ','.join(map(str, ka)) ]
-    CommandLineOptions.bugleOptions += [ "-k", ka[0] ]
-
-  if len(args.kernel_args) > 0 or len(args.kernel_arrays) > 0:
-    CommandLineOptions.bugleOptions += [ "-only-explicit-entry-points" ]
-
-  CommandLineOptions.cruncherOptions += [x.name for x in args.boogie_file]
-
-  if args.group_size:
-    CommandLineOptions.boogieOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
-    CommandLineOptions.cruncherOptions += [ "/blockHighestDim:" + str(len(args.group_size) - 1) ]
-  if args.num_groups:
-    CommandLineOptions.boogieOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
-    CommandLineOptions.cruncherOptions += [ "/gridHighestDim:" + str(len(args.num_groups) - 1) ]
-
-  if args.source_language == SourceLanguage.CUDA:
-    CommandLineOptions.boogieOptions += [ "/sourceLanguage:cu" ]
-    CommandLineOptions.cruncherOptions += [ "/sourceLanguage:cu" ]
 
   return CommandLineOptions
 
@@ -390,108 +356,19 @@ class GPUVerifyInstance (object):
     CommandLineOptions.clangOptions += ["-o", bcFilename]
     CommandLineOptions.clangOptions += ["-x", "cl" if args.source_language == SourceLanguage.OpenCL else "cuda", args.kernel.name]
 
+    CommandLineOptions.optOptions += self.getOptOptions(args)
     CommandLineOptions.optOptions += [ "-o", optFilename, bcFilename ]
 
+    CommandLineOptions.bugleOptions += self.getBugleOptions(args)
     if not CommandLineOptions.skip['bugle']:
-      CommandLineOptions.bugleOptions += [ "-l", "cl" if args.source_language == SourceLanguage.OpenCL else "cu", "-s", locFilename, "-o", gbplFilename, optFilename ]
+      CommandLineOptions.bugleOptions += ["-s", locFilename, "-o", gbplFilename, optFilename ]
 
-    if args.math_int:
-      CommandLineOptions.bugleOptions += [ "-i", "math" ]
-      CommandLineOptions.vcgenOptions += [ "/mathInt" ]
-    else:
-      CommandLineOptions.cruncherOptions += [ "/proverOpt:OPTIMIZE_FOR_BV=true" ]
-      CommandLineOptions.boogieOptions += [ "/proverOpt:OPTIMIZE_FOR_BV=true" ]
-      if args.solver == "z3":
-        CommandLineOptions.cruncherOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
-        CommandLineOptions.boogieOptions += [ "/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true" ]
-
-    if not args.no_inline:
-      CommandLineOptions.bugleOptions += [ "-inline" ]
-
-    if args.warp_sync:
-      CommandLineOptions.vcgenOptions += [ "/doWarpSync:" + str(args.warp_sync) ]
-    if args.adversarial_abstraction:
-      CommandLineOptions.vcgenOptions += [ "/adversarialAbstraction" ]
-    if args.equality_abstraction:
-      CommandLineOptions.vcgenOptions += [ "/equalityAbstraction" ]
-    if args.no_benign_tolerance:
-      CommandLineOptions.vcgenOptions += [ "/noBenign" ]
-    if args.only_divergence:
-      CommandLineOptions.vcgenOptions += [ "/onlyDivergence" ]
-    if args.only_intra_group:
-      CommandLineOptions.vcgenOptions += [ "/onlyIntraGroupRaceChecking" ]
-      CommandLineOptions.cruncherOptions += [ "/onlyIntraGroupRaceChecking" ]
-      CommandLineOptions.boogieOptions += [ "/onlyIntraGroupRaceChecking" ]
-    if args.only_log:
-      CommandLineOptions.vcgenOptions += [ "/onlyLog" ]
-    if args.mode == AnalysisMode.FINDBUGS or (not args.inference):
-      CommandLineOptions.vcgenOptions += [ "/noInfer" ]
-    if args.no_barrier_access_checks:
-      CommandLineOptions.vcgenOptions += [ "/noBarrierAccessChecks" ]
-    if args.asymmetric_asserts:
-      CommandLineOptions.vcgenOptions += [ "/asymmetricAsserts" ]
-    if args.staged_inference:
-      CommandLineOptions.vcgenOptions += [ "/stagedInference" ]
-      CommandLineOptions.cruncherOptions += [ "/stagedInference" ]
-
+    CommandLineOptions.vcgenOptions += self.getVCGenOptions(args)
     CommandLineOptions.vcgenOptions += [ "/print:" + filename, gbplFilename ] #< ignore .bpl suffix
 
-    if args.mode == AnalysisMode.FINDBUGS:
-      CommandLineOptions.boogieOptions += [ "/loopUnroll:" + str(args.loop_unwind) ]
-
-    if args.k_induction_depth > 0:
-      CommandLineOptions.cruncherOptions += [ "/kInductionDepth:" + str(args.k_induction_depth) ]
-      CommandLineOptions.boogieOptions += [ "/kInductionDepth:" + str(args.k_induction_depth) ]
-
-    if args.memout > 0:
-      CommandLineOptions.cruncherOptions.append("/z3opt:-memory:" + str(args.memout))
-      CommandLineOptions.boogieOptions.append("/z3opt:-memory:" + str(args.memout))
-
-    CommandLineOptions.cruncherOptions += [ "/noinfer" ]
-    CommandLineOptions.cruncherOptions += [ "/contractInfer" ]
-    CommandLineOptions.cruncherOptions += [ "/concurrentHoudini" ]
-
-    if args.infer_info:
-      CommandLineOptions.cruncherOptions += [ "/trace" ]
-
-    if args.solver == "cvc4":
-      CommandLineOptions.cruncherOptions += [ "/proverOpt:SOLVER=cvc4" ]
-      CommandLineOptions.cruncherOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
-      CommandLineOptions.cruncherOptions += [ "/proverOpt:LOGIC=QF_ALL_SUPPORTED" ]
-      CommandLineOptions.boogieOptions += [ "/proverOpt:SOLVER=cvc4" ]
-      CommandLineOptions.boogieOptions += [ "/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe" ]
-      CommandLineOptions.boogieOptions += [ "/proverOpt:LOGIC=QF_ALL_SUPPORTED" ]
-    else:
-      CommandLineOptions.cruncherOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
-      CommandLineOptions.boogieOptions += [ "/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe" ]
-
-    if args.gen_smt2:
-      CommandLineOptions.cruncherOptions += [ "/proverLog:" + smt2Filename ]
-      CommandLineOptions.boogieOptions += [ "/proverLog:" + smt2Filename ]
-    if args.debug:
-      CommandLineOptions.vcgenOptions += [ "/debugGPUVerify" ]
-      CommandLineOptions.cruncherOptions += [ "/debugGPUVerify" ]
-      CommandLineOptions.boogieOptions += [ "/debugGPUVerify" ]
-
-    CommandLineOptions.cruncherOptions += CommandLineOptions.defaultOptions
-    CommandLineOptions.boogieOptions += CommandLineOptions.defaultOptions
+    CommandLineOptions.cruncherOptions += self.setupCruncherOptions(args)
+    CommandLineOptions.boogieOptions += self.setupBoogieOptions(args)
     CommandLineOptions.cruncherOptions += [ bplFilename ]
-
-    if args.race_instrumenter == "original":
-      CommandLineOptions.bugleOptions += [ "-race-instrumentation=original" ]
-      CommandLineOptions.vcgenOptions += [ "/raceChecking:ORIGINAL" ]
-      CommandLineOptions.cruncherOptions += [ "/raceChecking:ORIGINAL" ]
-      CommandLineOptions.boogieOptions += [ "/raceChecking:ORIGINAL" ]
-    if args.race_instrumenter == "watchdog-single":
-      CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-single" ]
-      CommandLineOptions.vcgenOptions += [ "/raceChecking:SINGLE" ]
-      CommandLineOptions.cruncherOptions += [ "/raceChecking:SINGLE" ]
-      CommandLineOptions.boogieOptions += [ "/raceChecking:SINGLE" ]
-    if args.race_instrumenter == "watchdog-multiple":
-      CommandLineOptions.bugleOptions += [ "-race-instrumentation=watchdog-multiple" ]
-      CommandLineOptions.vcgenOptions += [ "/raceChecking:MULTIPLE" ]
-      CommandLineOptions.cruncherOptions += [ "/raceChecking:MULTIPLE" ]
-      CommandLineOptions.boogieOptions += [ "/raceChecking:MULTIPLE" ]
 
     if args.inference and (not args.mode == AnalysisMode.FINDBUGS):
       CommandLineOptions.boogieOptions += [ cbplFilename ]
@@ -522,6 +399,159 @@ class GPUVerifyInstance (object):
     self.timeCSVLabel = args.time_as_csv
     self.debug = args.debug
     self.timeout = args.timeout
+
+  def getSourceLanguageString(self, args):
+    if args.source_language == SourceLanguage.CUDA:
+      return "cu"
+    elif args.source_language == SourceLanguage.OpenCL:
+      return "cl"
+
+  def getOptOptions(self, args):
+    options = ["-mem2reg", "-globaldce"]
+    options += sum([a.split() for a in args.opt_options], [])
+    return options
+
+  def getBugleOptions(self, args):
+    options = []
+
+    if args.source_language:
+      options += ["-l", self.getSourceLanguageString(args)]
+
+    if args.math_int:
+      options += [ "-i", "math" ]
+    if not args.no_inline:
+      options.append("-inline")
+
+    if args.race_instrumenter == "original":
+      options.append("-race-instrumentation=original")
+    elif args.race_instrumenter == "watchdog-single":
+      options.append("-race-instrumentation=watchdog-single")
+    elif args.race_instrumenter == "watchdog-multiple":
+      options.append("-race-instrumentation=watchdog-multiple")
+
+    options += sum([["-k", a[0]] for a in args.kernel_args], [])
+    options += ["-kernel-array-sizes=" + ','.join(map(str, a)) for a in \
+      args.kernel_arrays]
+    options += sum([["-k", a[0]] for a in args.kernel_arrays], [])
+
+    if len(args.kernel_args) > 0 or len(args.kernel_arrays) > 0:
+      options.append("-only-explicit-entry-points")
+
+    options += sum([a.split() for a in args.bugle_options], [])
+    return options
+
+  def getVCGenOptions(self, args):
+    options = ["/noPruneInfeasibleEdges"]
+
+    if args.math_int:
+      options.append("/mathInt")
+    if args.warp_sync:
+      options.append("/doWarpSync:" + str(args.warp_sync))
+    if args.adversarial_abstraction:
+      options.append("/adversarialAbstraction")
+    if args.equality_abstraction:
+      options.append("/equalityAbstraction")
+    if args.no_benign_tolerance:
+      options.append("/noBenign")
+    if args.only_divergence:
+      options.append("/onlyDivergence")
+    if args.only_intra_group:
+      options.append("/onlyIntraGroupRaceChecking")
+    if args.only_log:
+      options.append("/onlyLog")
+    if args.no_barrier_access_checks:
+      options.append("/noBarrierAccessChecks")
+    if args.asymmetric_asserts:
+      options.append("/asymmetricAsserts")
+
+    if args.staged_inference:
+      options.append("/stagedInference")
+
+    if args.mode == AnalysisMode.FINDBUGS or (not args.inference):
+      options.append("/noInfer")
+
+    if args.debug:
+      options.append("/debugGPUVerify")
+
+    if args.race_instrumenter == "original":
+      options.append("/raceChecking:ORIGINAL")
+    elif args.race_instrumenter == "watchdog-single":
+      options.append("/raceChecking:SINGLE")
+    elif args.race_instrumenter == "watchdog-multiple":
+      options.append("/raceChecking:MULTIPLE")
+
+    options += ["/kernelArgs:" + ','.join(map(str,a)) for a in args.kernel_args]
+    options += ["/noCandidate:" + a for a in args.omit_infer]
+    options += sum([a.split() for a in args.vcgen_options], [])
+    return options
+
+  def getSharedCruncherAndBoogieOptions(self, args):
+    options = ["/nologo", "/typeEncoding:m", "/mv:-", "/doModSetAnalysis",
+      "/useArrayTheory", "/doNotUseLabels", "/enhancedErrorMessages:1"]
+
+    if args.source_language:
+      options.append("/sourceLanguage:" + self.getSourceLanguageString(args))
+
+    if args.group_size:
+      options.append("/blockHighestDim:" + str(len(args.group_size) - 1))
+    if args.num_groups:
+      options.append("/gridHighestDim:" + str(len(args.num_groups) - 1))
+
+    if not args.math_int:
+      options.append("/proverOpt:OPTIMIZE_FOR_BV=true")
+      if args.solver == "z3":
+        options += ["/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true"]
+
+    if args.solver == "z3":
+      options.append("/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe")
+    elif args.solver == "cvc4":
+      options.append("/proverOpt:SOLVER=cvc4")
+      options.append("/cvc4exe:" + gvfindtools.cvc4BinDir + os.sep + "cvc4.exe")
+      options.append("/proverOpt:LOGIC=QF_ALL_SUPPORTED")
+
+    if args.gen_smt2:
+      options.append("/proverLog:" + args.kernel_name + ".smt2")
+
+    if args.only_intra_group:
+      options.append("/onlyIntraGroupRaceChecking")
+
+    if args.race_instrumenter == "original":
+      options.append("/raceChecking:ORIGINAL")
+    elif args.race_instrumenter == "watchdog-single":
+      options.append("/raceChecking:SINGLE")
+    elif args.race_instrumenter == "watchdog-multiple":
+      options.append("/raceChecking:MULTIPLE")
+
+    if args.k_induction_depth > 0:
+      options.append("/kInductionDepth:" + str(args.k_induction_depth))
+
+    if args.debug:
+      options.append("/debugGPUVerify")
+
+    return options
+
+  def setupCruncherOptions(self, args):
+    options = self.getSharedCruncherAndBoogieOptions(args)
+    options += ["/noinfer", "/contractInfer", "/concurrentHoudini"]
+
+    if args.infer_info:
+      options.append("/trace")
+
+    if args.staged_inference:
+      options.append("/stagedInference")
+
+    options += [f.name for f in args.boogie_file]
+    options += sum([a.split() for a in args.cruncher_options], [])
+    return options
+
+  def setupBoogieOptions(self, args):
+    options = self.getSharedCruncherAndBoogieOptions(args)
+
+    if args.mode == AnalysisMode.FINDBUGS:
+      options.append("/loopUnroll:" + str(args.loop_unwind))
+
+    options += sum([a.split() for a in args.boogie_options], [])
+    return options
 
   def run(self, command):
     """ Run a command with an optional timeout. A timeout of zero
