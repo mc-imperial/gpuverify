@@ -723,7 +723,7 @@ def verify_batch (files, success_cache={}):
     else:
       failure.append((f,x,i))
 
-  print("GPUVerify kernel analyer checked {} kernels.".format(len(success) + len(failure)))
+  print("GPUVerify kernel analyzer checked {} kernels.".format(len(success) + len(failure)))
   print("Successfully verified {} kernels.".format(len(success)))
   print("Failed to verify {} kernels.".format(len(failure)))
 
