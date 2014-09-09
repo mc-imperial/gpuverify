@@ -1646,7 +1646,7 @@ namespace GPUVerify
                 }
             }
 
-            if(RaceInstrumentationUtil.RaceCheckingMethod != RaceCheckingMethod.ORIGINAL) {
+            if(RaceInstrumentationUtil.RaceCheckingMethod != RaceCheckingMethod.ORIGINAL && !GPUVerifyVCGenCommandLineOptions.OnlyDivergence) {
               bigblocks.Add(new BigBlock(Token.NoToken, null, new List<Cmd> {
                 new HavocCmd(Token.NoToken, new List<IdentifierExpr> {
                   new IdentifierExpr(Token.NoToken, new GlobalVariable(Token.NoToken,
