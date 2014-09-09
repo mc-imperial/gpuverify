@@ -87,11 +87,7 @@ attempt to verify that the input kernel is free from defects. If
 verification succeeds, the tool will report that the kernel has been
 verified as free from the types of defects which GPUVerify can check
 for. This verification result can be trusted, modulo bugs in GPUVerify
-and known sources of unsoundness in the tool.
-
-.. todo:: In due course this
-  documentation will be updated to describe potential sources of
-  unsoundness.
+and known sources of unsoundness in the tool (see :doc:`limitations`).
 
 In verify mode, any defects reported by GPUVerify are **possible**
 defects.  If the kernel contains loops there is a high chance that
