@@ -61,7 +61,7 @@ def __dimensions(string):
   if len(values) == 0 or len(values) > 3:
     raise argparse.ArgumentTypeError("dimensions must be vectors of length 1-3")
 
-  if len([x for x in values if x > 0]) < len(values):
+  if len([x for x in values if isinstance(x, str) or x > 0]) < len(values):
     raise argparse.ArgumentTypeError("a dimension must be a positive integer")
 
   return values
