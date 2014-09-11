@@ -100,7 +100,8 @@ def __build_parser(default_solver):
 
   general = parser.add_argument_group("GENERAL OPTIONS")
 
-  general.add_argument("--version", action = 'store_true')
+  general.add_argument("--version", action = 'store_true', help = "Show \
+    version information")
 
   general.add_argument("-D", dest = 'defines',  default = [], action = 'append',
     metavar = "<value>", help = "Define symbol")
@@ -213,11 +214,11 @@ def __build_parser(default_solver):
 
   advanced.add_argument("--kernel-args=", type = __kernel_arguments,
     default = [], action = 'append', metavar = "K,v1,...,vn", help = "For \
-    kernel K with scalar parameters (x1, ..., xn), adds the precondition \
-    (x1 == v1 && ... && xn == vn). Use * to denote an unconstrained parameter")
+    kernel K with scalar parameters x1, ..., xn, add the preconditions \
+    x1 == v1, ..., xn == vn. Use * to denote an unconstrained parameter")
   advanced.add_argument("--kernel-arrays=", type = __kernel_arrays,
     default = [], action = 'append', metavar = "K,s1,...,sn", help = "For \
-    kernel K with array parameters (p1, ..., pn), assume that sizeof(p1) == \
+    kernel K with array parameters p1, ..., pn, assume that sizeof(p1) == \
     s1, ... sizeof(pn) == sn. Use * to denote an unconstrained size")
 
   advanced.add_argument("--warp-sync=", type = __positive, metavar = "X",
@@ -225,10 +226,11 @@ def __build_parser(default_solver):
 
   advanced.add_argument("--race-instrumenter=", choices = ["original",
     "watchdog-single", "watchdog-multiple"], default = "watchdog-single",
-    help = "Choose which method of race instrumentation to use")
+    help = "Choose which method of race instrumentation to use. The default is \
+    watchdog-single")
 
   advanced.add_argument("--solver=", choices = ["z3", "cvc4"],
-    default = default_solver, help = "Select the SMT theorem solver to use as \
+    default = default_solver, help = "Select the SMT solver to use as backen\
     backend. Default is {}".format(default_solver))
 
   development = parser.add_argument_group("DEVELOPMENT OPTIONS")
@@ -248,7 +250,7 @@ def __build_parser(default_solver):
   development.add_argument("--bugle-opt=", dest='bugle_options', default = [],
     action = 'append', help = "Specify option to be passed to Bugle")
   development.add_argument("--vcgen-opt=", dest='vcgen_options', default = [],
-    action = 'append', help = "Specify option to be passed to vc generator")
+    action = 'append', help = "Specify option to be passed to VC generator")
   development.add_argument("--cruncher-opt=", dest = 'cruncher_options',
      default = [], action = 'append', help = "Specify option to be passed to \
      the cruncher")
@@ -269,7 +271,7 @@ def __build_parser(default_solver):
   inference.add_argument("--no-infer", dest = 'inference',
     action = 'store_false', help = "Turn off invariant inference")
   inference.add_argument("--omit-infer=", default = [], action = 'append',
-    metavar = "X", help = "Do not generate invariants tagged 'X'")
+    metavar = "X", help = "Do not generate invariants of type 'X'")
   inference.add_argument("--staged-inference", action = 'store_true',
     help = "Perform invariant inference in stages; this can boost performance \
     for complex kernels (but this is not guaranteed)")
