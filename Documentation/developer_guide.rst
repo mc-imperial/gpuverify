@@ -68,17 +68,17 @@ Replace as appropriate or setup an environment variable.::
      $ export LLVM_RELEASE=34
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
-     $ svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
+     $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/tools
-     $ svn co -q http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
+     $ svn co http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
-     $ svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
+     $ svn co http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
 
    Configure LLVM and Clang for building (we do an out of source build)::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
-     $ cmake -D CMAKE_BUILD_TYPE=Release ../src
+     $ cmake -D CMAKE_BUILD_TYPE=Release -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" ../src
 
    Note if you have python3 installed you may need to specifiy ``-D
    PYTHON_EXECUTABLE=/usr/bin/python2.7`` to CMake.  If you would like to have
@@ -274,18 +274,18 @@ Replace as appropriate or setup an environment variable.::
      $ export LLVM_RELEASE=34
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
-     $ svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
+     $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/tools
-     $ svn co -q http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
+     $ svn co http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
-     $ svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
+     $ svn co http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
 
    Configure LLVM and Clang for building (we do an out of source build)::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
      $ CXXFLAGS="-stdlib=libc++" LDFLAGS="-stdlib=libc++" \
-       cmake -D CMAKE_BUILD_TYPE=Release ../src
+       cmake -D CMAKE_BUILD_TYPE=Release -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" ../src
 
    Compile  LLVM and Clang::
 
