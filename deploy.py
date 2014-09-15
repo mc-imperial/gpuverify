@@ -467,6 +467,8 @@ def main(argv):
         )
       )
 
+      deployActions.append(StripFile(gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + executable))
+
   substitutions = { 'USE_MONO': str((not args.embed_mono_runtime) and os.name == 'posix') }
 
   # Write out gvfindtools.py with any necessary substitutions
