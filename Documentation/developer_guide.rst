@@ -29,7 +29,7 @@ On Linux/OSX, we recommend installing psutil with pip::
 Linux
 -----
 In addition to the common prerequisites a Linux build of GPUVerify requires
-GCC >= 4.6 and a recent version of Mono since part of the toolchain uses C#.
+GCC >= 4.7 and a recent version of Mono since part of the toolchain uses C#.
 You should use a version of Mono >= 3.4.0.
 
 To build GPUVerify follow this guide in a bash shell.
@@ -45,27 +45,11 @@ Replace as appropriate or setup an environment variable.::
   Code blocks must start and end with a blank line and code blocks must be
   further indented from the list text.
 
-#. Install Mono::
+#. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-     $ cd ${BUILD_ROOT}
-     $ export MONO_VERSION=3.4.0
-     $ wget http://download.mono-project.com/sources/mono/mono-${MONO_VERSION}.tar.bz2
-     $ tar jxf mono-${MONO_VERSION}.tar.bz2
-     $ rm mono-${MONO_VERSION}.tar.bz2
-     $ cd ${BUILD_ROOT}/mono-${MONO_VERSION}
-     $ ./configure --prefix=${BUILD_ROOT}/local --with-large-heap=yes --enable-nls=no
-     $ make
-     $ make install
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.5)::
 
-   Add the Mono binaries to your path. You can add this permanently to
-   your ``.bashrc`` or create a ``sourceme.sh`` script to do this automatically
-   ::
-
-     $ export PATH=${BUILD_ROOT}/local/bin:$PATH
-
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.4)::
-
-     $ export LLVM_RELEASE=34
+     $ export LLVM_RELEASE=35
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -269,9 +253,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.4)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.5)::
 
-     $ export LLVM_RELEASE=34
+     $ export LLVM_RELEASE=35
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -284,8 +268,7 @@ Replace as appropriate or setup an environment variable.::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
-     $ CXXFLAGS="-stdlib=libc++" LDFLAGS="-stdlib=libc++" \
-       cmake -D CMAKE_BUILD_TYPE=Release -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" ../src
+     $ cmake -D CMAKE_BUILD_TYPE=Release -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" ../src
 
    Compile  LLVM and Clang::
 
@@ -464,7 +447,7 @@ Replace as appropriate or setup an environment variable.::
 Windows
 -------
 In addition to the common prerequisites a Windows build of GPUVerify requires
-Microsoft Visual Studio 2010 and GnuWin32.
+Microsoft Visual Studio 2012 and GnuWin32.
 
 To build GPUVerify follow this guide in a powershell window.
 
@@ -491,9 +474,9 @@ drives.
    You can add this permanently to your ``$profile`` so that the Microsoft
    compiler is always available at the command-line.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.4)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.5)::
 
-      > $LLVM_RELEASE=34
+      > $LLVM_RELEASE=35
       > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
