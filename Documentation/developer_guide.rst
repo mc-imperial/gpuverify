@@ -463,7 +463,7 @@ drives.
 #. (Optional) Setup Microsoft Visual Studio tools for your shell.
    This will enable you to build projects from the command line.::
 
-      pushd 'C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC'
+      pushd 'C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC'
       cmd /c "vcvarsall.bat&set" | foreach {
         if ($_ -match "=") {
           $v = $_.split("="); set-item -force -path "ENV:\$($v[0])" -value "$($v[1])"
@@ -489,7 +489,10 @@ drives.
 
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
-      > cmake -D CMAKE_BUILD_TYPE=Release ../src
+      > cmake -G "Visual Studio 11" `
+              -D COMPILER_RT_INCLUDE_TESTS=FALSE `
+              -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" `
+              ..\src
 
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
@@ -521,7 +524,7 @@ drives.
       > cd ${BUILD_ROOT}\bugle\build
       > $LLVM_SRC = "${BUILD_ROOT}\llvm_and_clang\src"
       > $LLVM_BUILD = "${BUILD_ROOT}\llvm_and_clang\build"
-      > cmake -G "Visual Studio 10" `
+      > cmake -G "Visual Studio 11" `
               -D LLVM_SRC=$LLVM_SRC `
               -D LLVM_BUILD=$LLVM_BUILD `
               -D LLVM_BUILD_TYPE=Release `
@@ -548,7 +551,7 @@ drives.
       > cd ${BUILD_ROOT}
       > mkdir -p ${BUILD_ROOT}\cvc4\build
       > cd ${BUILD_ROOT}\cvc4\build
-      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2013-07-20-win32-opt.exe"
+      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2014-09-17-win32-opt.exe"
       > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
 
 #. Get GPUVerify code and build. You can do this by opening ``GPUVerify.sln``
@@ -560,7 +563,7 @@ drives.
       > cd ${BUILD_ROOT}\gpuverify
       > msbuild /p:Configuration=Release GPUVerify.sln
 
-#. Configure GPUVerify front end.::
+#. Configure GPUVerify front end::
 
      > cd ${BUILD_ROOT}\gpuverify
      > copy gvfindtools.templates\gvfindtools.dev.py gvfindtools.py
