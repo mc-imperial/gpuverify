@@ -2179,7 +2179,7 @@ namespace GPUVerify
                 }
               }
           // Then, for every array that only used a single monotonic atomic function, pass over the program again, logging offset constraints
-          string[] monotonics = new string[] { "__atomic_inc", "__atomic_dec", "__atomic_add", "__atomic_sub", "__atomicAdd", "__atomicSub" };
+          string[] monotonics = new string[] { "__bugle_atomic_inc", "__bugle_atomic_dec", "__bugle_atomic_add", "__bugle_atomic_sub", "__atomicAdd", "__atomicSub" };
           Expr variables = null;
           Expr offset = null;
           int parts = 0;
