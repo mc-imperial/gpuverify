@@ -447,7 +447,7 @@ Replace as appropriate or setup an environment variable.::
 Windows
 -------
 In addition to the common prerequisites a Windows build of GPUVerify requires
-Microsoft Visual Studio 2012 and GnuWin32.
+Microsoft Visual Studio 2012.
 
 To build GPUVerify follow this guide in a powershell window.
 
@@ -464,14 +464,14 @@ drives.
    This will enable you to build projects from the command line.::
 
       pushd 'C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC'
-      cmd /c "vcvarsall.bat&set" | foreach {
+      cmd /c "vcvarsall.bat amd64 & set" | foreach {
         if ($_ -match "=") {
           $v = $_.split("="); set-item -force -path "ENV:\$($v[0])" -value "$($v[1])"
         }
       }
       popd
 
-   You can add this permanently to your ``$profile`` so that the Microsoft
+   You can add this permanently to your ``$Profile`` so that the Microsoft
    compiler is always available at the command-line.
 
 #. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.5)::

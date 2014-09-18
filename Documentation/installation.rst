@@ -26,23 +26,7 @@ Replace as appropriate or setup an environment variable.::
 
      $ export INSTALL_ROOT=/path/to/install
 
-#. (Optional) GPUVerify requires a recent version of `Mono <http://www.mono-project.com>`_ to run.
-   You should use a version of Mono >= 3.4.0.
-   Here is how to install Mono locally if you do not have it already installed::
-
-      $ cd ${INSTALL_ROOT}
-      $ export MONO_VERSION=3.4.0
-      $ wget http://download.mono-project.com/sources/mono/mono-${MONO_VERSION}.tar.bz2
-      $ tar jxf mono-${MONO_VERSION}.tar.bz2
-      $ cd ${INSTALL_ROOT}/mono-${MONO_VERSION}
-      $ ./configure --prefix=${INSTALL_ROOT}/local --with-large-heap=yes --enable-nls=no
-      $ make
-      $ make install
-
-   Now add the Mono binaries to your path.
-   You can add this permanently to your ``.bashrc`` or create a ``sourceme.sh`` script to do this automatically::
-
-      $ export PATH=${INSTALL_ROOT}/local/bin:$PATH
+#. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
 #. Download the Linux 64-bit toolchain zip file from the GPUVerify `Download <http://multicore.doc.ic.ac.uk/tools/GPUVerify/download.php>`_ page.
    Please contact us if you require a 32-bit version.
