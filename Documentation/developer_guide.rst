@@ -464,7 +464,7 @@ drives.
    This will enable you to build projects from the command line.::
 
       pushd 'C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC'
-      cmd /c "vcvarsall.bat amd64 & set" | foreach {
+      cmd /c "vcvarsall.bat & set" | foreach {
         if ($_ -match "=") {
           $v = $_.split("="); set-item -force -path "ENV:\$($v[0])" -value "$($v[1])"
         }
