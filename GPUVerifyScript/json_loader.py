@@ -66,6 +66,20 @@ def __check_array_argument(data):
     else:
       raise JSONError("Unknown value " + str(key))
 
+def __check_image_argument(data):
+  for key, value in data.items():
+    if key == "type":
+      pass
+    else:
+      raise JSONError("Unknown value " + str(key))
+
+def __check_sampler_argument(data):
+  for key, value in data.items():
+    if key == "type":
+      pass
+    else:
+      raise JSONError("Unknown value " + str(key))
+
 def __check_argument(data):
   if not type(data) is dict:
     raise JSONError("kernel arguments need to be objects")
@@ -76,6 +90,10 @@ def __check_argument(data):
     __check_scalar_argument(data)
   elif data["type"] == "array":
     __check_array_argument(data)
+  elif data["type"] == "image":
+    __check_image_argument(data)
+  elif data["type"] == "sampler":
+    __check_sampler_argument(data)
   else:
     raise JSONError("Unknown kernel argument type " + str(data["type"]))
 
