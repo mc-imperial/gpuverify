@@ -35,28 +35,40 @@ The ``language``, ``kernel_file``, ``local_size``, ``global_size`` and
 ``host_api_calls`` are optional. When ``kernel_arguments`` is not specified
 the argument values used during verification are assumed to be unconstrained.
 
-Each ``kernel_argument`` is an object of the form::
+Each ``kernel_argument`` is an object of one of the following four forms::
 
   {
     "type"  : "scalar",
     "value" : string
   }
 
-or::
+::
 
   {
     "type" : "array",
     "size" : number
   }
 
-where the ``type`` field is the only required field in both cases. In the case
-of scalars, the ``value`` field gives the argument value passed to the kernel
-during launch. The value should be string representing a hexadecimal value,
-e.g., ``"0xA208"``; the string should always start with ``0x``. In the case
-of arrays, the ``size`` field specifies the size of the argument array passed
-to the kernel during launch. The value is a number specifying the size of the
-array in bytes. If ``value`` or ``size`` is omitted their values are assumed to
-be unconstrained during verification, otherwise the specific values are use.
+::
+
+  {
+    "type" : "image"
+  }
+
+::
+
+  {
+    "type" : "sampler"
+  }
+
+where the ``type`` field is the only required field. In the case of scalars,
+the ``value`` field gives the argument value passed to the kernel during
+launch. The value should be string representing a hexadecimal value, e.g.,
+``"0xA208"``; the string should always start with ``0x``. In the case of
+arrays, the ``size`` field specifies the size of the argument array passed to
+the kernel during launch. The value is a number specifying the size of the
+array in bytes. If ``value`` or ``size`` is omitted their values are assumed
+to be unconstrained during verification, otherwise the specific values are use.
 
 Each ``host_api_call`` is of the following form::
 
