@@ -471,6 +471,11 @@ namespace GPUVerify {
       return new VariableDualiser(thread, verifier.uniformityAnalyser, procName).VisitExpr(expr.Clone() as Expr);
     }
 
+    private int UpdateDeclarationsAndCount(List<Declaration> decls) {
+        var newDecls = verifier.Program.TopLevelDeclarations.Where(d => !decls.Contains(d));
+        decls.AddRange(newDecls.ToList());
+        return decls.Count();
+    }
 
     internal void DualiseKernel()
     {
@@ -478,10 +483,12 @@ namespace GPUVerify {
 
         // This loop really does have to be a "for(i ...)" loop.  The reason is
         // that dualisation may add additional functions to the program, which
-        // get put into the program's top level declarations.
-        for(int i = 0; i < verifier.Program.TopLevelDeclarations.Count(); i++)
+        // get put into the program's top level declarations and also need to
+        // be dualised.
+        var decls = verifier.Program.TopLevelDeclarations.ToList();
+        for(int i = 0; i < UpdateDeclarationsAndCount(decls); i++)
         {
-            Declaration d = verifier.Program.TopLevelDeclarations[i];
+            Declaration d = decls[i];
 
             if (d is Axiom) {
 
@@ -514,8 +521,8 @@ namespace GPUVerify {
                 continue;
             }
 
-            if (d is Variable && ((d as Variable).IsMutable || 
-                GPUVerifier.IsThreadLocalIdConstant(d as Variable) || 
+            if (d is Variable && ((d as Variable).IsMutable ||
+                GPUVerifier.IsThreadLocalIdConstant(d as Variable) ||
                 (GPUVerifier.IsGroupIdConstant(d as Variable) && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking))) {
               var v = d as Variable;
 
@@ -537,7 +544,7 @@ namespace GPUVerify {
               if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
                 if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                   Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
-                      v.Name, new MapType(Token.NoToken, new List<TypeVariable>(), 
+                      v.Name, new MapType(Token.NoToken, new List<TypeVariable>(),
                       new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.Bool },
                       v.TypedIdent.Type)));
                   newV.Attributes = v.Attributes;
@@ -557,10 +564,10 @@ namespace GPUVerify {
             }
 
             NewTopLevelDeclarations.Add(d);
-
         }
 
-        verifier.Program.TopLevelDeclarations = NewTopLevelDeclarations;
+        verifier.Program.ClearTopLevelDeclarations();
+        verifier.Program.AddTopLevelDeclarations(NewTopLevelDeclarations);
     }
   }
 

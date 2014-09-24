@@ -12,7 +12,7 @@ namespace GPUVerify
 
     internal void Eliminate(Program Program)
     {
-      foreach(var impl in Program.Implementations()) {
+      foreach(var impl in Program.Implementations) {
         var CFG = Program.GraphFromImpl(impl);
         var visitor = new UFRemoverVisitor(Program);
         foreach(var b in impl.Blocks) {
@@ -27,8 +27,10 @@ namespace GPUVerify
         impl.LocVars.AddRange(visitor.UFTemps.SelectMany(Item => Item));
       }
 
-      Program.TopLevelDeclarations = Program.TopLevelDeclarations.Where(
+      var newDecls = Program.TopLevelDeclarations.Where(
         item => !(item is Function) || IsInterpreted(item as Function, Program)).ToList();
+      Program.ClearTopLevelDeclarations();
+      Program.AddTopLevelDeclarations(newDecls);
     }
 
     internal static bool IsInterpreted(Function fun, Program prog)

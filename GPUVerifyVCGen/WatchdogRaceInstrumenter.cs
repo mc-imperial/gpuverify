@@ -82,13 +82,13 @@ namespace GPUVerify
 
       LogAccessImplementation.Proc = LogAccessProcedure;
 
-      verifier.Program.TopLevelDeclarations.Add(LogAccessProcedure);
-      verifier.Program.TopLevelDeclarations.Add(LogAccessImplementation);
+      verifier.Program.AddTopLevelDeclaration(LogAccessProcedure);
+      verifier.Program.AddTopLevelDeclaration(LogAccessImplementation);
     }
 
     public override void AddRaceCheckingDeclarations() {
       base.AddRaceCheckingDeclarations();
-      verifier.Program.TopLevelDeclarations.Add(MakeTrackingVariable());
+      verifier.Program.AddTopLevelDeclaration(MakeTrackingVariable());
     }
 
     private static GlobalVariable MakeTrackingVariable()

@@ -93,8 +93,8 @@ namespace GPUVerify
 
       LogAccessImplementation.Proc = LogAccessProcedure;
 
-      verifier.Program.TopLevelDeclarations.Add(LogAccessProcedure);
-      verifier.Program.TopLevelDeclarations.Add(LogAccessImplementation);
+      verifier.Program.AddTopLevelDeclaration(LogAccessProcedure);
+      verifier.Program.AddTopLevelDeclaration(LogAccessImplementation);
     }
 
   }

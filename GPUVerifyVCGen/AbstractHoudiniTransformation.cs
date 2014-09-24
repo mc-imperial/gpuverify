@@ -38,7 +38,7 @@ namespace GPUVerify
     }
 
     internal void DoAbstractHoudiniTransform() {
-      foreach (var region in verifier.Program.Implementations()
+      foreach (var region in verifier.Program.Implementations
         .Select(item => verifier.RootRegion(item).SubRegions()).SelectMany(item => item)) {
           TransformRegion(region);
       }
@@ -48,13 +48,13 @@ namespace GPUVerify
 
     private void RemoveExistentialConstants()
     {
-      verifier.Program.TopLevelDeclarations.RemoveAll(item =>
+      verifier.Program.RemoveTopLevelDeclarations(item =>
         item is Constant && QKeyValue.FindBoolAttribute(item.Attributes, "existential"));
     }
 
     private void AddExistentialFunctions()
     {
-      verifier.Program.TopLevelDeclarations.AddRange(existentialFunctions);
+      verifier.Program.AddTopLevelDeclarations(existentialFunctions);
     }
 
     private void TransformRegion(IRegion region)

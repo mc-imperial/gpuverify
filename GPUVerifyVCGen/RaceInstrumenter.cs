@@ -36,7 +36,7 @@ namespace GPUVerify {
     {
       // Here we add invariants that are guaranteed to be true
       // by construction.
-      foreach(IRegion Region in verifier.Program.Implementations().Select(
+      foreach(IRegion Region in verifier.Program.Implementations.Select(
         Item => verifier.RootRegion(Item).SubRegions()).SelectMany(Item => Item)) {
 
         foreach(var a in verifier.KernelArrayInfo.getGroupSharedArrays().Where(
@@ -687,7 +687,7 @@ namespace GPUVerify {
 
     public void AddRaceCheckingInstrumentation() {
 
-      foreach (var impl in verifier.Program.Implementations().ToList()) {
+      foreach (var impl in verifier.Program.Implementations.ToList()) {
         new ImplementationInstrumenter(this, impl).AddRaceCheckCalls();
       }
 
@@ -927,8 +927,8 @@ namespace GPUVerify {
 
         UpdateBenignFlagImplementation.Proc = UpdateBenignFlagProcedure;
 
-        verifier.Program.TopLevelDeclarations.Add(UpdateBenignFlagProcedure);
-        verifier.Program.TopLevelDeclarations.Add(UpdateBenignFlagImplementation);
+        verifier.Program.AddTopLevelDeclaration(UpdateBenignFlagProcedure);
+        verifier.Program.AddTopLevelDeclaration(UpdateBenignFlagImplementation);
     }
 
     protected void AddCheckAccessProcedure(Variable v, AccessType Access) {
@@ -995,7 +995,7 @@ namespace GPUVerify {
         }
       }
 
-      verifier.Program.TopLevelDeclarations.Add(CheckAccessProcedure);
+      verifier.Program.AddTopLevelDeclaration(CheckAccessProcedure);
     }
 
     protected void AddCheckAccessCheck(Variable v, Procedure CheckAccessProcedure, Variable PredicateParameter, Variable OffsetParameter, Expr NoBenignTest, AccessType Access, String attribute) {
@@ -1432,8 +1432,8 @@ namespace GPUVerify {
       AsyncWorkGroupCopyImplementation.Proc = AsyncWorkGroupCopyProcedure;
       GPUVerifier.AddInlineAttribute(AsyncWorkGroupCopyImplementation);
         
-      verifier.Program.TopLevelDeclarations.Add(AsyncWorkGroupCopyProcedure);
-      verifier.Program.TopLevelDeclarations.Add(AsyncWorkGroupCopyImplementation);
+      verifier.Program.AddTopLevelDeclaration(AsyncWorkGroupCopyProcedure);
+      verifier.Program.AddTopLevelDeclaration(AsyncWorkGroupCopyImplementation);
 
       return AsyncWorkGroupCopyProcedure;
 

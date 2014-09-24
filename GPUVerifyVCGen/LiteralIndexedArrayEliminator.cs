@@ -42,11 +42,11 @@ namespace GPUVerify
         if (Arrays.ContainsKey(a.Name))
         {
           Verifier.KernelArrayInfo.getPrivateArrays().Remove(a);
-          Program.TopLevelDeclarations.Remove(a);
+          Program.RemoveTopLevelDeclarations(x => x == a);
 
           foreach (var l in Arrays[a.Name])
           {
-            Program.TopLevelDeclarations.Add(MakeVariableForArrayIndex(a, l));
+            Program.AddTopLevelDeclaration(MakeVariableForArrayIndex(a, l));
           }
 
         }

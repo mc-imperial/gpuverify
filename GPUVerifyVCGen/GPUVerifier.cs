@@ -181,7 +181,7 @@ namespace GPUVerify
 
             if (GPUVerifyVCGenCommandLineOptions.CheckSingleNonInlinedImpl)
             {
-              var NonInlinedImpls = Program.Implementations().Where(
+              var NonInlinedImpls = Program.Implementations.Where(
                 Item => QKeyValue.FindIntAttribute((Item as Implementation).Attributes, "inline", -1) == -1);
               if (NonInlinedImpls.Count() != 1)
               {
@@ -253,7 +253,7 @@ namespace GPUVerify
                                   new List<Requires>(), new List<IdentifierExpr>(),
                                   new List<Ensures>(),
                                   new QKeyValue(Token.NoToken, "barrier", new List<object>(), null));
-                Program.TopLevelDeclarations.Add(p);
+                Program.AddTopLevelDeclaration(p);
                 ResContext.AddProcedure(p);
             }
             return p;
@@ -270,7 +270,7 @@ namespace GPUVerify
                               new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(),
                               new List<Ensures>(),
                               new QKeyValue(Token.NoToken, "barrier_invariant", new List<object>(), null));
-            Program.TopLevelDeclarations.Add(p);
+            Program.AddTopLevelDeclaration(p);
             ResContext.AddProcedure(p);
           }
           return p;
@@ -289,7 +289,7 @@ namespace GPUVerify
                               new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(),
                               new List<Ensures>(),
                               new QKeyValue(Token.NoToken, "barrier_invariant_instantiation", new List<object>(), null));
-            Program.TopLevelDeclarations.Add(p);
+            Program.AddTopLevelDeclaration(p);
             ResContext.AddProcedure(p);
           }
           return p;
@@ -364,7 +364,7 @@ namespace GPUVerify
                 constFieldRef = new Constant(Token.NoToken,
                   new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(id_size_bits)), /*unique=*/false);
                 constFieldRef.AddAttribute(attr);
-                Program.TopLevelDeclarations.Add(constFieldRef);
+                Program.AddTopLevelDeclaration(constFieldRef);
             }
         }
 
@@ -469,7 +469,7 @@ namespace GPUVerify
 
         private void MergeBlocksIntoPredecessors(bool UniformityMatters = true)
         {
-            foreach (var impl in Program.Implementations())
+            foreach (var impl in Program.Implementations)
                 UniformityAnalyser.MergeBlocksIntoPredecessors(Program, impl,
                   UniformityMatters ? uniformityAnalyser : null);
         }
@@ -530,7 +530,7 @@ namespace GPUVerify
             if (GPUVerifyVCGenCommandLineOptions.Inference)
             {
 
-              foreach (var impl in Program.Implementations().ToList())
+              foreach (var impl in Program.Implementations.ToList())
                 {
                     if (!GPUVerifyVCGenCommandLineOptions.DisableInessentialLoopDetection)
                         LoopInvariantGenerator.EstablishDisabledLoops(this, impl);
@@ -658,7 +658,7 @@ namespace GPUVerify
         }
 
         private void PropagateProcedureWideInvariants() {
-          foreach(var Impl in Program.Implementations()) {
+          foreach(var Impl in Program.Implementations) {
             foreach(var Inv in Impl.Proc.Requires.Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "procedure_wide_invariant"))) {
               foreach(var Region in RootRegion(Impl).SubRegions()) {
                 Region.AddInvariant(new AssertCmd(Token.NoToken, Inv.Condition, (QKeyValue)Inv.Attributes.Clone()));
@@ -675,7 +675,7 @@ namespace GPUVerify
           // can end up bloating the program.
           // The longer-term solution is to avoid the stack overflows
           // in Boogie
-          foreach(var Impl in Program.Implementations()) {
+          foreach(var Impl in Program.Implementations) {
             var blockGraph = Program.ProcessLoops(Impl);
             foreach(var b in Impl.Blocks.Where(Item => !blockGraph.Headers.Contains(Item))) {
               List<Cmd> newCmds = new List<Cmd>();
@@ -717,7 +717,7 @@ namespace GPUVerify
           // For each implementation, dump the number of loops and the depth of the deepest loop nest to a file
           var loopsOutputFile = Path.GetFileNameWithoutExtension(GPUVerifyVCGenCommandLineOptions.inputFiles[0]) + ".loops";
           using (TokenTextWriter writer = new TokenTextWriter(loopsOutputFile, false)) {
-            foreach(var impl in Program.Implementations()) {
+            foreach(var impl in Program.Implementations) {
               writer.WriteLine("Implementation: " + impl.Name);
               writer.WriteLine("Number of loops: " + RootRegion(impl).SubRegions().Count());
               writer.WriteLine("Depth of deepest loop nest: " + DeepestSubregion(RootRegion(impl)));
@@ -794,7 +794,7 @@ namespace GPUVerify
           // This paves the way for barrier divergence optimisations
           // for specific barriers
           Contract.Requires(BarrierProcedures.Count() == 1);
-          Program.TopLevelDeclarations.Remove(BarrierProcedures.ToList()[0]);
+          Program.RemoveTopLevelDeclarations(x => x == BarrierProcedures.ToList()[0]);
           BarrierProcedures = new HashSet<Procedure>();
           int BarrierCounter = 0;
           foreach(Block b in Program.Blocks().ToList()) {
@@ -812,7 +812,7 @@ namespace GPUVerify
               var NewCall = new CallCmd(call.tok, NewBarrier.Name, call.Ins, call.Outs, call.Attributes);
               NewCall.Proc = NewBarrier;
               newCmds.Add(NewCall);
-              Program.TopLevelDeclarations.Add(NewBarrier);
+              Program.AddTopLevelDeclaration(NewBarrier);
               BarrierProcedures.Add(NewBarrier);
               ResContext.AddProcedure(NewBarrier);
             }
@@ -865,7 +865,7 @@ namespace GPUVerify
           // Add the ability to get the state right before entering each loop,
           // at the loop head itself, and right before taking a back-edge
           int LoopCounter = 0;
-          foreach(var impl in Program.Implementations()) {
+          foreach(var impl in Program.Implementations) {
             var CFG = Program.GraphFromImpl(impl);
             CFG.ComputeLoops();
             foreach(var Header in CFG.Headers) {
@@ -900,7 +900,7 @@ namespace GPUVerify
 
         private void CheckUserSuppliedLoopInvariants()
         {
-          foreach(var impl in Program.Implementations()) {
+          foreach(var impl in Program.Implementations) {
             var blockGraph = Program.ProcessLoops(impl);
             foreach(var b in impl.Blocks) {
               bool ValidPositionForInvariant = blockGraph.Headers.Contains(b);
@@ -971,13 +971,13 @@ namespace GPUVerify
 
         private void DoVariableDefinitionAnalysis()
         {
-            varDefAnalyses = Program.Implementations()
+            varDefAnalyses = Program.Implementations
                 .ToDictionary(i => i, i => VariableDefinitionAnalysis.Analyse(this, i));
         }
 
         private void DoReducedStrengthAnalysis()
         {
-            reducedStrengthAnalyses = Program.Implementations()
+            reducedStrengthAnalyses = Program.Implementations
                 .ToDictionary(i => i, i => ReducedStrengthAnalysis.Analyse(this, i));
         }
 
@@ -988,7 +988,7 @@ namespace GPUVerify
 
         private void ComputeInvariant()
         {
-            foreach (var Impl in Program.Implementations().ToList())
+            foreach (var Impl in Program.Implementations.ToList())
             {
                 LoopInvariantGenerator.PostInstrument(this, Impl);
                 if (ProcedureIsInlined(Impl.Proc) || KernelProcedures.ContainsKey(Impl.Proc))
@@ -1316,7 +1316,7 @@ namespace GPUVerify
         }
 
         internal bool ProcedureHasNoImplementation(Procedure Proc) {
-          return !Program.Implementations().Select(i => i.Name).Contains(Proc.Name);
+          return !Program.Implementations.Select(i => i.Name).Contains(Proc.Name);
         }
 
         internal bool ProcedureIsInlined(Procedure Proc) {
@@ -1419,7 +1419,7 @@ namespace GPUVerify
                               new List<Variable>(argTypes.Select(t => new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", t))).ToArray()),
                               new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
             f.AddAttribute("bvbuiltin", smtName);
-            Program.TopLevelDeclarations.Add(f);
+            Program.AddTopLevelDeclaration(f);
             ResContext.AddProcedure(f);
             return f;
         }
@@ -1442,7 +1442,7 @@ namespace GPUVerify
           f.AddAttribute("inline", Expr.True);
           f.Body = Expr.Binary(infixOp, new IdentifierExpr(Token.NoToken, lhs), new IdentifierExpr(Token.NoToken, rhs)); 
 
-          Program.TopLevelDeclarations.Add(f);
+          Program.AddTopLevelDeclaration(f);
           ResContext.AddProcedure(f);
           return f;
         }
@@ -1457,7 +1457,7 @@ namespace GPUVerify
                             new List<Variable> { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", lhsType)),
                                               new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", rhsType))},
                             new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
-          Program.TopLevelDeclarations.Add(f);
+          Program.AddTopLevelDeclaration(f);
           ResContext.AddProcedure(f);
           return f;
         }
@@ -1668,7 +1668,7 @@ namespace GPUVerify
 
             BarrierImplementation.Proc = BarrierProcedure;
 
-            Program.TopLevelDeclarations.Add(BarrierImplementation);
+            Program.AddTopLevelDeclaration(BarrierImplementation);
         }
 
         private NAryExpr MakeFenceExpr(Variable v) {
@@ -1768,7 +1768,7 @@ namespace GPUVerify
 
             GlobalVariable result = MakeNotAccessedVariable(varName, dtype);
 
-            Program.TopLevelDeclarations.Add(result);
+            Program.AddTopLevelDeclaration(result);
             return result;
         }
 
@@ -1780,7 +1780,7 @@ namespace GPUVerify
               }
             }
             GlobalVariable result = MakeAccessHasOccurredVariable(varName, Access);
-            Program.TopLevelDeclarations.Add(result);
+            Program.AddTopLevelDeclaration(result);
             return result;
         }
 
@@ -1792,7 +1792,7 @@ namespace GPUVerify
               }
             }
             Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, Access, IntRep.GetIntType(size_t_bits));
-            Program.TopLevelDeclarations.Add(result);
+            Program.AddTopLevelDeclaration(result);
             return result;
         }
 
@@ -1804,7 +1804,7 @@ namespace GPUVerify
             }
           }
           Variable result = RaceInstrumentationUtil.MakeValueVariable(varName, Access, Type);
-          Program.TopLevelDeclarations.Add(result);
+          Program.AddTopLevelDeclaration(result);
           return result;
         }
 
@@ -1816,7 +1816,7 @@ namespace GPUVerify
             }
           }
           GlobalVariable result = MakeBenignFlagVariable(varName);
-          Program.TopLevelDeclarations.Add(result);
+          Program.AddTopLevelDeclaration(result);
           return result;
         }
 
@@ -1828,7 +1828,7 @@ namespace GPUVerify
               }
             }
             Variable result = RaceInstrumentationUtil.MakeAsyncHandleVariable(varName, Access, IntRep.GetIntType(size_t_bits));
-            Program.TopLevelDeclarations.Add(result);
+            Program.AddTopLevelDeclaration(result);
             return result;
         }
 
@@ -1952,7 +1952,7 @@ namespace GPUVerify
 
         internal Implementation GetImplementation(string procedureName)
         {
-          var Relevant = Program.Implementations().Where(Item => Item.Name == procedureName);
+          var Relevant = Program.Implementations.Where(Item => Item.Name == procedureName);
           return Relevant.Count() == 0 ? null : Relevant.ToList()[0];
         }
 
@@ -2248,7 +2248,7 @@ namespace GPUVerify
                         Microsoft.Boogie.Type.Bool));
           GlobalVariable usedMap = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, name, mapType));
           usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(new object [] {}), null);
-          Program.TopLevelDeclarations.Add(usedMap);
+          Program.AddTopLevelDeclaration(usedMap);
           return usedMap;
         }
 
@@ -2272,7 +2272,7 @@ namespace GPUVerify
 
           foreach (Procedure proto in WarpSyncs.Values) {
             AddInlineAttribute(proto);
-            Program.TopLevelDeclarations.Add(proto);
+            Program.AddTopLevelDeclaration(proto);
           }
         }
 
@@ -2401,7 +2401,7 @@ namespace GPUVerify
 
             Implementation method = new Implementation(Token.NoToken, SyncProcedure.Name, new List<TypeVariable>(), SyncProcedure.InParams, new List<Variable>(), new List<Variable>(), new StmtList(blocks,Token.NoToken));
             AddInlineAttribute(method);
-            Program.TopLevelDeclarations.Add(method);
+            Program.AddTopLevelDeclaration(method);
           }
         }
 
@@ -2414,7 +2414,7 @@ namespace GPUVerify
         }
 
         private void AddLoopInvariantDisabledTags() {
-            foreach (var impl in Program.Implementations().ToList())
+            foreach (var impl in Program.Implementations.ToList())
             {
                 foreach (var region in RootRegion(impl).SubRegions())
                 {
@@ -2476,7 +2476,7 @@ namespace GPUVerify
           }
           Constant AsyncNoHandleConstant = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, Name, IntRep.GetIntType(size_t_bits)), false);
           Axiom EqualsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(AsyncNoHandleConstant), Zero(size_t_bits)));
-          Program.TopLevelDeclarations.AddRange(new Declaration[] { AsyncNoHandleConstant, EqualsZero });
+          Program.AddTopLevelDeclarations(new Declaration[] { AsyncNoHandleConstant, EqualsZero });
           return Expr.Ident(AsyncNoHandleConstant);
         }
 

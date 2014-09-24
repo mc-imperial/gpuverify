@@ -105,7 +105,7 @@ namespace GPUVerify
             program = programSnippet;
           }
           else if (programSnippet != null) {
-            program.TopLevelDeclarations.AddRange(programSnippet.TopLevelDeclarations);
+            program.AddTopLevelDeclarations(programSnippet.TopLevelDeclarations);
           }
         }
 

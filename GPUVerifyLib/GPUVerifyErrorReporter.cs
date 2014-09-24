@@ -59,7 +59,7 @@ namespace GPUVerify {
     private Implementation impl;
 
     internal GPUVerifyErrorReporter(Program program, string implName) {
-      this.impl = program.Implementations().Where(Item => Item.Name.Equals(implName)).ToList()[0];
+      this.impl = program.Implementations.Where(Item => Item.Name.Equals(implName)).ToList()[0];
     }
 
     internal void ReportCounterexample(Counterexample error) {
@@ -604,7 +604,7 @@ namespace GPUVerify {
     }
 
     private Implementation GetOriginalImplementation(Program Prog) {
-      return Prog.Implementations().Where(Item => Item.Name.Equals(impl.Name)).ToList()[0];
+      return Prog.Implementations.Where(Item => Item.Name.Equals(impl.Name)).ToList()[0];
     }
 
     private static Program GetOriginalProgram() {
@@ -635,7 +635,7 @@ namespace GPUVerify {
           }
 
           Model.Boolean AHO_value = state.TryGet(AccessHasOccurred) as Model.Boolean;
-          Model.BitVector AO_value = 
+          Model.BitVector AO_value =
             (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
             ? state.TryGet(AccessOffset)
             : CallCex.Model.TryGetFunc(AccessOffset).GetConstant()) as Model.BitVector;
@@ -669,7 +669,7 @@ namespace GPUVerify {
     private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromCall(string CheckProcedureName, string CalleeName)
     {
       Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, true, false);
-      var Bodies =  originalProgram.Implementations().Where(Item => Item.Name.Equals(CalleeName)).ToList();
+      var Bodies =  originalProgram.Implementations.Where(Item => Item.Name.Equals(CalleeName)).ToList();
       if(Bodies.Count == 0) {
         return new HashSet<SourceLocationInfo>();
       }
