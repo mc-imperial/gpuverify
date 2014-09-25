@@ -322,6 +322,9 @@ def __split_filename_ext(f):
 def __need_source_language(ext):
   return ext not in [".gbpl", ".bpl", ".cbpl"]
 
+def __need_dimensions(ext):
+  return ext not in [".bc", ".opt.bc", ".gbpl", ".bpl", ".cbpl"]
+
 def __get_source_language(args, parser, llvm_bin_dir):
   if args.source_language:
     return source_language
@@ -355,7 +358,7 @@ def __get_num_groups(args, parser):
       parser.error(str(e))
   elif args.group_size and args.num_groups:
     return args.num_groups
-  elif args.start == "clang":
+  elif __need_dimensions(args.kernel_ext):
     if args.source_language == SourceLanguage.OpenCL:
       parser.error("Must specify thread dimensions with --local_size and " +
         "--global_size")
