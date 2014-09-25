@@ -311,9 +311,11 @@ namespace GPUVerify
       foreach (Variable v in partitionVars)
       {
         // Find the expression which defines a particular partition variable.
-        // Visit the expression and rip out any variable in the mod set of the loop.
+        // Visit the expression and select any variable in the mod set of the loop.
         // We assume that any variable satisfying these conditions is a loop counter
         Expr partitionDefExpr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+        if (partitionDefExpr == null) // multiple definitions or no definition
+            continue;
         var visitor = new VariablesOccurringInExpressionVisitor();
         visitor.Visit(partitionDefExpr);
         foreach (Variable variable in visitor.GetVariables())
