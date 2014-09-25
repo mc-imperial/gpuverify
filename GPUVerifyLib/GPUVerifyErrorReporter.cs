@@ -458,6 +458,8 @@ namespace GPUVerify {
       string Result = RaceyArraySourceName;
       ulong Remainder = OffsetInSourceElements;
       foreach(var Stride in DimensionStrides) {
+        if (Stride == 0)
+          return "0-sized array " + RaceyArraySourceName;
         Result += "[" + (Remainder / Stride) + "]";
         Remainder = Remainder % Stride;
       }
