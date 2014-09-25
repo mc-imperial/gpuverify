@@ -5,7 +5,7 @@
 #define localId get_local_id(0)
 #define groupId get_group_id(0)
 
-kernel void reduction(global float * __restrict input, global float * __restrict output) {
+kernel void reduction(global unsigned * __restrict input, global unsigned * __restrict output) {
 
 	local float groupResults[LOCAL_SIZE];
 
