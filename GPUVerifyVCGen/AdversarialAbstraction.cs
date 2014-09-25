@@ -50,8 +50,7 @@ namespace GPUVerify {
 
       }
 
-      verifier.Program.ClearTopLevelDeclarations();
-      verifier.Program.AddTopLevelDeclarations(NewTopLevelDeclarations);
+      verifier.Program.TopLevelDeclarations = NewTopLevelDeclarations;
     }
 
     private void AbstractRequiresClauses(Procedure proc) {

@@ -471,7 +471,7 @@ namespace GPUVerify {
       return new VariableDualiser(thread, verifier.uniformityAnalyser, procName).VisitExpr(expr.Clone() as Expr);
     }
 
-    private int UpdateDeclarationsAndCount(List<Declaration> decls) {
+    private int UpdateDeclarationsAndCountTotal(List<Declaration> decls) {
         var newDecls = verifier.Program.TopLevelDeclarations.Where(d => !decls.Contains(d));
         decls.AddRange(newDecls.ToList());
         return decls.Count();
@@ -486,7 +486,7 @@ namespace GPUVerify {
         // get put into the program's top level declarations and also need to
         // be dualised.
         var decls = verifier.Program.TopLevelDeclarations.ToList();
-        for(int i = 0; i < UpdateDeclarationsAndCount(decls); i++)
+        for(int i = 0; i < UpdateDeclarationsAndCountTotal(decls); i++)
         {
             Declaration d = decls[i];
 
@@ -566,8 +566,7 @@ namespace GPUVerify {
             NewTopLevelDeclarations.Add(d);
         }
 
-        verifier.Program.ClearTopLevelDeclarations();
-        verifier.Program.AddTopLevelDeclarations(NewTopLevelDeclarations);
+        verifier.Program.TopLevelDeclarations = NewTopLevelDeclarations;
     }
   }
 
