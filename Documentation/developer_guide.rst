@@ -447,7 +447,7 @@ Replace as appropriate or setup an environment variable.::
 Windows
 -------
 In addition to the common prerequisites a Windows build of GPUVerify requires
-Microsoft Visual Studio 2012.
+Microsoft Visual Studio 2012 or later.
 
 To build GPUVerify follow this guide in a powershell window.
 
@@ -494,6 +494,9 @@ drives.
               -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" `
               ..\src
 
+   In case you have Visual Studion 2013, replace ``Visual Studio 11`` by
+   ``Visual Studio 12``. This may require a version of CMake later than 2.8.8.
+
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
    for the command line, then::
@@ -530,6 +533,9 @@ drives.
               -D LLVM_BUILD_TYPE=Release `
               -D LIBCLC_DIR=${BUILD_ROOT}\libclc\install `
               ..\src
+
+   In case you have Visual Studion 2013, replace ``Visual Studio 11`` by
+   ``Visual Studio 12``. This may require a version of CMake later than 2.8.8.
 
    Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
