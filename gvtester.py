@@ -194,6 +194,8 @@ class GPUVerifyTestKernel(object):
             processInstance=subprocess.Popen(cmdLine,
                                              stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE,
+                                             stdin=subprocess.PIPE,
+                                             close_fds=(os.name == 'posix'),
                                              cwd=os.path.dirname(self.path)
                                             )
             stdout, stderr = processInstance.communicate() #Allow program to run and wait for it to exit.
