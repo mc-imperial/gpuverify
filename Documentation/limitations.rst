@@ -2,7 +2,6 @@
 Limitations
 ===========
 
-
 Known Sources of Unsoundness in GPUVerify
 -----------------------------------------
 
@@ -60,3 +59,37 @@ Known Sources of Unsoundness in GPUVerify
       __assert(!__read(a));
     }
 
+Using Arrays as Kernel Parameters
+---------------------------------
+
+By default the clang compiler as used by GPUVerify replace any structure passed
+to a kernel by the fields of the structure. For example, the following kernel::
+
+  struct S {
+    int *a;
+    int *b;
+  }
+
+  __global__ void foo(struct S s) {
+  }
+
+will internally represented by::
+
+  __global__ void foo(int *s.coerce1, int *s.coerce2) {
+  }
+
+This has three consequences:
+
+* Warnings about the use of the restrict qualifier will refer to the parameters
+  replacing the structure. Any restrict qualifier declared in the structure
+  will not be carried over to the newly introduced parameters and, hence,
+  these warnings cannot be suppressed.
+
+* Although it is possible to write kernel preconditions like
+  ``__requires(s.a == NULL)``, these will be ignored during the verification.
+  As a workaround ``__assume(s.a == NULL)`` can be used.
+
+* If the ``--kernel-arrays`` command line option is passed to GPUVerify, it
+  should take into account the newly introduced kernel parameters. Hence, in
+  the above example ``--kernel-arrays`` needs to be supplied with three
+  arguments and not just one.
