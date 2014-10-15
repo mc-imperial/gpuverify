@@ -59,8 +59,8 @@ Known Sources of Unsoundness in GPUVerify
       __assert(!__read(a));
     }
 
-Using Arrays as Kernel Parameters
----------------------------------
+Using Structures as Kernel Parameters
+-------------------------------------
 
 By default the clang compiler as used by GPUVerify replace any structure passed
 to a kernel by the fields of the structure. For example, the following kernel::
