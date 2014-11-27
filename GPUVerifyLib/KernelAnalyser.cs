@@ -167,6 +167,44 @@ namespace GPUVerify
       }
     }
 
+    private static bool IsCandidateAssert(AssertCmd c) {
+      return QKeyValue.FindStringAttribute(c.Attributes, "tag") != null;
+    }
+
+    public static void DisableAssertions(Program program)
+    {
+      // We want to disable all assertions, with the exception
+      // of assetions at loop heads (these are invariants)
+      // and candidate assertions that the user has provided
+      // for Houdini
+      foreach(var impl in program.Implementations) {
+        var CFG = Program.GraphFromImpl(impl);
+        CFG.ComputeLoops();
+        foreach(var b in impl.Blocks) {
+          var newCmds = new List<Cmd>();
+          bool foundNonAssertOrAssume = false;
+          foreach(var c in b.Cmds) {
+            if(c is AssertCmd) {
+              if(!IsCandidateAssert(c as AssertCmd)) {
+                if(!CFG.Headers.Contains(b)) {
+                  continue;
+                }
+                if(!foundNonAssertOrAssume) {
+                  continue;
+                }
+              }
+            } else if(!(c is AssumeCmd)) {
+              foundNonAssertOrAssume = true;
+            }
+            newCmds.Add(c);
+          }
+          b.Cmds = newCmds;
+        }
+      }
+      
+
+    }
+
     public static void DisableBarrierDivergenceChecking(Program program)
     {
       foreach (var proc in program.TopLevelDeclarations.OfType<Procedure>()) {

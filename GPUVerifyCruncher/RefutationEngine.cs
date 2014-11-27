@@ -516,12 +516,12 @@ namespace Microsoft.Boogie
         if (engine is SMTEngine)
         {
           SMTEngine smtEngine = (SMTEngine) engine;
-          smtEngine.Start(getFreshProgram(false, false, true), ref outcome);
+          smtEngine.Start(getFreshProgram(true, true), ref outcome);
         }  
         else
         {
           DynamicAnalysis dynamicEngine = (DynamicAnalysis) engine;
-          Program program = getFreshProgram(false, false, false);
+          Program program = getFreshProgram(true, false);
           dynamicEngine.Start(program);
         }
       }
@@ -545,7 +545,7 @@ namespace Microsoft.Boogie
             underApproximatingTasks.Add(Task.Factory.StartNew(
               () =>
               {
-              dynamicEngine.Start(getFreshProgram(false, false, false));
+              dynamicEngine.Start(getFreshProgram(true, false));
               }, 
               tokenSource.Token));
           }
@@ -555,7 +555,7 @@ namespace Microsoft.Boogie
             underApproximatingTasks.Add(Task.Factory.StartNew(
               () =>
               {
-              smtEngine.Start(getFreshProgram(false, false, true), ref outcome);
+              smtEngine.Start(getFreshProgram(true, true), ref outcome);
               }, 
               tokenSource.Token));
           }
@@ -581,7 +581,7 @@ namespace Microsoft.Boogie
         overApproximatingTasks.Add(Task.Factory.StartNew(
           () =>
           {
-            pipeline.GetHoudiniEngine().Start(getFreshProgram(false, false, true), ref outcome);
+            pipeline.GetHoudiniEngine().Start(getFreshProgram(true, true), ref outcome);
           }, 
           tokenSource.Token));
               
@@ -612,7 +612,7 @@ namespace Microsoft.Boogie
               overApproximatingTasks.Add(Task.Factory.StartNew(
                 () =>
                 {
-                  newHoudiniEngine.Start(getFreshProgram(false, false, true), ref outcome); 
+                  newHoudiniEngine.Start(getFreshProgram(true, true), ref outcome); 
                   tokenSource.Cancel(false);
                 }, 
                 tokenSource.Token));
@@ -646,16 +646,14 @@ namespace Microsoft.Boogie
       }
     }
     
-    private Program getFreshProgram(bool raceCheck, bool divergenceCheck, bool inline)
+    private Program getFreshProgram(bool disableChecks, bool inline)
     {
-      if (!divergenceCheck)
-        divergenceCheck = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).EnableBarrierDivergenceChecks;
-      return GVUtil.GetFreshProgram(this.FileNames, raceCheck, divergenceCheck, inline);
+      return GVUtil.GetFreshProgram(this.FileNames, disableChecks, inline);
     }
     
     private Program ApplyInvariants(Pipeline pipeline)
     {
-      Program program = getFreshProgram(true, true, false);
+      Program program = getFreshProgram(false, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
       pipeline.GetHoudiniEngine().houdini.ApplyAssignment(program);
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ReplaceLoopInvariantAssertions)
