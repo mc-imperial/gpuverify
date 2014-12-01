@@ -610,7 +610,7 @@ namespace GPUVerify {
     }
 
     private static Program GetOriginalProgram() {
-      return GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, true, false);
+      return GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
     }
 
     private static AssumeCmd DetermineConflictingAction(CallCounterexample CallCex, string RaceyState, string AccessHasOccurred, string AccessOffset)
@@ -670,7 +670,7 @@ namespace GPUVerify {
 
     private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromCall(string CheckProcedureName, string CalleeName)
     {
-      Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, true, true, false);
+      Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
       var Bodies =  originalProgram.Implementations.Where(Item => Item.Name.Equals(CalleeName)).ToList();
       if(Bodies.Count == 0) {
         return new HashSet<SourceLocationInfo>();
