@@ -108,8 +108,6 @@ Replace as appropriate or setup an environment variable.::
     $ cd ${BUILD_ROOT}
     $ git clone https://git01.codeplex.com/z3
     $ cd ${BUILD_ROOT}/z3
-    $ autoconf
-    $ ./configure
     $ python scripts/mk_make.py
     $ cd build
     $ make -jN
@@ -310,8 +308,6 @@ Replace as appropriate or setup an environment variable.::
     $ cd ${BUILD_ROOT}
     $ git clone https://git01.codeplex.com/z3
     $ cd ${BUILD_ROOT}/z3
-    $ autoconf
-    $ ./configure
     $ python scripts/mk_make.py
     $ cd build
     $ make -jN

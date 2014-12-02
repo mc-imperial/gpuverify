@@ -434,7 +434,7 @@ class GPUVerifyInstance (object):
     if not args.math_int:
       options.append("/proverOpt:OPTIMIZE_FOR_BV=true")
       if args.solver == "z3":
-        options += ["/z3opt:RELEVANCY=0", "/z3opt:SOLVER=true"]
+        options += ["/z3opt:smt.relevancy=0"]
 
     if args.solver == "z3":
       options.append("/z3exe:" + gvfindtools.z3BinDir + os.sep + "z3.exe")
