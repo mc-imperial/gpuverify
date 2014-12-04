@@ -111,8 +111,10 @@ namespace GPUVerify
     {
       List<Cmd> boundChecks = new List<Cmd>();
 
+      var ArrayOffset = verifier.FindOrCreateArrayOffsetVariable(ar.v.Name);
+
       boundChecks.Add(new AssignCmd(Token.NoToken, 
-        new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, new IdentifierExpr(Token.NoToken, verifier.Program.GlobalVariables.Where(Item => Item.Name.Equals("_ARRAY_OFFSET_" + ar.v.Name)).ElementAt(0))) },
+        new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, Expr.Ident(ArrayOffset)) },
         new List<Expr> { ar.Index }));
 
       boundChecks.Add(new AssumeCmd(Token.NoToken, Expr.True, 
