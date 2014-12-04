@@ -308,7 +308,8 @@ namespace GPUVerify {
         AssertCmd a = c as AssertCmd;
 
         if (QKeyValue.FindBoolAttribute(a.Attributes, "sourceloc")
-          || QKeyValue.FindBoolAttribute(a.Attributes, "block_sourceloc")) {
+          || QKeyValue.FindBoolAttribute(a.Attributes, "block_sourceloc")
+          || QKeyValue.FindBoolAttribute(a.Attributes, "array_bounds")) {
           // This is just a location marker, so we do not dualise it
           cs.Add(new AssertCmd(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr), 
             (QKeyValue)a.Attributes.Clone()));

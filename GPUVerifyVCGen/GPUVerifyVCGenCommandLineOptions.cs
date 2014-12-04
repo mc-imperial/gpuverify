@@ -56,6 +56,7 @@ namespace GPUVerify
     public static List<string> DoNotGenerateCandidates = new List<string>();
     public static List<List<string>> KernelInterceptorParams = new List<List<string>>();
     public static bool DisableInessentialLoopDetection = false;
+    public static bool ArrayBoundsChecking = false;
 
     public static int Parse(string[] args)
     {
@@ -315,6 +316,11 @@ namespace GPUVerify
           case "-disableInessentialLoopDetection":
           case "/disableInessentialLoopDetection":
           DisableInessentialLoopDetection = true;
+          break;
+      
+          case "-checkArrayBounds":
+          case "/checkArrayBounds":
+          ArrayBoundsChecking = true;
           break;
 
           default:

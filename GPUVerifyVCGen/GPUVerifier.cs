@@ -543,6 +543,10 @@ namespace GPUVerify
 
             }
 
+            if (GPUVerifyVCGenCommandLineOptions.ArrayBoundsChecking) {
+              PerformArrayBoundsChecking();
+            }
+
             ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
 
             if (GPUVerifyVCGenCommandLineOptions.KernelInterceptorParams.Count > 0) {
@@ -786,6 +790,12 @@ namespace GPUVerify
               b.AddAttribute("safe_barrier", new object[] { });
             }
           }
+        }
+
+        private void PerformArrayBoundsChecking()
+        {
+          var BoundsChecker = new ArrayBoundsChecker(this, Program);
+          BoundsChecker.CheckBounds(Program);
         }
 
         private void DuplicateBarriers()

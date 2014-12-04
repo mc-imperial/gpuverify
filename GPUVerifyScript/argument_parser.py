@@ -117,6 +117,9 @@ def __build_parser(default_solver):
   general.add_argument("--loop-unwind=", type = __non_negative, metavar= "X",
     help = "Explore traces that pass through at most X loop heads. Implies \
       --findbugs")
+  
+  general.add_argument("--check-array-bounds", action = 'store_true',
+    help = "Enable checking for any array out-of-bounds access")
 
   general.add_argument("--no-benign-tolerance", action = 'store_true',
     help = "Do not tolerate benign data races")

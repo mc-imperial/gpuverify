@@ -111,6 +111,9 @@ namespace GPUVerify {
         else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "bad_pointer_access")) {
           ReportFailingBadPointerAccess(AssertCex);
         }
+        else if (QKeyValue.FindBoolAttribute(AssertCex.FailingAssert.Attributes, "array_bounds")) {
+          ReportFailingArrayBounds(AssertCex);
+        }
         else {
           ReportFailingAssert(AssertCex);
         }
@@ -476,16 +479,25 @@ namespace GPUVerify {
 
     }
 
-    private static string GetStateName(CallCounterexample CallCex)
+    private static string GetStateName(QKeyValue Attributes, Counterexample Cex)
     {
-      Contract.Requires(QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "check_id") != null);
-      string CheckId = QKeyValue.FindStringAttribute(CallCex.FailingCall.Attributes, "check_id");
+      Contract.Requires(QKeyValue.FindStringAttribute(Attributes, "check_id") != null);
+      string CheckId = QKeyValue.FindStringAttribute(Attributes, "check_id");
       return QKeyValue.FindStringAttribute(
-        (CallCex.Trace.Last().Cmds.OfType<AssumeCmd>().Where(
-          Item => QKeyValue.FindStringAttribute(Item.Attributes, "check_id") == CheckId).ToList()[0]
+        (Cex.Trace.Last().Cmds.OfType<AssumeCmd>().Where(
+          Item => QKeyValue.FindStringAttribute(Item.Attributes, "captureState") == CheckId).ToList()[0]
         ).Attributes, "captureState");
     }
 
+    private static string GetStateName(CallCounterexample CallCex)
+    {
+      return GetStateName(CallCex.FailingCall.Attributes, CallCex);
+    }
+
+    private static string GetStateName(AssertCounterexample AssertCex)
+    {
+      return GetStateName(AssertCex.FailingAssert.Attributes, AssertCex);
+    }
     private static string GetSourceFileName()
     {
       return CommandLineOptions.Clo.Files[CommandLineOptions.Clo.Files.Count() - 1];
@@ -805,6 +817,20 @@ namespace GPUVerify {
 
     private static void ReportFailingBadPointerAccess(AssertCounterexample err) {
       ReportThreadSpecificFailure(err, "possible null pointer access");
+    }
+
+    private static void ReportFailingArrayBounds(AssertCounterexample err) {
+
+      PopulateModelWithStatesIfNecessary(err);
+
+      string arrayName = QKeyValue.FindStringAttribute(err.FailingAssert.Attributes, "array_name");
+      Axiom arrayInfo = GetOriginalProgram().Axioms.Where(Item => QKeyValue.FindStringAttribute(Item.Attributes, "array_info") == arrayName).ElementAt(0);
+      string sourceArrayName = QKeyValue.FindStringAttribute(arrayInfo.Attributes, "source_name");
+
+      var sli = new SourceLocationInfo(GetAttributes(err.FailingAssert), GetSourceFileName(), err.FailingAssert.tok);
+      ErrorWriteLine(sli.Top() + ":", "possible array out-of-bounds access in array " + sourceArrayName + ":", ErrorMsgType.Error);
+      sli.PrintStackTrace();
+      Console.Error.WriteLine();
     }
 
     private static void ReportEnsuresFailure(Absy node) {

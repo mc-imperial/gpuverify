@@ -385,6 +385,8 @@ class GPUVerifyInstance (object):
       options.append("/adversarialAbstraction")
     if args.equality_abstraction:
       options.append("/equalityAbstraction")
+    if args.check_array_bounds:
+      options.append("/checkArrayBounds")
     if args.no_benign_tolerance:
       options.append("/noBenign")
     if args.only_divergence:

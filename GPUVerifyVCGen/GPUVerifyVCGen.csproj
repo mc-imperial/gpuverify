@@ -163,6 +163,7 @@
     <Compile Include="AccessRecord.cs" />
     <Compile Include="AdversarialAbstraction.cs" />
     <Compile Include="ArrayControlFlowAnalyser.cs" />
+    <Compile Include="ArrayBoundsChecker.cs" />
     <Compile Include="AsymmetricExpressionFinder.cs" />
     <Compile Include="BarrierInvariantDescriptor.cs" />
     <Compile Include="BinaryBarrierInvariantDescriptor.cs" />
