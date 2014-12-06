@@ -16,10 +16,11 @@ Docker containers
 -----------------
 
 `Docker <https://www.docker.com/>`_ is a technology for packaging entire applications into
-containers to provide light-weight (compared to VMs) portable containers.
+containers to provide a light-weight (compared to VMs) and portable way to run applications
+in an isolated and reproducable environment.
 
 We provide two different images (the difference is each one uses a different SMT solver)
-for building GPUVerify containers
+for building GPUVerify containers.
 
 Installing Docker
 ^^^^^^^^^^^^^^^^^
