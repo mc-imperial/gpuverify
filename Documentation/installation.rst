@@ -42,8 +42,8 @@ CVC4 image
 ^^^^^^^^^^
 
 This container uses CVC4 as its SMT solver. This version of CVC4 is
-built without GPL components so it is under a modified BSD license and so
-is usually suitable for commercial use.
+built `without GPL components so it is under a modified BSD license <http://cvc4.cs.nyu.edu/doc/copyright.html>`_
+and so is usually suitable for commercial use.
 
 To obtain the image run::
 
