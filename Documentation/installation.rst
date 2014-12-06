@@ -34,7 +34,7 @@ Z3 image
 This container uses Z3 as its SMT solver. Z3 can only be freely used
 for non commercial purposes (see https://z3.codeplex.com/license)
 
-To obtain the container run::
+To obtain the image run::
 
     $ docker pull delcypher/gpuverify-docker:z3
 
@@ -45,7 +45,7 @@ This container uses CVC4 as its SMT solver. This version of CVC4 is
 built without GPL components so it is under a modified BSD license and so
 is usually suitable for commercial use.
 
-To obtain the container run::
+To obtain the image run::
 
     $ docker pull delcypher/gpuverify-docker:cvc4
 
