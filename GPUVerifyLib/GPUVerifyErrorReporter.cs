@@ -485,7 +485,7 @@ namespace GPUVerify {
       string CheckId = QKeyValue.FindStringAttribute(Attributes, "check_id");
       return QKeyValue.FindStringAttribute(
         (Cex.Trace.Last().Cmds.OfType<AssumeCmd>().Where(
-          Item => QKeyValue.FindStringAttribute(Item.Attributes, "captureState") == CheckId).ToList()[0]
+          Item => QKeyValue.FindStringAttribute(Item.Attributes, "check_id") == CheckId).ToList()[0]
         ).Attributes, "captureState");
     }
 

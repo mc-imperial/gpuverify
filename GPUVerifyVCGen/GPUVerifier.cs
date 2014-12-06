@@ -1765,6 +1765,23 @@ namespace GPUVerify
             Microsoft.Boogie.Type.Bool));
         }
 
+        internal GlobalVariable FindOrCreateArrayOffsetVariable(string varName)
+        {
+            string name = MakeNotAccessedVariableName(varName);
+            foreach(Declaration D in Program.TopLevelDeclarations)
+            {
+                if(D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
+                {
+                    return D as GlobalVariable;
+                }
+            }
+
+            GlobalVariable result = MakeArrayOffsetVariable(varName);
+
+            Program.AddTopLevelDeclaration(result);
+            return result;
+        }
+
         internal GlobalVariable FindOrCreateNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
         {
             string name = MakeNotAccessedVariableName(varName);
@@ -1842,6 +1859,15 @@ namespace GPUVerify
             return result;
         }
 
+        internal GlobalVariable MakeArrayOffsetVariable(string varName)
+        {
+            return new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, MakeArrayOffsetVariableName(varName),
+              IntRep.GetIntType(size_t_bits)));
+        }
+
+        internal static string MakeArrayOffsetVariableName(string varName) {
+            return "_ARRAY_OFFSET_" + varName;
+        }
 
         internal static GlobalVariable MakeNotAccessedVariable(string varName, Microsoft.Boogie.Type dtype)
         {
