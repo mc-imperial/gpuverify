@@ -1,6 +1,6 @@
 //xfail:BOOGIE_ERROR
 //--local_size=[10,10,10] --num_groups=2 --check-array-bounds
-//kernel.cl:7:4:[\s]+error:[\s]+possible array out-of-bounds access in array L:
+//kernel.cl:7:4:[\s]+error:[\s]+possible array out-of-bounds access on array L
 
 __kernel void foo() {
 	local int L[10][10][10];
