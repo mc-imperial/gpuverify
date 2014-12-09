@@ -22,7 +22,8 @@ namespace GPUVerify
     class ReadCollector : AccessCollector
     {
 
-        public List<AccessRecord> accesses = new List<AccessRecord>();
+        public List<AccessRecord> nonPrivateAccesses = new List<AccessRecord>();
+        public List<AccessRecord> privateAccesses = new List<AccessRecord>();
 
         public ReadCollector(IKernelArrayInfo State)
             : base(State)
@@ -58,9 +59,13 @@ namespace GPUVerify
                 var Index = node.Args[1];
                 this.VisitExpr(node.Args[1]);
 
-                if (State.ContainsNonLocalArray(ReadVariable))
+                if (State.ContainsNonPrivateArray(ReadVariable))
                 {
-                    accesses.Add(new AccessRecord(ReadVariable, Index));
+                  nonPrivateAccesses.Add(new AccessRecord(ReadVariable, Index));
+                }
+                else if (State.ContainsPrivateArray(ReadVariable))
+                {
+                  privateAccesses.Add(new AccessRecord(ReadVariable, Index));
                 }
 
                 return node;

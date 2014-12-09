@@ -451,7 +451,7 @@ namespace GPUVerify
                   .Select(item => item.Modifies)
                   .SelectMany(Item => Item)
                   .Select(Item => Item.Decl)
-                  .Where(item => KernelArrayInfo.ContainsNonLocalArray(item));
+                  .Where(item => KernelArrayInfo.ContainsNonPrivateArray(item));
           foreach(var v in KernelArrayInfo.getAllNonLocalArrays().Where(
             Item => !WrittenArrays.Contains(Item))) {
             KernelArrayInfo.getReadOnlyNonLocalArrays().Add(v);
@@ -500,6 +500,10 @@ namespace GPUVerify
                 GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks = false;
             }
 
+            if (GPUVerifyVCGenCommandLineOptions.ArrayBoundsChecking) {
+              PerformArrayBoundsChecking();
+            }
+
             if (GPUVerifyVCGenCommandLineOptions.RemovePrivateArrayAccesses) {
               EliminateLiteralIndexedPrivateArrays();
             }
@@ -541,10 +545,6 @@ namespace GPUVerify
                   EmitProgram(outputFilename + "_pre_inference");
                 }
 
-            }
-
-            if (GPUVerifyVCGenCommandLineOptions.ArrayBoundsChecking) {
-              PerformArrayBoundsChecking();
             }
 
             ConstantWriteInstrumenter.AddConstantWriteInstrumentation();
@@ -1767,10 +1767,10 @@ namespace GPUVerify
 
         internal GlobalVariable FindOrCreateArrayOffsetVariable(string varName)
         {
-            string name = MakeNotAccessedVariableName(varName);
+            string name = MakeArrayOffsetVariableName(varName);
             foreach(Declaration D in Program.TopLevelDeclarations)
             {
-                if(D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
+            if(D is GlobalVariable && ((GlobalVariable)D).Name.Equals(name))
                 {
                     return D as GlobalVariable;
                 }

@@ -76,7 +76,7 @@ namespace GPUVerify
             return all;
         }
 
-        public bool ContainsNonLocalArray(Variable v)
+        public bool ContainsNonPrivateArray(Variable v)
         {
             return getAllNonLocalArrays().Contains(v);
         }
@@ -84,6 +84,11 @@ namespace GPUVerify
         public bool ContainsConstantArray(Variable v)
         {
             return ConstantVariables.Contains(v);
+        }
+
+        public bool ContainsPrivateArray(Variable v)
+        {
+            return getPrivateArrays().Contains(v);
         }
 
     }

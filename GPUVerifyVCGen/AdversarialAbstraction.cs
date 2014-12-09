@@ -33,7 +33,7 @@ namespace GPUVerify {
       List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
       foreach (Declaration d in verifier.Program.TopLevelDeclarations) {
         if (d is Variable &&
-          verifier.KernelArrayInfo.ContainsNonLocalArray(d as Variable) &&
+          verifier.KernelArrayInfo.ContainsNonPrivateArray(d as Variable) &&
           verifier.ArrayModelledAdversarially(d as Variable)) {
           continue;
         }
@@ -107,7 +107,7 @@ namespace GPUVerify {
             ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
             rc.Visit(call.Ins[i]);
             bool foundAdversarial = false;
-            foreach (AccessRecord ar in rc.accesses) {
+            foreach (AccessRecord ar in rc.nonPrivateAccesses) {
               if (verifier.ArrayModelledAdversarially(ar.v)) {
                 foundAdversarial = true;
                 break;
@@ -139,7 +139,7 @@ namespace GPUVerify {
             rc.Visit(rhs);
 
             bool foundAdversarial = false;
-            foreach (AccessRecord ar in rc.accesses) {
+            foreach (AccessRecord ar in rc.nonPrivateAccesses) {
               if (verifier.ArrayModelledAdversarially(ar.v)) {
                 foundAdversarial = true;
                 break;
@@ -184,7 +184,7 @@ namespace GPUVerify {
       }
 
       public override Variable VisitVariable(Variable v) {
-        if (verifier.KernelArrayInfo.ContainsNonLocalArray(v)) {
+        if (verifier.KernelArrayInfo.ContainsNonPrivateArray(v)) {
           if (verifier.ArrayModelledAdversarially(v)) {
             found = true;
           }

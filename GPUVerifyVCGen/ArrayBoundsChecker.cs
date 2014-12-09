@@ -95,13 +95,17 @@ namespace GPUVerify
       WriteCollector wc = new WriteCollector(this.verifier.KernelArrayInfo);
 
       foreach (var rhs in assign.Rhss)
+      {
         rc.Visit(rhs);
-      foreach (AccessRecord ar in rc.accesses)
+      }
+      foreach (AccessRecord ar in rc.nonPrivateAccesses.Union(rc.privateAccesses))
         accesses.Add(ar);
 
       foreach (var lhs in assign.Lhss)
+      {
         wc.Visit(lhs);
-      if (wc.FoundWrite())
+      }
+      if (wc.FoundNonPrivateWrite() || wc.FoundPrivateWrite())
         accesses.Add(wc.GetAccess());
 
       return accesses;
@@ -122,23 +126,24 @@ namespace GPUVerify
         new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + ArraySourceID },
         new QKeyValue(Token.NoToken, "captureState", new List<object> { "bounds_check_state_" + ArraySourceID }, 
         null)))));
-      boundChecks.Add(GenBoundCheck(BOUND_TYPE.LOWER, ar, arrDim));
+      boundChecks.Add(GenBoundCheck(BOUND_TYPE.LOWER, ar, arrDim, ArrayOffset));
 
       if (!onlyLower)
-        boundChecks.Add(GenBoundCheck(BOUND_TYPE.UPPER, ar, arrDim));
+        boundChecks.Add(GenBoundCheck(BOUND_TYPE.UPPER, ar, arrDim, ArrayOffset));
 
       ArraySourceID++;
       return boundChecks;
     }
 
-    private AssertCmd GenBoundCheck(BOUND_TYPE btype, AccessRecord ar, int arrDim)
+    private AssertCmd GenBoundCheck(BOUND_TYPE btype, AccessRecord ar, int arrDim, Variable offsetVar)
     {
       Expr boundExpr = null;
+      IdentifierExpr offsetVarExpr = new IdentifierExpr(Token.NoToken, offsetVar);
       switch (btype) {
         case BOUND_TYPE.LOWER:
-          boundExpr = verifier.IntRep.MakeSge(ar.Index, verifier.IntRep.GetLiteral(0, 32)); break;
+          boundExpr = verifier.IntRep.MakeSge(offsetVarExpr, verifier.IntRep.GetLiteral(0, 32)); break;
         case BOUND_TYPE.UPPER:
-          boundExpr = verifier.IntRep.MakeSlt(ar.Index, verifier.IntRep.GetLiteral(arrDim, 32)); break;
+          boundExpr = verifier.IntRep.MakeSlt(offsetVarExpr, verifier.IntRep.GetLiteral(arrDim, 32)); break;
       }
 
       return new AssertCmd(Token.NoToken, boundExpr,

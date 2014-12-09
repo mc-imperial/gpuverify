@@ -754,7 +754,7 @@ namespace GPUVerify
     ReadCollector rc = new ReadCollector(StateToCheck);
     foreach (var rhs in assign.Rhss)
      rc.Visit(rhs);
-    foreach (var access in rc.accesses)
+    foreach (var access in rc.nonPrivateAccesses)
     {
      if (!StateToCheck.getReadOnlyNonLocalArrays().Contains(access.v))
       return true;
@@ -764,7 +764,7 @@ namespace GPUVerify
     {
      WriteCollector wc = new WriteCollector(StateToCheck);
      wc.Visit(LhsRhs.Item1);
-     if (wc.FoundWrite())
+     if (wc.FoundNonPrivateWrite())
       return true;
     }
 

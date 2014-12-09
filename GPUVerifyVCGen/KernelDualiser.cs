@@ -527,7 +527,7 @@ namespace GPUVerify {
                 (GPUVerifier.IsGroupIdConstant(d as Variable) && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking))) {
               var v = d as Variable;
 
-              if (v.Name.Contains("_NOT_ACCESSED_")) {
+              if (v.Name.Contains("_NOT_ACCESSED_") || v.Name.Contains("_ARRAY_OFFSET")) {
                 NewTopLevelDeclarations.Add(v);
                 continue;
               }

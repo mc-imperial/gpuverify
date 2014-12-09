@@ -33,7 +33,9 @@ namespace GPUVerify
 
         ICollection<Variable> getReadOnlyNonLocalArrays();
 
-        bool ContainsNonLocalArray(Variable v);
+        bool ContainsNonPrivateArray(Variable v);
+
+        bool ContainsPrivateArray(Variable v);
 
         bool ContainsConstantArray(Variable v);
 

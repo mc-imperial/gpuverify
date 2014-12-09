@@ -1307,8 +1307,8 @@ namespace GPUVerify {
           ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
           foreach (var rhs in assign.Rhss)
             rc.Visit(rhs);
-          if (rc.accesses.Count > 0) {
-            foreach (AccessRecord ar in rc.accesses) {
+          if (rc.nonPrivateAccesses.Count > 0) {
+            foreach (AccessRecord ar in rc.nonPrivateAccesses) {
               if(!verifier.KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(ar.v)) {
                 AddLogAndCheckCalls(result, ar, AccessType.READ, null);
               }
@@ -1318,7 +1318,7 @@ namespace GPUVerify {
           foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) {
             WriteCollector wc = new WriteCollector(verifier.KernelArrayInfo);
             wc.Visit(LhsRhs.Item1);
-            if (wc.FoundWrite()) {
+            if (wc.FoundNonPrivateWrite()) {
               AccessRecord ar = wc.GetAccess();
               AddLogAndCheckCalls(result, ar, AccessType.WRITE, LhsRhs.Item2);
             }

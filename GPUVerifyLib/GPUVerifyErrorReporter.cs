@@ -419,64 +419,21 @@ namespace GPUVerify {
       Variable AccessHasOccurredVar = ExtractAccessHasOccurredVar(Cex);
       string StateName = GetStateName(Cex);
       Model Model = Cex.Model;
-
+      
       return ArrayOffsetString(Model, StateName, AccessHasOccurredVar, AccessOffsetVar, RaceyArraySourceName);
 
     }
-
+    
     private static string ArrayOffsetString(Model Model, string StateName, Variable AccessHasOccurredVar, Variable AccessOffsetVar, string RaceyArraySourceName) {
-      uint ElemWidthBits = (uint)QKeyValue.FindIntAttribute(AccessHasOccurredVar.Attributes, "elem_width", int.MaxValue);
-      uint SourceElemWidthBits = (uint)QKeyValue.FindIntAttribute(AccessHasOccurredVar.Attributes, "source_elem_width", int.MaxValue);
-      Debug.Assert(ElemWidthBits != int.MaxValue);
-      Debug.Assert(SourceElemWidthBits != int.MaxValue);
-      Debug.Assert((ElemWidthBits % 8) == 0);
-      Debug.Assert((SourceElemWidthBits % 8) == 0);
-
-      uint ElemWidthBytes = ElemWidthBits / 8;
-      uint SourceElemWidthBytes = SourceElemWidthBits / 8;
-
-      var OffsetModelElement =
-        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
+      var OffsetElement = (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
         ? GetStateFromModel(StateName,
            Model).TryGet(AccessOffsetVar.Name)
         : Model.TryGetFunc(AccessOffsetVar.Name).GetConstant()) as Model.Number;
-
-      ulong Offset = Convert.ToUInt64(OffsetModelElement.Numeral);
-      ulong OffsetInBytes = Offset * ElemWidthBytes;
-
-      var DimensionsString = QKeyValue.FindStringAttribute(AccessHasOccurredVar.Attributes, "source_dimensions");
-      var Dimensions = DimensionsString.Split(new char[] { ',' });
-      Debug.Assert(Dimensions.Count() > 0);
-      Debug.Assert(Dimensions[0] == "*");
-
-      ulong[] DimensionStrides = new ulong[Dimensions.Count()];
-      DimensionStrides[Dimensions.Count() - 1] = 1;
-      for(int i = Dimensions.Count() - 2; i >= 0; i--) {
-        DimensionStrides[i] = DimensionStrides[i + 1] * Convert.ToUInt64(Dimensions[i + 1]);
-      }
-
-      ulong OffsetInSourceElements = OffsetInBytes / SourceElemWidthBytes;
-      ulong LeftOverBytes = OffsetInBytes % SourceElemWidthBytes;
-
-      string Result = RaceyArraySourceName;
-      ulong Remainder = OffsetInSourceElements;
-      foreach(var Stride in DimensionStrides) {
-        if (Stride == 0)
-          return "0-sized array " + RaceyArraySourceName;
-        Result += "[" + (Remainder / Stride) + "]";
-        Remainder = Remainder % Stride;
-      }
-
-      if (ElemWidthBytes != SourceElemWidthBytes) {
-        if (ElemWidthBytes == 1) {
-          Result += " (byte " + LeftOverBytes + ")";
-        } else {
-          Result += " (bytes " + LeftOverBytes + ".." + (LeftOverBytes + ElemWidthBytes - 1) + ")";
-        }
-      }
-
-      return Result;
-
+      
+      return GetArrayAccess(Convert.ToInt32(OffsetElement.Numeral), RaceyArraySourceName, 
+        Convert.ToUInt32(QKeyValue.FindIntAttribute(AccessHasOccurredVar.Attributes, "elem_width", -1)),
+        Convert.ToUInt32(QKeyValue.FindIntAttribute(AccessHasOccurredVar.Attributes, "source_elem_width", -1)),
+        QKeyValue.FindStringAttribute(AccessHasOccurredVar.Attributes, "source_dimensions").Split(','));
     }
 
     private static string GetStateName(QKeyValue Attributes, Counterexample Cex)
@@ -823,15 +780,77 @@ namespace GPUVerify {
 
       PopulateModelWithStatesIfNecessary(err);
 
+      string state = GetStateName(err);
       string arrayName = QKeyValue.FindStringAttribute(err.FailingAssert.Attributes, "array_name");
+      Model.Number ArrayOffset = GetStateFromModel(state, err.Model).TryGet("_ARRAY_OFFSET_" + arrayName) as Model.Number;
       Axiom arrayInfo = GetOriginalProgram().Axioms.Where(Item => QKeyValue.FindStringAttribute(Item.Attributes, "array_info") == arrayName).ElementAt(0);
-      string sourceArrayName = QKeyValue.FindStringAttribute(arrayInfo.Attributes, "source_name");
+
+      string arrayAccess = GetArrayAccess(ParseOffset(ArrayOffset), 
+        QKeyValue.FindStringAttribute(arrayInfo.Attributes, "source_name"),
+        Convert.ToUInt32(QKeyValue.FindIntAttribute(arrayInfo.Attributes, "elem_width", -1)),
+        Convert.ToUInt32(QKeyValue.FindIntAttribute(arrayInfo.Attributes, "source_elem_width", -1)),
+        QKeyValue.FindStringAttribute(arrayInfo.Attributes, "source_dimensions").Split(','));
+
+      string thread1, thread2, group1, group2;
+      GetThreadsAndGroupsFromModel(err.Model, out thread1, out thread2, out group1, out group2, false);
 
       var sli = new SourceLocationInfo(GetAttributes(err.FailingAssert), GetSourceFileName(), err.FailingAssert.tok);
-      ErrorWriteLine(sli.Top() + ":", "possible array out-of-bounds access in array " + sourceArrayName + ":", ErrorMsgType.Error);
+      ErrorWriteLine(sli.Top() + ":", "possible array out-of-bounds access on array " + arrayAccess + 
+        " by " + SpecificNameForThread() + " " + thread1 + " in " + SpecificNameForGroup() + " " + group1 + ":",
+        ErrorMsgType.Error);
       sli.PrintStackTrace();
       Console.Error.WriteLine();
     }
+
+    private static int ParseOffset(Model.Number modelOffset) 
+    {
+      ulong offset = Convert.ToUInt64(modelOffset.Numeral);
+      if (offset >= (Math.Pow(2, 31)))
+      {
+        return Convert.ToInt32(offset - Math.Pow(2, 32));
+      }
+      else
+      {
+        return Convert.ToInt32(offset);
+      }
+    }
+
+
+    private static string GetArrayAccess(int offset, string name, uint elWidth, uint srcElWidth, string[] dims)
+    {
+      Debug.Assert(elWidth != UInt32.MaxValue && elWidth % 8 == 0);
+      Debug.Assert(srcElWidth != UInt32.MaxValue && srcElWidth % 8 == 0);
+
+      elWidth /= 8;
+      srcElWidth /= 8;
+
+      uint[] dimStrides = new uint[dims.Count()];
+      dimStrides[dims.Count() - 1] = 1;
+      for (int i = dims.Count() - 2; i >= 0; i--)
+        dimStrides[i] = dimStrides[i + 1] * Convert.ToUInt32(dims[i + 1]);
+
+      long offsetInBytes = Convert.ToInt64(offset * elWidth);
+      long leftoverBytes = offsetInBytes % srcElWidth;
+
+      string ArrayAccess = name;
+      long remainder = offsetInBytes / srcElWidth;
+      foreach (uint stride in dimStrides)
+      {
+        ArrayAccess += "[" + (remainder / stride) + "]";
+        remainder %= stride;
+      }
+
+      if (elWidth != srcElWidth)
+      {
+        if (elWidth == 1)
+          ArrayAccess += " (byte " + leftoverBytes + ")";
+        else
+          ArrayAccess += " (bytes " + leftoverBytes + ".." + (leftoverBytes + elWidth - 1) + ")";
+      }
+
+      return ArrayAccess;
+    }
+
 
     private static void ReportEnsuresFailure(Absy node) {
       Console.Error.WriteLine();

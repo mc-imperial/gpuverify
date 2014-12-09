@@ -56,8 +56,8 @@ namespace GPUVerify {
           ReadCollector rc = new ReadCollector(StateToCheck);
           foreach (var rhs in assign.Rhss)
             rc.Visit(rhs);
-          if (rc.accesses.Count > 0) {
-            foreach (AccessRecord ar in rc.accesses) {
+          if (rc.nonPrivateAccesses.Count > 0) {
+            foreach (AccessRecord ar in rc.nonPrivateAccesses) {
               AddNoAccessAssumes(result, ar);
             }
           }
@@ -65,7 +65,7 @@ namespace GPUVerify {
           foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss)) {
             WriteCollector wc = new WriteCollector(StateToCheck);
             wc.Visit(LhsRhs.Item1);
-            if (wc.FoundWrite()) {
+            if (wc.FoundNonPrivateWrite()) {
               AccessRecord ar = wc.GetAccess();
               AddNoAccessAssumes(result, ar);
             }
