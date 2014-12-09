@@ -836,6 +836,8 @@ namespace GPUVerify {
       long remainder = offsetInBytes / srcElWidth;
       foreach (uint stride in dimStrides)
       {
+        if (stride == 0)
+          return "0-sized array " + name;
         ArrayAccess += "[" + (remainder / stride) + "]";
         remainder %= stride;
       }
