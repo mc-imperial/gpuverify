@@ -1,9 +1,9 @@
 //xfail:BOOGIE_ERROR
 //--local_size=16 --num_groups=2 --no-inline
 //kernel.cl: error: possible read-write race on p
-//Write by work item [\d]+ in work group \d, .+kernel.cl:18:7
+//Write by work item [\d]+ in work group \d, .+kernel.cl:18:(5|7)
 //p\[tid \+ 1\] = tid;
-//Read by work item [\d]+ in work group \d, .+kernel.cl:13:14
+//Read by work item [\d]+ in work group \d, .+kernel.cl:13:(12|14)
 //return p\[tid\];
 
 

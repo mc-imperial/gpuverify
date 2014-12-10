@@ -1,9 +1,9 @@
 //xfail:BOOGIE_ERROR
 //--local_size=16 --num_groups=2 --no-inline
 //possible read-write race
-//Write by work item [\d]+ in work group \d, .+kernel.cl:21:7
+//Write by work item [\d]+ in work group \d, .+kernel.cl:21:(5|7)
 //p\[tid \+ 1\] = tid
-//Read by work item [\d]+ in work group \d, .+kernel.cl:12:14
+//Read by work item [\d]+ in work group \d, .+kernel.cl:12:(12|14)
 //return A\[tid\]
 
 #define tid get_local_id(0)
