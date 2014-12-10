@@ -1,7 +1,7 @@
 //xfail:BOOGIE_ERROR
 //--local_size=16 --num_groups=2 --no-inline
 //possible write-read race
-//Read by work item.+kernel.cl:16:11
+//Read by work item.+kernel.cl:16:(9|11)
 //Write by work item.+from external source location
 
 
