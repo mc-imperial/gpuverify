@@ -154,8 +154,10 @@ namespace GPUVerify {
 
             WriteCollector wc = new WriteCollector(verifier.KernelArrayInfo);
             wc.Visit(lhs);
-            if (wc.GetAccess() != null && verifier.ArrayModelledAdversarially(wc.GetAccess().v)) {
-              continue; // Just remove the write
+            if (wc.FoundNonPrivateWrite()) {
+              if (verifier.ArrayModelledAdversarially(wc.GetAccess().v)) {
+                continue; // Just remove the write
+              }
             }
 
             lhss.Add(lhs);

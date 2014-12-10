@@ -66,8 +66,7 @@ namespace GPUVerify {
             WriteCollector wc = new WriteCollector(StateToCheck);
             wc.Visit(LhsRhs.Item1);
             if (wc.FoundNonPrivateWrite()) {
-              AccessRecord ar = wc.GetAccess();
-              AddNoAccessAssumes(result, ar);
+              AddNoAccessAssumes(result, wc.GetAccess());
             }
           }
         }

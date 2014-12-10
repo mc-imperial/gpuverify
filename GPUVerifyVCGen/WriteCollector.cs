@@ -65,11 +65,6 @@ namespace GPUVerify
             }
         }
 
-        internal bool FoundNonPrivateWrite()
-        {
-            return access != null && !isPrivate;
-        }
-
         internal AccessRecord GetAccess()
         {
             return access;
@@ -78,6 +73,11 @@ namespace GPUVerify
         internal bool FoundPrivateWrite()
         {
           return access != null && isPrivate;
+        }
+
+        internal bool FoundNonPrivateWrite()
+        {
+            return access != null && !isPrivate;
         }
 
     }

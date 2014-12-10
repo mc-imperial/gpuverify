@@ -1319,8 +1319,7 @@ namespace GPUVerify {
             WriteCollector wc = new WriteCollector(verifier.KernelArrayInfo);
             wc.Visit(LhsRhs.Item1);
             if (wc.FoundNonPrivateWrite()) {
-              AccessRecord ar = wc.GetAccess();
-              AddLogAndCheckCalls(result, ar, AccessType.WRITE, LhsRhs.Item2);
+              AddLogAndCheckCalls(result, wc.GetAccess(), AccessType.WRITE, LhsRhs.Item2);
             }
           }
         }
