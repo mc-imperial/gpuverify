@@ -233,7 +233,7 @@ def __build_parser(default_solver):
     watchdog-single")
 
   advanced.add_argument("--solver=", choices = ["z3", "cvc4"],
-    default = default_solver, help = "Select the SMT solver to use as backen\
+    default = default_solver, help = "Select the SMT solver to use as \
     backend. Default is {}".format(default_solver))
 
   development = parser.add_argument_group("DEVELOPMENT OPTIONS")
