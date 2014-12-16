@@ -2160,7 +2160,12 @@ namespace GPUVerify
         }
 
         internal static Expr GroupSharedIndexingExpr(int Thread) {
-          return Thread == 1 ? Expr.True : ThreadsInSameGroup();
+          return Thread == 1 ? (Expr)(new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1)) : 
+            new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken), new List<Expr> 
+              { ThreadsInSameGroup(), 
+                new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1),
+                new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 1)
+              });
         }
 
         internal bool ProgramUsesBarrierInvariants() {

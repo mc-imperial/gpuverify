@@ -546,7 +546,7 @@ namespace GPUVerify {
                 if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                   Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
                       v.Name, new MapType(Token.NoToken, new List<TypeVariable>(),
-                      new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.Bool },
+                      new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.GetBvType(1) },
                       v.TypedIdent.Type)));
                   newV.Attributes = v.Attributes;
                   NewTopLevelDeclarations.Add(newV);
