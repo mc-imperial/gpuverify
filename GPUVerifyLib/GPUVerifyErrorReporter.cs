@@ -12,6 +12,7 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
@@ -57,9 +58,23 @@ namespace GPUVerify {
     }
 
     private Implementation impl;
+    internal const string _SIZE_T_BITS_TYPE = "_SIZE_T_TYPE";
+    private readonly int size_t_bits;
 
     internal GPUVerifyErrorReporter(Program program, string implName) {
       this.impl = program.Implementations.Where(Item => Item.Name.Equals(implName)).ToList()[0];
+      this.size_t_bits = GetSizeTBits(program);
+    }
+
+    private int GetSizeTBits(Program program)
+    {
+        var candidates = program.TopLevelDeclarations.OfType<TypeSynonymDecl>().
+            Where(Item => Item.Name == _SIZE_T_BITS_TYPE);
+        if (candidates.Count() != 1 || !candidates.ToList()[0].Body.IsBv) {
+            Console.WriteLine("GPUVerify: error: exactly one _SIZE_T_TYPE bit-vector type must be specified");
+            Environment.Exit(1);
+        }
+        return candidates.ToList()[0].Body.BvBits;
     }
 
     internal void ReportCounterexample(Counterexample error) {
@@ -182,7 +197,7 @@ namespace GPUVerify {
       }
 
       var OriginalHeader = FindHeaderForBackEdgeNode(CFG, FindNodeContainingCaptureState(CFG, LoopBackEdgeState));
-      Console.WriteLine("On taking back edge to head of loop at " + 
+      Console.WriteLine("On taking back edge to head of loop at " +
         GetSourceLocationForBasicBlock(OriginalHeader).Top() + ":");
       ShowRaceInstrumentationVariables(Model, LoopBackEdgeState, OriginalProgram);
       ShowVariablesReferencedInLoop(CFG, Model, LoopBackEdgeState, OriginalHeader);
@@ -414,23 +429,21 @@ namespace GPUVerify {
       }
     }
 
-    private static string ArrayOffsetString(CallCounterexample Cex, string RaceyArraySourceName) {
+    private string ArrayOffsetString(CallCounterexample Cex, string RaceyArraySourceName) {
       Variable AccessOffsetVar = ExtractOffsetVar(Cex);
       Variable AccessHasOccurredVar = ExtractAccessHasOccurredVar(Cex);
       string StateName = GetStateName(Cex);
       Model Model = Cex.Model;
-      
-      return ArrayOffsetString(Model, StateName, AccessHasOccurredVar, AccessOffsetVar, RaceyArraySourceName);
 
+      return ArrayOffsetString(Model, StateName, AccessHasOccurredVar, AccessOffsetVar, RaceyArraySourceName);
     }
-    
-    private static string ArrayOffsetString(Model Model, string StateName, Variable AccessHasOccurredVar, Variable AccessOffsetVar, string RaceyArraySourceName) {
-      var OffsetElement = (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
-        ? GetStateFromModel(StateName,
-           Model).TryGet(AccessOffsetVar.Name)
+
+    private string ArrayOffsetString(Model Model, string StateName, Variable AccessHasOccurredVar, Variable AccessOffsetVar, string RaceyArraySourceName) {
+      Model.Number OffsetElement = (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
+        ? GetStateFromModel(StateName, Model).TryGet(AccessOffsetVar.Name)
         : Model.TryGetFunc(AccessOffsetVar.Name).GetConstant()) as Model.Number;
-      
-      return GetArrayAccess(Convert.ToInt32(OffsetElement.Numeral), RaceyArraySourceName, 
+
+      return GetArrayAccess(ParseOffset(OffsetElement), RaceyArraySourceName,
         Convert.ToUInt32(QKeyValue.FindIntAttribute(AccessHasOccurredVar.Attributes, "elem_width", -1)),
         Convert.ToUInt32(QKeyValue.FindIntAttribute(AccessHasOccurredVar.Attributes, "source_elem_width", -1)),
         QKeyValue.FindStringAttribute(AccessHasOccurredVar.Attributes, "source_dimensions").Split(','));
@@ -552,11 +565,11 @@ namespace GPUVerify {
         return GetSourceLocationsFromBlocks("_CHECK_" + AccessType + "_" + ArrayName, LoopNodes);
       }
       else if(ConflictingState.Contains("call_return_state")  ) {
-        return GetSourceLocationsFromCall("_CHECK_" + AccessType + "_" + ArrayName, 
+        return GetSourceLocationsFromCall("_CHECK_" + AccessType + "_" + ArrayName,
           QKeyValue.FindStringAttribute(ConflictingAction.Attributes, "procedureName"));
       } else {
         Debug.Assert(ConflictingState.Contains("check_state"));
-        return new HashSet<SourceLocationInfo> { 
+        return new HashSet<SourceLocationInfo> {
           new SourceLocationInfo(ConflictingAction.Attributes, GetSourceFileName(), ConflictingAction.tok)
         };
       }
@@ -776,7 +789,7 @@ namespace GPUVerify {
       ReportThreadSpecificFailure(err, "possible null pointer access");
     }
 
-    private static void ReportFailingArrayBounds(AssertCounterexample err) {
+    private void ReportFailingArrayBounds(AssertCounterexample err) {
 
       PopulateModelWithStatesIfNecessary(err);
 
@@ -785,7 +798,7 @@ namespace GPUVerify {
       Model.Number ArrayOffset = GetStateFromModel(state, err.Model).TryGet("_ARRAY_OFFSET_" + arrayName) as Model.Number;
       Axiom arrayInfo = GetOriginalProgram().Axioms.Where(Item => QKeyValue.FindStringAttribute(Item.Attributes, "array_info") == arrayName).ElementAt(0);
 
-      string arrayAccess = GetArrayAccess(ParseOffset(ArrayOffset), 
+      string arrayAccess = GetArrayAccess(ParseOffset(ArrayOffset),
         QKeyValue.FindStringAttribute(arrayInfo.Attributes, "source_name"),
         Convert.ToUInt32(QKeyValue.FindIntAttribute(arrayInfo.Attributes, "elem_width", -1)),
         Convert.ToUInt32(QKeyValue.FindIntAttribute(arrayInfo.Attributes, "source_elem_width", -1)),
@@ -795,28 +808,28 @@ namespace GPUVerify {
       GetThreadsAndGroupsFromModel(err.Model, out thread1, out thread2, out group1, out group2, false);
 
       var sli = new SourceLocationInfo(GetAttributes(err.FailingAssert), GetSourceFileName(), err.FailingAssert.tok);
-      ErrorWriteLine(sli.Top() + ":", "possible array out-of-bounds access on array " + arrayAccess + 
-        " by " + SpecificNameForThread() + " " + thread1 + " in " + SpecificNameForGroup() + " " + group1 + ":",
+      ErrorWriteLine(sli.Top() + ":", "possible array out-of-bounds access on array " + arrayAccess +
+        " by " + SpecificNameForThread() + " " + thread2 + " in " + SpecificNameForGroup() + " " + group2 + ":",
         ErrorMsgType.Error);
       sli.PrintStackTrace();
       Console.Error.WriteLine();
     }
 
-    private static int ParseOffset(Model.Number modelOffset) 
+    private long ParseOffset(Model.Number modelOffset)
     {
       ulong offset = Convert.ToUInt64(modelOffset.Numeral);
-      if (offset >= (Math.Pow(2, 31)))
+      if (offset >= BigInteger.Pow(2, size_t_bits - 1))
       {
-        return Convert.ToInt32(offset - Math.Pow(2, 32));
+        return (long)(offset - BigInteger.Pow(2, size_t_bits));
       }
       else
       {
-        return Convert.ToInt32(offset);
+        return (long)offset;
       }
     }
 
 
-    private static string GetArrayAccess(int offset, string name, uint elWidth, uint srcElWidth, string[] dims)
+    private static string GetArrayAccess(long offset, string name, uint elWidth, uint srcElWidth, string[] dims)
     {
       Debug.Assert(elWidth != UInt32.MaxValue && elWidth % 8 == 0);
       Debug.Assert(srcElWidth != UInt32.MaxValue && srcElWidth % 8 == 0);
@@ -829,7 +842,7 @@ namespace GPUVerify {
       for (int i = dims.Count() - 2; i >= 0; i--)
         dimStrides[i] = dimStrides[i + 1] * Convert.ToUInt32(dims[i + 1]);
 
-      long offsetInBytes = Convert.ToInt64(offset * elWidth);
+      long offsetInBytes = offset * elWidth;
       long leftoverBytes = offsetInBytes % srcElWidth;
 
       string ArrayAccess = name;
@@ -962,7 +975,7 @@ namespace GPUVerify {
     private static string GetThreadOne(Model model, bool withSpaces) {
       switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
         case 0:
-        return "" 
+        return ""
           + model.TryGetFunc("local_id_x$1").GetConstant().AsInt();
         case 1:
         return "("

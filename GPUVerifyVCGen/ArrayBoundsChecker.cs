@@ -141,9 +141,9 @@ namespace GPUVerify
       IdentifierExpr offsetVarExpr = new IdentifierExpr(Token.NoToken, offsetVar);
       switch (btype) {
         case BOUND_TYPE.LOWER:
-          boundExpr = verifier.IntRep.MakeSge(offsetVarExpr, verifier.IntRep.GetLiteral(0, 32)); break;
+          boundExpr = verifier.IntRep.MakeSge(offsetVarExpr, verifier.IntRep.GetLiteral(0, verifier.size_t_bits)); break;
         case BOUND_TYPE.UPPER:
-          boundExpr = verifier.IntRep.MakeSlt(offsetVarExpr, verifier.IntRep.GetLiteral(arrDim, 32)); break;
+          boundExpr = verifier.IntRep.MakeSlt(offsetVarExpr, verifier.IntRep.GetLiteral(arrDim, verifier.size_t_bits)); break;
       }
 
       return new AssertCmd(Token.NoToken, boundExpr,
