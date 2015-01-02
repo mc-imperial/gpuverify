@@ -77,9 +77,11 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get libclc and build::
 
-     $ cd ${BUILD_ROOT}
-     $ git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}/libclc/src
-     $ cd libclc/src
+     $ export LLVM_RELEASE=35
+     $ mkdir -p ${BUILD_ROOT}/libclc
+     $ cd ${BUILD_ROOT}/libclc
+     $ svn co http://llvm.org/svn/llvm-project/libclc/branches/release_${LLVM_RELEASE} src
+     $ cd ${BUILD_ROOT}/libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --prefix=${BUILD_ROOT}/libclc/install \
                       nvptx-- nvptx64--
@@ -276,9 +278,11 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get libclc and build::
 
-     $ cd ${BUILD_ROOT}
-     $ git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}/libclc/src
-     $ cd libclc/src
+     $ export LLVM_RELEASE=35
+     $ mkdir -p ${BUILD_ROOT}/libclc
+     $ cd ${BUILD_ROOT}/libclc
+     $ svn co http://llvm.org/svn/llvm-project/libclc/branches/release_${LLVM_RELEASE} src
+     $ cd ${BUILD_ROOT}/libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --with-cxx-compiler=c++ \
                       --prefix=${BUILD_ROOT}/libclc/install \
@@ -475,11 +479,11 @@ drives.
       > $LLVM_RELEASE=35
       > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
-      > svn co -q http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
+      > svn co http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
       > cd ${BUILD_ROOT}\llvm_and_clang\src\tools
-      > svn co -q http://llvm.org/svn/llvm-project/cfe/branches/release_$LLVM_RELEASE clang
+      > svn co http://llvm.org/svn/llvm-project/cfe/branches/release_$LLVM_RELEASE clang
       > cd ${BUILD_ROOT}\llvm_and_clang\src\projects
-      > svn co -q http://llvm.org/svn/llvm-project/compiler-rt/branches/release_$LLVM_RELEASE compiler-rt
+      > svn co http://llvm.org/svn/llvm-project/compiler-rt/branches/release_$LLVM_RELEASE compiler-rt
 
    Configure LLVM and Clang for building (we do an out of source build)::
 
@@ -503,9 +507,11 @@ drives.
    GPUVerify website and unzip this in ``${BUILD_ROOT}``. From the command
    line do::
 
-      > cd ${BUILD_ROOT}
+      > $LLVM_RELEASE=35
       > mkdir ${BUILD_ROOT}\libclc
-      > git clone http://llvm.org/git/libclc.git ${BUILD_ROOT}\libclc\src
+      > cd ${BUILD_ROOT}\libclc
+      > svn co http://llvm.org/svn/llvm-project/libclc/branches/release_${LLVM_RELEASE} src
+      > cd ${BUILD_ROOT}
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
       > (new-object System.Net.WebClient).DownloadFile($libclc_url, "${BUILD_ROOT}\libclc-nightly.zip")
       > $shell = new-object -com shell.application
