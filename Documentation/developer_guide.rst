@@ -510,7 +510,7 @@ drives.
       > $LLVM_RELEASE=35
       > mkdir ${BUILD_ROOT}\libclc
       > cd ${BUILD_ROOT}\libclc
-      > svn co http://llvm.org/svn/llvm-project/libclc/branches/release_${LLVM_RELEASE} src
+      > svn co http://llvm.org/svn/llvm-project/libclc/branches/release_$LLVM_RELEASE src
       > cd ${BUILD_ROOT}
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
       > (new-object System.Net.WebClient).DownloadFile($libclc_url, "${BUILD_ROOT}\libclc-nightly.zip")
@@ -559,7 +559,7 @@ drives.
       > cd ${BUILD_ROOT}
       > mkdir -p ${BUILD_ROOT}\cvc4\build
       > cd ${BUILD_ROOT}\cvc4\build
-      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2014-09-17-win32-opt.exe"
+      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2014-12-28-win32-opt.exe"
       > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
 
 #. Get GPUVerify code and build. You can do this by opening ``GPUVerify.sln``
