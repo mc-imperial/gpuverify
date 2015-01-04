@@ -20,13 +20,13 @@ def getsha(path, showLocalRev=False):
     sha = subprocess.check_output(['hg','log','-r','-1','--template', templateKeyword])
   elif os.path.isdir(os.path.join(path,'.svn')):
     # The revision number is global for svn
-    sha = subprocess.check_output(['svnversion'])
+    sha = subprocess.check_output(['svnversion', '-c'])
   elif path == getattr(gvfindtools, 'llvmSrcDir', None):
     sha = subprocess.check_output([getattr(gvfindtools, 'llvmBinDir', None) + '/llvm-config', '--version'])
   else:
     sha = "Error [%s] path is not recognised as a git, mercurial or svn repository" % path
   os.chdir(oldpath)
-  return sha.decode().rstrip('\n')
+  return sha.decode().rstrip('\n\r')
 
 def getVersionStringFromRepos():
   try:
