@@ -1,6 +1,6 @@
 //pass
 //--version
-//^llvm\s+:\s+(\d{6,}|\d\.\d)
+//^llvm\s+:\s+.*
 //^bugle\s+:\s+[0-9a-z]{40}
 //^libclc\s+:\s+.*
 //^vcgen\s+:\s+[0-9a-z]{40}
