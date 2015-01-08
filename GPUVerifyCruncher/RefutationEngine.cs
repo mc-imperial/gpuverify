@@ -20,6 +20,7 @@ namespace Microsoft.Boogie
   using System.Linq;  
   using System.Threading;
   using System.Threading.Tasks;
+  using System.Diagnostics;
   using VC;
   
   // This class allows us to parameterise each engine with specific values
@@ -140,18 +141,36 @@ namespace Microsoft.Boogie
       Print.VerboseMessage("[CRUNCHER] Engine " + this.GetType().Name + " started");
       
       ModifyProgramBeforeCrunch(program);
-      
+
       Houdini.HoudiniSession.HoudiniStatistics houdiniStats = new Houdini.HoudiniSession.HoudiniStatistics();
-      string filename = "houdiniCexTrace_" + this.ID + ".bpl";
-      houdini = new Houdini.ConcurrentHoudini(this.ID, program, houdiniStats, filename);
+
+      if (CommandLineOptions.Clo.StagedHoudini != null) {
+
+        // This is an initial attempt at hooking GPUVerify up with Staged Houdini.
+        // More work is required to make this compatible with other cruncher options,
+        // and we start with a couple of crude hacks to work around the fact that
+        // Staged Houdini is not integrated with ConcurrentHoudini.
+
+        CommandLineOptions.Clo.ConcurrentHoudini = false; // HACK - requires proper integration
+        CommandLineOptions.Clo.ProverCCLimit = this.ErrorLimit; // HACK - requires proper integration
+        Debug.Assert(outcome == null);
+        Debug.Assert(this is VanillaHoudini);
+
+        Houdini.StagedHoudini houdini = new Houdini.StagedHoudini(program, ExecutionEngine.ProgramFromFile);
+        outcome = houdini.PerformStagedHoudiniInference();
+
+      } else {
+        string filename = "houdiniCexTrace_" + this.ID + ".bpl";
+        houdini = new Houdini.ConcurrentHoudini(this.ID, program, houdiniStats, filename);
       
-      if (outcome != null)
-      {
-        outcome = houdini.PerformHoudiniInference(initialAssignment: outcome.assignment);
-      }
-      else
-      {
-        outcome = houdini.PerformHoudiniInference();
+        if (outcome != null)
+        {
+          outcome = houdini.PerformHoudiniInference(initialAssignment: outcome.assignment);
+        }
+        else
+        {
+          outcome = houdini.PerformHoudiniInference();
+        }
       }
         
       Print.VerboseMessage("[CRUNCHER] Engine " + this.GetType().Name + " finished");
@@ -461,6 +480,10 @@ namespace Microsoft.Boogie
     public Scheduler(List<string> fileNames)
     {
       this.FileNames = fileNames;
+
+      if (CommandLineOptions.Clo.StagedHoudini != null) {
+
+      }
       
       Pipeline pipeline = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).Pipeline;
       if (pipeline.runHoudini)
@@ -468,14 +491,16 @@ namespace Microsoft.Boogie
         pipeline.AddHoudiniEngine();
       }
       
+      Houdini.HoudiniOutcome outcome;
+
       // Execute the engine pipeline in sequence or in parallel
       if (pipeline.Sequential)
       {
-        ScheduleEnginesInSequence(pipeline);
+        outcome = ScheduleEnginesInSequence(pipeline);
       }
       else
       {
-        ScheduleEnginesInParallel(pipeline);
+        outcome = ScheduleEnginesInParallel(pipeline);
       }
 
       // If Houdini has been invoked then apply the invariants to the program.
@@ -483,7 +508,7 @@ namespace Microsoft.Boogie
       if (pipeline.runHoudini)
       {
         ErrorCode = 0;
-        GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(pipeline), GetFileNameBase(), "cbpl");          
+        GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(outcome), GetFileNameBase(), "cbpl");          
       }
       else
       {       
@@ -508,7 +533,7 @@ namespace Microsoft.Boogie
              Path.GetFileNameWithoutExtension(this.FileNames[this.FileNames.Count - 1]);      
     }
     
-    private void ScheduleEnginesInSequence(Pipeline pipeline)
+    private Houdini.HoudiniOutcome ScheduleEnginesInSequence(Pipeline pipeline)
     {
       Houdini.HoudiniOutcome outcome = null;
       foreach (Engine engine in pipeline.GetEngines())
@@ -525,9 +550,10 @@ namespace Microsoft.Boogie
           dynamicEngine.Start(program);
         }
       }
+      return outcome;
     }
     
-    private void ScheduleEnginesInParallel(Pipeline pipeline)
+    private Houdini.HoudiniOutcome ScheduleEnginesInParallel(Pipeline pipeline)
     {
       Houdini.HoudiniOutcome outcome = null;
       CancellationTokenSource tokenSource = new CancellationTokenSource();
@@ -644,6 +670,7 @@ namespace Microsoft.Boogie
       {
         Task.WaitAll(underApproximatingTasks.ToArray());
       }
+      return outcome;
     }
     
     private Program getFreshProgram(bool disableChecks, bool inline)
@@ -651,11 +678,11 @@ namespace Microsoft.Boogie
       return GVUtil.GetFreshProgram(this.FileNames, disableChecks, inline);
     }
     
-    private Program ApplyInvariants(Pipeline pipeline)
+    private Program ApplyInvariants(Houdini.HoudiniOutcome outcome)
     {
       Program program = getFreshProgram(false, false);
       CommandLineOptions.Clo.PrintUnstructured = 2;
-      pipeline.GetHoudiniEngine().houdini.ApplyAssignment(program);
+      Houdini.Houdini.ApplyAssignment(program, outcome);
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ReplaceLoopInvariantAssertions)
       {
         foreach (Block block in program.Blocks()) 

@@ -67,7 +67,7 @@ namespace GPUVerify
         }
       }
 
-      public static Program ParseBoogieProgram(List<string> fileNames, bool suppressTraceOutput)
+      public static Program ParseBoogieProgram(IList<string> fileNames, bool suppressTraceOutput)
       {
         Contract.Requires(cce.NonNullElements(fileNames));
 
@@ -340,7 +340,7 @@ namespace GPUVerify
       return StripThreadIdentifier(p, out id);
     }
 
-    public static Program GetFreshProgram(List<string> fileNames, bool disableChecks, bool inline)
+    public static Program GetFreshProgram(IList<string> fileNames, bool disableChecks, bool inline)
     {
       KernelAnalyser.PipelineOutcome oc;
       Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
