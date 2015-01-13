@@ -639,6 +639,8 @@ class GPUVerifyInstance (object):
           print("- no data races between " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=string_builder)
       print("- no barrier divergence", file=string_builder)
       print("- no assertion failures", file=string_builder)
+      if args.check_array_bounds:
+        print("- no out-of-bounds array accesses (for arrays where size information is available)", file=string_builder)
       print("(but absolutely no warranty provided)", file=string_builder)
 
     return 0, string_builder.getvalue()

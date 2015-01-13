@@ -23,12 +23,6 @@ using Microsoft.Basetypes;
 
 namespace GPUVerify
 {
-    public class InferenceStages {
-      public const int BASIC_CANDIDATE_STAGE = 0;
-      internal static int NO_READ_WRITE_CANDIDATE_STAGE = 0;
-      internal static int ACCESS_PATTERN_CANDIDATE_STAGE = 0;
-    }
-
     internal class GPUVerifier : CheckingContext
     {
         public string outputFilename;
@@ -1048,7 +1042,7 @@ namespace GPUVerify
                     AddCandidateRequires(Proc, Expr.Eq(
                         new IdentifierExpr(Proc.tok, new LocalVariable(Proc.tok, new TypedIdent(Proc.tok, name + "$1", Microsoft.Boogie.Type.Bool))),
                         new IdentifierExpr(Proc.tok, new LocalVariable(Proc.tok, new TypedIdent(Proc.tok, name + "$2", Microsoft.Boogie.Type.Bool)))
-                    ), InferenceStages.BASIC_CANDIDATE_STAGE);
+                    ));
                 }
                 else
                 {
@@ -1076,7 +1070,7 @@ namespace GPUVerify
                     new IdentifierExpr(Proc.tok, new VariableDualiser(1, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable)),
                     new IdentifierExpr(Proc.tok, new VariableDualiser(2, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable))
                 )
-            ), InferenceStages.BASIC_CANDIDATE_STAGE);
+            ));
         }
 
         private void AddEqualityCandidateRequires(Procedure Proc, Variable v)
@@ -1085,8 +1079,7 @@ namespace GPUVerify
                 Expr.Eq(
                     new IdentifierExpr(Proc.tok, new VariableDualiser(1, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable)),
                     new IdentifierExpr(Proc.tok, new VariableDualiser(2, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable))
-                ), InferenceStages.BASIC_CANDIDATE_STAGE
-            );
+                ));
         }
 
         private void AddEqualityCandidateEnsures(Procedure Proc, Variable v)
@@ -1095,19 +1088,19 @@ namespace GPUVerify
                 Expr.Eq(
                     new IdentifierExpr(Proc.tok, new VariableDualiser(1, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable)),
                     new IdentifierExpr(Proc.tok, new VariableDualiser(2, uniformityAnalyser, Proc.Name).VisitVariable(v.Clone() as Variable))
-                ), InferenceStages.BASIC_CANDIDATE_STAGE);
+                ));
         }
 
-        internal void AddCandidateRequires(Procedure Proc, Expr e, int StageId)
+        internal void AddCandidateRequires(Procedure Proc, Expr e)
         {
-            Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean(StageId);
+            Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean();
             IdentifierExpr ExistentialBoolean = new IdentifierExpr(Proc.tok, ExistentialBooleanConstant);
             Proc.Requires.Add(new Requires(false, Expr.Imp(ExistentialBoolean, e)));
         }
 
-        internal void AddCandidateEnsures(Procedure Proc, Expr e, int StageId)
+        internal void AddCandidateEnsures(Procedure Proc, Expr e)
         {
-            Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean(StageId);
+            Constant ExistentialBooleanConstant = Program.MakeExistentialBoolean();
             IdentifierExpr ExistentialBoolean = new IdentifierExpr(Proc.tok, ExistentialBooleanConstant);
             Proc.Ensures.Add(new Ensures(false, Expr.Imp(ExistentialBoolean, e)));
         }
@@ -1972,13 +1965,13 @@ namespace GPUVerify
             return name.Equals(_GROUP_X.Name) || name.Equals(_GROUP_Y.Name) || name.Equals(_GROUP_Z.Name);
         }
 
-        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, int StageId, string attribute = null)
+        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, string attribute = null)
         {
             if (GPUVerifyVCGenCommandLineOptions.DoNotGenerateCandidates.Contains(tag)) {
                 return; // candidate *not* generated
             }
 
-            PredicateCmd predicate = Program.CreateCandidateInvariant(e, tag, StageId);
+            PredicateCmd predicate = Program.CreateCandidateInvariant(e, tag);
 
             if (attribute != null)
               predicate.Attributes = new QKeyValue(Token.NoToken, attribute, new List<object>() { }, predicate.Attributes);

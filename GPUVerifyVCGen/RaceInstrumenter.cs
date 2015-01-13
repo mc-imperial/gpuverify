@@ -106,13 +106,13 @@ namespace GPUVerify {
 
     private void AddNoAccessCandidateInvariant(IRegion region, Variable v, AccessType Access) {
       Expr candidate = NoAccessHasOccurredExpr(v, Access);
-      verifier.AddCandidateInvariant(region, candidate, "no" + Access.ToString().ToLower(), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+      verifier.AddCandidateInvariant(region, candidate, "no" + Access.ToString().ToLower());
     }
 
     private void AddSameWarpNoAccessCandidateInvariant(IRegion region, Variable v, AccessType Access) {
       if (!GPUVerifyVCGenCommandLineOptions.WarpSync) return;
       Expr candidate = Expr.Imp(Expr.And(GPUVerifier.ThreadsInSameGroup(), verifier.ThreadsInSameWarp()), NoAccessHasOccurredExpr(v, Access));
-      verifier.AddCandidateInvariant(region, candidate, "sameWarpNoAccess", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE, "do_not_predicate");
+      verifier.AddCandidateInvariant(region, candidate, "sameWarpNoAccess", "do_not_predicate");
     }
 
     public void AddRaceCheckingCandidateInvariants(Implementation impl, IRegion region) {
@@ -181,7 +181,7 @@ namespace GPUVerify {
       component.Visit(rewrite);
       var invariants = component.GenerateCandidateInvariants(verifier, v, Access);
       foreach (Expr inv in invariants) {
-        verifier.AddCandidateInvariant(region, inv, "accessBreak", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+        verifier.AddCandidateInvariant(region, inv, "accessBreak");
       }
       if (GPUVerifyVCGenCommandLineOptions.ShowAccessBreaking) {
         Console.WriteLine("Access breaking of [{0}]", def);
@@ -466,8 +466,8 @@ namespace GPUVerify {
         Expr upperBound = Substituter.Apply(s, lowerBound);
         var lowerBoundInv = Expr.Imp(GPUVerifier.MakeAccessHasOccurredExpr(v.Name, Access), verifier.IntRep.MakeSle(lowerBound, OffsetXExpr(v, Access, 1)));
         var upperBoundInv = Expr.Imp(GPUVerifier.MakeAccessHasOccurredExpr(v.Name, Access), verifier.IntRep.MakeSlt(            OffsetXExpr(v, Access, 1), upperBound));
-        verifier.AddCandidateInvariant(region, lowerBoundInv, "accessLowerBoundBlock", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
-        verifier.AddCandidateInvariant(region, upperBoundInv, "accessUpperBoundBlock", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+        verifier.AddCandidateInvariant(region, lowerBoundInv, "accessLowerBoundBlock");
+        verifier.AddCandidateInvariant(region, upperBoundInv, "accessUpperBoundBlock");
       }
     }
 
@@ -847,11 +847,11 @@ namespace GPUVerify {
     }
 
     private void AddNoAccessCandidateRequires(Procedure Proc, Variable v, AccessType Access) {
-      verifier.AddCandidateRequires(Proc, NoAccessHasOccurredExpr(v, Access), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+      verifier.AddCandidateRequires(Proc, NoAccessHasOccurredExpr(v, Access));
     }
 
     private void AddNoAccessCandidateEnsures(Procedure Proc, Variable v, AccessType Access) {
-      verifier.AddCandidateEnsures(Proc, NoAccessHasOccurredExpr(v, Access), InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE);
+      verifier.AddCandidateEnsures(Proc, NoAccessHasOccurredExpr(v, Access));
     }
 
     private HashSet<Expr> GetOffsetsAccessed(IRegion region, Variable v, AccessType Access) {
@@ -1109,7 +1109,7 @@ namespace GPUVerify {
     protected void AddOffsetsSatisfyPredicatesCandidateInvariant(IRegion region, Variable v, AccessType Access, List<Expr> preds) {
       if (preds.Count != 0) {
         Expr expr = AccessedOffsetsSatisfyPredicatesExpr(v, preds, Access);
-        verifier.AddCandidateInvariant(region, expr, "accessedOffsetsSatisfyPredicates", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+        verifier.AddCandidateInvariant(region, expr, "accessedOffsetsSatisfyPredicates");
       }
     }
 
@@ -1134,7 +1134,7 @@ namespace GPUVerify {
     protected void AddAccessedOffsetInRangeCTimesLocalIdToCTimesLocalIdPlusC(IRegion region, Variable v, Expr constant, AccessType Access) {
       Expr expr = MakeCTimesLocalIdRangeExpression(v, constant, Access);
       verifier.AddCandidateInvariant(region,
-          expr, "accessedOffsetInRangeCTimesLid", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+          expr, "accessedOffsetInRangeCTimesLid");
     }
 
     private Expr MakeCTimesLocalIdRangeExpression(Variable v, Expr constant, AccessType Access) {
@@ -1160,7 +1160,7 @@ namespace GPUVerify {
     protected void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, AccessType Access) {
       Expr expr = MakeCTimesGloalIdRangeExpr(v, constant, Access);
       verifier.AddCandidateInvariant(region,
-          expr, "accessedOffsetInRangeCTimesGid", InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+          expr, "accessedOffsetInRangeCTimesGid");
     }
 
     private Expr MakeCTimesGloalIdRangeExpr(Variable v, Expr constant, AccessType Access) {
@@ -1181,11 +1181,11 @@ namespace GPUVerify {
     }
 
     protected void AddAccessedOffsetIsThreadLocalIdCandidateRequires(Procedure Proc, Variable v, AccessType Access) {
-      verifier.AddCandidateRequires(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+      verifier.AddCandidateRequires(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access));
     }
 
     protected void AddAccessedOffsetIsThreadLocalIdCandidateEnsures(Procedure Proc, Variable v, AccessType Access) {
-      verifier.AddCandidateEnsures(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access), InferenceStages.ACCESS_PATTERN_CANDIDATE_STAGE);
+      verifier.AddCandidateEnsures(Proc, AccessedOffsetIsThreadLocalIdExpr(v, Access));
     }
 
   }

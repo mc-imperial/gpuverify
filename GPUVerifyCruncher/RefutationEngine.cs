@@ -156,7 +156,7 @@ namespace Microsoft.Boogie
         Debug.Assert(outcome == null);
         Debug.Assert(this is VanillaHoudini);
 
-        Houdini.StagedHoudini houdini = new Houdini.StagedHoudini(program, ExecutionEngine.ProgramFromFile);
+        Houdini.StagedHoudini houdini = new Houdini.StagedHoudini(program, houdiniStats, ExecutionEngine.ProgramFromFile);
         outcome = houdini.PerformStagedHoudiniInference();
 
       } else {
@@ -480,10 +480,6 @@ namespace Microsoft.Boogie
     public Scheduler(List<string> fileNames)
     {
       this.FileNames = fileNames;
-
-      if (CommandLineOptions.Clo.StagedHoudini != null) {
-
-      }
       
       Pipeline pipeline = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).Pipeline;
       if (pipeline.runHoudini)
@@ -507,8 +503,22 @@ namespace Microsoft.Boogie
       // Otherwise return a non-zero exit code to stop the final verification step.
       if (pipeline.runHoudini)
       {
-        ErrorCode = 0;
-        GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(outcome), GetFileNameBase(), "cbpl");          
+        int errorCount = 0;
+        int verified = 0;
+        int inconclusives = 0;
+        int timeOuts = 0;
+        int outOfMemories = 0;
+        Program prog = getFreshProgram(true, true);
+        foreach(var implOutcome in outcome.implementationOutcomes) {
+          KernelAnalyser.ProcessOutcome(prog, implOutcome.Key, implOutcome.Value.outcome,
+            implOutcome.Value.errors, "", ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories); 
+        }
+        if(errorCount > 0) {
+          ErrorCode = 1;
+        } else {
+          ErrorCode = 0;
+          GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(outcome), GetFileNameBase(), "cbpl");          
+        }
       }
       else
       {       

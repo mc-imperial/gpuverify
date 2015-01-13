@@ -48,8 +48,7 @@ namespace GPUVerify.InvariantGenerationRules
                         verifier.AddCandidateInvariant(region,
                                 verifier.IntRep.MakeSge(
                                 new IdentifierExpr(v.tok, v),
-                                verifier.Zero(BVWidth)), "deprecatedGuardNonNeg",
-                                InferenceStages.BASIC_CANDIDATE_STAGE);
+                                verifier.Zero(BVWidth)), "deprecatedGuardNonNeg");
                     }
                 }
             }

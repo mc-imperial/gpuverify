@@ -97,13 +97,13 @@ namespace GPUVerify
       && !verifier.KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(Item))) {
       verifier.AddCandidateInvariant(region,
         Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.READ)),
-                  CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE, "do_not_predicate");
+                  CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
     }
 
     foreach(var v in WrittenVariables.Where(Item => verifier.KernelArrayInfo.getGroupSharedArrays().Contains(Item))) {
       verifier.AddCandidateInvariant(region,
         Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
-                  CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", InferenceStages.NO_READ_WRITE_CANDIDATE_STAGE, "do_not_predicate");
+                  CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
     }
 
   }
@@ -159,11 +159,11 @@ namespace GPUVerify
     }
 
     if(GuardIncludingLoopCondition != null) {
-      verifier.AddCandidateInvariant(region, Expr.Imp(GuardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+      verifier.AddCandidateInvariant(region, Expr.Imp(GuardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", "do_not_predicate");
     }
 
     if(GuardEnclosingLoop != null) {
-      verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Ident(verifier.FindOrCreateEnabledVariable()), GuardEnclosingLoop), "conditionsImpliedByEnabledness", InferenceStages.BASIC_CANDIDATE_STAGE);
+      verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Ident(verifier.FindOrCreateEnabledVariable()), GuardEnclosingLoop), "conditionsImpliedByEnabledness");
     }
 
   }
@@ -237,7 +237,7 @@ namespace GPUVerify
        List<Expr> args = new List<Expr>();
        args.Add(sub);
        var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv32), args));
-       verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform", InferenceStages.BASIC_CANDIDATE_STAGE);
+       verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform");
       }
      }
     }
@@ -280,7 +280,7 @@ namespace GPUVerify
     if (BVWidth >= 8)
     {
      var inv = verifier.IntRep.MakeSle(verifier.Zero(BVWidth), new IdentifierExpr(v.tok, v));
-     verifier.AddCandidateInvariant(region, inv, "guardNonNeg", InferenceStages.BASIC_CANDIDATE_STAGE);
+     verifier.AddCandidateInvariant(region, inv, "guardNonNeg");
     }
    }
   }
@@ -297,7 +297,7 @@ namespace GPUVerify
 
     if (lcPred != null)
     {
-     verifier.AddCandidateInvariant(region, lcPred, "loopCounterIsStrided", InferenceStages.BASIC_CANDIDATE_STAGE);
+     verifier.AddCandidateInvariant(region, lcPred, "loopCounterIsStrided");
     }
    }
   }
@@ -338,10 +338,10 @@ namespace GPUVerify
        {
         if (LhsRhs.Item1.DeepAssignedVariable.Name == loopCounter.Name)
         {
-         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
-         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
-         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
-         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound", InferenceStages.BASIC_CANDIDATE_STAGE);
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound");
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound");
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound");
+         verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound");
         }
        }
       }
@@ -474,7 +474,7 @@ namespace GPUVerify
    // Invariant #1: The thread is not enabled
    Variable enabledVariable = verifier.FindOrCreateEnabledVariable();
    Expr invariantEnabled = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, enabledVariable)));
-   verifier.AddCandidateInvariant(region, invariantEnabled, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+   verifier.AddCandidateInvariant(region, invariantEnabled, "conditionalLoopExecution", "do_not_predicate");
 
    // Retrieve the variables read and written in the loop body
    IEnumerable<Variable> ReadVariables;
@@ -488,7 +488,7 @@ namespace GPUVerify
     Variable writeHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_WRITE_HAS_OCCURRED_" + found.Name);
     Debug.Assert(writeHasOccurredVariable != null);
     Expr writeHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, writeHasOccurredVariable)));
-    verifier.AddCandidateInvariant(region, writeHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+    verifier.AddCandidateInvariant(region, writeHasNotOccurred, "conditionalLoopExecution", "do_not_predicate");
    }
 
    // Invariant #3: Arrays in global or group-shared memory are not read
@@ -498,7 +498,7 @@ namespace GPUVerify
     Variable readHasOccurredVariable = (Variable)verifier.ResContext.LookUpVariable("_READ_HAS_OCCURRED_" + found.Name);
     Debug.Assert(readHasOccurredVariable != null);
     Expr readHasNotOccurred = Expr.Imp(lhsOfImplication, Expr.Not(new IdentifierExpr(Token.NoToken, readHasOccurredVariable)));
-    verifier.AddCandidateInvariant(region, readHasNotOccurred, "conditionalLoopExecution", InferenceStages.BASIC_CANDIDATE_STAGE, "do_not_predicate");
+    verifier.AddCandidateInvariant(region, readHasNotOccurred, "conditionalLoopExecution", "do_not_predicate");
    }
   }
 
@@ -536,7 +536,7 @@ namespace GPUVerify
     Expr.Eq(
      new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable)),
      new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable))
-    )), "predicatedEquality", InferenceStages.BASIC_CANDIDATE_STAGE);
+    )), "predicatedEquality");
   }
 
   private Dictionary<string, int> GetAssignmentCounts(Implementation impl)
@@ -600,9 +600,9 @@ namespace GPUVerify
                                    new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$2", Microsoft.Boogie.Type.Int)))
                                   );
 
-    verifier.AddCandidateInvariant(region, uniformEnabledPredicate, "loopPredicateEquality", InferenceStages.BASIC_CANDIDATE_STAGE);
+    verifier.AddCandidateInvariant(region, uniformEnabledPredicate, "loopPredicateEquality");
 
-    verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), uniformEnabledPredicate), "loopPredicateEquality", InferenceStages.BASIC_CANDIDATE_STAGE);
+    verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), uniformEnabledPredicate), "loopPredicateEquality");
 
     Dictionary<string, int> assignmentCounts = GetAssignmentCounts(Impl);
 

@@ -182,21 +182,25 @@ namespace GPUVerify
         CFG.ComputeLoops();
         foreach(var b in impl.Blocks) {
           var newCmds = new List<Cmd>();
-          bool foundNonAssertOrAssume = false;
+          bool CmdCouldBeLoopInvariant = CFG.Headers.Contains(b);
           foreach(var c in b.Cmds) {
             if(c is AssertCmd) {
-              if(!IsCandidateAssert(c as AssertCmd)) {
-                if(!CFG.Headers.Contains(b)) {
-                  continue;
-                }
-                if(!foundNonAssertOrAssume) {
-                  continue;
-                }
+              if(IsCandidateAssert(c as AssertCmd) || CmdCouldBeLoopInvariant) {
+                // Keep it: it's a Houdini candidate or a loop invariant
+                newCmds.Add(c);
+              } else {
+                // Discard the invariant (by not adding it the the new list of commands)
               }
-            } else if(!(c is AssumeCmd)) {
-              foundNonAssertOrAssume = true;
+            } else {
+              newCmds.Add(c);
             }
-            newCmds.Add(c);
+            if(!(c is AssertCmd || c is AssumeCmd)) {
+              // On seeing a command that isn't an assertion or an assumption,
+              // we must be past the sequence of assert and assume commands that
+              // form invariants if the block in which they live is a loop header.
+              // Thus future commands in this block cannot be invariants
+              CmdCouldBeLoopInvariant = false;
+            }
           }
           b.Cmds = newCmds;
         }
