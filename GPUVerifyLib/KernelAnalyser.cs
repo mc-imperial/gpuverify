@@ -227,16 +227,33 @@ namespace GPUVerify
     /// </summary>
     public static void CheckForQuantifiersAndSpecifyLogic(Program program, int taskID = -1)
     {
-      var ProverOptions = (taskID >= 0 ? CommandLineOptions.Clo.Cho[taskID].ProverOptions
-        : CommandLineOptions.Clo.ProverOptions);
-
-      if ((ProverOptions.Contains("SOLVER=cvc4") ||
-            ProverOptions.Contains("SOLVER=CVC4")) &&
-          ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
-          CheckForQuantifiers.Found(program)) {
-        ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
-        ProverOptions.Add("LOGIC=ALL_SUPPORTED");
+      const string QF_ALL_SUPPORTED = "LOGIC=QF_ALL_SUPPORTED";
+      const string ALL_SUPPORTED = "LOGIC=ALL_SUPPORTED";
+      // For now it's necessary to handle this separately depending on whether we're using
+      // Concurrent Houdini or not.
+      if(taskID >= 0) {
+        var ProverOptions = CommandLineOptions.Clo.Cho[taskID].ProverOptions;
+        if (UsingCVC4AndQuantifiersPresent(program, ProverOptions))
+        {
+          ProverOptions.Remove(QF_ALL_SUPPORTED);
+          ProverOptions.Add(ALL_SUPPORTED);
+        }
+      } else {
+        if (UsingCVC4AndQuantifiersPresent(program, CommandLineOptions.Clo.ProverOptions))
+        {
+          CommandLineOptions.Clo.RemoveAllProverOptions(Item => Item.Equals(QF_ALL_SUPPORTED));
+          CommandLineOptions.Clo.AddProverOption(ALL_SUPPORTED);
+        }
       }
+
+    }
+
+    private static bool UsingCVC4AndQuantifiersPresent(Program program, IEnumerable<string> ProverOptions)
+    {
+      return (ProverOptions.Contains("SOLVER=cvc4") ||
+                  ProverOptions.Contains("SOLVER=CVC4")) &&
+                  ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
+                  CheckForQuantifiers.Found(program);
     }
 
     public static void ProcessOutcome(Program program, string implName, VC.VCGen.Outcome outcome, List<Counterexample> errors, string timeIndication,
