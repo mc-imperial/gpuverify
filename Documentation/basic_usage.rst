@@ -577,11 +577,6 @@ Turn off invariant inference.
 
 Do not generate invariants of type 'X'.
 
-``--staged-inference``
-^^^^^^^^^^^^^^^^^^^^^^
-
-Perform invariant inference in stages; this can sometimes boost performance for complex kernels (but this is not guaranteed).
-
 ``--infer-info``
 ^^^^^^^^^^^^^^^^
 

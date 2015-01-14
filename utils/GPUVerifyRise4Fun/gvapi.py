@@ -124,7 +124,6 @@ class GPUVerifyTool(object):
                  '--only-intra-group',
                  '--only-requires',
                  '--time',
-                 '--staged-inference',
                  '--verify',
                  # '--verbose', # developer option, should not be visible
                  r'--warp-sync=\d{1,3}',

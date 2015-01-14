@@ -400,9 +400,6 @@ class GPUVerifyInstance (object):
     if args.asymmetric_asserts:
       options.append("/asymmetricAsserts")
 
-    if args.staged_inference:
-      options.append("/stagedInference")
-
     if args.mode == AnalysisMode.FINDBUGS or (not args.inference):
       options.append("/noInfer")
 
@@ -472,9 +469,6 @@ class GPUVerifyInstance (object):
 
     if args.infer_info:
       options.append("/trace")
-
-    if args.staged_inference:
-      options.append("/stagedInference")
 
     options += [f.name for f in args.boogie_file]
     options += sum([a.split() for a in args.cruncher_options], [])

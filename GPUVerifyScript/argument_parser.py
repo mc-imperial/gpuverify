@@ -275,9 +275,6 @@ def __build_parser(default_solver):
     action = 'store_false', help = "Turn off invariant inference")
   inference.add_argument("--omit-infer=", default = [], action = 'append',
     metavar = "X", help = "Do not generate invariants of type 'X'")
-  inference.add_argument("--staged-inference", action = 'store_true',
-    help = "Perform invariant inference in stages; this can boost performance \
-    for complex kernels (but this is not guaranteed)")
   inference.add_argument("--infer-info", action = 'store_true',
     help = "Prints information about the invariant inference process")
   inference.add_argument("--k-induction-depth=", type = __positive, default = 0,
