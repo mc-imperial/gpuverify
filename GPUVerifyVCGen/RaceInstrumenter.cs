@@ -56,7 +56,10 @@ namespace GPUVerify {
       // Here we add pre- and post-conditions that are guaranteed to be true
       // by construction.
       foreach(Procedure Proc in verifier.Program.TopLevelDeclarations.OfType<Procedure>().
-        Where(Item => !verifier.ProcedureIsInlined(Item))) {
+        Where(Item => !verifier.ProcedureIsInlined(Item) &&
+                      !verifier.IsKernelProcedure(Item) &&
+                      (!verifier.ProcedureHasNoImplementation(Item) || Item.Modifies.Count() > 0)
+        )) {
         foreach(var a in verifier.KernelArrayInfo.getGroupSharedArrays().Where(
           Item => !verifier.KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(Item))) {
           foreach(var Access in AccessType.Types) {

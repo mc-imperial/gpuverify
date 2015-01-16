@@ -216,6 +216,10 @@ namespace GPUVerify
             return candidates.ToList()[0].TypedIdent.Type.BvBits;
         }
 
+        public bool IsKernelProcedure(Procedure Proc) {
+          return QKeyValue.FindBoolAttribute(Proc.Attributes, "kernel");
+        }
+
         private Dictionary<Procedure, Implementation> GetKernelProcedures()
         {
           var Result = new Dictionary<Procedure, Implementation>();
