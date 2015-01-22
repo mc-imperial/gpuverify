@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
-# vim: set shiftwidth=4 tabstop=4 expandtab softtabstop=4:
+# vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 from __future__ import print_function
 
 from GPUVerifyScript.error_codes import ErrorCodes
@@ -327,6 +327,7 @@ class CanonicalisationError(GPUVerifyTesterError):
     def __str__(self):
         return "CanonicalisationError : Cannot construct a canonical path from \"" + self.path + "\" using prefix \"" + self.prefix + "\""
 
+
 #This Action will be triggered from the command line
 class PrintXfailCodes(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -621,214 +622,258 @@ class ThreadPool:
             self.theQueue.task_done()
           except Queue.Empty:
             break #Handle potential race where the queue becomes empty whilst executing try block
+          
+class FileCounters:
+  def __init__(self):
+    self.cudaCount = 0
+    self.openCLCount = 0
+    self.miscCount = 0
+    self.unknown = 0
+
+  def updateCountersWithList(self, fileList):
+    for filename in fileList:
+      self.updateCountersWithFile(filename)
+
+  def updateCountersWithFile(self, filename):
+    if not os.path.exists(filename):
+      logging.error('File {} does not exist'.format(filename))
+      sys.exit(GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR)
+
+    if filename.endswith('cu'):
+      self.cudaCount+=1
+    elif filename.endswith('cl'):
+      self.openCLCount+=1
+    elif filename.endswith('misc'):
+      self.miscCount+=1
+    else:
+      logging.warning("Not a valid kernel:\"{}\"".format(filename))
+      self.unknown+=1
+
+
+def getFileListSingleFile(filename):
+  assert os.path.isfile(filename)
+  return [filename]
+
+def getFileListMultipleFiles(recursionRootPath, args):
+  kernelFiles = [ ]
+  counters = FileCounters()
+  if (args.from_file):
+    # Get list of kernels from a file
+    for f in args.from_file:
+      kernels = [line.strip() for line in open(f) if not line.startswith('#')]
+      for kernel in kernels:
+        kernelFileAbsPath = os.path.join(recursionRootPath,kernel)
+        counters.updateCountersWithFile(kernelFileAbsPath)
+        kernelFiles.append(kernelFileAbsPath)
+  else:
+    # Recursively scan directory for kernels
+    matcher=re.compile(args.test_filename_regex)
+    logging.debug("Recursing {}".format(recursionRootPath))
+    for(root,dirs,files) in os.walk(recursionRootPath):
+      for f in files:
+        if(matcher.match(f) != None):
+          if f.endswith('cu'):
+            logging.debug("Found CUDA kernel:\"{}\"".format(f))
+          if f.endswith('cl'):
+            logging.debug("Found OpenCL kernel:\"{}\"".format(f))
+          if f.endswith('misc'):
+            logging.debug("Found miscellaneous test:\"{}\"".format(f))
+
+          kernelFileAbsPath = os.path.join(root,f)
+          counters.updateCountersWithFile(kernelFileAbsPath)
+          kernelFiles.append(kernelFileAbsPath)
+
+  # Now handle any files we need to remove
+  ignoredCounters = FileCounters()
+  kernelFilesIgnored=[]
+  if (args.ignore_file):
+    # Ignore some kernel files by removing them from the list
+    for f in args.ignore_file:
+      kernels = [line.strip() for line in open(f) if not (line.startswith('#') or line.startswith('\n'))]
+      for kernel in kernels:
+        kernelToIgnore = os.path.join(recursionRootPath, kernel)
+        if not os.path.exists(kernelToIgnore):
+          logging.error('The kernel file "{}" to ignore does not exist'.format(kernelToIgnore))
+          sys.exit(GPUVerifyErrorCodes.CONFIGURATION_ERROR)
+
+        try:
+          kernelFiles.remove(kernelToIgnore)
+          # Maintain the list just for DEBUG output
+          kernelFilesIgnored.append(kernelToIgnore)
+          ignoredCounters.updateCountersWithFile(kernelToIgnore)
+        except ValueError as e:
+          # The kernel wasn't in list
+          logging.warning('Could not ignore kernel "{}" because it was not in the list of found kernels'.format(kernelToIgnore))
+
+      logging.debug('kernelFiles:{}'.format(pprint.pformat(kernelFiles)))
+      logging.debug('kernelFilesIgnored:{}'.format(pprint.pformat(kernelFilesIgnored)))
+
+    logging.info("Found    {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(counters.openCLCount, counters.cudaCount, counters.miscCount))
+    logging.info("Ignoring {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(ignoredCounters.openCLCount, ignoredCounters.cudaCount, ignoredCounters.miscCount))
+    logging.info("Running  {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(
+      counters.openCLCount - ignoredCounters.openCLCount,
+      counters.cudaCount - ignoredCounters.cudaCount,
+      counters.miscCount - ignoredCounters.miscCount))
+  else:
+    logging.info("Found {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(counters.openCLCount, counters.cudaCount, counters.miscCount))
+
+  return kernelFiles
 
 def main(arg):
-    global GPUVerifyExecutable
+  global GPUVerifyExecutable
 
-    parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
-    logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
-    #Add command line options
+  parser = argparse.ArgumentParser(description='A simple script to run GPUVerify on CUDA/OpenCL kernels in its test suite.')
+  logging.basicConfig(level=logging.DEBUG, format='%(levelname)s:%(message)s')
+  #Add command line options
 
-    #Mutually exclusive behaviour options
-    parser.add_argument("directory", help="Directory to search recursively for kernels.")
-    parser.add_argument("--list-xfail-codes", nargs=0, action=PrintXfailCodes, help="List the valid error codes to use with //xfail: and exit.")
-    parser.add_argument("--read-pickle",type=str, action=dumpTestResultsAction, help="Dump detailed log information to console from a pickle format file and exit.")
-    parser.add_argument("-c","--compare-pickles",type=str,nargs=2,action=comparePickleFiles,help="Compare two test runs recorded in pickle files then exit. The first file should be an old test run and the second file should be a newer test run.")
+  #Mutually exclusive behaviour options
+  parser.add_argument("directory_or_file", help="Directory to search recursively for kernels or the kernel file to test")
+  parser.add_argument("--list-xfail-codes", nargs=0, action=PrintXfailCodes, help="List the valid error codes to use with //xfail: and exit.")
+  parser.add_argument("--read-pickle",type=str, action=dumpTestResultsAction, help="Dump detailed log information to console from a pickle format file and exit.")
+  parser.add_argument("-c","--compare-pickles",type=str,nargs=2,action=comparePickleFiles,help="Compare two test runs recorded in pickle files then exit. The first file should be an old test run and the second file should be a newer test run.")
 
-    #General options
-    parser.add_argument("--test-filename-regex", "--kernel-regex", type=str, default=r'(^kernel\.(cu|cl)$)|(^.+\.misc$)', help="Regex for test file names (default: \"%(default)s\")")
-    parser.add_argument("--from-file", type=str, default=None, action='append', help="File containing relative paths of kernels to test")
-    parser.add_argument("--ignore-file", type=str, default=None, action='append', help="File containing relative paths of kernels to ignore")
-    parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])
-    parser.add_argument("-w","--write-pickle",type=str, default="", help="Write detailed log information in pickle format to a file")
-    parser.add_argument("-p","--canonical-path-prefix", type=str, default="testsuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
-    parser.add_argument("-r,","--compare-run", type=str, default="", help="After performing test runs compare the result of that run with the runs recorded in a pickle file.")
-    parser.add_argument("-j","--threads", type=int, default=multiprocessing.cpu_count(), help="Number of tests to run in parallel (default: %(default)s)")
-    parser.add_argument("--gvopt=", type=str, default=None, action='append',
-                        help="Pass a command line options to GPUVerify for all tests. This option can be specified multiple times.  E.g. --gvopt=--keep-temps --gvopt=--no-benign",
-                        metavar='GPUVerifyCmdLineOption')
-    parser.add_argument("--time-as-csv", action="store_true", default=False, help="Print timing of each test as CSV")
-    parser.add_argument("--csv-file", type=str, default=None, help="Write timing data to a file (Note: requires --time-as-csv to be enabled)")
-    parser.add_argument("--stop-on-fail", action="store_true", default=False, help="Stop on first failure")
-    parser.add_argument("--shuffle", type=int, default=None, help="Permute the order of tests under evaluation")
-    parser.add_argument("--force-gpuverify-script", type=str, default=None, help="Force a different GPUVerify script to be used")
+  #General options
+  parser.add_argument("--test-filename-regex", "--kernel-regex", type=str, default=r'(^kernel\.(cu|cl)$)|(^.+\.misc$)', help="Regex for test file names (default: \"%(default)s\")")
+  parser.add_argument("--from-file", type=str, default=None, action='append', help="File containing relative paths of kernels to test")
+  parser.add_argument("--ignore-file", type=str, default=None, action='append', help="File containing relative paths of kernels to ignore")
+  parser.add_argument("-l","--log-level",type=str, default="INFO",choices=['DEBUG','INFO','WARNING','ERROR','CRITICAL'])
+  parser.add_argument("-w","--write-pickle",type=str, default="", help="Write detailed log information in pickle format to a file")
+  parser.add_argument("-p","--canonical-path-prefix", type=str, default="testsuite", help="When trying to generate canonical path names for tests, look for this prefix. (default: \"%(default)s\")")
+  parser.add_argument("-r,","--compare-run", type=str, default="", help="After performing test runs compare the result of that run with the runs recorded in a pickle file.")
+  parser.add_argument("-j","--threads", type=int, default=multiprocessing.cpu_count(), help="Number of tests to run in parallel (default: %(default)s)")
+  parser.add_argument("--gvopt=", type=str, default=None, action='append',
+                      help="Pass a command line options to GPUVerify for all tests. This option can be specified multiple times.  E.g. --gvopt=--keep-temps --gvopt=--no-benign",
+                      metavar='GPUVerifyCmdLineOption')
+  parser.add_argument("--time-as-csv", action="store_true", default=False, help="Print timing of each test as CSV")
+  parser.add_argument("--csv-file", type=str, default=None, help="Write timing data to a file (Note: requires --time-as-csv to be enabled)")
+  parser.add_argument("--stop-on-fail", action="store_true", default=False, help="Stop on first failure")
+  parser.add_argument("--shuffle", type=int, default=None, help="Permute the order of tests under evaluation")
+  parser.add_argument("--force-gpuverify-script", type=str, default=None, help="Force a different GPUVerify script to be used")
 
-    #Mutually exclusive test run options
-    runGroup = parser.add_mutually_exclusive_group()
-    runGroup.add_argument("--run-only-pass",action="store_true",default=False,help="Run only the tests that are expected to pass (default: \"%(default)s\")")
-    runGroup.add_argument("--run-only-xfail",action="store_true",default=False,help="Run only the tests that are expected to fail (xfail) (default: \"%(default)s\")")
+  #Mutually exclusive test run options
+  runGroup = parser.add_mutually_exclusive_group()
+  runGroup.add_argument("--run-only-pass",action="store_true",default=False,help="Run only the tests that are expected to pass (default: \"%(default)s\")")
+  runGroup.add_argument("--run-only-xfail",action="store_true",default=False,help="Run only the tests that are expected to fail (xfail) (default: \"%(default)s\")")
+
+  args = parser.parse_args(arg)
+
+  logging.getLogger().setLevel(level=getattr(logging, args.log_level.upper(), None))
+  logging.debug("Finished parsing arguments.")
+
+  if args.force_gpuverify_script != None:
+    GPUVerifyExecutable = args.force_gpuverify_script
+    logging.info('Forcing GPUVerify script to be {}'.format(GPUVerifyExecutable))
+
+  #Check the user isn't trying something silly
+  if(args.write_pickle == args.compare_run and len(args.write_pickle) > 0):
+    logging.error("Write log and comparison log cannot be the same.")
+    return GPUVerifyTesterErrorCodes.GENERAL_ERROR
+
+  #Check the number of threads isn't stupid
+  if args.threads > 64:
+    logging.error("The number of threads requested is too high.")
+    return GPUVerifyTesterErrorCodes.GENERAL_ERROR
+
+  oldTests=None
+  if len(args.compare_run) > 0 :
+    oldTests=openPickle(args.compare_run)
+
+  recursionRootPath=os.path.abspath(args.directory_or_file)
+  kernelFiles=[]
+  if os.path.isfile(recursionRootPath):
+    # Single file to test
+    kernelFiles.extend(getFileListSingleFile(recursionRootPath))
+
+  elif os.path.isdir(recursionRootPath):
+    # We have a directory to look for tests in
+    kernelFiles.extend(getFileListMultipleFiles(recursionRootPath, args))
+  else:
+    logging.error("\"{}\" does not refer an existing directory or file".format(recursionRootPath))
+    return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
 
 
-    args = parser.parse_args(arg)
+  counters = FileCounters()
+  if counters.unknown > 0:
+    logging.error("Cannot have files of unknown type")
+    return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
 
-    logging.getLogger().setLevel(level=getattr(logging, args.log_level.upper(), None))
-    logging.debug("Finished parsing arguments.")
+  # Inform the user how many kernels/misc program we'll be running over
+  counters.updateCountersWithList(kernelFiles)
+  logging.info("Running {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(
+    counters.openCLCount,
+    counters.cudaCount,
+    counters.miscCount))
 
-    if args.force_gpuverify_script != None:
-        GPUVerifyExecutable = args.force_gpuverify_script
-        logging.info('Forcing GPUVerify script to be {}'.format(GPUVerifyExecutable))
+  if len(kernelFiles) == 0:
+    logging.error("Could not find any OpenCL, CUDA kernels or miscellaneous tests")
+    return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
 
-    #Check the user isn't trying something silly
-    if(args.write_pickle == args.compare_run and len(args.write_pickle) > 0):
-        logging.error("Write log and comparison log cannot be the same.")
-        return GPUVerifyTesterErrorCodes.GENERAL_ERROR
+  #Do in place sort of paths so we have a guaranteed order
+  kernelFiles.sort()
 
-    #Check the number of threads isn't stupid
-    if args.threads > 64:
-        logging.error("The number of threads requested is too high.")
-        return GPUVerifyTesterErrorCodes.GENERAL_ERROR
+  if args.shuffle:
+    import random
+    logging.info('Randomising the order of execution')
+    random.seed(args.shuffle)
+    random.shuffle(kernelFiles)
 
-    oldTests=None
-    if len(args.compare_run) > 0 :
-        oldTests=openPickle(args.compare_run)
-
-    recursionRootPath=os.path.abspath(args.directory)
-
-    if not os.path.isdir(recursionRootPath):
-        logging.error("\"{}\" does not refer an existing directory".format(recursionRootPath))
-        return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
-
-    cudaCount=0
-    openCLCount=0
-    miscCount=0
-    kernelFiles=[]
-    if args.shuffle:
-        import random
-        random.seed(args.shuffle)
-        random.shuffle(kernelFiles)
-    if (args.from_file):
-      for f in args.from_file:
-        kernels = [line.strip() for line in open(f) if not line.startswith('#')]
-        for kernel in kernels:
-          if kernel.endswith('cu'):
-            cudaCount+=1
-          elif kernel.endswith('cl'):
-            openCLCount+=1
-          elif kernel.endswith('misc'):
-              miscCount+=1
-          else:
-            logging.debug("Not a valid kernel:\"{}\"".format(kernel))
-            return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
-          kernelFiles.append(os.path.join(recursionRootPath,kernel))
-
-    else:
-      matcher=re.compile(args.test_filename_regex)
-      logging.debug("Recursing {}".format(recursionRootPath))
-      for(root,dirs,files) in os.walk(recursionRootPath):
-          for f in files:
-              if(matcher.match(f) != None):
-                  if f.endswith('cu'):
-                      cudaCount+=1
-                      logging.debug("Found CUDA kernel:\"{}\"".format(f))
-                  if f.endswith('cl'):
-                      openCLCount+=1
-                      logging.debug("Found OpenCL kernel:\"{}\"".format(f))
-                  if f.endswith('misc'):
-                      miscCount+=1
-                      logging.debug("Found miscellaneous test:\"{}\"".format(f))
-
-                  kernelFiles.append(os.path.join(root,f))
-
-    cudaCountIgnored=0
-    openCLCountIgnored=0
-    miscCountIgnored=0
-    kernelFilesIgnored=[]
-    if (args.ignore_file):
-      for f in args.ignore_file:
-        kernels = [line.strip() for line in open(f) if not (line.startswith('#') or line.startswith('\n'))]
-        for kernel in kernels:
-          kernelToIgnore = os.path.join(recursionRootPath, kernel)
-          if not os.path.exists(kernelToIgnore):
-            logging.error('The kernel file "{}" to ignore does not exist'.format(kernelToIgnore))
-            return GPUVerifyErrorCodes.CONFIGURATION_ERROR
-
-          try:
-            kernelFiles.remove(kernelToIgnore)
-            # Maintain the list just for DEBUG output
-            kernelFilesIgnored.append(kernelToIgnore)
-
-            if kernel.endswith('cu'):
-              cudaCountIgnored+=1
-            elif kernel.endswith('cl'):
-              openCLCountIgnored+=1
-            elif kernel.endswith('misc'):
-              miscCountIgnored+=1
-          except ValueError as e:
-            # The kernel wasn't in list
-            logging.warning('Could not ignore kernel "{}" because it was not in the list of found kernels'.format(kernelToIgnore))
-
-        logging.debug('kernelFiles:{}'.format(pprint.pformat(kernelFiles)))
-        logging.debug('kernelFilesIgnored:{}'.format(pprint.pformat(kernelFilesIgnored)))
-
-      logging.info("Found    {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount,cudaCount,miscCount))
-      logging.info("Ignoring {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCountIgnored,cudaCountIgnored,miscCountIgnored))
-      logging.info("Running  {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount-openCLCountIgnored,cudaCount-cudaCountIgnored,miscCount-miscCountIgnored))
-    else:
-      logging.info("Found {0} OpenCL kernels, {1} CUDA kernels and {2} miscellaneous tests".format(openCLCount,cudaCount,miscCount))
-
-    if len(kernelFiles) == 0:
-        logging.error("Could not find any OpenCL, CUDA kernels or miscellaneous tests")
-        return GPUVerifyTesterErrorCodes.FILE_SEARCH_ERROR
-
-    #Do in place sort of paths so we have a guaranteed order
-    kernelFiles.sort()
-    tests=[]
-    csvFile = open(args.csv_file,"w") if args.csv_file else sys.stdout
-    for kernelPath in kernelFiles:
-        try:
-            tests.append(GPUVerifyTestKernel(kernelPath, args.time_as_csv, csvFile, getattr(args,'gvopt=') ))
-        except KernelParseError as e:
-            logging.error(e)
-            if args.stop_on_fail:
-                return GPUVerifyTesterErrorCodes.KERNEL_PARSE_ERROR
-
-    #run tests
-    logging.info("Using " + str(args.threads) + " threads")
-    threadPool = ThreadPool(args.threads, args.stop_on_fail)
-
-    logging.info("Running tests...")
-
-    if args.time_as_csv:
-        print("kernel,status,clang,opt,bugle,vcgen,cruncher,boogiedriver,total", file=csvFile)
-
-    start = time.time()
-    for test in tests:
-        if args.run_only_pass and test.expectedReturnCode != GPUVerifyErrorCodes.SUCCESS :
-            logging.warning("Skipping xfail test:{0}".format(test.path))
-            continue
-
-        if args.run_only_xfail and test.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS :
-            logging.warning("Skipping pass test:{0}".format(test.path))
-            continue
-
-        threadPool.addTest(test)
-
-    #Start tests
-    threadPool.start()
+  tests=[]
+  csvFile = open(args.csv_file,"w") if args.csv_file else sys.stdout
+  for kernelPath in kernelFiles:
     try:
-      threadPool.waitForCompletion()
-    except KeyboardInterrupt:
-      sys.exit(GPUVerifyTesterErrorCodes.GENERAL_ERROR)
+      tests.append(GPUVerifyTestKernel(kernelPath, args.time_as_csv, csvFile, getattr(args,'gvopt=') ))
+    except KernelParseError as e:
+      logging.error(e)
+      if args.stop_on_fail:
+        return GPUVerifyTesterErrorCodes.KERNEL_PARSE_ERROR
 
-    end = time.time()
-    logging.info("Finished running tests.")
+  #run tests
+  logging.info("Using " + str(args.threads) + " threads")
+  threadPool = ThreadPool(args.threads, args.stop_on_fail)
 
-    if logging.getLogger().getEffectiveLevel() != logging.CRITICAL:
-      summariseTests(tests)
+  logging.info("Running tests...")
 
-    if len(args.write_pickle) > 0 :
-        logging.info("Writing run information to pickle file \"" + args.write_pickle + "\"")
-        with open(args.write_pickle,"wb") as output:
-            pickle.dump(tests, output, protocol=2, **getPickleOptions())
+  if args.time_as_csv:
+    print("kernel,status,clang,opt,bugle,vcgen,cruncher,boogiedriver,total", file=csvFile)
 
-    if oldTests!=None:
-        doComparison(oldTests,args.compare_run,tests,"Newly completed tests", args.canonical_path_prefix)
+  start = time.time()
+  for test in tests:
+    if args.run_only_pass and test.expectedReturnCode != GPUVerifyErrorCodes.SUCCESS :
+      logging.warning("Skipping xfail test:{0}".format(test.path))
+      continue
 
-    if logging.getLogger().getEffectiveLevel() != logging.CRITICAL:
-        print("Time taken to run tests: " + str((end - start)) )
+    if args.run_only_xfail and test.expectedReturnCode == GPUVerifyErrorCodes.SUCCESS :
+      logging.warning("Skipping pass test:{0}".format(test.path))
+      continue
 
-    return GPUVerifyTesterErrorCodes.SUCCESS
+    threadPool.addTest(test)
+
+  #Start tests
+  threadPool.start()
+  try:
+    threadPool.waitForCompletion()
+  except KeyboardInterrupt:
+    sys.exit(GPUVerifyTesterErrorCodes.GENERAL_ERROR)
+
+  end = time.time()
+  logging.info("Finished running tests.")
+
+  if logging.getLogger().getEffectiveLevel() != logging.CRITICAL:
+    summariseTests(tests)
+
+  if len(args.write_pickle) > 0 :
+    logging.info("Writing run information to pickle file \"" + args.write_pickle + "\"")
+    with open(args.write_pickle,"wb") as output:
+      pickle.dump(tests, output, protocol=2, **getPickleOptions())
+
+  if oldTests!=None:
+    doComparison(oldTests,args.compare_run,tests,"Newly completed tests", args.canonical_path_prefix)
+
+  if logging.getLogger().getEffectiveLevel() != logging.CRITICAL:
+    print("Time taken to run tests: " + str((end - start)) )
+
+  return GPUVerifyTesterErrorCodes.SUCCESS
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+  sys.exit(main(sys.argv[1:]))

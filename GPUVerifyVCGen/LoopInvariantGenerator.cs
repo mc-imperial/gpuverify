@@ -777,12 +777,13 @@ namespace GPUVerify
     }
    }
 
-   // Speculate invariants if we see an assert that is not a sourceloc assert; such
-   // an assert is likely user supplied.
+   // Speculate invariants if we see an assert that is not a sourceloc or
+   // block_sourceloc assert; such asserts is likely user supplied.
    if (c is AssertCmd)
    {
     AssertCmd assertion = c as AssertCmd;
-    if (!QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc"))
+    if (!QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc") &&
+        !QKeyValue.FindBoolAttribute(assertion.Attributes, "block_sourceloc"))
      return true;
    }
 
