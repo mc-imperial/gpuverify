@@ -132,6 +132,20 @@ namespace GPUVerify
       return false;
     }
 
+    private static List<List<Cmd>> PartitionCmdsAccordingToPredicate(List<Cmd> Cmds, Func<Cmd, bool> Predicate) {
+      List<List<Cmd>> result = new List<List<Cmd>>();
+      List<Cmd> current = new List<Cmd>();
+      result.Add(current);
+      foreach(Cmd cmd in Cmds) {
+        if(Predicate(cmd) && current.Count > 0) {
+           current = new List<Cmd>();
+           result.Add(current);
+        }
+        current.Add(cmd);
+      }
+      return result;
+    }
+
     void ExtractCommandsIntoBlocks(Implementation impl, Func<Cmd, bool> Predicate) {
       Dictionary<Block, Block> oldToNew = new Dictionary<Block,Block>();
       HashSet<Block> newBlocks = new HashSet<Block>();
@@ -140,7 +154,7 @@ namespace GPUVerify
 
       foreach (Block b in impl.Blocks)
       {
-        List<List<Cmd>> partition = InterproceduralReachabilityGraph.PartitionCmdsAccordingToPredicate(b.Cmds, Predicate);
+        List<List<Cmd>> partition = PartitionCmdsAccordingToPredicate(b.Cmds, Predicate);
         if(partition.Count == 1) {
           // Nothing to do: either no command in this block matches the predicate, or there
           // is only one command in the block
