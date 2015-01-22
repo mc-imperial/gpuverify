@@ -13,6 +13,7 @@ where each ``kernel_instantiation`` is an object::
     "kernel_file"      : string,
     "local_size"       : [ number, ..., number ],
     "global_size"      : [ number, ..., number ],
+    "compiler_flags"   : string,
     "entry_point"      : kernel_name,
     "kernel_arguments" : [ kernel_argument, ..., kernel_argument ],
     "host_api_calls"   : [ host_api_call, ..., host_api_call ]
@@ -20,15 +21,18 @@ where each ``kernel_instantiation`` is an object::
 
 The value of ``language`` should always be the string ``OpenCL``; the value of
 ``kernel_file`` is the name of an OpenCL source file whose location is relative
-to the JSON file. The values of ``local_size`` and ``global_size`` are arrays
-of numbers satisfying the usual restrictions on the ``local_work_size`` and
-``global_work_size`` arguments of ``clEnqueueNDRangeKernel``, respectively.
-The value of ``entry_point`` specifies which kernel in the kernel file needs to
-be verified and ``kernel_arguments`` specifies properties of the concrete
-argument values pass to the kernel during launch, where the nth element of the
-array corresponds to the nth argument of the kernel. The ``host_api_calls``
-array specifies the source file locations of relevant OpenCL host-side
-functions that were invoked leading up to the original kernel launch.
+to the JSON file. The intended usage of this latter value is to specify the
+file name of the file to which the kernel is dumped upon interception. The
+values of ``local_size`` and ``global_size`` are arrays of numbers satisfying
+the usual restrictions on the ``local_work_size`` and ``global_work_size``
+arguments of ``clEnqueueNDRangeKernel``, respectively. The ``compiler_flags``
+value specifies the string passed to the kernel compiler upon compilation of
+the kernel. The value of ``entry_point`` specifies which kernel in the kernel
+file needs to be verified and ``kernel_arguments`` specifies properties of the
+concrete argument values pass to the kernel during launch, where the nth
+element of the array corresponds to the nth argument of the kernel. The
+``host_api_calls`` array specifies the source file locations of relevant OpenCL
+host-side functions that were invoked leading up to the original kernel launch.
 
 The ``language``, ``kernel_file``, ``local_size``, ``global_size`` and
 ``entry_point`` fields are required. The ``kernel_arguments`` and
