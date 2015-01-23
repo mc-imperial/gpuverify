@@ -160,7 +160,6 @@ namespace GPUVerify
         }
       }
 
-      //public static void WriteTrailer(int verified, int errors, int inconclusives, int timeOuts, int outOfMemories)
       public static void WriteTrailer(KernelAnalyser.ResultCounter result)
       {
         Contract.Requires(0 <= result.VerificationErrors && 0 <= result.Inconclusives && 0 <= result.TimeOuts && 0 <= result.OutOfMemories);
