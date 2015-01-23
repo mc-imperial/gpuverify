@@ -71,8 +71,8 @@ namespace GPUVerify {
         var candidates = program.TopLevelDeclarations.OfType<TypeSynonymDecl>().
             Where(Item => Item.Name == _SIZE_T_BITS_TYPE);
         if (candidates.Count() != 1 || !candidates.ToList()[0].Body.IsBv) {
-            Console.WriteLine("GPUVerify: error: exactly one _SIZE_T_TYPE bit-vector type must be specified");
-            Environment.Exit(1);
+          Console.WriteLine("GPUVerify: error: exactly one _SIZE_T_TYPE bit-vector type must be specified");
+          Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
         }
         return candidates.ToList()[0].Body.BvBits;
     }

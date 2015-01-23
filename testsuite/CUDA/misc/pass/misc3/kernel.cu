@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--blockDim=1024 --gridDim=1 --no-inline
 //possible attempt to modify constant memory
 

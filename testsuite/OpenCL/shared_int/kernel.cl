@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=64 --num_groups=64 --no-inline
 //Write by work item[\s]+[\d]+[\s]+in work group[\s]+[\d]+.+kernel.cl:9:(3|7):[\s]+a = get_local_id\(0\);
 

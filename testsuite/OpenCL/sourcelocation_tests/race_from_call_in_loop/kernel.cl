@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=16 --num_groups=2 --no-inline
 //possible read-write race
 //Write by work item [\d]+ in work group \d, .+kernel.cl:21:(5|7)

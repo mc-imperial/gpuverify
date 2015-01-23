@@ -19,6 +19,7 @@ namespace Microsoft.Boogie
   using System.Diagnostics;
   using System.Linq;
   using VC;
+  using ResultCounter = KernelAnalyser.ResultCounter;
 
   public class GPUVerifyBoogieDriver
   {
@@ -30,12 +31,12 @@ namespace Microsoft.Boogie
       try {
         CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
         if (!CommandLineOptions.Clo.Parse(args)) {
-          Environment.Exit(1);
+          Environment.Exit((int)GPUVerify.ToolExitCodes.OTHER_ERROR);
         }
 
         if (CommandLineOptions.Clo.Files.Count == 0) {
           GVUtil.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
-          Environment.Exit(1);
+          Environment.Exit((int)GPUVerify.ToolExitCodes.OTHER_ERROR);
         }
         if (!CommandLineOptions.Clo.DontShowLogo) {
           Console.WriteLine(CommandLineOptions.Clo.Version);
@@ -57,12 +58,12 @@ namespace Microsoft.Boogie
           }
           if (extension != ".bpl" && extension != ".cbpl") {
             GVUtil.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .(c)bpl file", file);
-            Environment.Exit(1);
+            Environment.Exit((int)GPUVerify.ToolExitCodes.OTHER_ERROR);
           }
         }
 
-        int exitCode = VerifyFiles(fileList);
-        Environment.Exit(exitCode);
+        var results = VerifyFiles(fileList);
+        Environment.Exit(KernelAnalyser.GetExitCode(results));
       } catch (Exception e) {
         if(GetCommandLineOptions().DebugGPUVerify) {
           Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
@@ -71,21 +72,22 @@ namespace Microsoft.Boogie
         }
 
         GVUtil.IO.DumpExceptionInformation(e);
-
-        Environment.Exit(1);
+        Environment.Exit((int)GPUVerify.ToolExitCodes.INTERNAL_ERROR);
       }
     }
-    
-    static int VerifyFiles(List<string> fileNames)
+
+    static ResultCounter VerifyFiles(List<string> fileNames)
     {
       Contract.Requires(cce.NonNullElements(fileNames));
 
       Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
-      if (program == null) return 1;
+      if (program == null)
+        return ResultCounter.GetNewCounterWithInputError();
 
       KernelAnalyser.PipelineOutcome oc = KernelAnalyser.ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
-      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) return 1;
-      
+      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked)
+        return ResultCounter.GetNewCounterWithInputError();
+
       KernelAnalyser.EliminateDeadVariables(program);
       KernelAnalyser.Inline(program);
       KernelAnalyser.CheckForQuantifiersAndSpecifyLogic(program);
@@ -99,14 +101,10 @@ namespace Microsoft.Boogie
 
       return VerifyProgram(program);
     }
-    
-    private static int VerifyProgram(Program program)
+
+    private static ResultCounter VerifyProgram(Program program)
     {
-      int errorCount = 0;
-      int verified = 0;
-      int inconclusives = 0;
-      int timeOuts = 0;
-      int outOfMemories = 0;
+      var counters = new ResultCounter();
 
       ConditionGeneration vcgen = null;
       try {
@@ -114,7 +112,7 @@ namespace Microsoft.Boogie
       }
       catch (ProverException e) {
         GVUtil.IO.ErrorWriteLine("Fatal Error: ProverException: {0}", e);
-        return 1;
+        return ResultCounter.GetNewCounterWithInternalError();
       }
 
       // operate on a stable copy, in case it gets updated while we're running
@@ -159,7 +157,7 @@ namespace Microsoft.Boogie
             int poCount = vcgen.CumulativeAssertionCount - prevAssertionCount;
             timeIndication = string.Format("  [{0:F3} s, {1} proof obligation{2}]  ", elapsed.TotalSeconds, poCount, poCount == 1 ? "" : "s");
           }
-          KernelAnalyser.ProcessOutcome(program, impl.Name, outcome, errors, timeIndication, ref errorCount, ref verified, ref inconclusives, ref timeOuts, ref outOfMemories);
+          KernelAnalyser.ProcessOutcome(program, impl.Name, outcome, errors, timeIndication, ref counters);
 
           if (outcome == VCGen.Outcome.Errors || CommandLineOptions.Clo.Trace) {
             Console.Out.Flush();
@@ -170,9 +168,8 @@ namespace Microsoft.Boogie
       vcgen.Close();
       cce.NonNull(CommandLineOptions.Clo.TheProverFactory).Close();
 
-      GVUtil.IO.WriteTrailer(verified, errorCount, inconclusives, timeOuts, outOfMemories);
-
-      return errorCount + inconclusives + timeOuts + outOfMemories;
+      GVUtil.IO.WriteTrailer(counters);
+      return counters;
     }
 
     private static GVCommandLineOptions GetCommandLineOptions()

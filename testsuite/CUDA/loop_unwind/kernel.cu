@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--blockDim=512 --gridDim=64 --loop-unwind=2 --no-inline
 //kernel.cu: error: possible write-write race on B
 #include <cuda.h>

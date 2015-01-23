@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --num_groups=2 --no-inline
 //Write by work item [\d]+ in work group [\d], .+kernel.cl:16:(5|7):
 //Read by work item [\d]+ in work group [\d], possible sources are:

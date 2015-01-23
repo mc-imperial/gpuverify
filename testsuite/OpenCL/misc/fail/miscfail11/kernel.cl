@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--num_groups=1 --local_size=64 --cruncher-opt=/replaceLoopInvariantAssertions
 
 __kernel void

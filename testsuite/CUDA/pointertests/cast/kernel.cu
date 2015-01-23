@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--blockDim=32 --gridDim=64 --no-inline
 //error: possible write-write race on
 

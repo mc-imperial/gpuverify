@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=128 --num_groups=1 --no-inline
 //this barrier invariant might not hold
 

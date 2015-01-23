@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=32 --num_groups=32 --asymmetric-asserts --no-inline
 //kernel.cl:18:[\d]+: error: this assertion might not hold
 //__assert\(__other_bool

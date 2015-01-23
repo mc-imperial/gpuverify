@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--blockDim=128 --gridDim=128 --warp-sync=32 --no-inline
 //kernel.cu: error: possible read-write race on A
 

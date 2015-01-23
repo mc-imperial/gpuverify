@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--gridDim=1 --blockDim=32 --no-inline
 
 #define memset(dst,val,len) __builtin_memset(dst,val,len)

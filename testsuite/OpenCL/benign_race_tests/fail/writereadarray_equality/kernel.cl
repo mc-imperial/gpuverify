@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=2 --num_groups=1 --equality-abstraction --no-inline
 //kernel.cl: error: possible write-read race on
 

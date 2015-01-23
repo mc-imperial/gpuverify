@@ -160,24 +160,33 @@ namespace GPUVerify
         }
       }
 
-      public static void WriteTrailer(int verified, int errors, int inconclusives, int timeOuts, int outOfMemories)
+      //public static void WriteTrailer(int verified, int errors, int inconclusives, int timeOuts, int outOfMemories)
+      public static void WriteTrailer(KernelAnalyser.ResultCounter result)
       {
-        Contract.Requires(0 <= errors && 0 <= inconclusives && 0 <= timeOuts && 0 <= outOfMemories);
+        Contract.Requires(0 <= result.VerificationErrors && 0 <= result.Inconclusives && 0 <= result.TimeOuts && 0 <= result.OutOfMemories);
 
         //Console.WriteLine();
         if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-          Console.Write("{0} finished with {1} credible, {2} doomed{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
+          Console.Write("{0} finished with {1} credible, {2} doomed{3}",
+            CommandLineOptions.Clo.DescriptiveToolName,
+            result.Verified,
+            result.VerificationErrors,
+            result.VerificationErrors == 1 ? "" : "s");
         } else {
-          Console.Write("{0} finished with {1} verified, {2} error{3}", CommandLineOptions.Clo.DescriptiveToolName, verified, errors, errors == 1 ? "" : "s");
+          Console.Write("{0} finished with {1} verified, {2} error{3}",
+            CommandLineOptions.Clo.DescriptiveToolName,
+            result.Verified,
+            result.VerificationErrors,
+            result.VerificationErrors == 1 ? "" : "s");
         }
-        if (inconclusives != 0) {
-          Console.Write(", {0} inconclusive{1}", inconclusives, inconclusives == 1 ? "" : "s");
+        if (result.Inconclusives != 0) {
+          Console.Write(", {0} inconclusive{1}", result.Inconclusives, result.Inconclusives == 1 ? "" : "s");
         }
-        if (timeOuts != 0) {
-          Console.Write(", {0} time out{1}", timeOuts, timeOuts == 1 ? "" : "s");
+        if (result.TimeOuts != 0) {
+          Console.Write(", {0} time out{1}", result.TimeOuts, result.TimeOuts == 1 ? "" : "s");
         }
-        if (outOfMemories != 0) {
-          Console.Write(", {0} out of memory", outOfMemories);
+        if (result.OutOfMemories != 0) {
+          Console.Write(", {0} out of memory", result.OutOfMemories);
         }
         Console.WriteLine();
         Console.Out.Flush();
@@ -233,7 +242,7 @@ namespace GPUVerify
           Console.Error.WriteLine(" - Click \"Unblock\"");
           Console.Error.WriteLine(" - Click \"OK\"");
           Console.Error.WriteLine("Once this is done, unzip GPUVerify afresh and this issue should be resolved.");
-          Environment.Exit(1);
+          Environment.Exit((int)ToolExitCodes.INTERNAL_ERROR);
         }
 
         const string DUMP_FILE = "__gvdump.txt";
@@ -344,9 +353,10 @@ namespace GPUVerify
     {
       KernelAnalyser.PipelineOutcome oc;
       Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
-      if (program == null) Environment.Exit(1);
+      if (program == null) Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
       oc = KernelAnalyser.ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
-      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked) Environment.Exit(1);
+      if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked)
+        Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
 
       if (disableChecks) {
         KernelAnalyser.DisableRaceChecking(program);

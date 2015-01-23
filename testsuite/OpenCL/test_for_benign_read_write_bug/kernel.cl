@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=64 --num_groups=64 --equality-abstraction --no-inline
 //
 

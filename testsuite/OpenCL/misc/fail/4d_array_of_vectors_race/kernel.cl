@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=[64,64] --global_size=[256,256]
 //kernel.cl: error: possible write-write race on L\[1\]\[2\]\[3\]\[3\] \(bytes 8..11\)
                                                          

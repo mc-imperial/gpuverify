@@ -1,4 +1,4 @@
-//XFAIL:BOOGIE_ERROR
+//XFAIL:NOT_ALL_VERIFIED
 //--blockDim=1024 --gridDim=1 --no-inline
 
 struct wrapped {

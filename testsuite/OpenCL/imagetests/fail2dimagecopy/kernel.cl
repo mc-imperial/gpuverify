@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=[8,8] --num_groups=[8,8] --no-inline
 //[\s]+possible
 

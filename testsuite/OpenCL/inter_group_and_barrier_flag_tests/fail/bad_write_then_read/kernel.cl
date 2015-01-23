@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --num_groups=1024 --no-inline
 //Read by work item[\s]+[\d]+[\s]+in work group[\s]+[\d].+kernel.cl:21:(9|5):[\s]+y = p\[0];
 //Write by work item[\s]+[\d]+[\s]+in work group[\s]+[\d].+kernel.cl:15:(5|12):+[\s]+p\[0] = get_local_id\(0\);

@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --num_groups=1 --no-inline
 //kernel.cl: error: possible atomic-write race on A\[12\]:
 //Write by work item 12 in work group 0

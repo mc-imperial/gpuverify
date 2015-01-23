@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --global_size=1024 --only-divergence
 //barrier may be reached by non-uniform control flow
 

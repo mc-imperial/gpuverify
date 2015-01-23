@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=32 --num_groups=32 --no-infer --only-log
 //loop invariant might not be maintained
 

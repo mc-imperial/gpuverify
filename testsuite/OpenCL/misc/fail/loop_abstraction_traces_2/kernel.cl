@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=16 --global_size=2048 --cruncher-opt=/displayLoopAbstractions
 //On entry to loop headed at .*kernel.cl:15:11:
 //After 0 or more iterations of loop headed at .*kernel.cl:15:11

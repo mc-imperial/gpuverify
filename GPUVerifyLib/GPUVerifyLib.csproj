@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>10.0.0</ProductVersion>
+    <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{5E7E9AF7-4166-4082-B88B-F7766023D877}</ProjectGuid>
     <OutputType>Library</OutputType>
@@ -82,6 +82,7 @@
     <Compile Include="Utilities.cs" />
     <Compile Include="VariablesOccurringInExpressionVisitor.cs" />
     <Compile Include="AssignmentExpressionExpander.cs" />
+    <Compile Include="ToolExitCodes.cs" />
   </ItemGroup>
   <Target Name="Clean">
     <RemoveDir Directories="$(ProjectDir)\bin" />

@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --num_groups=1 --warp-sync=16 --no-inline
 
 __kernel void shuffle (__local int* A)

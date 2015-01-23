@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --num_groups=64 --no-inline
 //kernel.cl: error: possible write-read race on A\[[\d]+\]:[\s]
 //Read by work item [\d]+ in work group [\d]+.+kernel.cl:17:(14|16):[\s]+temp = A\[tid - i\];

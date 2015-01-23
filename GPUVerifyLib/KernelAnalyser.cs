@@ -12,6 +12,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
 using System.Linq;
+using System.Text;
 using Microsoft.Boogie;
 using VC;
 
@@ -205,8 +206,6 @@ namespace GPUVerify
           b.Cmds = newCmds;
         }
       }
-      
-
     }
 
     public static void DisableBarrierDivergenceChecking(Program program)
@@ -256,8 +255,108 @@ namespace GPUVerify
                   CheckForQuantifiers.Found(program);
     }
 
+    public static int GetExitCode(ResultCounter counter)
+    {
+      if (counter.AllVerified())
+        return (int)ToolExitCodes.SUCCESS;
+
+      if (counter.HasInternalError())
+        return (int)ToolExitCodes.INTERNAL_ERROR;
+
+      if (counter.HasNonInternalError())
+        return (int)ToolExitCodes.OTHER_ERROR;
+
+      if (counter.VerificationErrors > 0)
+        return (int)ToolExitCodes.VERIFICATION_ERROR;
+
+      // This should be unreachable
+      throw new InvalidOperationException("Hit unreachable code");
+    }
+
+    public struct ResultCounter
+    {
+      public int VerificationErrors;
+      public int Verified;
+      public int Inconclusives;
+      public int TimeOuts;
+      public int OutOfMemories;
+      public int InputErrors;
+      public int InternalErrors; // Should only be used for caught exceptions
+
+
+      public override string ToString()
+      {
+        var SB = new StringBuilder();
+        SB.AppendFormat("Errors: {0}", VerificationErrors);
+        SB.AppendLine();
+        SB.AppendFormat("Verified: {0}", Verified);
+        SB.AppendLine();
+        SB.AppendFormat("Inconclusives: {0}", Inconclusives);
+        SB.AppendLine();
+        SB.AppendFormat("TimeOuts: {0}", Inconclusives);
+        SB.AppendLine();
+        SB.AppendFormat("OutOfMemories: {0}", OutOfMemories);
+        SB.AppendLine();
+        SB.AppendFormat("InputErrors: {0}", InputErrors);
+        SB.AppendLine();
+        SB.AppendFormat("InternalErrors: {0}", InternalErrors);
+        SB.AppendLine();
+        return SB.ToString();
+      }
+
+      public void Reset()
+      {
+        VerificationErrors = Verified = Inconclusives = TimeOuts = OutOfMemories = InputErrors = InternalErrors = 0;
+      }
+
+      public int TotalErrors
+      {
+        get
+        {
+          return VerificationErrors + Inconclusives + TimeOuts + OutOfMemories + InputErrors + InternalErrors;
+        }
+      }
+
+      public bool AllVerified()
+      {
+        // This allows for "Verified" to be zero which is valid for the empty Boogie program
+        return TotalErrors == 0;
+      }
+
+      // Returns true iff reported errors are verification errors
+      public bool AllErrorsAreVerificationErrors()
+      {
+        return (TotalErrors - VerificationErrors) == 0;
+      }
+
+      public bool HasInternalError()
+      {
+        return InternalErrors > 0;
+      }
+
+      public bool HasNonInternalError()
+      {
+        // We subtract "VerificationErrors" here because its a bug report, not an error within GPUVerifyCruncher/GPUVerifyBoogieDriver
+        return (TotalErrors - (InternalErrors + VerificationErrors)) > 0;
+      }
+
+      public static ResultCounter GetNewCounterWithInternalError()
+      {
+        var temp = new ResultCounter();
+        temp.InternalErrors = 1;
+        return temp;
+      }
+
+      public static ResultCounter GetNewCounterWithInputError()
+      {
+        var temp = new ResultCounter();
+        temp.InputErrors = 1;
+        return temp;
+      }
+    }
+
     public static void ProcessOutcome(Program program, string implName, VC.VCGen.Outcome outcome, List<Counterexample> errors, string timeIndication,
-                               ref int errorCount, ref int verified, ref int inconclusives, ref int timeOuts, ref int outOfMemories)
+      ref ResultCounter counters)
     {
       switch (outcome) {
         default:
@@ -266,34 +365,34 @@ namespace GPUVerify
         case VCGen.Outcome.ReachedBound:
         GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
         Console.WriteLine(string.Format("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound));
-        verified++;
+        counters.Verified++;
         break;
         case VCGen.Outcome.Correct:
         if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
           GVUtil.IO.Inform(String.Format("{0}credible", timeIndication));
-          verified++;
+          counters.Verified++;
         }
         else {
           GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
-          verified++;
+          counters.Verified++;
         }
         break;
         case VCGen.Outcome.TimedOut:
-        timeOuts++;
+        counters.TimeOuts++;
         GVUtil.IO.Inform(String.Format("{0}timed out", timeIndication));
         break;
         case VCGen.Outcome.OutOfMemory:
-        outOfMemories++;
+        counters.OutOfMemories++;
         GVUtil.IO.Inform(String.Format("{0}out of memory", timeIndication));
         break;
         case VCGen.Outcome.Inconclusive:
-        inconclusives++;
+        counters.Inconclusives++;
         GVUtil.IO.Inform(String.Format("{0}inconclusive", timeIndication));
         break;
         case VCGen.Outcome.Errors:
         if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
           GVUtil.IO.Inform(String.Format("{0}doomed", timeIndication));
-          errorCount++;
+          counters.VerificationErrors++;
         } //else {
         Contract.Assert(errors != null);  // guaranteed by postcondition of VerifyImplementation
         {
@@ -308,7 +407,7 @@ namespace GPUVerify
           foreach (Counterexample error in errors)
           {
             new GPUVerifyErrorReporter(program, implName).ReportCounterexample(error);
-            errorCount++;
+            counters.VerificationErrors++;
           }
           //}
           GVUtil.IO.Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));

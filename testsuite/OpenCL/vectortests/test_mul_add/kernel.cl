@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=64 --num_groups=64 --no-inline
 
 //Note: this test looks like it should pass.  However, it fails because

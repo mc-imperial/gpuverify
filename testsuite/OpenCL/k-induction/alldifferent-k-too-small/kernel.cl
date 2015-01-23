@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --num_groups=24 --no-infer --k-induction-depth=2
 
 __kernel void foo(int a, int b, int c) {

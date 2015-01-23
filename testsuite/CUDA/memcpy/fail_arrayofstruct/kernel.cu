@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--gridDim=1 --blockDim=2 --no-inline
 
 //This kernel is racy.

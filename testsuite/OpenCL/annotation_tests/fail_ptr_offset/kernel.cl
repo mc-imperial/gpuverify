@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=64 --num_groups=64 --no-inline
 //kernel.cl:21:3:[\s]+error:[\s]+a precondition for this call might not hold[\s]+bar\(a \+ 1\);
 //kernel.cl:10:[\d]+:[\s]+note:[\s]+this is the precondition that might not hold[\s]+__requires\(__ptr_offset_bytes\(p\) == 1\);

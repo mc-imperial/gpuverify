@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1,10 --num_groups=1,10 --check-array-bounds
 //kernel.cl:7:(3|10):[\s]+error:[\s]+possible array out-of-bounds access on array L
 

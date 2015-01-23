@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=16 --num_groups=1 --only-log --no-inline
 //kernel.cl:7:[\d]+: error: this assertion might not hold
 

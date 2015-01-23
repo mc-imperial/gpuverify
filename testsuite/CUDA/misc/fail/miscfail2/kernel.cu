@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--blockDim=512 --gridDim=1 --no-infer --no-inline
 //kernel.cu:57:21: error: loop invariant might not be maintained
 

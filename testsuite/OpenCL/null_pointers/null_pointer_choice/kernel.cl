@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=2 --num_groups=2 --no-inline
 //possible null pointer access
 

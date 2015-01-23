@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --num_groups=1 --no-inline
 //B\[tid\] = v;
 //v = atomic_add\(B\+i,v\);

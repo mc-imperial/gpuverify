@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--blockDim=128 --gridDim=16 --no-inline
 //assert\(false\)
 

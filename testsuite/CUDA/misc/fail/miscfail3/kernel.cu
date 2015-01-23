@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--blockDim=1024 --gridDim=1 --no-inline
 //kernel.cu: error: possible read-write race
 //GPUVerify kernel analyser finished with 1 verified, 1 error

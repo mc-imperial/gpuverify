@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--gridDim=1 --blockDim=512 --no-inline
 //Write by thread 200
 //Write by thread 15

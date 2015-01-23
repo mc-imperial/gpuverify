@@ -527,14 +527,14 @@ class GPUVerifyInstance (object):
     # We do not return stderr, as it was redirected to stdout
     return stdout, return_code
 
-  def RunTool(self,ToolName, Command):
+  def runTool(self, ToolName, Command):
     """ Returns a triple (succeeded, timeout, stdout) """
     assert ToolName in Tools
     if self.verbose:
       print("Running " + ToolName)
     try:
       start = timeit.default_timer()
-      stdout, returnCode = self.run(Command)
+      stdout, exitCode = self.run(Command)
       stdout = stdout.decode() # For python3, we get bytes not a str, so convert
       end = timeit.default_timer()
     except psutil.TimeoutExpired:
@@ -546,77 +546,90 @@ class GPUVerifyInstance (object):
       print(pprint.pformat(Command))
       raise
     self.timing[ToolName] = end-start
-    return (returnCode == 0, False, stdout)
+    return (exitCode, False, stdout)
+
+  def interpretBoogieDriverCrucherExitCode(self, ExitCode):
+    assert ExitCode != 0
+    # See GPUVerifyLib/ToolExitCodes.cs
+    if ExitCode == 3:
+      # A verification error report will be emitted
+      return ErrorCodes.NOT_ALL_VERIFIED
+    elif ExitCode == 2:
+      return ErrorCodes.BOOGIE_OTHER_ERROR
+    elif ExitCode == 1:
+      # Something went very wrong internally
+      return ErrorCodes.BOOGIE_INTERNAL_ERROR
+    else:
+      assert false
 
   def invoke (self):
     """ Returns (returncode, outstring) """
-
-    timeout = False
-    success = True
     stdout = ""
 
     if not self.skip["clang"]:
-      success, timeout, stdout = self.RunTool("clang",
+      success, timeout, stdout = self.runTool("clang",
               [gvfindtools.llvmBinDir + "/clang"] +
               self.clangOptions +
               [("-I" + str(o)) for o in self.includes] +
               [("-D" + str(o)) for o in self.defines])
 
-    if timeout: return ErrorCodes.TIMEOUT, stdout
-    if not success: return ErrorCodes.CLANG_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT, stdout
+      if success != 0: return ErrorCodes.CLANG_ERROR, stdout
 
     if not self.skip["opt"]:
-      success, timeout, stdout = self.RunTool("opt",
+      success, timeout, stdout = self.runTool("opt",
               [gvfindtools.llvmBinDir + "/opt"] +
               self.optOptions)
 
-    if timeout: return ErrorCodes.TIMEOUT, stdout
-    if not success: return ErrorCodes.OPT_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT, stdout
+      if success != 0: return ErrorCodes.OPT_ERROR, stdout
 
-    if self.stop == 'opt': return 0, stdout
+    if self.stop == 'opt': return ErrorCodes.SUCCESS, stdout
 
     if not self.skip["bugle"]:
-      success, timeout, stdout = self.RunTool("bugle",
+      success, timeout, stdout = self.runTool("bugle",
               [gvfindtools.bugleBinDir + "/bugle"] +
               self.bugleOptions)
 
-    if timeout: return ErrorCodes.TIMEOUT, stdout
-    if not success: return ErrorCodes.BUGLE_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT, stdout
+      if success != 0: return ErrorCodes.BUGLE_ERROR, stdout
 
-    if self.stop == 'bugle': return 0, stdout
+    if self.stop == 'bugle': return ErrorCodes.SUCCESS, stdout
 
     if not self.skip["vcgen"]:
-      success, timeout, stdout = self.RunTool("gpuverifyvcgen",
+      success, timeout, stdout = self.runTool("gpuverifyvcgen",
               self.mono +
               [gvfindtools.gpuVerifyBinDir + "/GPUVerifyVCGen.exe"] +
               self.vcgenOptions)
 
-    if timeout: return ErrorCodes.TIMEOUT, stdout
-    if not success: return ErrorCodes.GPUVERIFYVCGEN_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT, stdout
+      if success != 0: return ErrorCodes.GPUVERIFYVCGEN_ERROR, stdout
 
-    if self.stop == 'vcgen': return 0, stdout
+    if self.stop == 'vcgen': return ErrorCodes.SUCCESS, stdout
 
     if not self.skip["cruncher"]:
-      success, timeout, stdout = self.RunTool("gpuverifycruncher",
+      success, timeout, stdout = self.runTool("gpuverifycruncher",
                 self.mono +
                 [gvfindtools.gpuVerifyBinDir + os.sep + "GPUVerifyCruncher.exe"] +
                 self.cruncherOptions)
 
-    if timeout: return ErrorCodes.TIMEOUT, stdout
-    if not success: return ErrorCodes.BOOGIE_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT, stdout
+      if success != 0:
+        return self.interpretBoogieDriverCrucherExitCode(success), stdout
 
-    if self.stop == 'cruncher': return 0, stdout
+    if self.stop == 'cruncher': return ErrorCodes.SUCCESS, stdout
 
-    success, timeout, stdout = self.RunTool("gpuverifyboogiedriver",
+    success, timeout, stdout = self.runTool("gpuverifyboogiedriver",
             self.mono +
             [gvfindtools.gpuVerifyBinDir + "/GPUVerifyBoogieDriver.exe"] +
             self.boogieOptions)
 
     if timeout: return ErrorCodes.TIMEOUT, stdout
-    if not success: return ErrorCodes.BOOGIE_ERROR, stdout
+    if success != 0:
+      return self.interpretBoogieDriverCrucherExitCode(success), stdout
 
     if self.silent:
-      return 0, ""
+      return ErrorCodes.SUCCESS, ""
 
     string_builder = io.StringIO()
 
@@ -637,7 +650,7 @@ class GPUVerifyInstance (object):
         print("- no out-of-bounds array accesses (for arrays where size information is available)", file=string_builder)
       print("(but absolutely no warranty provided)", file=string_builder)
 
-    return 0, string_builder.getvalue()
+    return ErrorCodes.SUCCESS, string_builder.getvalue()
 
   def showTiming(self, exitCode):
     """ Returns the timing as a string """

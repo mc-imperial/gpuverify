@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--blockDim=2 --gridDim=1 --no-inline
 //Write by thread .+kernel\.cu:8:21:
 

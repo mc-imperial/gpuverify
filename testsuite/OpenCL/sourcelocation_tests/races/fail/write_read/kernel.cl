@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=1024 --num_groups=1024 --no-inline
 //[\s]*kernel.cl:[\s]+error:[\s]+possible write-read race on a\[3]
 //Read by work item[\s]+[\d]+[\s]+in work group[\s]+[\d]+.+kernel.cl:13:(24|3):[\s]+b\[get_local_id\(0\)] = a\[3];

@@ -1,4 +1,4 @@
-//xfail:BOOGIE_ERROR
+//xfail:NOT_ALL_VERIFIED
 //--local_size=16 --num_groups=2 --no-inline
 //kernel.cl: error: possible read-write race on p
 //Write by work item [\d]+ in work group \d, .+kernel.cl:18:(5|7)

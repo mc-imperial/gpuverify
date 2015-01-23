@@ -28,14 +28,14 @@ namespace GPUVerify
         CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
 
         if (!CommandLineOptions.Clo.Parse(args)) {
-          Environment.Exit(1);
+          Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
         }
 
         ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParsePipelineString();
 
         if (CommandLineOptions.Clo.Files.Count == 0) {
           GVUtil.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
-          Environment.Exit(1);
+          Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
         }
         if (!CommandLineOptions.Clo.DontShowLogo) {
           Console.WriteLine(CommandLineOptions.Clo.Version);
@@ -60,7 +60,7 @@ namespace GPUVerify
           }
           if (extension != ".bpl") {
             GVUtil.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
-            Environment.Exit(1);
+            Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
           }
         }
 
@@ -75,7 +75,7 @@ namespace GPUVerify
 
         GVUtil.IO.DumpExceptionInformation(e);
 
-        Environment.Exit(1);
+        Environment.Exit((int)ToolExitCodes.INTERNAL_ERROR);
       }
     }
 
