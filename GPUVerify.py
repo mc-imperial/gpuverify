@@ -814,15 +814,15 @@ def do_json_mode(args):
       kernel_args.defines += kernel.compiler_flags.defines
       kernel_args.includes += kernel.compiler_flags.includes
     if "kernel_arguments" in kernel:
-      scalar_args = \
-        [arg for arg in kernel.kernel_arguments if arg.type == "scalar"]
-      scalar_vals = \
-        [arg.value if "value" in arg else "*" for arg in scalar_args]
+      scalar_args = [arg for arg in kernel.kernel_arguments \
+                       if arg.type == "scalar" or arg.type == "sampler"]
+      scalar_vals = [arg.value if "value" in arg else "*" \
+                       for arg in scalar_args]
       kernel_args.kernel_args = [[kernel.entry_point] + scalar_vals]
-      array_args = \
-        [arg for arg in kernel.kernel_arguments if arg.type == "array"]
-      array_sizes = \
-        [arg.size if "size" in arg else "*" for arg in array_args]
+      array_args = [arg for arg in kernel.kernel_arguments \
+                      if arg.type == "array" or arg.type == "image"]
+      array_sizes = [arg.size if "size" in arg else "*" \
+                       for arg in array_args]
       kernel_args.kernel_arrays = [[kernel.entry_point] + array_sizes]
     _, out = main(kernel_args)
     sys.stdout.write(out)
