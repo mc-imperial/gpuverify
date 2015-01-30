@@ -560,7 +560,7 @@ class GPUVerifyInstance (object):
       # Something went very wrong internally
       return ErrorCodes.BOOGIE_INTERNAL_ERROR
     else:
-      assert false
+      assert False
 
   def invoke (self):
     """ Returns (returncode, outstring) """
