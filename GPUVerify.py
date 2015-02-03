@@ -282,6 +282,10 @@ class GPUVerifyInstance (object):
         else:
           defines.append("__NUM_GROUPS_" + str(index) + "=" + str(value))
 
+      if args.global_offset:
+        for index, value in enumerate(args.global_offset):
+          defines.append("__GLOBAL_OFFSET_" + str(index) + "=" + str(value))
+
     if args.only_requires:
       defines.append("ONLY_REQUIRES")
 
@@ -824,6 +828,7 @@ def do_json_mode(args):
       array_sizes = [arg.size if "size" in arg else "*" \
                        for arg in array_args]
       kernel_args.kernel_arrays = [[kernel.entry_point] + array_sizes]
+    print("Verifying " + kernel.entry_point)
     _, out = main(kernel_args)
     sys.stdout.write(out)
 

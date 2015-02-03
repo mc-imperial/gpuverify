@@ -88,7 +88,10 @@ namespace GPUVerify
     }
 
     public LiteralExpr GetLiteral(BigInteger Value, int Width) {
-      return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(Value), Width);
+      var V = Value;
+      if (V < 0)
+        V += BigInteger.Pow(2, Width);
+      return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(V), Width);
     }
 
     private Expr MakeBitVectorBinaryBoolean(string suffix, string smtName, Expr lhs, Expr rhs)

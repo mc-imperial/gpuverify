@@ -168,7 +168,7 @@ def __process_opencl_entry(data):
   for key, value in list(data.items()):
     if key in ["language", "kernel_file", "entry_point"]:
       __check_string(value, key)
-    elif key in ["local_size", "global_size"]:
+    elif key in ["local_size", "global_size", "global_offset"]:
       __check_array_of_positive_numbers(value, key)
     elif key == "compiler_flags":
       __check_string(value, key)
@@ -199,12 +199,25 @@ def __process_kernel_entry(data):
   else:
     raise JSONError("'language' value needs to be 'OpenCL'")
 
+def __filter_duplicates(data):
+  new_data = []
+
+  for i in data:
+    if i not in new_data:
+      new_data.append(i)
+
+  return new_data
+
 def __process_json(data):
   if not type(data) is list:
     raise JSONError("Expecting an array of kernel invocation objects")
 
+  data = __filter_duplicates(data)
+
   for i in data:
     __process_kernel_entry(i)
+
+  return data
 
 def json_load(json_file):
   """Load GPUVerify invocation data from json_file object.
@@ -220,7 +233,7 @@ def json_load(json_file):
   """
   try:
     data = json.load(json_file)
-    __process_json(data)
+    data = __process_json(data)
     return [__ldict(kernel) for kernel in data]
   except ValueError as e:
     raise JSONError(str(e))

@@ -66,6 +66,27 @@ def __dimensions(string):
 
   return values
 
+def __offsets(string):
+  string = string.strip()
+
+  if len(string) == 0:
+    raise argparse.ArgumentTypeError("offsets must be vectors of length 1-3")
+
+  string = string[1:-1] if string[0] == "[" and string[-1] == "]" else string
+
+  try:
+    values = [int(x) for x in string.split(",")]
+  except ValueError:
+    raise argparse.ArgumentTypeError("an offset must be a positive integer")
+
+  if len(values) == 0 or len(values) > 3:
+    raise argparse.ArgumentTypeError("offsets must be vectors of length 1-3")
+
+  if len([x for x in values if x >= 0]) < len(values):
+    raise argparse.ArgumentTypeError("an offset must be a positive integer")
+
+  return values
+
 def __kernel_arguments(string):
   values = string.strip().split(",")
 
@@ -114,10 +135,10 @@ def __build_parser(default_solver):
   mode.add_argument("--verify", dest = 'mode', action = 'store_const',
     const = AnalysisMode.VERIFY, help = "Run tool in verification mode")
 
-  general.add_argument("--loop-unwind=", type = __non_negative, metavar= "X",
+  general.add_argument("--loop-unwind=", type = __non_negative, metavar = "X",
     help = "Explore traces that pass through at most X loop heads. Implies \
       --findbugs")
-  
+
   general.add_argument("--check-array-bounds", action = 'store_true',
     help = "Enable checking for any array out-of-bounds access")
 
@@ -169,6 +190,9 @@ def __build_parser(default_solver):
   numg.add_argument("--num_groups=", dest = 'num_groups', type = __dimensions,
     help = "Specify the dimensions of a grid of OpenCL work-groups. Mutually \
     exclusive with --global_size")
+  sizing.add_argument("--global_offset=", dest = 'global_offset',
+    type = __offsets, help = "Specify the OpenCL global offset. This \
+    corresponds to the 'global_offset' parameter of 'clEnqueueNDRangeKernel'.")
 
   lsize.add_argument("--blockDim=", dest = 'group_size', type = __dimensions,
     help = "Specify the CUDA thread block size")
@@ -368,6 +392,16 @@ def __get_num_groups(args, parser):
 
   return None
 
+def __check_global_offset(args, parser):
+  if not args.global_offset:
+    return
+  elif args.source_language == SourceLanguage.CUDA:
+    parser.error("Cannot specify --global_offset for CUDA kernels")
+  elif len(args.global_offset) != len(args.num_groups):
+    parser.error("Dimensions of global offset and global size must match")
+  else:
+    return
+
 def parse_arguments(argv, default_solver, llvm_bin_dir):
   parser = __build_parser(default_solver)
   args = __to_ldict(parser.parse_args(argv))
@@ -392,7 +426,8 @@ def parse_arguments(argv, default_solver, llvm_bin_dir):
     return args
 
   if args.json:
-    if args.group_size or args.num_groups or args.global_size:
+    if args.group_size or args.num_groups or \
+       args.global_size or args.global_offset:
       parser.error("Sizing arguments incompatible with JSON mode")
     if not args.kernel:
       parser.error("Must provide JSON file in JSON mode")
@@ -412,5 +447,6 @@ def parse_arguments(argv, default_solver, llvm_bin_dir):
     args.source_language = __get_source_language(args, parser, llvm_bin_dir)
 
   args.num_groups = __get_num_groups(args, parser)
+  __check_global_offset(args, parser)
 
   return args
