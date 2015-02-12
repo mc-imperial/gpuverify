@@ -24,6 +24,7 @@ namespace GPUVerify
         private List<Variable> ConstantVariables;
         private List<Variable> PrivateVariables;
         private List<Variable> ReadOnlyNonLocalVariables;
+        private List<Variable> AtomicallyAccessedVariables;
 
         public KernelArrayInfoLists()
         {
@@ -32,6 +33,7 @@ namespace GPUVerify
             ConstantVariables = new List<Variable>();
             PrivateVariables = new List<Variable>();
             ReadOnlyNonLocalVariables = new List<Variable>();
+            AtomicallyAccessedVariables = new List<Variable>();
         }
 
         public ICollection<Variable> getGlobalArrays()
@@ -65,6 +67,11 @@ namespace GPUVerify
         public ICollection<Variable> getReadOnlyNonLocalArrays()
         {
             return ReadOnlyNonLocalVariables;
+        }
+
+        public ICollection<Variable> getAtomicallyAccessedArrays()
+        {
+          return AtomicallyAccessedVariables;
         }
 
         public ICollection<Variable> getAllArrays()

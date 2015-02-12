@@ -103,6 +103,16 @@ namespace GPUVerify {
 
         if (c is CallCmd) {
           var call = c as CallCmd;
+
+          if (QKeyValue.FindBoolAttribute(call.Attributes, "atomic")) {
+            // Discard the call
+            Debug.Assert(call.Ins.Count >= 1);
+            var IE = call.Ins[0] as IdentifierExpr;
+            Debug.Assert(IE != null);
+            Debug.Assert(verifier.ArrayModelledAdversarially(IE.Decl));
+            continue;
+          }
+
           for(int i = 0; i < call.Ins.Count; i++) {
             ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
             rc.Visit(call.Ins[i]);

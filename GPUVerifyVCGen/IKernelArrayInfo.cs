@@ -33,6 +33,8 @@ namespace GPUVerify
 
         ICollection<Variable> getReadOnlyNonLocalArrays();
 
+        ICollection<Variable> getAtomicallyAccessedArrays();
+
         bool ContainsNonPrivateArray(Variable v);
 
         bool ContainsPrivateArray(Variable v);

@@ -419,6 +419,21 @@ namespace GPUVerify
                 }
             }
 
+            foreach (var c in Program.Blocks().SelectMany(Item => Item.Cmds).OfType<CallCmd>())
+            {
+              if (QKeyValue.FindBoolAttribute(c.Attributes, "atomic"))
+              {
+                Debug.Assert(c.Ins.Count() >= 1);
+                var IE = c.Ins[0] as IdentifierExpr;
+                Debug.Assert(IE != null);
+                Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(IE.Decl));
+                if (!KernelArrayInfo.getAtomicallyAccessedArrays().Contains(IE.Decl))
+                {
+                  KernelArrayInfo.getAtomicallyAccessedArrays().Add(IE.Decl);
+                }
+              }
+            }
+
             MaybeCreateAttributedConst(LOCAL_ID_X_STRING, ref _X);
             MaybeCreateAttributedConst(LOCAL_ID_Y_STRING, ref _Y);
             MaybeCreateAttributedConst(LOCAL_ID_Z_STRING, ref _Z);
@@ -657,6 +672,11 @@ namespace GPUVerify
 
             EmitProgram(outputFilename);
 
+        }
+
+        private void RemoveAtomicCalls()
+        {
+          throw new NotImplementedException();
         }
 
         private void PropagateProcedureWideInvariants() {
@@ -2021,6 +2041,10 @@ namespace GPUVerify
             {
                 return false;
             }
+            if (KernelArrayInfo.getAtomicallyAccessedArrays().Contains(v))
+            {
+              return true;
+            }
             return !arrayControlFlowAnalyser.MayAffectControlFlow(v.Name);
         }
 
@@ -2188,13 +2212,10 @@ namespace GPUVerify
         // Technically unsound due to machine integers, but unlikely in practice due to, e.g., needing to callng atomic_inc >2^32 times
         private void RefineAtomicAbstraction()
         {
-          var implementations = Program.TopLevelDeclarations.Where(d => d is Implementation).Select(d => d as Implementation);
-          var blocks = implementations.SelectMany(impl => impl.Blocks);
-
           // First, pass over the the program looking for uses of atomics, recording (Array,Function) pairs
           Dictionary<Variable,HashSet<string>> funcs_used = new Dictionary<Variable,HashSet<string>> ();
           Dictionary<Variable,HashSet<Expr>> args_used = new Dictionary<Variable,HashSet<Expr>> ();
-          foreach (Block b in blocks)
+          foreach (Block b in Program.Blocks())
             foreach (Cmd c in b.Cmds)
               if (c is CallCmd)
               {
@@ -2227,7 +2248,7 @@ namespace GPUVerify
             if (pair.Value.Count == 1 && monotonics.Any(x => pair.Value.ToArray()[0].StartsWith(x)) && (!args_used.ContainsKey(pair.Key) || (args_used[pair.Key].Count == 1 &&
                   args_used[pair.Key].All(arg => (arg is LiteralExpr) && ((arg as LiteralExpr).Val is BvConst) && ((arg as LiteralExpr).Val as BvConst).Value != BigNum.FromInt(0)))))
             {
-              foreach (Block b in blocks)
+              foreach (Block b in Program.Blocks())
               {
                 List<Cmd> result = new List<Cmd>();
                 foreach (Cmd c in b.Cmds)
