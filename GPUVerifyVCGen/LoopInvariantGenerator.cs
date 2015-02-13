@@ -204,7 +204,8 @@ namespace GPUVerify
       !formals.Contains(x.Name) &&
       modset.Contains(x.Name) &&
       !verifier.uniformityAnalyser.IsUniform(impl.Name, x.Name) &&
-      x.TypedIdent.Type.Equals(Microsoft.Boogie.Type.GetBvType(verifier.size_t_bits))
+      x.TypedIdent.Type.IsBv &&
+      (x.TypedIdent.Type.BvBits % 8 == 0)
      )
     );
    }
@@ -216,9 +217,6 @@ namespace GPUVerify
      assignments.Add(c);
     }
    }
-   // TODO: this is hard-coded to be bv32.  Is this safe, and if so, could it
-   // be more general?
-   Function otherbv32 = verifier.FindOrCreateOther(32);
    foreach (var v in guardVars)
    {
     foreach (AssignCmd c in assignments)
@@ -236,7 +234,8 @@ namespace GPUVerify
        var sub = verifier.IntRep.MakeSub(new IdentifierExpr(Token.NoToken, v), rhs as Expr);
        List<Expr> args = new List<Expr>();
        args.Add(sub);
-       var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv32), args));
+       Function otherbv = verifier.FindOrCreateOther(sub.Type.BvBits);
+       var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv), args));
        verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform");
       }
      }
@@ -251,16 +250,14 @@ namespace GPUVerify
 
    var formals = impl.InParams.Select(x => x.Name);
    var modset = GetModifiedVariables(region).Select(x => x.Name);
+   Regex pattern = new Regex(@"\bBV\d*_((SLE)|(SLT)|(SGE)|(SGT))\b");
    foreach (var v in partitionVars)
    {
     var expr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
     if (!(expr is NAryExpr))
      continue;
     var nary = expr as NAryExpr;
-    if (!(nary.Fun.FunctionName.Equals("BV32_SLE") ||
-        nary.Fun.FunctionName.Equals("BV32_SLT") ||
-        nary.Fun.FunctionName.Equals("BV32_SGE") ||
-        nary.Fun.FunctionName.Equals("BV32_SGT")))
+    if (!pattern.Match(nary.Fun.FunctionName).Success)
      continue;
     var visitor = new VariablesOccurringInExpressionVisitor();
     visitor.Visit(nary);
