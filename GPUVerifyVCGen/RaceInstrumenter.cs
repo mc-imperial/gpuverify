@@ -462,7 +462,7 @@ namespace GPUVerify {
         // and upper bound for the access. i.e.,
         //   constant <= access <= constant[group-id+1/group-id]
         Variable groupId = groupIds.Single();
-        Expr groupIdPlusOne = verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), verifier.IntRep.GetLiteral(1, verifier.size_t_bits));
+        Expr groupIdPlusOne = verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), verifier.IntRep.GetLiteral(1, verifier.id_size_bits));
         Dictionary<Variable, Expr> substs = new Dictionary<Variable, Expr>();
         substs.Add(groupId, groupIdPlusOne);
         Substitution s = Substituter.SubstitutionFromHashtable(substs);
@@ -617,10 +617,6 @@ namespace GPUVerify {
         }
       }
 
-      if (expr is NAryExpr && (expr as NAryExpr).Fun.FunctionName.Equals("bv32_to_bool")) {
-        expr = (expr as NAryExpr).Args[0];
-      }
-
       if (!(expr is NAryExpr)) {
         return new KeyValuePair<IdentifierExpr, Expr>(null, null);
       }
@@ -628,9 +624,7 @@ namespace GPUVerify {
       NAryExpr nary = expr as NAryExpr;
 
       if (!guardHasOuterNot) {
-        if (!(nary.Fun.FunctionName.Equals("BV32_C_LT") || 
-              nary.Fun.FunctionName.Equals("BV32_LT") || 
-              nary.Fun.FunctionName.Equals("BV32_ULT") ||
+        if (!(nary.Fun.FunctionName.Equals("BV32_ULT") ||
               nary.Fun.FunctionName.Equals("BV32_SLT")
              )) {
           return new KeyValuePair<IdentifierExpr, Expr>(null, null);
@@ -646,9 +640,7 @@ namespace GPUVerify {
 
         return new KeyValuePair<IdentifierExpr, Expr>(nary.Args[0] as IdentifierExpr, nary.Args[1]);
       } else {
-        if (!(nary.Fun.FunctionName.Equals("BV32_C_GT") ||
-              nary.Fun.FunctionName.Equals("BV32_GT") ||
-              nary.Fun.FunctionName.Equals("BV32_UGT") ||
+        if (!(nary.Fun.FunctionName.Equals("BV32_UGT") ||
               nary.Fun.FunctionName.Equals("BV32_SGT")
              )) {
           return new KeyValuePair<IdentifierExpr, Expr>(null, null);

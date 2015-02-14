@@ -2123,7 +2123,7 @@ namespace GPUVerify
         {
             e = varDefAnalyses[impl].SubstDefinitions(e, impl.Name);
 
-            if (e is NAryExpr && (e as NAryExpr).Fun.FunctionName.Equals("BV" + size_t_bits + "_ADD"))
+            if (e is NAryExpr && (e as NAryExpr).Fun.FunctionName.Equals("BV" + id_size_bits + "_ADD"))
             {
                 NAryExpr nary = e as NAryExpr;
                 Constant localId = GetLocalIdConst(dim);
@@ -2144,7 +2144,7 @@ namespace GPUVerify
 
         private bool IsGroupIdTimesGroupSize(Expr expr, int dim)
         {
-            if (expr is NAryExpr && (expr as NAryExpr).Fun.FunctionName.Equals("BV" + size_t_bits + "_MUL"))
+            if (expr is NAryExpr && (expr as NAryExpr).Fun.FunctionName.Equals("BV" + id_size_bits + "_MUL"))
             {
                 NAryExpr innerNary = expr as NAryExpr;
 
