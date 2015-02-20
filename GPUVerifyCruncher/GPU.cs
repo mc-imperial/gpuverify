@@ -20,6 +20,7 @@ namespace GPUVerify
 	{
 		public Dictionary<DIMENSION, int> gridDim  = new Dictionary<DIMENSION, int>();
 		public Dictionary<DIMENSION, int> blockDim = new Dictionary<DIMENSION, int>();
+		public Dictionary<DIMENSION, int> gridOffset = new Dictionary<DIMENSION, int>();
 		
 		public GPU ()
 		{
@@ -29,6 +30,9 @@ namespace GPUVerify
 			blockDim[DIMENSION.X] = -1;
 			blockDim[DIMENSION.Y] = -1;
 			blockDim[DIMENSION.Z] = -1;
+			gridOffset[DIMENSION.X] = -1;
+			gridOffset[DIMENSION.Y] = -1;
+			gridOffset[DIMENSION.Z] = -1;
 		}
 		
 		public void SetBlockDim (Tuple<int, int, int> blockDim)
@@ -45,12 +49,20 @@ namespace GPUVerify
 			this.gridDim[DIMENSION.Z] = gridDim.Item3;
 		}
 		
+		public void SetGridOffset (Tuple<int, int, int> gridOffset)
+		{
+			this.gridOffset[DIMENSION.X] = gridOffset.Item1;
+			this.gridOffset[DIMENSION.Y] = gridOffset.Item2;
+			this.gridOffset[DIMENSION.Z] = gridOffset.Item3;
+		}
+		
 		public override string ToString()
 		{
 			StringBuilder builder = new StringBuilder();
 			builder.Append(String.Format("blockDim=[{0},{1},{2}]", blockDim[DIMENSION.X], blockDim[DIMENSION.Y], blockDim[DIMENSION.Z]));
 			builder.Append("\n");
 			builder.Append(String.Format("gridDim =[{0},{1},{2}]", gridDim[DIMENSION.X], gridDim[DIMENSION.Y], gridDim[DIMENSION.Z]));
+			builder.Append(String.Format("gridOffset =[{0},{1},{2}]", gridOffset[DIMENSION.X], gridOffset[DIMENSION.Y], gridOffset[DIMENSION.Z]));
 			return builder.ToString();
 		}
 		
@@ -67,6 +79,10 @@ namespace GPUVerify
 		public static bool IsGridBlockSizeName (string name)
 		{
 			return Regex.IsMatch(name, "num_groups_[x|y|z]", RegexOptions.IgnoreCase);
+		}
+		public static bool IsGridOffsetName (string name)
+		{
+			return Regex.IsMatch(name, "global_offset_[x|y|z]", RegexOptions.IgnoreCase);
 		}
 	}
 }

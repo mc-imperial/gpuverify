@@ -478,8 +478,23 @@ namespace GPUVerify
                 gpu.gridDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
                 Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Z]));
               }
+              else if (left.symbol == "global_offset_x")
+              {
+                gpu.gridOffset[DIMENSION.X] = right.evaluation.ConvertToInt32();
+                Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.X]));
+              }
+              else if (left.symbol == "global_offset_y")
+              {
+                gpu.gridOffset[DIMENSION.Y] = right.evaluation.ConvertToInt32();
+                Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Y]));
+              }
+              else if (left.symbol == "global_offset_z")
+              {
+                gpu.gridOffset[DIMENSION.Z] = right.evaluation.ConvertToInt32();
+                Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Z]));
+              }
               else
-                throw new UnhandledException("Unhandled GPU axiom: " + axiom.ToString());
+                throw new UnhandledException("Unhandled GPU axiom: " + axiom.Expr.ToString());
             }
           }
           foreach (Node child in node.GetChildren())
