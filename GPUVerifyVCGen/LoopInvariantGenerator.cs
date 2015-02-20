@@ -74,18 +74,18 @@ namespace GPUVerify
     ControlDependence.TransitiveClosure();
     CFG.ComputeLoops();
 
-    Expr CombinedGuard = null;
+    List<Expr> Guards = new List<Expr>();
     foreach(var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
       foreach(var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item))) {
         var Guard = MaybeExtractGuard(verifier, impl, succ);
         if(Guard != null) {
-          CombinedGuard = CombinedGuard == null ? Guard : Expr.And(CombinedGuard, Guard);
+          Guards.Add(Guard);
           break;
         }
       }
     }
 
-    if(CombinedGuard == null) {
+    if(Guards.Count == 0) {
       return;
     }
 
@@ -95,15 +95,19 @@ namespace GPUVerify
 
     foreach(var v in ReadVariables.Where(Item => verifier.KernelArrayInfo.getGroupSharedArrays().Contains(Item)
       && !verifier.KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(Item))) {
-      verifier.AddCandidateInvariant(region,
-        Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.READ)),
-                  CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
+      foreach(var g in Guards) {
+        verifier.AddCandidateInvariant(region,
+          Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.READ)),
+                    g), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
+      }
     }
 
     foreach(var v in WrittenVariables.Where(Item => verifier.KernelArrayInfo.getGroupSharedArrays().Contains(Item))) {
-      verifier.AddCandidateInvariant(region,
-        Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
-                  CombinedGuard), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
+      foreach(var g in Guards) {
+        verifier.AddCandidateInvariant(region,
+          Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
+                    g), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
+      }
     }
 
   }
