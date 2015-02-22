@@ -153,10 +153,32 @@ namespace GPUVerify
       }
     }
 
+    if(GuardEnclosingLoop != null) {
+      verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Ident(verifier.FindOrCreateEnabledVariable()), GuardEnclosingLoop), "conditionsImpliedByEnabledness");
+    }
+
+    var DualCFG = CFG.Dual(new Block());
+    Block LoopConditionDominator = header;
+
+    // The dominator might have multiple successors
+    while (CFG.Successors(LoopConditionDominator).Count(Item => LoopNodes.Contains(Item)) > 1) {
+      // Find the immediate post-dominator of the successors
+      Block block = null;
+      foreach(var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item))) {
+        if (block == null)
+          block = succ;
+        else
+          block = DualCFG.DominatorMap.LeastCommonAncestor(block, succ);
+      }
+      // Use the immediate post-dominator
+      LoopConditionDominator = block;
+    }
+
     Expr GuardIncludingLoopCondition = null;
-    foreach(var succ in CFG.Successors(header).Where(Item => LoopNodes.Contains(Item))) {
+    foreach(var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item))) {
       var Guard = MaybeExtractGuard(verifier, impl, succ);
       if(Guard != null) {
+        // There is at most one successor, so it's safe not use use GuardIncludingLoopCondition ont the rhs
         GuardIncludingLoopCondition = GuardEnclosingLoop == null ? Guard : Expr.And(GuardEnclosingLoop, Guard);
         break;
       }
@@ -166,19 +188,22 @@ namespace GPUVerify
       verifier.AddCandidateInvariant(region, Expr.Imp(GuardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", "do_not_predicate");
     }
 
-    if(GuardEnclosingLoop != null) {
-      verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Ident(verifier.FindOrCreateEnabledVariable()), GuardEnclosingLoop), "conditionsImpliedByEnabledness");
-    }
-
   }
 
 
   private static Expr MaybeExtractGuard(GPUVerifier verifier, Implementation impl, Block b) {
-    if(b.Cmds.Count() > 0) {
+    if (b.Cmds.Count() > 0) {
       var a = b.Cmds[0] as AssumeCmd;
-      if(a != null && QKeyValue.FindBoolAttribute(a.Attributes, "partition")) {
-        if(a.Expr is IdentifierExpr) {
+      if (a != null && QKeyValue.FindBoolAttribute(a.Attributes, "partition")) {
+        if (a.Expr is IdentifierExpr) {
           return verifier.varDefAnalyses[impl].DefOfVariableName(((IdentifierExpr)a.Expr).Name);
+        } else if(a.Expr is NAryExpr) {
+          var nary = (NAryExpr)a.Expr;
+          if (nary.Fun is UnaryOperator &&
+              (nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&
+              nary.Args[0] is IdentifierExpr) {
+            return Expr.Not(verifier.varDefAnalyses[impl].DefOfVariableName(((IdentifierExpr)(a.Expr as NAryExpr).Args[0]).Name));
+          }
         }
       }
     }
@@ -242,7 +267,7 @@ namespace GPUVerify
        var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv), args));
        verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform");
        inv = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), inv);
-       verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniformSameGroup");
+       verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform");
       }
      }
     }
@@ -535,7 +560,7 @@ namespace GPUVerify
 
   private void AddPredicatedEqualityCandidateInvariant(IRegion region, string LoopPredicate, Variable v)
   {
-   verifier.AddCandidateInvariant(region, Expr.Imp(
+   var inv = Expr.Imp(
     Expr.And(
      new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$1", Microsoft.Boogie.Type.Int))),
      new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$2", Microsoft.Boogie.Type.Int)))
@@ -543,7 +568,10 @@ namespace GPUVerify
     Expr.Eq(
      new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable)),
      new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable))
-    )), "predicatedEquality");
+    ));
+
+   verifier.AddCandidateInvariant(region, inv, "predicatedEquality");
+   verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), inv), "predicatedEquality");
   }
 
   private Dictionary<string, int> GetAssignmentCounts(Implementation impl)
