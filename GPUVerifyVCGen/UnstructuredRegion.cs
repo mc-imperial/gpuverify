@@ -41,14 +41,39 @@ class UnstructuredRegion : IRegion {
 
   public HashSet<Variable> PartitionVariablesOfHeader() {
     if (header == null) return new HashSet<Variable>();
+
     HashSet<Variable> partitionVars = new HashSet<Variable>();
     var visitor = new VariablesOccurringInExpressionVisitor();
-    foreach (Block b in blockGraph.Successors(header)) {
-      foreach (var assume in b.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) {
+    var dualBlockGraph = blockGraph.Dual(new Block());
+    Block LoopConditionDominator = header;
+
+    // The dominator might have multiple successors, traverse these
+    while (blockGraph.Successors(LoopConditionDominator).Count(Item => loopNodes[header].Contains(Item)) > 1) {
+      foreach (Block b in blockGraph.Successors(LoopConditionDominator)) {
+        foreach (var assume in b.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) {
           visitor.Visit(assume.Expr);
           partitionVars.UnionWith(visitor.GetVariables());
+        }
+      }
+      // Find the immediate post-dominator of the successors
+      Block block = null;
+      foreach(var succ in blockGraph.Successors(LoopConditionDominator).Where(Item => loopNodes[header].Contains(Item))) {
+        if (block == null)
+          block = succ;
+        else
+          block = dualBlockGraph.DominatorMap.LeastCommonAncestor(block, succ);
+      }
+      // Use the immediate post-dominator
+      LoopConditionDominator = block;
+    }
+
+    foreach (Block b in blockGraph.Successors(LoopConditionDominator)) {
+      foreach (var assume in b.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition"))) {
+        visitor.Visit(assume.Expr);
+        partitionVars.UnionWith(visitor.GetVariables());
       }
     }
+
     return partitionVars;
   }
 

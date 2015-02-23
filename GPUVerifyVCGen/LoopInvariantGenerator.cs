@@ -571,7 +571,6 @@ namespace GPUVerify
     ));
 
    verifier.AddCandidateInvariant(region, inv, "predicatedEquality");
-   verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), inv), "predicatedEquality");
   }
 
   private Dictionary<string, int> GetAssignmentCounts(Implementation impl)
