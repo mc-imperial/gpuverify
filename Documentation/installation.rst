@@ -100,6 +100,8 @@ On Linux/OSX, we recommend installing psutil with pip::
 
      $ pip install psutil
 
+On Windows, the 32-bit version of the `Visual C++ Redistributable for Visual Studio 2012 <http://www.microsoft.com/en-gb/download/details.aspx?id=30679>`_ is also required. The redistributable will already be installed if a recent version of Visula Studio is present. If not, a version can be obtained for free from Microsoft through the above link. Not having the redistributable installed may lead to crashes.
+
 Linux/OSX
 ^^^^^^^^^
 To install GPUVerify follow this guide in a bash shell.
