@@ -432,12 +432,16 @@ namespace GPUVerify
         if (assume.Expr is NAryExpr)
         {
          NAryExpr nary = assume.Expr as NAryExpr;
-         Debug.Assert((nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not);
-         // The assume is a not expression !E. Negating !E gives !!E which is logically equivalent to E.
-         // E is the expression that must hold for the conditional to bypass the loop
-         antecedentExprs.Add(controlNodeExprInfo[controlling].GetUnexpandedExpr());
+         if (nary.Fun is UnaryOperator &&
+              (nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&
+              nary.Args[0] is IdentifierExpr)
+         {
+           // The assume is a not expression !E. Negating !E gives !!E which is logically equivalent to E.
+           // E is the expression that must hold for the conditional to bypass the loop
+           antecedentExprs.Add(controlNodeExprInfo[controlling].GetUnexpandedExpr());
+         }
         }
-        else
+        else if (assume.Expr is IdentifierExpr)
         {
          Expr negatedExpr = Expr.Not(controlNodeExprInfo[controlling].GetUnexpandedExpr());
          antecedentExprs.Add(negatedExpr);
