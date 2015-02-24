@@ -266,8 +266,8 @@ namespace GPUVerify
        Function otherbv = verifier.FindOrCreateOther(sub.Type.BvBits);
        var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv), args));
        verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform");
-       inv = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), inv);
-       verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform");
+       var groupInv = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), inv);
+       verifier.AddCandidateInvariant(region, groupInv, "guardMinusInitialIsUniform");
       }
      }
     }

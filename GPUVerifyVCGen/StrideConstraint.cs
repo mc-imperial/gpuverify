@@ -99,9 +99,22 @@ class StrideConstraint {
     if (e is LiteralExpr)
       return new EqStrideConstraint(e);
 
+    var ee = e as BvExtractExpr;
+    if (ee != null) {
+      var sc = FromExpr(verifier, impl, ee.Bitvector);
+      var modsc = sc as ModStrideConstraint;
+      if (modsc != null) {
+        modsc.mod = new BvExtractExpr(Token.NoToken, modsc.mod, ee.End, ee.Start);
+        modsc.mod.Type = e.Type;
+        modsc.modEq = new BvExtractExpr(Token.NoToken, modsc.modEq, ee.End, ee.Start);
+        modsc.modEq.Type = e.Type;
+        return modsc;
+      } else {
+        return sc;
+      }
+    }
+
     var ie = e as IdentifierExpr;
-    if (e is BvExtractExpr)
-      ie = (e as BvExtractExpr).Bitvector as IdentifierExpr;
     if (ie != null) {
       if(GPUVerifier.IsConstantInCurrentRegion(ie))
         return new EqStrideConstraint(e);
@@ -109,15 +122,7 @@ class StrideConstraint {
       var rsa = verifier.reducedStrengthAnalyses[impl];
       var sc = rsa.GetStrideConstraint(ie.Decl.Name);
       if (sc == null)
-        sc = Bottom(verifier, e);
-      if (sc is ModStrideConstraint && e is BvExtractExpr) {
-        var extract = e as BvExtractExpr;
-        var modsc = sc as ModStrideConstraint;
-        modsc.mod = new BvExtractExpr(Token.NoToken, modsc.mod, extract.End, extract.Start);
-        modsc.mod.Type = e.Type;
-        modsc.modEq = new BvExtractExpr(Token.NoToken, modsc.modEq, extract.End, extract.Start);
-        modsc.modEq.Type = e.Type;
-      }
+        return Bottom(verifier, e);
       return sc;
     }
 
