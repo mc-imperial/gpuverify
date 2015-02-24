@@ -303,7 +303,7 @@ namespace GPUVerify
    }
    foreach (var v in nonnegVars)
    {
-    int BVWidth = (v.TypedIdent.Type as BvType).Bits;
+    int BVWidth = v.TypedIdent.Type.BvBits;
     // REVISIT: really we only want to guess for /integer/ variables.
     if (BVWidth >= 8)
     {
@@ -404,7 +404,7 @@ namespace GPUVerify
     {
      // Loop headers are always control dependent on themselves. Ignore this control dependence
      // as we want to compute the set of basic blocks whose conditions lead to execution of the loop header
-     if (ctrlDep[block].Where(x => x == header).ToList().Count > 0)
+     if (ctrlDep[block].Count(x => x == header) > 0)
      {
        // If the header is control dependent on this block, remember the block
        controllingBlocks.Add(block);
