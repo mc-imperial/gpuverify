@@ -66,20 +66,14 @@ class ReducedStrengthAnalysis {
       var defs = multiDefMap[v];
       if (defs.Count != 2)
         continue;
-      bool def0IsConst, def1IsConst;
-      var def0 = varDefs.SubstDefinitions(defs[0].Item2, impl.Name, out def0IsConst);
-      var def1 = varDefs.SubstDefinitions(defs[1].Item2, impl.Name, out def1IsConst);
-      if (def0 == null) def0 = defs[0].Item2;
-      if (def1 == null) def1 = defs[1].Item2;
       if (defs[0].Item1 == null && defs[1].Item1 == null)
         continue;
-      var visitor0 = new VariablesOccurringInExpressionVisitor();
-      visitor0.VisitExpr(def0);
-      var visitor1 = new VariablesOccurringInExpressionVisitor();
-      visitor1.VisitExpr(def1);
-      if (!visitor0.GetVariables().Contains(v) && visitor1.GetVariables().Contains(v)) {
+      bool def0ContainsV, def1ContainsV;
+      var def0 = varDefs.SubstDefinitions(defs[0].Item2, impl.Name, v, out def0ContainsV);
+      var def1 = varDefs.SubstDefinitions(defs[1].Item2, impl.Name, v, out def1ContainsV);
+      if (!def0ContainsV && def1ContainsV) {
         AddDefinitionPair(v, def0, def1, defs[1].Item1);
-      } else if (visitor0.GetVariables().Contains(v) && !visitor1.GetVariables().Contains(v)) {
+      } else if (def0ContainsV && !def1ContainsV) {
         AddDefinitionPair(v, def1, def0, defs[0].Item1);
       }
     }

@@ -228,6 +228,19 @@ class VariableDefinitionAnalysis {
     }
   }
 
+  public Expr SubstDefinitions(Expr e, string procName, Variable v, out bool containsV) {
+    Debug.Assert(e != null);
+    var sv = new SubstDefVisitor(this, procName);
+    Expr result = (Expr)sv.Visit(e.Clone());
+    // if no variable was substituted, work with the original expression
+    if (!sv.isSubstitutable)
+      result = (Expr)e.Clone();
+    var vv = new VariablesOccurringInExpressionVisitor();
+    vv.VisitExpr(result);
+    containsV = vv.GetVariables().Contains(v);
+    return result;
+  }
+
   public Expr SubstDefinitions(Expr e, string procName, out bool isConstant) {
     var v = new SubstDefVisitor(this, procName);
     Expr result = (Expr)v.Visit(e.Clone());
