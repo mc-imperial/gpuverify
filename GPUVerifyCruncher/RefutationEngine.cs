@@ -500,7 +500,7 @@ namespace Microsoft.Boogie
       }
 
       // If Houdini has been invoked then apply the invariants to the program.
-      // Otherwise return a non-zero exit code to stop the final verification step.
+      // Otherwise report success
       if (pipeline.runHoudini)
       {
         var counters = new KernelAnalyser.ResultCounter();
@@ -517,7 +517,7 @@ namespace Microsoft.Boogie
       }
       else
       {
-        ErrorCode = (int)ToolExitCodes.OTHER_ERROR;
+        ErrorCode = (int)ToolExitCodes.SUCCESS;
       }
 
       if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).WriteKilledInvariantsToFile)
