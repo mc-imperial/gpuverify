@@ -494,7 +494,9 @@ namespace GPUVerify
                 Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Z]));
               }
               else
-                throw new UnhandledException("Unhandled GPU axiom: " + axiom.Expr.ToString());
+              {
+                Memory.Store(left.symbol, right.evaluation);
+              }
             }
           }
           foreach (Node child in node.GetChildren())
@@ -631,9 +633,14 @@ namespace GPUVerify
             ScalarSymbolNode scalar = node as ScalarSymbolNode;
             if (scalar.type.IsBv)
             {
-              BvType bv = scalar.type as BvType;
-              if (bv.Bits == 1)
-                Memory.Store(scalar.symbol, BitVector.True);
+              if (scalar.type is BvType)
+              {
+                BvType bv = scalar.type as BvType;
+                if (bv.Bits == 1)
+                {
+                  Memory.Store(scalar.symbol, BitVector.True);
+                }
+              }
             }
             else if (scalar.type is BasicType)
             {
