@@ -2473,7 +2473,7 @@ namespace GPUVerify
         }
 
         private void AddLoopInvariantDisabledTags() {
-            foreach (var impl in Program.Implementations.ToList())
+            foreach (var impl in Program.Implementations)
             {
                 foreach (var region in RootRegion(impl).SubRegions())
                 {
