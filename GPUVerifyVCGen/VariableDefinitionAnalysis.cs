@@ -228,40 +228,6 @@ class VariableDefinitionAnalysis {
     }
   }
 
-  public Expr SubstDefinitions(Expr e, string procName, Variable v, out bool containsV) {
-    var sv = new SubstDefVisitor(this, procName);
-    Expr result = (Expr)sv.Visit(e.Clone());
-    // if no variable was substituted, work with the original expression
-    if (!sv.isSubstitutable)
-      result = (Expr)e.Clone();
-
-    // Check if the substituted expression constains v
-    containsV = false;
-    if (!sv.isConstant) {
-      // As the substituted expression can be very large, we first check
-      // the original expression while taking into account the substitution
-      VarDef def;
-      bool hasDef = namedDefMap.TryGetValue(v.Name, out def);
-      bool identity = false;
-      if (hasDef) {
-        var id = def.Item1 as IdentifierExpr;
-        identity = (id != null) && (id.Name == v.Name);
-      }
-
-      if (!hasDef || identity) {
-        var ev = new VariablesOccurringInExpressionVisitor();
-        ev.VisitExpr(e);
-        containsV = ev.GetVariables().Contains(v);
-      }
-      if (!containsV) {
-        var rv = new VariablesOccurringInExpressionVisitor();
-        rv.VisitExpr(result);
-        containsV = rv.GetVariables().Contains(v);
-      }
-    }
-    return result;
-  }
-
   public Expr SubstDefinitions(Expr e, string procName, out bool isConstant) {
     var v = new SubstDefVisitor(this, procName);
     Expr result = (Expr)v.Visit(e.Clone());

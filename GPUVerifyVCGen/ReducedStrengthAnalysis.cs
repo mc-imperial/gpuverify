@@ -66,14 +66,14 @@ class ReducedStrengthAnalysis {
       var defs = multiDefMap[v];
       if (defs.Count != 2)
         continue;
+      bool def0IsConst, def1IsConst;
+      var def0 = varDefs.SubstDefinitions(defs[0].Item2, impl.Name, out def0IsConst);
+      var def1 = varDefs.SubstDefinitions(defs[1].Item2, impl.Name, out def1IsConst);
       if (defs[0].Item1 == null && defs[1].Item1 == null)
         continue;
-      bool def0ContainsV, def1ContainsV;
-      var def0 = varDefs.SubstDefinitions(defs[0].Item2, impl.Name, v, out def0ContainsV);
-      var def1 = varDefs.SubstDefinitions(defs[1].Item2, impl.Name, v, out def1ContainsV);
-      if (!def0ContainsV && def1ContainsV) {
+      if (def0IsConst && !def1IsConst) {
         AddDefinitionPair(v, def0, def1, defs[1].Item1);
-      } else if (def0ContainsV && !def1ContainsV) {
+      } else if (!def0IsConst && def1IsConst) {
         AddDefinitionPair(v, def1, def0, defs[0].Item1);
       }
     }
@@ -137,17 +137,17 @@ class ReducedStrengthAnalysis {
     return new StrideForm(StrideForm.Kind.Bottom);
   }
 
-  private void AddDefinitionPair(Variable v, Expr nonVarDef, Expr varDef, object varId) {
-    var sf = ComputeStrideForm(v, varDef);
+  private void AddDefinitionPair(Variable v, Expr constDef, Expr nonConstDef, object nonConstId) {
+    var sf = ComputeStrideForm(v, nonConstDef);
     if (sf.kind == StrideForm.Kind.Product) {
-      var sc = new ModStrideConstraint(sf.op, nonVarDef);
+      var sc = new ModStrideConstraint(sf.op, constDef);
       if (!sc.IsBottom()) {
         strideConstraintMap[v.Name] = sc;
         List<string> lcs;
-        if (loopCounterMap.ContainsKey(varId))
-          lcs = loopCounterMap[varId];
+        if (loopCounterMap.ContainsKey(nonConstId))
+          lcs = loopCounterMap[nonConstId];
         else
-          lcs = loopCounterMap[varId] = new List<string>();
+          lcs = loopCounterMap[nonConstId] = new List<string>();
         lcs.Add(v.Name);
       }
     }
