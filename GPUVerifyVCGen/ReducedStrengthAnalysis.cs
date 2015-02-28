@@ -137,17 +137,17 @@ class ReducedStrengthAnalysis {
     return new StrideForm(StrideForm.Kind.Bottom);
   }
 
-  private void AddDefinitionPair(Variable v, Expr constDef, Expr nonConstDef, object nonConstId) {
-    var sf = ComputeStrideForm(v, nonConstDef);
+  private void AddDefinitionPair(Variable v, Expr nonVarDef, Expr varDef, object varId) {
+    var sf = ComputeStrideForm(v, varDef);
     if (sf.kind == StrideForm.Kind.Product) {
-      var sc = new ModStrideConstraint(sf.op, constDef);
+      var sc = new ModStrideConstraint(sf.op, nonVarDef);
       if (!sc.IsBottom()) {
         strideConstraintMap[v.Name] = sc;
         List<string> lcs;
-        if (loopCounterMap.ContainsKey(nonConstId))
-          lcs = loopCounterMap[nonConstId];
+        if (loopCounterMap.ContainsKey(varId))
+          lcs = loopCounterMap[varId];
         else
-          lcs = loopCounterMap[nonConstId] = new List<string>();
+          lcs = loopCounterMap[varId] = new List<string>();
         lcs.Add(v.Name);
       }
     }
