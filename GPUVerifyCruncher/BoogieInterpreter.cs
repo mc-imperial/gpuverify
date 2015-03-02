@@ -1365,6 +1365,8 @@ namespace GPUVerify
           int destinationSize = Convert.ToInt32(matches[1].Value);
           if (sourceSize == destinationSize)
             unary.evaluation = child.evaluation;
+          else if (sourceSize > destinationSize)
+            unary.evaluation = BitVector.Slice(child.evaluation, destinationSize, 0);
           else
             unary.evaluation = BitVector.ZeroExtend(child.evaluation, destinationSize);
         }
@@ -1376,6 +1378,8 @@ namespace GPUVerify
           int destinationSize = Convert.ToInt32(matches[1].Value);
           if (sourceSize == destinationSize)
             unary.evaluation = child.evaluation;
+          else if (sourceSize > destinationSize)
+            unary.evaluation = BitVector.Slice(child.evaluation, destinationSize, 0);
           else
             unary.evaluation = BitVector.ZeroExtend(child.evaluation, destinationSize);
         }
