@@ -158,8 +158,6 @@ def __extract_defines_and_includes(compiler_flags):
 def __process_opencl_entry(data):
   if not "kernel_file" in data:
     raise JSONError("kernel invocation entries require a 'kernel_file' value")
-  if not "local_size" in data:
-    raise JSONError("kernel invocation entries require a 'local_size' value")
   if not "global_size" in data:
     raise JSONError("kernel invocation entries require a 'global_size' value")
   if not "entry_point" in data:
@@ -181,6 +179,10 @@ def __process_opencl_entry(data):
       data[key] = [__ldict(call) for call in value]
     else:
       raise JSONError("Unknown value " + str(key))
+
+  # local_size is not necessarily specified; if so, use unconstrained values
+  if not "local_size" in data:
+    data["local_size"] = ["*" for _ in data["global_size"]]
 
   try:
     data["num_groups"] = get_num_groups(data["local_size"], data["global_size"])

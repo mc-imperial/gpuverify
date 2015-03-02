@@ -36,12 +36,14 @@ element of the array corresponds to the nth argument of the kernel. The
 ``host_api_calls`` array specifies the source file locations of relevant OpenCL
 host-side functions that were invoked leading up to the original kernel launch.
 
-The ``language``, ``kernel_file``, ``local_size``, ``global_size`` and
-``entry_point`` fields are required. The ``global_offset``, ``kernel_arguments``
-and ``host_api_calls`` are optional. When ``global_offset`` is not specified,
-the offset is assumed to be 0 in each dimension. When ``kernel_arguments`` is
-not specified the argument values used during verification are assumed to be
-unconstrained.
+The ``language``, ``kernel_file``, ``global_size``, and ``entry_point`` fields
+are required. The ``local_size``, , ``global_offset``, ``kernel_arguments``
+and ``host_api_calls`` are optional. Not specifiying ``local_size`` corresponds
+to a ``NULL`` value being passed to ``clEnqueueNDRangeKernel`` (observe that
+omitting ``local_size`` can significantly slow down verification with
+GPUVerify). When ``global_offset`` is not specified, the offset is assumed to
+be 0 in each dimension. When ``kernel_arguments`` is not specified the argument
+values used during verification are assumed to be unconstrained.
 
 Each ``kernel_argument`` is an object of one of the following four forms::
 
