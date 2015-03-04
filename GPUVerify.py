@@ -72,15 +72,13 @@ class BatchCaller(object):
   and later called using the call() method
   """
 
-  def __init__(self, verbose=False):
-    self.calls = [ ]
+  def __init__(self, verbose, outFile):
+    self.calls = []
     self.verbose = verbose
+    self.outFile = outFile
 
     # The type we will use to represent function calls
     self.fcallType = namedtuple('FCall',['function', 'nargs', 'kargs'])
-
-  def setVerbose(self, v=True):
-    self.verbose = v
 
   def register(self, function, *nargs, **kargs):
     """Register function.
@@ -93,24 +91,14 @@ class BatchCaller(object):
     call = self.fcallType(function, nargs, kargs)
     self.calls.append(call)
 
-  def call(self, inReverse=False):
+  def call(self):
     """Call registered functions
     """
-    if inReverse:
-      self.calls.reverse()
-
     for call in self.calls:
       if self.verbose:
         print("Clean up handler Calling " + str(call.function.__name__) + '(' + \
-              str(call.nargs) + ', ' + str(call.kargs) + ')')
+              str(call.nargs) + ', ' + str(call.kargs) + ')', file = self.outFile)
       call.function(*(call.nargs), **(call.kargs))
-
-  def clear(self):
-    """Remove all registered calls
-    """
-    self.calls = [ ]
-
-cleanUpHandler = BatchCaller()
 
 """ Timing for the toolchain pipeline """
 Tools = ["clang", "opt", "bugle", "gpuverifyvcgen", "gpuverifycruncher", "gpuverifyboogiedriver"]
@@ -126,22 +114,8 @@ if os.name == "posix":
   else:
     raise ConfigurationError('Could not find Bugle Inline Check plugin')
 
-def parse_args(argv):
-    args = parse_arguments(argv, gvfindtools.defaultSolver,
-      gvfindtools.llvmBinDir)
-
-    if args.version:
-      print(getversion.getVersionString())
-      sys.exit(ErrorCodes.SUCCESS)
-
-    if not args.batch_mode and args.verbose and args.num_groups and args.group_size:
-      print("Got {} groups of size {}".format("x".join(map(str,args.num_groups)),
-                                              "x".join(map(str,args.group_size))))
-
-    return args
-
 class GPUVerifyInstance (object):
-  def __init__ (self, args, out = None):
+  def __init__ (self, args, outFile, errFile, cleanUpHandler):
     if gvfindtools.useMono:
       if args.debug:
         self.mono = [ 'mono' , '--debug' ]
@@ -150,7 +124,10 @@ class GPUVerifyInstance (object):
     else:
       self.mono = []
 
-    cleanUpHandler.setVerbose(args.verbose)
+    if args.verbose and args.num_groups and args.group_size:
+      print("Got {} groups of size {}".format("x".join(map(str,args.num_groups)),
+                                              "x".join(map(str,args.group_size))),
+            file = outFile)
 
     filename = args.kernel_name
     ext = args.kernel_ext
@@ -225,9 +202,11 @@ class GPUVerifyInstance (object):
       self.skip["cruncher"] = True
 
     self.timing = {}
-    self.out = out
+    self.outFile = outFile
+    self.errFile = errFile
     self.stop = args.stop
     self.mode = args.mode
+    self.silent = args.silent
     self.sourceFiles = [args.kernel.name]
     self.SL = args.source_language
     self.loopUnwindDepth = args.loop_unwind
@@ -235,7 +214,6 @@ class GPUVerifyInstance (object):
     self.onlyIntraGroup = args.only_intra_group
 
     self.verbose = args.verbose
-    self.silent = args.silent
     self.time = args.time or (args.time_as_csv is not None)
     self.timeCSVLabel = args.time_as_csv
     self.debug = args.debug
@@ -493,25 +471,21 @@ class GPUVerifyInstance (object):
     """
     popenargs={}
     if self.verbose:
-      print(" ".join(command))
+      print(" ".join(command), file = self.outFile)
+      self.outFile.flush()
     else:
       popenargs['bufsize']=0
 
-    # We don't want messages to go to stdout
-    stdoutFile = tempfile.SpooledTemporaryFile()
-    popenargs["stdout"] = self.out #stdoutFile
-
-    # Redirect stderr to whatever stdout is redirected to
-    if __name__ != '__main__':
-      popenargs['stderr']=subprocess.PIPE
+    popenargs["stdout"] = self.outFile
+    popenargs["stderr"] = self.errFile
 
     # Redirect stdin, othewise terminal text becomes unreadable after timeout
     popenargs['stdin']=subprocess.PIPE
 
-    proc = psutil.Popen(command,**popenargs)
+    proc = psutil.Popen(command, **popenargs)
     if args.timeout > 0:
       try:
-        return_code = proc.wait(timeout=self.timeout)
+        return_code = proc.wait(timeout = self.timeout)
       except psutil.TimeoutExpired:
         children = proc.get_children(True)
         proc.terminate()
@@ -524,33 +498,29 @@ class GPUVerifyInstance (object):
     else:
       return_code = proc.wait()
 
-    stdout, stderr = proc.communicate()
-    stdoutFile.seek(0)
-    stdout = stdoutFile.read()
-    stdoutFile.close()
-    # We do not return stderr, as it was redirected to stdout
-    return stdout, return_code
+    return return_code
 
   def runTool(self, ToolName, Command):
-    """ Returns a triple (succeeded, timeout, stdout) """
+    """ Returns a triple (succeeded, timeout) """
     assert ToolName in Tools
     if self.verbose:
-      print("Running " + ToolName)
+      print("Running " + ToolName, file=self.outFile)
+      self.outFile.flush()
     try:
       start = timeit.default_timer()
-      stdout, exitCode = self.run(Command)
-      stdout = stdout.decode() # For python3, we get bytes not a str, so convert
+      exitCode = self.run(Command)
       end = timeit.default_timer()
     except psutil.TimeoutExpired:
       self.timing[ToolName] = self.timeout
-      return False, True, "{} timed out. Use --timeout=N with N > {} to increase timeout, or --timeout=0 to disable timeout.\n".format(ToolName, self.timeout)
+      print("{} timed out. Use --timeout=N with N > {} to increase timeout, or --timeout=0 to disable timeout.\n".format(ToolName, self.timeout), file=self.outFile)
+      return False, True
     except (OSError,WindowsError) as e:
       print("Error while invoking {} : {}".format(ToolName, str(e)))
       print("With command line args:")
       print(pprint.pformat(Command))
       raise
     self.timing[ToolName] = end-start
-    return (exitCode, False, stdout)
+    return exitCode, False
 
   def interpretBoogieDriverCrucherExitCode(self, ExitCode):
     assert ExitCode != 0
@@ -568,95 +538,92 @@ class GPUVerifyInstance (object):
 
   def invoke (self):
     """ Returns (returncode, outstring) """
-    stdout = ""
 
     if not self.skip["clang"]:
-      success, timeout, stdout = self.runTool("clang",
+      success, timeout = self.runTool("clang",
               [gvfindtools.llvmBinDir + "/clang"] +
               self.clangOptions +
               [("-I" + str(o)) for o in self.includes] +
               [("-D" + str(o)) for o in self.defines])
 
-      if timeout: return ErrorCodes.TIMEOUT, stdout
-      if success != 0: return ErrorCodes.CLANG_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT
+      if success != 0: return ErrorCodes.CLANG_ERROR
 
     if not self.skip["opt"]:
-      success, timeout, stdout = self.runTool("opt",
+      success, timeout = self.runTool("opt",
               [gvfindtools.llvmBinDir + "/opt"] +
               self.optOptions)
 
-      if timeout: return ErrorCodes.TIMEOUT, stdout
-      if success != 0: return ErrorCodes.OPT_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT
+      if success != 0: return ErrorCodes.OPT_ERROR
 
-    if self.stop == 'opt': return ErrorCodes.SUCCESS, stdout
+    if self.stop == 'opt': return ErrorCodes.SUCCESS
 
     if not self.skip["bugle"]:
-      success, timeout, stdout = self.runTool("bugle",
+      success, timeout = self.runTool("bugle",
               [gvfindtools.bugleBinDir + "/bugle"] +
               self.bugleOptions)
 
-      if timeout: return ErrorCodes.TIMEOUT, stdout
-      if success != 0: return ErrorCodes.BUGLE_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT
+      if success != 0: return ErrorCodes.BUGLE_ERROR
 
-    if self.stop == 'bugle': return ErrorCodes.SUCCESS, stdout
+    if self.stop == 'bugle': return ErrorCodes.SUCCESS
 
     if not self.skip["vcgen"]:
-      success, timeout, stdout = self.runTool("gpuverifyvcgen",
+      success, timeout = self.runTool("gpuverifyvcgen",
               self.mono +
               [gvfindtools.gpuVerifyBinDir + "/GPUVerifyVCGen.exe"] +
               self.vcgenOptions)
 
-      if timeout: return ErrorCodes.TIMEOUT, stdout
-      if success != 0: return ErrorCodes.GPUVERIFYVCGEN_ERROR, stdout
+      if timeout: return ErrorCodes.TIMEOUT
+      if success != 0: return ErrorCodes.GPUVERIFYVCGEN_ERROR
 
-    if self.stop == 'vcgen': return ErrorCodes.SUCCESS, stdout
+    if self.stop == 'vcgen': return ErrorCodes.SUCCESS
 
     if not self.skip["cruncher"]:
-      success, timeout, stdout = self.runTool("gpuverifycruncher",
+      success, timeout = self.runTool("gpuverifycruncher",
                 self.mono +
                 [gvfindtools.gpuVerifyBinDir + os.sep + "GPUVerifyCruncher.exe"] +
                 self.cruncherOptions)
 
-      if timeout: return ErrorCodes.TIMEOUT, stdout
+      if timeout: return ErrorCodes.TIMEOUT
       if success != 0:
-        return self.interpretBoogieDriverCrucherExitCode(success), stdout
+        return self.interpretBoogieDriverCrucherExitCode(success)
 
-    if self.stop == 'cruncher': return ErrorCodes.SUCCESS, stdout
+    if self.stop == 'cruncher': return ErrorCodes.SUCCESS
 
-    success, timeout, stdout = self.runTool("gpuverifyboogiedriver",
+    success, timeout = self.runTool("gpuverifyboogiedriver",
             self.mono +
             [gvfindtools.gpuVerifyBinDir + "/GPUVerifyBoogieDriver.exe"] +
             self.boogieOptions)
 
-    if timeout: return ErrorCodes.TIMEOUT, stdout
+    if timeout: return ErrorCodes.TIMEOUT
     if success != 0:
-      return self.interpretBoogieDriverCrucherExitCode(success), stdout
+      return self.interpretBoogieDriverCrucherExitCode(success)
 
     if self.silent:
-      return ErrorCodes.SUCCESS, ""
-
-    string_builder = io.StringIO()
+      return ErrorCodes.SUCCESS
 
     if self.mode == AnalysisMode.FINDBUGS:
-      print("No defects were found while analysing: " + ", ".join(self.sourceFiles), file=string_builder)
-      print("Notes:", file=string_builder)
-      print("- Use --loop-unwind=N with N > " + str(self.loopUnwindDepth) + " to search for deeper bugs.", file=string_builder)
-      print("- Re-run in verification mode to try to prove absence of defects.", file=string_builder)
+      print("No defects were found while analysing: " + ", ".join(self.sourceFiles), file=self.outFile)
+      print("Notes:", file=self.outFile)
+      print("- Use --loop-unwind=N with N > " + str(self.loopUnwindDepth) + " to search for deeper bugs.", file=self.outFile)
+      print("- Re-run in verification mode to try to prove absence of defects.", file=self.outFile)
     else:
-      print("Verified: " + ", ".join(self.sourceFiles), file=string_builder)
+      print("Verified: " + ", ".join(self.sourceFiles), file=self.outFile)
       if not self.onlyDivergence:
-        print("- no data races within " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=string_builder)
+        print("- no data races within " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=self.outFile)
         if not self.onlyIntraGroup:
-          print("- no data races between " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=string_builder)
-      print("- no barrier divergence", file=string_builder)
-      print("- no assertion failures", file=string_builder)
+          print("- no data races between " + ("work groups" if self.SL == SourceLanguage.OpenCL else "thread blocks"), file=self.outFile)
+      print("- no barrier divergence", file=self.outFile)
+      print("- no assertion failures", file=self.outFile)
       if args.check_array_bounds:
-        print("- no out-of-bounds array accesses (for arrays where size information is available)", file=string_builder)
-      print("(but absolutely no warranty provided)", file=string_builder)
+        print("- no out-of-bounds array accesses (for arrays where size information is available)", file=self.outFile)
+      print("(but absolutely no warranty provided)", file=self.outFile)
 
-    return ErrorCodes.SUCCESS, string_builder.getvalue()
+    return ErrorCodes.SUCCESS
 
-  def showTiming(self, exitCode):
+  def getTiming(self, exitCode):
     """ Returns the timing as a string """
     if self.timeCSVLabel is not None:
       times = [ self.timing.get(tool, 0.0) for tool in Tools ]
@@ -671,168 +638,176 @@ class GPUVerifyInstance (object):
         row.insert(1,'FAIL(' + str(exitCode) + ')')
       return ','.join(row)
     else:
-      total = sum(self.timing.values())
-      print("Timing information (%.2f secs):" % total, file=self.out)
+      string_builder = io.StringIO()
+      print("Timing information (%.2f secs):" % sum(self.timing.values()), file=string_builder)
       if self.timing:
         padTool = max([ len(tool) for tool in list(self.timing.keys()) ])
         padTime = max([ len('%.3f secs' % t) for t in list(self.timing.values()) ])
-        string_builder = io.StringIO()
         for tool in Tools:
           if tool in self.timing:
             print("- %s : %s" % (tool.ljust(padTool), ('%.3f secs' % self.timing[tool]).rjust(padTime)), file=string_builder)
-        return string_builder.getvalue()
+        return string_builder.getvalue()[:-1]
       else:
         return "- no tools ran"
 
-def parse_header (file):
-  code = [x.rstrip() for x in file.readlines()]
-  header_args = code[0][len("//"):].split()
-  return code[1:],header_args
+def json_list_kernels(kernels, json_to_kernel_map):
+  index_width = len(str(len(json_to_kernel_map) - 1))
+  index_format = "[{: >" + str(index_width) + "}] Name: {}"
+  prefix = ' ' * (index_width + 2)
 
-# cache is of form map(code, list(known_safe))
-def in_cache (f,args,success_cache,failure_cache):
-  with open(f) as file:
-    code = file.readlines()
-  while code[0].startswith("//"):
-    code = code[1:]
-  code = ''.join(code)
-  # If any match all arguments (or *)
-  if code in success_cache and any(all(v in ['*',args[k]] for k,v in trial.items()) for trial in success_cache[code]):
-    return True
-  # If any match all arguments
-  elif code in failure_cache and any(all(v == args[k] for k,v in trial.items()) for trial in failure_cache[code]):
-    return False
-  return None
+  file_format     = prefix + " File: {}"
+  size_format     = prefix + " Local size = [{}] Global size = [{}]"
+  compiler_format = prefix + " Compiler flags: {}"
+  arg_format      = prefix + " Argument {}: {}"
+  arg_val_format  = prefix + " Argument {}: {} {}"
+  build_format    = prefix + " Built at {}:{}"
+  run_format      = prefix + " Ran at {}:{}"
 
-def add_to_cache (f,args,cache):
-  with open(f) as file:
-    code = file.readlines()
-    while code[0].startswith("//"):
-      code = code[1:]
-    code = ''.join(code)
-    if code not in cache:
-      cache[code] = []
-    cache[code].append(dict((k,v) for k,v in args.items() if k in ['group_size','num_groups','kernel_args']))
-    if args.verbose:
-      print("added to cache")
+  for index, k in enumerate(json_to_kernel_map):
+    print(index_format.format(index, kernels[k].entry_point))
+    print(file_format.format(kernels[k].kernel_file))
+    print(size_format.format(",".join(map(str, kernels[k].local_size)),
+                             ",".join(map(str, kernels[k].global_size))))
+    if "compiler_flags" in kernels[k]:
+      print(compiler_format.format(kernels[k].compiler_flags.original))
+    if "kernel_arguments" in kernels[k]:
+      for arg_index, arg in enumerate(kernels[k].kernel_arguments):
+        if arg.type == "scalar" and arg.value:
+          print(arg_val_format.format(arg_index, "scalar with value", arg.value))
+        elif arg.type == "array" and arg.size:
+          print(arg_val_format.format(arg_index, "array of size", arg.size))
+        else:
+          print(arg_format.format(arg_index, arg.type))
+    if "host_api_calls" in kernels[k]:
+      for call in kernels[k].host_api_calls:
+        if call.function_name == "clCreateProgramWithSource":
+          print(build_format.format(call.compilation_unit, call.line_number))
+      for call in kernels[k].host_api_calls:
+        if call.function_name == "clEnqueueNDRangeKernel":
+          print(run_format.format(call.compilation_unit, call.line_number))
 
-# TODO: Alter in_cache and add_to_cache
-def verify_batch (files, success_cache={}):
-  failure_cache = {}
+def json_verify_kernel(args, base_path, kernel):
+  kernel_args = copy.deepcopy(args)
+  kernel_name = os.path.join(base_path, kernel.kernel_file)
+  try:
+    kernel_args.kernel = open(kernel_name, "r")
+  except IOError as e:
+    raise JSONError(str(e))
+  kernel_args.kernel_name, kernel_args.kernel_ext = \
+    os.path.splitext(kernel_name)
+  kernel_args.source_language = SourceLanguage.OpenCL
+  kernel_args.group_size = kernel.local_size
+  kernel_args.global_size = kernel.global_size
+  kernel_args.num_groups = kernel.num_groups
+  if "compiler_flags" in kernel:
+    kernel_args.defines += kernel.compiler_flags.defines
+    kernel_args.includes += kernel.compiler_flags.includes
+  if "kernel_arguments" in kernel:
+    scalar_args = [arg for arg in kernel.kernel_arguments \
+                     if arg.type == "scalar" or arg.type == "sampler"]
+    scalar_vals = [arg.value if "value" in arg else "*" \
+                     for arg in scalar_args]
+    kernel_args.kernel_args = [[kernel.entry_point] + scalar_vals]
+    array_args = [arg for arg in kernel.kernel_arguments \
+                    if arg.type == "array" or arg.type == "image"]
+    array_sizes = [arg.size if "size" in arg else "*" \
+                     for arg in array_args]
+    kernel_args.kernel_arrays = [[kernel.entry_point] + array_sizes]
+  outFile = tempfile.SpooledTemporaryFile()
+  return_code = main(kernel_args, outFile, subprocess.STDOUT)
+  outFile.seek(0)
+  out_data = outFile.read()[:-1]
+  outFile.close()
+  return return_code, out_data
+
+def json_verify_all(args, kernels, json_to_kernel_map):
+  base_path = os.path.dirname(args.kernel.name)
+  Result = namedtuple("Result", ["error_code", "output", "kernel"])
+  results = []
+
+  progress_format = "Executed {} of " + str(len(kernels)) + \
+    " verification tasks for " + str(len(json_to_kernel_map)) + " kernels"
+  progress_text = ""
+  for i, k in enumerate(kernels):
+    progress_text = progress_format.format(i)
+    print(progress_text, end = '\r')
+    sys.stdout.flush()
+    return_code, out_data = json_verify_kernel(args, base_path, k)
+    results.append(Result(return_code, out_data, k))
+  print(' ' * len(progress_text), end = '\r')
+
   success = []
   failure = []
-  for i,f in enumerate(files):
-    with open(f, "r") as kernel_file:
-      kernel_args = [f]
-      header = kernel_file.readline()
-      if header.startswith("//"):
-        kernel_args += header[len("//"):].split()
-      x = parse_args(kernel_args)
-      rc = in_cache(f,x,success_cache,failure_cache)
-    # Only check if we've never seen it before
-    if rc is None:
-      rc = main(x,open(os.devnull,'w')) == ErrorCodes.SUCCESS
-      add_to_cache(f,x,success_cache if rc else failure_cache)
-    if rc:
-      success.append((f,x,i))
+  for i, k in enumerate(json_to_kernel_map):
+    if results[k].error_code == ErrorCodes.SUCCESS:
+      success.append((i, results[k]))
     else:
-      failure.append((f,x,i))
+      failure.append((i, results[k]))
 
   print("GPUVerify kernel analyzer checked {} kernels.".format(len(success) + len(failure)))
   print("Successfully verified {} kernels.".format(len(success)))
   print("Failed to verify {} kernels.".format(len(failure)))
 
+  index_width = len(str(len(json_to_kernel_map) - 1))
+  result_format = "[{: >" + str(index_width) + "}]: Verification of {} ({}) {} with: local size = {} global size = {}"
   print("")
   print("Successes:")
-  for s,args,i in success:
-    print("[{}]: Verification of {} ({}) succeeded with: local_size={} global_size={} args={}"
-          .format(i,
-                  args['kernel_args'][0],
-                  s,
-                  ",".join(map(str,args['group_size'])),
-                  ",".join(map(str,args['global_size'])),
-                  ",".join(map(str,args['kernel_args'][1:]))
-                )
-    )
+  for s, r in success:
+    print(result_format.format(s,
+                                r.kernel.entry_point,
+                                r.kernel.kernel_file,
+                                "succeeded",
+                                ",".join(map(str, r.kernel.local_size)),
+                                ",".join(map(str, r.kernel.global_size))
+                               ))
 
   print("")
   print("Failures:")
-  for f,args,i in failure:
-    print("[{}]: Verification of {} ({}) failed with: local_size={} global_size={} args={}"
-          .format(i,
-                  args['kernel_args'][0],
-                  f,
-                  ",".join(map(str,args['group_size'])),
-                  ",".join(map(str,args['global_size'])),
-                  ",".join(map(str,args['kernel_args'][1:]))
-                )
-    )
+  for f, r in failure:
+    print(result_format.format(f,
+                                r.kernel.entry_point,
+                                r.kernel.kernel_file,
+                                "failed",
+                                ",".join(map(str, r.kernel.local_size)),
+                                ",".join(map(str, r.kernel.global_size))
+                               ))
 
-def do_batch_mode (host_args):
-  kernels = []
-  for path, subdirs, files in os.walk(".gpuverify"):
-    kernels += [path+os.sep+x for x in files]
-  kernels = sorted(kernels)
+def json_verify_intercepted(args, kernels, json_to_kernel_map):
+  if args.verify_intercepted >= len(json_to_kernel_map):
+    raise JSONError("No kernel " + str(args.verify_intercepted) + " in JSON file")
 
-  if host_args.show_intercepted:
-    for index,file_name in enumerate(kernels):
-      with open(file_name) as file:
-        code,header_args, = parse_header(file)
-        built = code[0][len("//"):]
-        ran = code[1][len("//"):]
-        print("["+str(index)+"] " + file_name+": " + ' '.join(header_args))
-        print(built)
-        print(ran)
+  k = kernels[json_to_kernel_map[args.verify_intercepted]]
+  return_code, out_data = json_verify_kernel(args, os.path.dirname(args.kernel.name), k)
 
-  try:
-    success_cache = pickle.load(open(args.cache))
-  except Exception:
-    success_cache = {}
+  result_format = "Verification of {} ({}) {} with: local size = {} global size = {}"
+  print(result_format.format(k.entry_point,
+                             k.kernel_file,
+                             "succeeded" if return_code == ErrorCodes.SUCCESS else "failed",
+                             ",".join(map(str, k.local_size)),
+                             ",".join(map(str, k.global_size))
+                            ))
 
-  if host_args.check_intercepted:
-    verify_batch([kernels[i] for i in host_args.check_intercepted], success_cache)
-  elif host_args.check_all_intercepted:
-    verify_batch(kernels, success_cache)
-
-  if args.cache:
-    pickle.dump(success_cache,open(args.cache,"w"))
+  if return_code != ErrorCodes.SUCCESS:
+    print("The error message is:")
+    print(out_data)
 
 def do_json_mode(args):
-  kernels = json_load(args.kernel)
-  base_path = os.path.dirname(args.kernel.name)
+  kernels, json_to_kernel_map = json_load(args.kernel)
 
-  for kernel in kernels:
-    kernel_args = copy.deepcopy(args)
-    kernel_name = os.path.join(base_path, kernel.kernel_file)
-    try:
-      kernel_args.kernel = open(kernel_name, "r")
-    except IOError as e:
-      raise JSONError(str(e))
-    kernel_args.kernel_name, kernel_args.kernel_ext = \
-      os.path.splitext(kernel_name)
-    kernel_args.source_language = SourceLanguage.OpenCL
-    kernel_args.group_size = kernel.local_size
-    kernel_args.global_size = kernel.global_size
-    kernel_args.num_groups = kernel.num_groups
-    if "compiler_flags" in kernel:
-      kernel_args.defines += kernel.compiler_flags.defines
-      kernel_args.includes += kernel.compiler_flags.includes
-    if "kernel_arguments" in kernel:
-      scalar_args = [arg for arg in kernel.kernel_arguments \
-                       if arg.type == "scalar" or arg.type == "sampler"]
-      scalar_vals = [arg.value if "value" in arg else "*" \
-                       for arg in scalar_args]
-      kernel_args.kernel_args = [[kernel.entry_point] + scalar_vals]
-      array_args = [arg for arg in kernel.kernel_arguments \
-                      if arg.type == "array" or arg.type == "image"]
-      array_sizes = [arg.size if "size" in arg else "*" \
-                       for arg in array_args]
-      kernel_args.kernel_arrays = [[kernel.entry_point] + array_sizes]
-    print("Verifying " + kernel.entry_point)
-    _, out = main(kernel_args)
-    sys.stdout.write(out)
+  if args.list_intercepted:
+    json_list_kernels(kernels, json_to_kernel_map)
+  elif args.verify_all_intercepted:
+    json_verify_all(args, kernels, json_to_kernel_map)
+  elif args.verify_intercepted != None:
+    json_verify_intercepted(args, kernels, json_to_kernel_map)
+  else:
+    base_path = os.path.dirname(args.kernel.name)
+    for kernel in kernels:
+      print("Verifying " + kernel.entry_point)
+      return_code, out_data = json_verify_kernel(args, base_path, kernel)
+      print(out_data)
 
-def main(argv, out=sys.stdout):
+def main(args, out, err):
   """ This wraps GPUVerify's real main function so
       that we can handle exceptions and trigger our own exit
       commands.
@@ -840,14 +815,14 @@ def main(argv, out=sys.stdout):
       This is the entry point that should be used if you want
       to use this file as a module rather than as a script.
   """
-  gv_instance = GPUVerifyInstance(argv, out)
-  def handleTiming (exitCode):
-    if gv_instance.time:
-      print(gv_instance.showTiming(exitCode))
-    sys.stderr.flush()
-    sys.stdout.flush()
+  cleanUpHandler = BatchCaller(args.verbose, out)
+  gv_instance = GPUVerifyInstance(args, out, err, cleanUpHandler)
 
-  def doCleanUp(timing, exitCode=ErrorCodes.SUCCESS):
+  def handleTiming(exitCode):
+    if gv_instance.time:
+      print(gv_instance.getTiming(exitCode), file = out)
+
+  def doCleanUp(timing, exitCode):
     if timing:
       # We must call this before cleaning up globals
       # because it depends on them
@@ -855,31 +830,26 @@ def main(argv, out=sys.stdout):
 
     # We should call this last.
     cleanUpHandler.call()
-    cleanUpHandler.clear() # Clean up for next use
 
   try:
     returnCode = gv_instance.invoke()
   except Exception:
     # Something went very wrong
-    doCleanUp(timing=False, exitCode=0) # It doesn't matter what the exitCode is
+    doCleanUp(timing = False, exitCode = 0) # It doesn't matter what the exitCode is
     raise
 
-  doCleanUp(timing=True, exitCode=returnCode[0]) # Do this outside try block so we don't call twice!
+  doCleanUp(timing = True, exitCode = returnCode) # Do this outside try block so we don't call twice!
   return returnCode
-
-debug = False
 
 if __name__ == '__main__':
   try:
-    args = parse_args(sys.argv[1:] or [ '--help' ])
-    debug = args.debug
-    if args.batch_mode:
-      do_batch_mode(args)
-    elif args.json:
+    args = parse_arguments(sys.argv[1:], gvfindtools.defaultSolver,
+      gvfindtools.llvmBinDir, getversion)
+    if args.json:
       do_json_mode(args)
+      sys.exit(ErrorCodes.SUCCESS)
     else:
-      rc, out = main(args)
-      sys.stdout.write(out)
+      rc = main(args, sys.stdout, sys.stderr)
       sys.exit(rc)
   except ConfigurationError as e:
     print(str(e), file=sys.stderr)
@@ -892,5 +862,3 @@ if __name__ == '__main__':
     sys.exit(ErrorCodes.JSON_ERROR)
   except KeyboardInterrupt:
     sys.exit(ErrorCodes.CTRL_C)
-
-  sys.exit(ErrorCodes.SUCCESS)

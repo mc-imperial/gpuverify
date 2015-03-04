@@ -21,6 +21,14 @@ class __ArgumentParser(argparse.ArgumentParser):
   def error (self, message):
     raise ArgumentParserError(message)
 
+class _VersionAction(argparse.Action):
+  def __init__(self, option_strings, version, **kwargs):
+    super(_VersionAction, self).__init__(option_strings, nargs = 0, **kwargs)
+    self.version = version
+
+  def __call__(self, parser, namespace, values, option_string = None):
+    parser.exit(message = self.version.getVersionString())
+
 def __non_negative(string):
   try:
     i = int(string)
@@ -111,18 +119,17 @@ def __kernel_arrays(string):
 
   return values
 
-def __build_parser(default_solver):
-  parser = __ArgumentParser( description = "GPUVerify frontend",
+def __build_parser(default_solver, version):
+  parser = __ArgumentParser(description = "GPUVerify frontend",
     usage = "gpuverify [options] <kernel>")
 
-  # nargs='?' because of needing to put KI in this script
-  parser.add_argument("kernel", nargs = '?', type = argparse.FileType('r'),
+  parser.add_argument("kernel", type = argparse.FileType('r'),
     help = "Kernel file to verify")
 
   general = parser.add_argument_group("GENERAL OPTIONS")
 
-  general.add_argument("--version", action = 'store_true', help = "Show \
-    version information")
+  general.add_argument("--version", action = _VersionAction, version = version,
+    help = "Show version information and exit")
 
   general.add_argument("-D", dest = 'defines',  default = [], action = 'append',
     metavar = "<value>", help = "Define symbol")
@@ -304,16 +311,18 @@ def __build_parser(default_solver):
   inference.add_argument("--k-induction-depth=", type = __positive, default = 0,
     metavar = "X", help = "Applies k-induction with k=X to all loops")
 
-  interceptor = parser.add_argument_group("BATCH MODE")
-  interceptor.add_argument("--show-intercepted", action = 'store_true')
-  interceptor.add_argument("--check-intercepted=", type = __non_negative,
-    action = 'append', metavar = "X")
-  interceptor.add_argument("--check-all-intercepted", action = 'store_true')
-  interceptor.add_argument("--cache")
-
   json = parser.add_argument_group("JSON MODE")
   json.add_argument("--json", action = 'store_true', help = "The kernels to be \
-    verified are specified through a JSON configuration file")
+    verified are specified through a JSON file")
+  #json.add_argument("--cache")
+
+  json_options = json.add_mutually_exclusive_group()
+  json_options.add_argument("--list-intercepted", action = 'store_true',
+    help = "List the kernels specified in the JSON file")
+  json_options.add_argument("--verify-intercepted=", type = __non_negative,
+    metavar = "X", help = "Verify kernel 'X' from the JSON file")
+  json_options.add_argument("--verify-all-intercepted", action = 'store_true',
+    help = "Verify all the kernels from the JSON file")
 
   return parser
 
@@ -321,9 +330,6 @@ class __ldict(dict):
   def __getattr__(self, name):
     if name in self:
       return self[name]
-    elif name == "batch_mode":
-      return any(self[x] for x in ['show_intercepted','check_intercepted',
-                                   'check_all_intercepted'])
     else:
       raise AttributeError(name)
 
@@ -402,8 +408,8 @@ def __check_global_offset(args, parser):
   else:
     return
 
-def parse_arguments(argv, default_solver, llvm_bin_dir):
-  parser = __build_parser(default_solver)
+def parse_arguments(argv, default_solver, llvm_bin_dir, version):
+  parser = __build_parser(default_solver, version)
   args = __to_ldict(parser.parse_args(argv))
 
   if not args.loop_unwind and not args.mode:
@@ -413,27 +419,17 @@ def parse_arguments(argv, default_solver, llvm_bin_dir):
   elif args.mode == AnalysisMode.FINDBUGS and not args.loop_unwind:
     args.loop_unwind = 2
 
-  if args.batch_mode:
-    if args.stop:
-      parser.error("Stop-at arguments incompatible with batch mode")
-    if args.group_size or args.num_groups or args.global_size:
-      parser.error("Sizing arguments incompatible with batch mode")
-    if args.json:
-      parser.error("JSON mode incompatible with batch mode")
-
-  # Remainder of processing only required in "normal" mode
-  if args.batch_mode or args.version:
+  if args.version:
     return args
 
   if args.json:
     if args.group_size or args.num_groups or \
        args.global_size or args.global_offset:
       parser.error("Sizing arguments incompatible with JSON mode")
-    if not args.kernel:
-      parser.error("Must provide JSON file in JSON mode")
   else:
-    if not args.kernel:
-      parser.error("Must provide kernel file in normal mode")
+    if args.list_intercepted or args.verify_all_intercepted or \
+       args.verify_intercepted != None:
+      parser.error("JSON options require JSON mode");
 
   if not args.stop:
     args.stop = "boogie"

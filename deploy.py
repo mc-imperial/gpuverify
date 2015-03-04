@@ -424,17 +424,6 @@ def main(argv):
       IfUsing('posix', StripFile(gvfindtoolsdeploy.cvc4BinDir + os.sep + 'cvc4.exe'))
     ])
 
-  # kernel interceptor
-  kiSrc  = os.path.join(GPUVerifyRoot, 'KernelInterceptor')
-  kiDest = os.path.join(deployDir, 'KernelInterceptor')
-  deployActions.extend([
-    FileCopy(kiSrc + os.sep + "cl_interceptor", 'cl_interceptor.h', kiDest),
-    FileCopy(kiSrc + os.sep + "cl_interceptor", 'cl_interceptor.cpp', kiDest),
-    IfUsing('posix', FileCopy(kiSrc + os.sep + "cl_interceptor", 'Makefile', kiDest)),
-    IfUsing('posix', FileCopy(kiSrc + os.sep + "cl_interceptor", 'libcl_interceptor.a', kiDest)),
-    IfUsing('nt', FileCopy(kiSrc + os.sep + "x64" + os.sep + "Debug", 'cl_interceptor.lib', kiDest)),
-  ])
-
   # Embed mono runtime
   if args.embed_mono_runtime:
     # Make a list of the assemblies that need embedding and the GPUVerify executable names

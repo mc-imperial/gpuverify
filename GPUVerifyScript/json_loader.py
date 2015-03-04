@@ -130,30 +130,31 @@ def __check_host_api_calls(data):
     __check_host_api_call(i)
 
 def __extract_defines_and_includes(compiler_flags):
-  compiler_flags = compiler_flags.split()
+  flags_split = compiler_flags.split()
   defines  = []
   includes = []
 
   i = 0
-  while i < len(compiler_flags):
-    if compiler_flags[i] == "-D":
-      if i + 1 == len(compiler_flags):
+  while i < len(flags_split):
+    if flags_split[i] == "-D":
+      if i + 1 == len(flags_split):
         raise JSONError("compiler flag '-D' requires an argument")
       i += 1
-      defines.append(compiler_flags[i])
-    elif compiler_flags[i].startswith("-D"):
-      defines.append(compiler_flags[i][len("-D"):])
-    elif compiler_flags[i] == "-I":
-      if i + 1 == len(compiler_flags):
+      defines.append(flags_split[i])
+    elif flags_split[i].startswith("-D"):
+      defines.append(flags_split[i][len("-D"):])
+    elif flags_split[i] == "-I":
+      if i + 1 == len(flags_split):
         raise JSONError("compiler flag '-I' requires an argument")
       i += 1
-      includes.append(compiler_flags[i])
-    elif compiler_flags[i].startswith("-I"):
-      includes.append(compiler_flags[i][len("-I"):])
+      includes.append(flags_split[i])
+    elif flags_split[i].startswith("-I"):
+      includes.append(flags_split[i][len("-I"):])
     i += 1
 
-  DefinesIncludes = namedtuple("DefinesIncludes", ["defines", "includes"])
-  return DefinesIncludes(defines, includes)
+  DefinesIncludes = \
+    namedtuple("DefinesIncludes", ["defines", "includes", "original"])
+  return DefinesIncludes(defines, includes, compiler_flags)
 
 def __process_opencl_entry(data):
   if not "kernel_file" in data:
@@ -203,30 +204,36 @@ def __process_kernel_entry(data):
 
 def __filter_duplicates(data):
   new_data = []
+  old_new_map = []
 
   for i in data:
     if i not in new_data:
       new_data.append(i)
+    old_new_map.append(new_data.index(i))
 
-  return new_data
+  return new_data, old_new_map
 
 def __process_json(data):
   if not type(data) is list:
     raise JSONError("Expecting an array of kernel invocation objects")
 
-  data = __filter_duplicates(data)
+  data, json_to_data_map = __filter_duplicates(data)
 
   for i in data:
     __process_kernel_entry(i)
 
-  return data
+  return (data, json_to_data_map)
 
 def json_load(json_file):
   """Load GPUVerify invocation data from json_file object.
 
-  The function either returns a dictionary structured as the JSON file, or
-  raises a JSONError in case an error is encountered. It is checked whether
-  all required values are present and whether all values are of the right type.
+  The function either:
+  (a) return a list of dictionaries structured as the objects in the JSON file
+      and a list which maps from the orginal position in the JSON file to
+      elements of the list with dictionaries, or
+  (b) raises a JSONError in case an error is encountered.
+  It is checked whether all required values are present and whether all values
+  are of the right type.
 
   The function also:
   a) Extracts 'defines' and 'includes' from the compiler_flags value and
@@ -235,8 +242,8 @@ def json_load(json_file):
   """
   try:
     data = json.load(json_file)
-    data = __process_json(data)
-    return [__ldict(kernel) for kernel in data]
+    data, json_to_data_map = __process_json(data)
+    return ([__ldict(kernel) for kernel in data], json_to_data_map)
   except ValueError as e:
     raise JSONError(str(e))
   except JSONError:
