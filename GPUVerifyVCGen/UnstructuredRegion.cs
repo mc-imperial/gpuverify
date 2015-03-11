@@ -23,7 +23,7 @@ class UnstructuredRegion : IRegion {
   Dictionary<Block, HashSet<Block>> loopNodes = new Dictionary<Block, HashSet<Block>>();
   Dictionary<Block, Block> innermostHeader = new Dictionary<Block, Block>();
   Expr guard;
-  
+
   public HashSet<Variable> PartitionVariablesOfRegion() {
     if (header == null) return new HashSet<Variable>();
     HashSet<Variable> partitionVars = new HashSet<Variable>();
@@ -88,6 +88,14 @@ class UnstructuredRegion : IRegion {
     return header;
   }
 
+  public IEnumerable<Block> SubBlocks() {
+    if (header != null) {
+      return loopNodes[header];
+    } else {
+      return blockGraph.Nodes;
+    }
+  }
+
   public UnstructuredRegion(Program p, Implementation impl) {
     blockGraph = p.ProcessLoops(impl);
     header = null;
@@ -116,14 +124,6 @@ class UnstructuredRegion : IRegion {
 
   public object Identifier() {
     return header;
-  }
-
-  private HashSet<Block> SubBlocks() {
-    if (header != null) {
-      return loopNodes[header];
-    } else {
-      return blockGraph.Nodes;
-    }
   }
 
   public IEnumerable<Cmd> Cmds() {

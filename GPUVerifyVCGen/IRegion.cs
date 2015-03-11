@@ -23,6 +23,7 @@ interface IRegion {
   IEnumerable<IRegion> SubRegions();
   IEnumerable<Block> PreHeaders();
   Block Header();
+  IEnumerable<Block> SubBlocks();
   Expr Guard();
   void AddInvariant(PredicateCmd pc);
   void AddLoopInvariantDisabledTag();
