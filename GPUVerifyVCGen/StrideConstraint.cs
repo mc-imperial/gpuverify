@@ -27,15 +27,15 @@ class StrideConstraint {
   public bool IsBottom() {
     var msc = this as ModStrideConstraint;
     if (msc == null)
-        return false;
+      return false;
 
     var le = msc.mod as LiteralExpr;
     if (le == null)
-        return false;
+      return false;
 
     var bvc = le.Val as BvConst;
     if (bvc == null)
-        return false;
+      return false;
 
     return bvc.Value.InInt32 && bvc.Value.ToInt == 1;
   }
