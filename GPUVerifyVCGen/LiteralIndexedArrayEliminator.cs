@@ -10,6 +10,7 @@ namespace GPUVerify
   class LiteralIndexedArrayEliminator
   {
     private GPUVerifier Verifier;
+    private Dictionary<string, GlobalVariable> arrayCache = new Dictionary<string, GlobalVariable>();
 
     public LiteralIndexedArrayEliminator(GPUVerifier Verifier)
     {
@@ -27,11 +28,11 @@ namespace GPUVerify
     private void ReplaceArraysUsesWithVariables(Program Program, Dictionary<string, HashSet<string>> Arrays)
     {
       foreach(var b in Program.Blocks()) {
-        b.Cmds = new EliminatorVisitor(Arrays).VisitCmdSeq(b.Cmds);
+        b.Cmds = new EliminatorVisitor(Arrays, this).VisitCmdSeq(b.Cmds);
       }
       foreach(var p in Program.TopLevelDeclarations.OfType<Procedure>()) {
-        p.Requires = new EliminatorVisitor(Arrays).VisitRequiresSeq(p.Requires);
-        p.Ensures = new EliminatorVisitor(Arrays).VisitEnsuresSeq(p.Ensures);
+        p.Requires = new EliminatorVisitor(Arrays, this).VisitRequiresSeq(p.Requires);
+        p.Ensures = new EliminatorVisitor(Arrays, this).VisitEnsuresSeq(p.Ensures);
       }
     }
 
@@ -53,11 +54,16 @@ namespace GPUVerify
       }
     }
 
-    internal static GlobalVariable MakeVariableForArrayIndex(Variable Array, string Literal)
+    internal GlobalVariable MakeVariableForArrayIndex(Variable Array, string Literal)
     {
-      return new GlobalVariable(
-                    Array.tok, new TypedIdent(Array.tok, Array.Name + "$" + Literal,
+      var arrayName = Array.Name + "$" + Literal;
+      if (!arrayCache.ContainsKey(arrayName))
+      {
+        arrayCache[arrayName] = new GlobalVariable(
+                    Array.tok, new TypedIdent(Array.tok, arrayName,
                       (Array.TypedIdent.Type as MapType).Result));
+      }
+      return arrayCache[arrayName];
     }
 
     private Dictionary<string, HashSet<string>> CollectRelevantArrays(Program Program)
@@ -128,10 +134,12 @@ namespace GPUVerify
   class EliminatorVisitor : Duplicator {
 
     private Dictionary<string, HashSet<string>> Arrays;
+    private LiteralIndexedArrayEliminator Eliminator;
 
-    public EliminatorVisitor(Dictionary<string, HashSet<string>> Arrays)
+    public EliminatorVisitor(Dictionary<string, HashSet<string>> Arrays, LiteralIndexedArrayEliminator Eliminator)
     {
       this.Arrays = Arrays;
+      this.Eliminator = Eliminator;
     }
 
     public override Expr VisitNAryExpr(NAryExpr node)
@@ -142,7 +150,7 @@ namespace GPUVerify
           if(Arrays.ContainsKey(map.Name)) {
             Debug.Assert(node.Args[1] is LiteralExpr);
             return new IdentifierExpr(Token.NoToken,
-              LiteralIndexedArrayEliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
+              Eliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
           }
         }
       }
@@ -167,7 +175,7 @@ namespace GPUVerify
 
       return new SimpleAssignLhs(
         lhs.tok, new IdentifierExpr(Token.NoToken,
-          LiteralIndexedArrayEliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString())));
+          Eliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString())));
     }
     
     public override Cmd VisitAssignCmd(AssignCmd node)
