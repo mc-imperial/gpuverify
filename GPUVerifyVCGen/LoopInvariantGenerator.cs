@@ -33,7 +33,6 @@ namespace GPUVerify
 
    invariantGenerationRules = new List<InvariantGenerationRule>();
    invariantGenerationRules.Add(new PowerOfTwoInvariantGenerator(verifier));
-   invariantGenerationRules.Add(new LoopVariableBoundsInvariantGenerator(verifier));
   }
 
   public static void EstablishDisabledLoops(GPUVerifier verifier, Implementation impl)

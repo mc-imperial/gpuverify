@@ -152,7 +152,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BarrierIntervals.cs" />
-    <Compile Include="InvariantGenerationRules\LoopVariableBoundsInvariantGenerator.cs" />
     <Compile Include="InvariantGenerationRules\InvariantGenerationRule.cs" />
     <Compile Include="InvariantGenerationRules\PowerOfTwoInvariantGenerator.cs" />
     <Compile Include="LiteralIndexedArrayEliminator.cs" />
