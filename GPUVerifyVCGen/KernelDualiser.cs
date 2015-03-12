@@ -315,8 +315,9 @@ namespace GPUVerify {
             (QKeyValue)a.Attributes.Clone()));
         }
         else {
+          var isUniform = verifier.uniformityAnalyser.IsUniform(procName, a.Expr);
           cs.Add(MakeThreadSpecificAssert(a, 1));
-          if (!GPUVerifyVCGenCommandLineOptions.AsymmetricAsserts && !ContainsAsymmetricExpression(a.Expr)) {
+          if (!GPUVerifyVCGenCommandLineOptions.AsymmetricAsserts && !ContainsAsymmetricExpression(a.Expr) && !isUniform) {
             cs.Add(MakeThreadSpecificAssert(a, 2));
           }
         }
@@ -368,8 +369,9 @@ namespace GPUVerify {
 
         }
         else {
+          var isUniform = verifier.uniformityAnalyser.IsUniform(procName, ass.Expr);
           AssumeCmd newAss = new AssumeCmd(c.tok, new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr));
-          if (!ContainsAsymmetricExpression(ass.Expr)) {
+          if (!ContainsAsymmetricExpression(ass.Expr) && !isUniform) {
             newAss.Expr = Expr.And(newAss.Expr, new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr));
           }
           newAss.Attributes = ass.Attributes;
