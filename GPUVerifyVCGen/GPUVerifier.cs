@@ -92,8 +92,8 @@ namespace GPUVerify
         internal RelationalPowerOfTwoAnalyser relationalPowerOfTwoAnalyser;
         internal ArrayControlFlowAnalyser arrayControlFlowAnalyser;
         internal CallSiteAnalyser callSiteAnalyser;
-        internal Dictionary<Implementation, VariableDefinitionAnalysis> varDefAnalyses;
-        internal Dictionary<Implementation, ReducedStrengthAnalysis> reducedStrengthAnalyses;
+        internal Dictionary<Implementation, VariableDefinitionAnalysisRegion> varDefAnalysesRegion;
+        internal Dictionary<Implementation, ReducedStrengthAnalysisRegion> reducedStrengthAnalysesRegion;
 
         internal Dictionary<AccessType, HashSet<string>> ArraysAccessedByAsyncWorkGroupCopy;
 
@@ -533,6 +533,10 @@ namespace GPUVerify
             if (GPUVerifyVCGenCommandLineOptions.ShowUniformityAnalysis) {
                 uniformityAnalyser.dump();
             }
+
+            // We now do modset analysis here because the previous passes add new
+            // global variables, and the following two passes depend on the modset
+            new ModSetCollector().DoModSetAnalysis(Program);
 
             DoVariableDefinitionAnalysis();
 
@@ -999,14 +1003,14 @@ namespace GPUVerify
 
         private void DoVariableDefinitionAnalysis()
         {
-            varDefAnalyses = Program.Implementations
-                .ToDictionary(i => i, i => VariableDefinitionAnalysis.Analyse(this, i));
+            varDefAnalysesRegion = Program.Implementations
+                .ToDictionary(i => i, i => VariableDefinitionAnalysisRegion.Analyse(i, this));
         }
 
         private void DoReducedStrengthAnalysis()
         {
-            reducedStrengthAnalyses = Program.Implementations
-                .ToDictionary(i => i, i => ReducedStrengthAnalysis.Analyse(this, i));
+            reducedStrengthAnalysesRegion = Program.Implementations
+                .ToDictionary(i => i, i => ReducedStrengthAnalysisRegion.Analyse(i, this));
         }
 
         private void EmitProgram(string filename)
@@ -2074,7 +2078,7 @@ namespace GPUVerify
         {
             if (!(e is IdentifierExpr))
                 return false;
-            e = varDefAnalyses[impl].SubstDefinitions(e, impl.Name);
+            e = varDefAnalysesRegion[impl].SubstDefinitions(e, impl.Name);
             return IsGivenConstant(e, c);
         }
 
@@ -2121,7 +2125,7 @@ namespace GPUVerify
 
         public bool IsGlobalId(Expr e, int dim, Implementation impl)
         {
-            e = varDefAnalyses[impl].SubstDefinitions(e, impl.Name);
+            e = varDefAnalysesRegion[impl].SubstDefinitions(e, impl.Name);
 
             if (e is NAryExpr && (e as NAryExpr).Fun.FunctionName.Equals("BV" + id_size_bits + "_ADD"))
             {

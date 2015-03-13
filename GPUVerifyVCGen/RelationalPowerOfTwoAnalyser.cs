@@ -139,7 +139,7 @@ namespace GPUVerify
                                 Expr expr = assign.Rhss[i];
                                 if (IsTempVariable(expr))
                                 {
-                                    expr = verifier.varDefAnalyses[impl].DefOfVariableName((expr as IdentifierExpr).Name);
+                                    expr = verifier.varDefAnalysesRegion[impl].DefOfVariableName((expr as IdentifierExpr).Name);
                                 }
                                 switch (isPowerOfTwoOperation(v, expr)) {
                                   case Kind.No:
@@ -164,7 +164,7 @@ namespace GPUVerify
         private Kind isPowerOfTwoOperation(Variable v, Expr expr)
         {
             //Console.WriteLine("relational:isPowerOfTwoOperation {0} {1}", v, expr);
-          
+
             if (!(
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||

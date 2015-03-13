@@ -191,9 +191,9 @@
     <Compile Include="KernelArrayInfoLists.cs" />
     <Compile Include="NullRaceInstrumenter.cs" />
     <Compile Include="ReadCollector.cs" />
-    <Compile Include="ReducedStrengthAnalysis.cs" />
+    <Compile Include="ReducedStrengthAnalysisRegion.cs" />
     <Compile Include="VariableDualiser.cs" />
-    <Compile Include="VariableDefinitionAnalysis.cs" />
+    <Compile Include="VariableDefinitionAnalysisRegion.cs" />
     <Compile Include="WatchdogRaceInstrumenter.cs" />
     <Compile Include="WriteCollector.cs" />
     <Compile Include="ConstantWriteCollector.cs" />

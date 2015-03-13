@@ -195,13 +195,17 @@ namespace GPUVerify
       var a = b.Cmds[0] as AssumeCmd;
       if (a != null && QKeyValue.FindBoolAttribute(a.Attributes, "partition")) {
         if (a.Expr is IdentifierExpr) {
-          return verifier.varDefAnalyses[impl].DefOfVariableName(((IdentifierExpr)a.Expr).Name);
+          return verifier.varDefAnalysesRegion[impl].DefOfVariableName(((IdentifierExpr)a.Expr).Name);
         } else if(a.Expr is NAryExpr) {
           var nary = (NAryExpr)a.Expr;
           if (nary.Fun is UnaryOperator &&
               (nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&
               nary.Args[0] is IdentifierExpr) {
-            return Expr.Not(verifier.varDefAnalyses[impl].DefOfVariableName(((IdentifierExpr)(a.Expr as NAryExpr).Args[0]).Name));
+            var d = verifier.varDefAnalysesRegion[impl].DefOfVariableName(((IdentifierExpr)(a.Expr as NAryExpr).Args[0]).Name);
+            if (d == null)
+              return null;
+            else
+              return Expr.Not(d);
           }
         }
       }
@@ -221,7 +225,7 @@ namespace GPUVerify
    var modset = GetModifiedVariables(region).Select(x => x.Name);
    foreach (var v in partitionVars)
    {
-    Expr expr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+    Expr expr = verifier.varDefAnalysesRegion[impl].DefOfVariableName(v.Name);
     if (expr == null)
      continue;
     var visitor = new VariablesOccurringInExpressionVisitor();
@@ -283,7 +287,7 @@ namespace GPUVerify
    Regex pattern = new Regex(@"\bBV\d*_((SLE)|(SLT)|(SGE)|(SGT))\b");
    foreach (var v in partitionVars)
    {
-    var expr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+    var expr = verifier.varDefAnalysesRegion[impl].DefOfVariableName(v.Name);
     if (!(expr is NAryExpr))
      continue;
     var nary = expr as NAryExpr;
@@ -314,17 +318,18 @@ namespace GPUVerify
 
   private static void GenerateCandidateForReducedStrengthStrideVariables(GPUVerifier verifier, Implementation impl, IRegion region)
   {
-   var rsa = verifier.reducedStrengthAnalyses[impl];
-   foreach (string lc in rsa.StridedLoopCounters(region.Identifier()))
+   var rsa = verifier.reducedStrengthAnalysesRegion[impl];
+   var regionId = region.Identifier();
+   foreach (string iv in rsa.StridedInductionVariables(regionId))
    {
-    var sc = rsa.GetStrideConstraint(lc);
-    Variable lcVariable = impl.LocVars.Where(Item => Item.Name == lc).ToList()[0];
-    var lcExpr = new IdentifierExpr(Token.NoToken, lcVariable);
-    var lcPred = sc.MaybeBuildPredicate(verifier, lcExpr);
+    var sc = rsa.GetStrideConstraint(iv, regionId);
+    Variable ivVariable = impl.LocVars.Where(Item => Item.Name == iv).ToList()[0];
+    var ivExpr = new IdentifierExpr(Token.NoToken, ivVariable);
+    var ivPred = sc.MaybeBuildPredicate(verifier, ivExpr);
 
-    if (lcPred != null)
+    if (ivPred != null)
     {
-     verifier.AddCandidateInvariant(region, lcPred, "loopCounterIsStrided");
+     verifier.AddCandidateInvariant(region, ivPred, "inductionVariableIsStrided");
     }
    }
   }
@@ -340,7 +345,7 @@ namespace GPUVerify
         // Find the expression which defines a particular partition variable.
         // Visit the expression and select any variable in the mod set of the loop.
         // We assume that any variable satisfying these conditions is a loop counter
-        Expr partitionDefExpr = verifier.varDefAnalyses[impl].DefOfVariableName(v.Name);
+        Expr partitionDefExpr = verifier.varDefAnalysesRegion[impl].DefOfVariableName(v.Name);
         if (partitionDefExpr == null) // multiple definitions or no definition
             continue;
         var visitor = new VariablesOccurringInExpressionVisitor();

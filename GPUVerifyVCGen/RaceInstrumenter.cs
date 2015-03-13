@@ -175,8 +175,10 @@ namespace GPUVerify {
 
       // now get the offset definition, distribute and try breaking apart
       bool isConstant;
-      var def = verifier.varDefAnalyses[impl].SubstDefinitions(offsets.First(), impl.Name, out isConstant);
-      if (def == null || isConstant) return;
+      bool isSubstitutable;
+      var def = verifier.varDefAnalysesRegion[impl].SubstDefinitions(offsets.First(), impl.Name, out isConstant, out isSubstitutable);
+      if (isConstant || !isSubstitutable)
+        return;
       // Should also check expression consists only of adds and muls?
       var distribute = new DistributeExprVisitor(verifier);
       var rewrite = distribute.Visit(def);
@@ -406,8 +408,9 @@ namespace GPUVerify {
 
       foreach (var offset in GetOffsetsAccessed(region, v, Access)) {
         bool isConstant;
-        var def = verifier.varDefAnalyses[impl].SubstDefinitions(offset, impl.Name, out isConstant);
-        if (def == null)
+        bool isSubstitutable;
+        var def = verifier.varDefAnalysesRegion[impl].SubstDefinitions(offset, impl.Name, out isConstant, out isSubstitutable);
+        if (!isSubstitutable)
           continue;
         if (isConstant) {
           offsetPreds.Add(Expr.Eq(offsetExpr, def));
@@ -448,8 +451,11 @@ namespace GPUVerify {
           continue;
         }
 
-        Expr lowerBound = verifier.varDefAnalyses[impl].SubstDefinitions(constant, impl.Name);
-        if (lowerBound == null) continue;
+        bool isConstant;
+        bool isSubstitutable;
+        Expr lowerBound = verifier.varDefAnalysesRegion[impl].SubstDefinitions(constant, impl.Name, out isConstant, out isSubstitutable);
+        if (!isSubstitutable)
+          continue;
 
         var visitor = new VariablesOccurringInExpressionVisitor();
         visitor.VisitExpr(lowerBound);
@@ -612,7 +618,7 @@ namespace GPUVerify {
           Variable lhsVar = (lhs as IdentifierExpr).Decl;
           Variable rhsVar = (rhs as IdentifierExpr).Decl;
           if (lhsVar.Name == rhsVar.Name) {
-            expr = verifier.varDefAnalyses[impl].DefOfVariableName(lhsVar.Name);
+            expr = verifier.varDefAnalysesRegion[impl].DefOfVariableName(lhsVar.Name);
           }
         }
       }
