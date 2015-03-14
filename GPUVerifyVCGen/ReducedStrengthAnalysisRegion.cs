@@ -156,11 +156,12 @@ class ReducedStrengthAnalysisRegion {
     var defInd = varDefAnalysis.SubstDefinitions(varDef, impl.Name, out loopFreeVars);
     if (loopFreeVars.Any(i => i != variable.Name))
       return;
-    HashSet<string> initFreeVars;
-    var defInit = varDefAnalysis.SubstDefinitions(defs[0].Item2, impl.Name, out initFreeVars);
-    if (initFreeVars.Any())
+    var modSetLoop = LoopInvariantGenerator.GetModifiedVariables(defs[1].Item1);
+    var v = new VariablesOccurringInExpressionVisitor();
+    v.Visit(defs[0].Item2);
+    if (v.GetVariables().Intersect(modSetLoop).Any())
       return;
-    AddDefinitionPair(variable, defInd, defInit, regionId, modSet);
+    AddDefinitionPair(variable, defInd, defs[0].Item2, regionId, modSet);
   }
 
   void Analyse() {
