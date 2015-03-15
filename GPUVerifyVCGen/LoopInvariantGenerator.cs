@@ -329,7 +329,7 @@ namespace GPUVerify
 
     if (ivPred != null)
     {
-     verifier.AddCandidateInvariant(region, ivPred, "inductionVariableIsStrided");
+     verifier.AddCandidateInvariant(region, ivPred, "loopCounterIsStrided");
     }
    }
   }
