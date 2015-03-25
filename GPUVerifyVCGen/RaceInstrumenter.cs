@@ -214,7 +214,7 @@ namespace GPUVerify {
           terms.Add(new IdentifierExpr(Token.NoToken, node));
           return base.VisitVariable(node);
       }
-      public override LiteralExpr VisitLiteralExpr(LiteralExpr node) {
+      public override Expr VisitLiteralExpr(LiteralExpr node) {
           terms.Add(node);
           return base.VisitLiteralExpr(node);
       }
