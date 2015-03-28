@@ -1832,6 +1832,20 @@ namespace GPUVerify
             return result;
         }
 
+        internal Variable FindOrCreateAccessHasOccurredGhostVariable(string varName, string suffix, AccessType Access, Implementation impl)
+        {
+            var ghostName = RaceInstrumentationUtil.MakeHasOccurredVariableName(varName, Access) + "$ghost$" + suffix;
+            foreach(var l in impl.LocVars) {
+              if(l.Name.Equals(ghostName)) {
+                return l;
+              }
+            }
+            LocalVariable result = new LocalVariable(Token.NoToken,
+                                                     new TypedIdent(Token.NoToken, ghostName, Microsoft.Boogie.Type.Bool));
+            impl.LocVars.Add(result);
+            return result;
+        }
+
         internal Variable FindOrCreateOffsetVariable(string varName, AccessType Access)
         {
             foreach(var g in Program.TopLevelDeclarations.OfType<Variable>()) {
@@ -1841,6 +1855,20 @@ namespace GPUVerify
             }
             Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, Access, IntRep.GetIntType(size_t_bits));
             Program.AddTopLevelDeclaration(result);
+            return result;
+        }
+
+        internal Variable FindOrCreateOffsetGhostVariable(string varName, string suffix, AccessType Access, Implementation impl)
+        {
+            var ghostName = RaceInstrumentationUtil.MakeOffsetVariableName(varName, Access) + "$ghost$" + suffix;
+            foreach(var l in impl.LocVars) {
+              if(l.Name.Equals(ghostName)) {
+                return l;
+              }
+            }
+            LocalVariable result = new LocalVariable(Token.NoToken,
+                                                     new TypedIdent(Token.NoToken, ghostName, IntRep.GetIntType(size_t_bits)));
+            impl.LocVars.Add(result);
             return result;
         }
 
