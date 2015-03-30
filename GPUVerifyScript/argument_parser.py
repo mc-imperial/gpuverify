@@ -314,7 +314,6 @@ def __build_parser(default_solver, version):
   json = parser.add_argument_group("JSON MODE")
   json.add_argument("--json", action = 'store_true', help = "The kernels to be \
     verified are specified through a JSON file")
-  #json.add_argument("--cache")
 
   json_options = json.add_mutually_exclusive_group()
   json_options.add_argument("--list-intercepted", action = 'store_true',
@@ -323,6 +322,8 @@ def __build_parser(default_solver, version):
     metavar = "X", help = "Verify kernel 'X' from the JSON file")
   json_options.add_argument("--verify-all-intercepted", action = 'store_true',
     help = "Verify all the kernels from the JSON file")
+
+  json.add_argument("--cache=", metavar = "X", help = "Use 'X' as result cache")
 
   return parser
 
@@ -428,7 +429,7 @@ def parse_arguments(argv, default_solver, llvm_bin_dir, version):
       parser.error("Sizing arguments incompatible with JSON mode")
   else:
     if args.list_intercepted or args.verify_all_intercepted or \
-       args.verify_intercepted != None:
+       args.verify_intercepted != None or args.cache != None:
       parser.error("JSON options require JSON mode");
 
   if not args.stop:
