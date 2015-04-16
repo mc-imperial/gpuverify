@@ -232,7 +232,7 @@ class GPUVerifyTool(object):
       return (localID, changesetID)
 
     else:
-      raise Exception('Could not get version')
+      raise Exception('Could not get version: Version String:"{}"'.format(versionString))
 
 
   def __runTool(self, cmdLineArgs):
@@ -252,6 +252,7 @@ class GPUVerifyTool(object):
                                     preexec_fn=os.setsid) # Make Sure GPUVerify can't kill us!
 
       message, _NOT_USED = process.communicate() # Run tool
+      message = message.decode(encoding='utf8') # Python3 compatibility
       returnCode = process.returncode
     except OSError as e:
       returnCode=-1

@@ -164,7 +164,7 @@ def runGpuverify(lang):
       toolMessage = warning + toolMessage
 
 
-    returnMessage['Outputs'][0]['Value'] = (extraHelpMessage + toolMessage).decode('utf8')
+    returnMessage['Outputs'][0]['Value'] = (extraHelpMessage + toolMessage)
 
   except Exception as e:
     returnMessage['Outputs'][0]['Value'] = 'Web service error:' + str(e)
@@ -179,7 +179,7 @@ def runGpuverify(lang):
 def getGPUVerifyHelp():
   (returnCode, toolMessage) = _tool.runOpenCL("",["--help"]);
 
-  response = {'help': toolMessage.decode('utf8') }
+  response = {'help': toolMessage }
   return jsonify(response)
 
 
