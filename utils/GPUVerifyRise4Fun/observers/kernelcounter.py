@@ -3,10 +3,20 @@ import gvapi
 import sys
 import os
 import logging
-import pickle
+import yaml
 import psutil
 
+try:
+  # Try to use libyaml which is faster
+  from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+  # fall back on python implementation
+  from yaml import Loader, Dumper
+
 _logging = logging.getLogger(__name__)
+
+class KernelCounterParseException(Exception):
+  pass
 
 """
   This class implements a simple observer that
@@ -23,15 +33,15 @@ _logging = logging.getLogger(__name__)
   these counters to check the current count.
 """
 class KernelCounterObserver(gvapi.GPUVerifyObserver):
-  counterFile = '-counter.pickle' # Will later be amended
+  counterFile = '-counter.yml' # Will later be amended
 
-  def __init__(self, dirForPickles):
+  def __init__(self, dirForCounters):
     self.counter = 0
-    self.pickleDir = os.path.abspath(dirForPickles)
+    self.counterDir = os.path.abspath(dirForCounters)
     self.loadCounter()
 
-    if not os.path.exists(self.pickleDir):
-      errorMsg = 'Pickle directory "{0}" does not exist!'.format(self.pickleDir)
+    if not os.path.exists(self.counterDir):
+      errorMsg = 'Counter directory "{0}" does not exist!'.format(self.counterDir)
       _logging.error(errorMsg)
       raise Exception(errorMsg)
 
@@ -63,21 +73,32 @@ class KernelCounterObserver(gvapi.GPUVerifyObserver):
 
     assert prefix != ''
     self.counterFile = prefix + self.counterFile
-    self.counterFile = os.path.join(self.pickleDir, self.counterFile)
+    self.counterFile = os.path.join(self.counterDir, self.counterFile)
     _logging.info('Trying to load counter from {0}'.format(self.counterFile))
 
-    # Try to load counter form pickle file
+    # Try to load counter form YAML file
     if os.path.exists(self.counterFile):
-      _logging.info('Counter pickle file exists. Trying to load counter from it')
+      _logging.info('Counter YAML file exists. Trying to load counter from it')
       with open(self.counterFile, 'r') as f:
         try:
-          self.counter = pickle.load(f)
-          _logging.info('Loaded counter value of {} from pickle file {}'.format(self.counter, self.counterFile))
+          data = yaml.load(f, Loader=Loader)
+          if not isinstance(data, dict):
+            raise KernelCounterParseException('YAML file top level data structure must be dictionary')
+
+          try:
+            self.counter = data['counter']
+          except KeyError:
+            raise KernelCounterParseException('Could not find key "counter"')
+
+          if (not isinstance(self.counter, int)) or self.counter < 0:
+            raise KernelCounterParseException('"counter" is not a positive or zero integer')
+
+          _logging.info('Loaded counter value of {} from YAML file {}'.format(self.counter, self.counterFile))
         except Exception as e:
-          _logging.error('Failed to load counter from pickle file' + str(e))
+          _logging.error('Failed to load counter from YAML file' + str(e))
           self.counter = 0
     else:
-      _logging.info('Counter pickle file does not exist. Counter defaulting to {}'.format(self.counter))
+      _logging.info('Counter YAML file does not exist. Counter defaulting to {}'.format(self.counter))
 
   def saveCounter(self):
     # Try to save counter
@@ -87,7 +108,8 @@ class KernelCounterObserver(gvapi.GPUVerifyObserver):
     _logging.info('Attempting to save counter value of {} to file {}\n'.format(self.counter, self.counterFile))
     with open(self.counterFile, 'w') as f:
       try:
-        pickle.dump(self.counter, f)
+        yamlStr = yaml.dump({'counter':self.counter}, Dumper=Dumper)
+        f.write(yamlStr)
         f.flush()
       except Exception as e:
        _logging.error('Failed to save counter to {}. Reason : {}\n'.format(self.counterFile, str(e)))

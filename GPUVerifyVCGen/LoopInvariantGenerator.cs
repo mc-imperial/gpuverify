@@ -107,7 +107,6 @@ namespace GPUVerify
                     g), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
       }
     }
-
   }
 
   private static void GetReadAndWrittenVariables(IRegion region, out IEnumerable<Variable> ReadVariables, out IEnumerable<Variable> WrittenVariables) {

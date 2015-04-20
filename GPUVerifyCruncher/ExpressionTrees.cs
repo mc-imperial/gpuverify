@@ -295,6 +295,14 @@ namespace GPUVerify
                 two.parent = parent;
                 return parent;
             }
+            else if (expr is ForallExpr)
+            {
+                ForallExpr forall = expr as ForallExpr;
+                Node one = CreateFromExpr(forall._Body);
+                Node parent = new ForAllNode(one);
+                one.parent = parent;
+                return parent;
+            }
             Print.ExitMessage("Unhandled expression tree: " + expr.ToString() + " " + expr.Type.ToString());
             return null;
         }
@@ -415,6 +423,14 @@ namespace GPUVerify
         {
             children.Add(one);
             children.Add(two);
+        }
+    }
+
+    public class ForAllNode : ExprNode
+    {
+        public ForAllNode(Node one)
+        {
+          children.Add(one);
         }
     }
 

@@ -650,7 +650,7 @@ class GPUVerifyInstance (object):
       else:
         return "- no tools ran"
 
-def json_list_kernels(kernels, json_to_kernel_map):
+def json_list_kernels(kernels, json_to_kernel_map, success_cache):
   index_width = len(str(len(json_to_kernel_map) - 1))
   index_format = "[{: >" + str(index_width) + "}] Name: {}"
   prefix = ' ' * (index_width + 2)
@@ -662,6 +662,7 @@ def json_list_kernels(kernels, json_to_kernel_map):
   arg_val_format  = prefix + " Argument {}: {} {}"
   build_format    = prefix + " Built at {}:{}"
   run_format      = prefix + " Ran at {}:{}"
+  cache_format    = prefix + " In success cache"
 
   for index, k in enumerate(json_to_kernel_map):
     print(index_format.format(index, kernels[k].entry_point))
@@ -685,8 +686,13 @@ def json_list_kernels(kernels, json_to_kernel_map):
       for call in kernels[k].host_api_calls:
         if call.function_name == "clEnqueueNDRangeKernel":
           print(run_format.format(call.compilation_unit, call.line_number))
+    if kernels[k] in success_cache:
+      print(cache_format)
 
-def json_verify_kernel(args, base_path, kernel):
+def json_verify_kernel(args, base_path, kernel, success_cache):
+  if kernel in success_cache:
+    return ErrorCodes.SUCCESS, "Verified: Found result in success cache"
+
   kernel_args = copy.deepcopy(args)
   kernel_name = os.path.join(base_path, kernel.kernel_file)
   try:
@@ -718,21 +724,26 @@ def json_verify_kernel(args, base_path, kernel):
   outFile.seek(0)
   out_data = outFile.read()[:-1]
   outFile.close()
+
+  if return_code == ErrorCodes.SUCCESS:
+    success_cache.append(kernel)
+
   return return_code, out_data
 
-def json_verify_all(args, kernels, json_to_kernel_map):
+def json_verify_all(args, kernels, json_to_kernel_map, success_cache):
   base_path = os.path.dirname(args.kernel.name)
   Result = namedtuple("Result", ["error_code", "output", "kernel"])
   results = []
 
   progress_format = "Executed {} of " + str(len(kernels)) + \
-    " verification tasks for " + str(len(json_to_kernel_map)) + " kernels"
+    " verification tasks for " + str(len(json_to_kernel_map)) + \
+    " intercepted kernels"
   progress_text = ""
   for i, k in enumerate(kernels):
     progress_text = progress_format.format(i)
     print(progress_text, end = '\r')
     sys.stdout.flush()
-    return_code, out_data = json_verify_kernel(args, base_path, k)
+    return_code, out_data = json_verify_kernel(args, base_path, k, success_cache)
     results.append(Result(return_code, out_data, k))
   print(' ' * len(progress_text), end = '\r')
 
@@ -749,37 +760,41 @@ def json_verify_all(args, kernels, json_to_kernel_map):
   print("Failed to verify {} kernels.".format(len(failure)))
 
   index_width = len(str(len(json_to_kernel_map) - 1))
-  result_format = "[{: >" + str(index_width) + "}]: Verification of {} ({}) {} with: local size = {} global size = {}"
-  print("")
-  print("Successes:")
-  for s, r in success:
-    print(result_format.format(s,
-                                r.kernel.entry_point,
-                                r.kernel.kernel_file,
-                                "succeeded",
-                                ",".join(map(str, r.kernel.local_size)),
-                                ",".join(map(str, r.kernel.global_size))
-                               ))
+  result_format = "[{: >" + str(index_width) + "}]: Verification of {} ({}) {} with: local size = [{}] global size = [{}]"
+  if len(success) > 0:
+    print("")
+    print("Successes:")
+    for s, r in success:
+      print(result_format.format(s,
+                                 r.kernel.entry_point,
+                                 r.kernel.kernel_file,
+                                 "succeeded",
+                                 ",".join(map(str, r.kernel.local_size)),
+                                 ",".join(map(str, r.kernel.global_size))
+                                 ))
 
-  print("")
-  print("Failures:")
-  for f, r in failure:
-    print(result_format.format(f,
-                                r.kernel.entry_point,
-                                r.kernel.kernel_file,
-                                "failed",
-                                ",".join(map(str, r.kernel.local_size)),
-                                ",".join(map(str, r.kernel.global_size))
-                               ))
+  if len(success) > 0 and len(failure) > 0:
+    print("")
 
-def json_verify_intercepted(args, kernels, json_to_kernel_map):
+  if len(failure) > 0:
+    print("Failures:")
+    for f, r in failure:
+      print(result_format.format(f,
+                                 r.kernel.entry_point,
+                                 r.kernel.kernel_file,
+                                 "failed",
+                                 ",".join(map(str, r.kernel.local_size)),
+                                 ",".join(map(str, r.kernel.global_size))
+                                 ))
+
+def json_verify_intercepted(args, kernels, json_to_kernel_map, success_cache):
   if args.verify_intercepted >= len(json_to_kernel_map):
     raise JSONError("No kernel " + str(args.verify_intercepted) + " in JSON file")
 
   k = kernels[json_to_kernel_map[args.verify_intercepted]]
-  return_code, out_data = json_verify_kernel(args, os.path.dirname(args.kernel.name), k)
+  return_code, out_data = json_verify_kernel(args, os.path.dirname(args.kernel.name), k, success_cache)
 
-  result_format = "Verification of {} ({}) {} with: local size = {} global size = {}"
+  result_format = "Verification of {} ({}) {} with: local size = [{}] global size = [{}]"
   print(result_format.format(k.entry_point,
                              k.kernel_file,
                              "succeeded" if return_code == ErrorCodes.SUCCESS else "failed",
@@ -794,18 +809,29 @@ def json_verify_intercepted(args, kernels, json_to_kernel_map):
 def do_json_mode(args):
   kernels, json_to_kernel_map = json_load(args.kernel)
 
+  if args.cache != None:
+    try:
+      success_cache = pickle.load(open(args.cache))
+    except:
+      success_cache = []
+  else:
+    success_cache = []
+
   if args.list_intercepted:
-    json_list_kernels(kernels, json_to_kernel_map)
+    json_list_kernels(kernels, json_to_kernel_map, success_cache)
   elif args.verify_all_intercepted:
-    json_verify_all(args, kernels, json_to_kernel_map)
+    json_verify_all(args, kernels, json_to_kernel_map, success_cache)
   elif args.verify_intercepted != None:
-    json_verify_intercepted(args, kernels, json_to_kernel_map)
+    json_verify_intercepted(args, kernels, json_to_kernel_map, success_cache)
   else:
     base_path = os.path.dirname(args.kernel.name)
     for kernel in kernels:
       print("Verifying " + kernel.entry_point)
-      return_code, out_data = json_verify_kernel(args, base_path, kernel)
+      return_code, out_data = json_verify_kernel(args, base_path, kernel, success_cache)
       print(out_data)
+
+  if args.cache != None:
+    pickle.dump(success_cache, open(args.cache, "w"))
 
 def main(args, out, err):
   """ This wraps GPUVerify's real main function so

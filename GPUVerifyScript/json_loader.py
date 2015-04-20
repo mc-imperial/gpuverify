@@ -129,6 +129,9 @@ def __check_host_api_calls(data):
   for i in data:
     __check_host_api_call(i)
 
+DefinesIncludes = \
+  namedtuple("DefinesIncludes", ["defines", "includes", "original"])
+
 def __extract_defines_and_includes(compiler_flags):
   flags_split = compiler_flags.split()
   defines  = []
@@ -152,8 +155,6 @@ def __extract_defines_and_includes(compiler_flags):
       includes.append(flags_split[i][len("-I"):])
     i += 1
 
-  DefinesIncludes = \
-    namedtuple("DefinesIncludes", ["defines", "includes", "original"])
   return DefinesIncludes(defines, includes, compiler_flags)
 
 def __process_opencl_entry(data):

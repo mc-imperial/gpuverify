@@ -2,6 +2,8 @@
 import inspect
 import logging
 import re
+import sys
+from functools import reduce
 
 #Internal logger
 _logger = logging.getLogger(__name__)

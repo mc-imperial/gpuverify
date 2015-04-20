@@ -17,7 +17,7 @@ _logging = logging.getLogger(__name__)
 
 # Put GPUVerify.py module in search path
 sys.path.insert(0, config.GPUVERIFY_ROOT_DIR)
-from GPUVerify import ErrorCodes
+from GPUVerifyScript.error_codes import ErrorCodes
 
 # Error code to message map
 helpMessage = {
@@ -27,9 +27,11 @@ ErrorCodes.CLANG_ERROR:"Clang could not compile your kernel to LLVM bitcode.",
 ErrorCodes.OPT_ERROR:"Could not perform necessary optimisations to your kernel.",
 ErrorCodes.BUGLE_ERROR:"Could not translate LLVM bitcode to Boogie.",
 ErrorCodes.GPUVERIFYVCGEN_ERROR:"Could not generate invariants and/or perform two-thread abstraction.",
-ErrorCodes.BOOGIE_ERROR:"",
+ErrorCodes.NOT_ALL_VERIFIED:"Verification failed.",
 ErrorCodes.TIMEOUT:"Verification timed out.",
-ErrorCodes.CONFIGURATION_ERROR:"The web service has been incorrectly configured. Please report this issue to gpuverify-support@googlegroups.com"
+ErrorCodes.CONFIGURATION_ERROR:"The web service has been incorrectly configured. Please report this issue to gpuverify-support@googlegroups.com",
+ErrorCodes.BOOGIE_INTERNAL_ERROR:"Internal failure of Boogie Driver or Cruncher",
+ErrorCodes.BOOGIE_OTHER_ERROR:"Uncategorised failure of Boogie Driver or Cruncher",
 }
 
 # Observer design pattern
@@ -230,7 +232,7 @@ class GPUVerifyTool(object):
       return (localID, changesetID)
 
     else:
-      raise Exception('Could not get version')
+      raise Exception('Could not get version: Version String:"{}"'.format(versionString))
 
 
   def __runTool(self, cmdLineArgs):
@@ -250,6 +252,7 @@ class GPUVerifyTool(object):
                                     preexec_fn=os.setsid) # Make Sure GPUVerify can't kill us!
 
       message, _NOT_USED = process.communicate() # Run tool
+      message = message.decode(encoding='utf8') # Python3 compatibility
       returnCode = process.returncode
     except OSError as e:
       returnCode=-1

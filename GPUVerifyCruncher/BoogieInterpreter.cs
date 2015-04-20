@@ -95,51 +95,6 @@ namespace GPUVerify
     public static Regex CAST_FP_TO_DOUBLE = new Regex("FP[0-9]+_CONV[0-9]+", RegexOptions.IgnoreCase);
   }
 
-  internal class DepthFirstSearch
-  {
-    enum COLOR {WHITE, GREY,BLACK};
-
-    private Block start;
-    private Graph<Block> cfg;
-    private HashSet<Block> allHeaders;
-    private HashSet<Block> visitedHeaders = new HashSet<Block>();
-    private Dictionary<Block, COLOR> visited = new Dictionary<Block, COLOR>();
-
-    public DepthFirstSearch(Block start, Graph<Block> cfg, HashSet<Block> allHeaders)
-    {
-      this.start = start;
-      this.cfg = cfg;
-      this.allHeaders = allHeaders;
-      foreach (Block block in cfg.Nodes)
-      {
-        visited[block] = COLOR.WHITE;
-      }
-      DoDFS(start);
-    }
-
-    private void DoDFS(Block block)
-    {
-      visited[block] = COLOR.GREY;
-      if (allHeaders.Contains(block) && block != start)
-      {
-        visitedHeaders.Add(block);
-      }
-      foreach (Block succ in cfg.Successors(block))
-      {
-        if (visited[succ] == COLOR.WHITE)
-        {
-          DoDFS(succ);   
-        }
-      }
-      visited[block] = COLOR.BLACK;
-    }
-
-    public HashSet<Block> VisitedHeaders()
-    {
-      return visitedHeaders;
-    }
-  }
-
   public class BoogieInterpreter
   {
     // The engine holding all the configuration options
@@ -156,6 +111,9 @@ namespace GPUVerify
     
     // The memory for the interpreter
     private Memory Memory = new Memory();
+
+    // The call stack
+    private List<Memory> CallStack = new List<Memory>();
     
     // The expression trees used internally to evaluate Boogie expressions
     private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
@@ -163,7 +121,7 @@ namespace GPUVerify
     // A basic block label to basic block mapping
     private Dictionary<string, Block> LabelToBlock = new Dictionary<string, Block>();
     
-    // The current status of the assert - is it true or false?
+    // The current status of an assert - is it true or false?
     private Dictionary<string, BitVector> AssertStatus = new Dictionary<string, BitVector>();
     
     // Our FP interpretrations
@@ -172,17 +130,15 @@ namespace GPUVerify
     // Which basic blocks have been covered
     private HashSet<Block> Covered = new HashSet<Block>();
     
-    // Keeping trace of header execution counts
+    // Keeping track of header execution counts
+    private Graph<Block> TheLoops;
     private int GlobalHeaderCount = 0;
     private Dictionary<Block, int> HeaderExecutionCounts = new Dictionary<Block, int>();
-    
-    // Loop bodies and loop-exit destinations
-    private Dictionary<Block, HashSet<Block>> HeaderToLoopBody = new Dictionary<Block, HashSet<Block>>();
-    private Dictionary<Block, List<Block>> HeaderToLoopExitBlocks = new Dictionary<Block, List<Block>>();
-    
-    // Headers whose loops are independent from other loops
-    private HashSet<Block> HeadersFromWhichToExitEarly = new HashSet<Block>();
+
+    // The number of times the kernel has been invoked
     private int Executions = 0;
+
+    // To randomise group/thread IDs and uninitialised formal parameters
     private Random Random;
     
     // To time execution
@@ -200,7 +156,8 @@ namespace GPUVerify
       // If there are no invariants to falsify, return
       if (program.TopLevelDeclarations.OfType<Constant>().Where(item => QKeyValue.FindBoolAttribute(item.Attributes, "existential")).Count() == 0)
         return;
-                           
+
+      stopwatch.Start();
       Implementation impl = program.TopLevelDeclarations.OfType<Implementation>().Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "kernel")).First();
       // Seed the random number generator so that it is deterministic
       Random = new Random(impl.Name.Length);
@@ -209,85 +166,9 @@ namespace GPUVerify
       foreach (Block block in impl.Blocks)
         LabelToBlock[block.Label] = block;
            
-      Graph<Block> loopInfo = program.ProcessLoops(impl);
-      // Compute targets of loop exits
-      ComputeLoopExits(loopInfo);            
-      // Determine whether there are loops that could be executed indepedently
-      ComputeDisjointLoops(impl, loopInfo);
-      
-      stopwatch.Start();
+      this.TheLoops = program.ProcessLoops(impl);
+
       DoInterpretation(program, impl);
-    }
-
-    private void ComputeLoopExits(Graph<Block> loopInfo)
-    { 
-      // Compute loop-exit edges for each natural loop
-      foreach (Block header in loopInfo.Headers)
-      {
-        HeaderToLoopBody[header] = new HashSet<Block>();
-        HeaderToLoopExitBlocks[header] = new List<Block>();
-        // Build loop body
-        foreach (Block tail in loopInfo.BackEdgeNodes(header))
-        {
-          HeaderToLoopBody[header].UnionWith(loopInfo.NaturalLoops(header, tail));
-        }
-        // Now find edges (u, v) where u is in the loop body but v is not
-        foreach (Block block in HeaderToLoopBody[header])
-        {
-          TransferCmd transfer = block.TransferCmd;
-          if (transfer is GotoCmd)
-          {
-            GotoCmd goto_ = transfer as GotoCmd;
-            if (goto_.labelNames.Count == 1)
-            {
-              string succLabel = goto_.labelNames[0];
-              Block succ = LabelToBlock[succLabel];
-              if (!HeaderToLoopBody[header].Contains(succ))
-                HeaderToLoopExitBlocks[header].Add(succ);
-            }
-            else
-            {
-              foreach (string succLabel in goto_.labelNames)
-              {
-                Block succ = LabelToBlock[succLabel];
-                if (!HeaderToLoopBody[header].Contains(succ))
-                  HeaderToLoopExitBlocks[header].Add(succ);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    private void ComputeDisjointLoops(Implementation impl, Graph<Block> loopInfo)
-    {
-      Dictionary<Block, HashSet<Variable>> HeaderToWriteSet = new Dictionary<Block, HashSet<Variable>>();
-      Dictionary<Block, HashSet<Variable>> HeaderToReadSet = new Dictionary<Block, HashSet<Variable>>();
-      Dictionary<Block, HashSet<Variable>> HeaderToAssertReadSet = new Dictionary<Block, HashSet<Variable>>();
-        
-      Graph<Block> cfg = Program.GraphFromImpl(impl);
-      foreach (Block header in loopInfo.Headers)
-      {
-        Tuple<HashSet<Variable>, HashSet<Variable>, HashSet<Variable>> theSets = ComputeWriteAndReadSets(header, HeaderToLoopBody[header]);
-        HeaderToWriteSet[header] = theSets.Item1;
-        HeaderToReadSet[header] = theSets.Item2;
-        HeaderToAssertReadSet[header] = theSets.Item3;
-      }
-      foreach (Block header in loopInfo.Headers)
-      {
-        DepthFirstSearch dfs = new DepthFirstSearch(header, cfg, new HashSet<Block>(loopInfo.Headers));
-        bool earlyExitPermitted = true;
-        foreach (Block reachable in dfs.VisitedHeaders())
-        {
-          if (HeaderToWriteSet[header].Intersect(HeaderToAssertReadSet[reachable]).Any())
-            earlyExitPermitted = false;
-        }
-        if (earlyExitPermitted)
-        {
-          Print.VerboseMessage("Early exit permitted from " + header);
-          HeadersFromWhichToExitEarly.Add(header);
-        }
-      }
     }
 
     private Tuple<HashSet<Variable>, HashSet<Variable>, HashSet<Variable>> ComputeWriteAndReadSets(Block header, HashSet<Block> loopBody)
@@ -335,7 +216,7 @@ namespace GPUVerify
         {                
           // Reset the memory in readiness for the next execution
           Memory.Clear();
-          foreach (Block header in HeaderToLoopBody.Keys)
+          foreach (Block header in TheLoops.Headers)
           {
             HeaderExecutionCounts[header] = 0;   
           }
@@ -444,58 +325,61 @@ namespace GPUVerify
             BinaryNode binary = (BinaryNode)node;
             if (binary.op == "==")
             {
-              // Assume that equality is actually assignment into the variable of interest
-              search = false;
-              ScalarSymbolNode left = (ScalarSymbolNode)binary.GetChildren()[0];
-              LiteralNode right = (LiteralNode)binary.GetChildren()[1];
-              if (left.symbol == "group_size_x")
+              if (binary.GetChildren()[0] is ScalarSymbolNode && binary.GetChildren()[1] is LiteralNode)
               {
-                gpu.blockDim[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.X]));
-              }
-              else if (left.symbol == "group_size_y")
-              {
-                gpu.blockDim[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Y]));
-              }
-              else if (left.symbol == "group_size_z")
-              {
-                gpu.blockDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Z]));
-              }
-              else if (left.symbol == "num_groups_x")
-              {
-                gpu.gridDim[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.X]));
-              }
-              else if (left.symbol == "num_groups_y")
-              {
-                gpu.gridDim[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Y]));
-              }
-              else if (left.symbol == "num_groups_z")
-              {
-                gpu.gridDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Z]));
-              }
-              else if (left.symbol == "global_offset_x")
-              {
-                gpu.gridOffset[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.X]));
-              }
-              else if (left.symbol == "global_offset_y")
-              {
-                gpu.gridOffset[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Y]));
-              }
-              else if (left.symbol == "global_offset_z")
-              {
-                gpu.gridOffset[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Z]));
-              }
-              else
-              {
-                Memory.Store(left.symbol, right.evaluation);
+                // Assume that equality is actually assignment into the variable of interest
+                search = false;
+                ScalarSymbolNode left = (ScalarSymbolNode)binary.GetChildren()[0];
+                LiteralNode right = (LiteralNode)binary.GetChildren()[1];
+                if (left.symbol == "group_size_x")
+                {
+                  gpu.blockDim[DIMENSION.X] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.X]));
+                }
+                else if (left.symbol == "group_size_y")
+                {
+                  gpu.blockDim[DIMENSION.Y] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Y]));
+                }
+                else if (left.symbol == "group_size_z")
+                {
+                  gpu.blockDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Z]));
+                }
+                else if (left.symbol == "num_groups_x")
+                {
+                  gpu.gridDim[DIMENSION.X] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.X]));
+                }
+                else if (left.symbol == "num_groups_y")
+                {
+                  gpu.gridDim[DIMENSION.Y] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Y]));
+                }
+                else if (left.symbol == "num_groups_z")
+                {
+                  gpu.gridDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Z]));
+                }
+                else if (left.symbol == "global_offset_x")
+                {
+                  gpu.gridOffset[DIMENSION.X] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.X]));
+                }
+                else if (left.symbol == "global_offset_y")
+                {
+                  gpu.gridOffset[DIMENSION.Y] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Y]));
+                }
+                else if (left.symbol == "global_offset_z")
+                {
+                  gpu.gridOffset[DIMENSION.Z] = right.evaluation.ConvertToInt32();
+                  Memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Z]));
+                }
+                else
+                {
+                  Memory.Store(left.symbol, right.evaluation);
+                }
               }
             }
           }
@@ -592,24 +476,13 @@ namespace GPUVerify
                GlobalHeaderCount < Engine.LoopHeaderLimit &&
                stopwatch.Elapsed.Seconds < Engine.TimeLimit)
         {
-          if (Engine.LoopEscape > 0 &&
-              HeaderToLoopBody.Keys.Contains(block) &&
-              HeaderExecutionCounts.ContainsKey(block) &&
-              HeaderExecutionCounts[block] > Engine.LoopEscape)
+          if (TheLoops.Headers.Contains(block))
           {
-            // If we have exceeded the user-set loop escape factor then go to an exit block
-            block = HeaderToLoopExitBlocks[block][0];
+            GlobalHeaderCount++;
+            HeaderExecutionCounts[block]++;
           }
-          else
-          {
-            if (HeaderToLoopBody.Keys.Contains(block))
-            {
-              GlobalHeaderCount++;
-              HeaderExecutionCounts[block]++;
-            }
-            InterpretBasicBlock(program, impl, block);
-            block = TransferControl(block);
-          }
+          InterpretBasicBlock(program, impl, block);
+          block = TransferControl(block);
         }
       }
       catch (UnhandledException e)
@@ -721,27 +594,28 @@ namespace GPUVerify
         // and which can influence control flow
         if (!Memory.Contains(v.Name))
         {
-          int width;
           if (v.TypedIdent.Type is BvType)
           {
             BvType bv = (BvType)v.TypedIdent.Type;
-            width = bv.Bits;
+            Memory.Store(v.Name, InitialiseFormalParameter(bv.Bits));
           }
           else if (v.TypedIdent.Type is BasicType)
           {
             BasicType basic = (BasicType)v.TypedIdent.Type;
             if (basic.IsInt)
-              width = 32;
+              Memory.Store(v.Name, InitialiseFormalParameter(32));
             else
               throw new UnhandledException(String.Format("Unhandled basic type '{0}'", basic.ToString()));
           }
+          else if (v.TypedIdent.Type is TypeSynonymAnnotation)
+          {
+            if (v.TypedIdent.Type.ToString() == "functionPtr")
+              Memory.Store(v.Name, null);
+            else
+              throw new UnhandledException(String.Format("Unhandled type synonym '{0}'", v.TypedIdent.ToString()));
+          }
           else
             throw new UnhandledException("Unknown data type " + v.TypedIdent.Type.ToString());
-                    
-          BitVector initialValue = InitialiseFormalParameter(width);                    
-          Memory.Store(v.Name, initialValue);
-          Print.VerboseMessage(String.Format("Formal parameter '{0}' with type '{1}' is uninitialised. Assigning {2}", 
-            v.Name, v.TypedIdent.Type.ToString(), initialValue.ToString()));
         }
       }
     }
@@ -1386,6 +1260,11 @@ namespace GPUVerify
         else if (RegularExpressions.CAST_FP_TO_DOUBLE.IsMatch(unary.op))
         {
           unary.evaluation = BitVector.ZeroExtend(child.evaluation, 32);
+        }
+        else if (unary.op.Equals("FUNCPTR_TO_PTR") ||
+                 unary.op.Equals("PTR_TO_FUNCPTR"))
+        {
+          unary.evaluation = child.evaluation;
         }
         else
           throw new UnhandledException("Unhandled bv unary op: " + unary.op);

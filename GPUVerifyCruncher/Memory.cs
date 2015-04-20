@@ -34,16 +34,16 @@ namespace GPUVerify
         private Dictionary<string, BitVector> scalars = new Dictionary<string, BitVector>();
         private Dictionary<string, Dictionary <SubscriptExpr, BitVector>> arrays = new Dictionary<string, Dictionary <SubscriptExpr, BitVector>>();
         private Dictionary<string, HashSet<BitVector>> raceArrayOffsets = new Dictionary<string, HashSet<BitVector>>();
-        private Dictionary<string, MemorySpace> arrayLocations = new Dictionary<string, MemorySpace>() ;
-        
+        private Dictionary<string, MemorySpace> arrayLocations = new Dictionary<string, MemorySpace>();
+
         public Memory()
         {
         }
 
         public void Clear()
         {
-            scalars.Clear();
-            arrays.Clear();
+          scalars.Clear();
+          arrays.Clear();
         }
 
         public void ClearRaceArrayOffset(string name)
@@ -107,7 +107,7 @@ namespace GPUVerify
         {
             return scalars.ContainsKey(name);
         }
-        
+
         public bool Contains(string name, SubscriptExpr subscript)
         {
             if (arrays.ContainsKey(name))

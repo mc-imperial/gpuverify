@@ -17,20 +17,21 @@ import logging
 import pickle
 import argparse
 import sys
+import yaml
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser(description=__doc__)
   logging.basicConfig(level=logging.INFO)
 
-  parser.add_argument('--pickle_dir','-p', help='The directory to search for *-counter.pickle files. Default is current directory', default=os.getcwd())
+  parser.add_argument('yaml_dir', help='The directory to search for *-counter.yml files.')
 
   args = parser.parse_args()
-  pickleDir = args.pickle_dir
+  counterDir = args.yaml_dir
 
-  (root, _NOTUSED, files) = next(os.walk(pickleDir))
+  (root, _NOTUSED, files) = next(os.walk(counterDir))
 
-  matcher = re.compile(r'^(\d+)-counter\.pickle$')
+  matcher = re.compile(r'^(\d+)-counter\.yml$')
   processNumber = [ ]
   pmap = { }
   for f in files:
@@ -44,7 +45,7 @@ if __name__ == '__main__':
   if len(processNumber) == 0:
     logging.error('No *-counter.pickle files found')
     sys.exit(1)
-  
+
   # Get counts
   runningTotal = 0
   counts = [ 0 for dummy in range(0, max(processNumber) +1) ]
@@ -53,10 +54,16 @@ if __name__ == '__main__':
       logging.warning('No pickle file for process {0}. Assuming count of zero'.format(index))
       counts[index] = 0
     else:
-      with open(os.path.join(pickleDir,pmap[index]), 'r') as pickleFile:
-        counts[index] = pickle.load(pickleFile)
+      with open(os.path.join(counterDir,pmap[index]), 'r') as f:
+        data = yaml.load(f)
+        assert isinstance(data, dict)
+        assert 'counter' in data
+        value = data['counter']
+        assert isinstance(value, int)
+        assert value >= 0
+        counts[index] = data['counter']
         runningTotal += counts[index]
-        
+
 
   print('') # new line
   # print header

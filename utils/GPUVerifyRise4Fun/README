@@ -8,13 +8,12 @@ DEPENDENCIES
 - Flask >=0.10
 - Tornado >= 3.1
 - psutil >= 1.0.1
+- pyyaml >= 3.11
 - GPUVerify (development or deployed version)
 
 You can get hold of Flask and tornado by running
 
-$ pip install flask 
-$ pip install tornado
-$ pip install psutil
+$ pip install flask tornado psutil pyyaml
 
 You may want to use the virtualenv python package to isolate these dependencies
 from the rest of your system.
@@ -35,7 +34,7 @@ Flask development server) and a production (Tornado) web server.
 
 To use the development web server run
 
-$ python webservice.py 
+$ python webservice.py
 
 To use the production web server run
 

@@ -240,8 +240,8 @@ namespace GPUVerify
       } else {
         if (UsingCVC4AndQuantifiersPresent(program, CommandLineOptions.Clo.ProverOptions))
         {
-          CommandLineOptions.Clo.RemoveAllProverOptions(Item => Item.Equals(QF_ALL_SUPPORTED));
-          CommandLineOptions.Clo.AddProverOption(ALL_SUPPORTED);
+          CommandLineOptions.Clo.ProverOptions = CommandLineOptions.Clo.ProverOptions.Where(Item => !Item.Equals(QF_ALL_SUPPORTED));
+          CommandLineOptions.Clo.ProverOptions = CommandLineOptions.Clo.ProverOptions.Concat1(ALL_SUPPORTED);
         }
       }
 

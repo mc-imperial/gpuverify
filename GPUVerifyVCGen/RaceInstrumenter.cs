@@ -143,12 +143,61 @@ namespace GPUVerify {
         AddComponentBreakingCandidateInvariants(impl, region, v, AccessType.READ);
         AddComponentBreakingCandidateInvariants(impl, region, v, AccessType.WRITE);
         AddComponentBreakingCandidateInvariants(impl, region, v, AccessType.ATOMIC);
+        AddDisabledMaintainsInstrumentation(impl, region, v, AccessType.READ);
+        AddDisabledMaintainsInstrumentation(impl, region, v, AccessType.WRITE);
+        AddDisabledMaintainsInstrumentation(impl, region, v, AccessType.ATOMIC);
       }
+    }
+
+    private void AddDisabledMaintainsInstrumentation(Implementation impl, IRegion region, Variable v, AccessType Access) {
+      if (!verifier.ContainsNamedVariable(LoopInvariantGenerator.GetModifiedVariables(region), RaceInstrumentationUtil.MakeHasOccurredVariableName(v.Name, Access)))
+        return;
+
+      string dominatorPredicate = null;
+      foreach (Cmd c in region.Header().Cmds) {
+        AssumeCmd aCmd = c as AssumeCmd;
+        if (aCmd != null) {
+          dominatorPredicate = QKeyValue.FindStringAttribute(aCmd.Attributes, "dominator_predicate");
+          if (dominatorPredicate != null)
+            break;
+        }
+      }
+
+      if (dominatorPredicate == null)
+        return;
+
+      var regionName = region.Header().ToString();
+      IdentifierExpr ghostAccess = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredGhostVariable(v.Name, regionName, Access, impl));
+      IdentifierExpr access = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(v.Name, Access));
+      IdentifierExpr ghostOffset = null;
+      IdentifierExpr offset = null;
+      if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
+        var ghostOffsetVar = verifier.FindOrCreateOffsetGhostVariable(v.Name, regionName, Access, impl);
+        ghostOffset = new IdentifierExpr(Token.NoToken, ghostOffsetVar);
+        offset = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateOffsetVariable(v.Name, Access));
+      }
+
+      foreach(Block b in region.PreHeaders()) {
+        b.Cmds.Add(Cmd.SimpleAssign(Token.NoToken, ghostAccess, access));
+        if (ghostOffset != null)
+          b.Cmds.Add(Cmd.SimpleAssign(Token.NoToken, ghostOffset, offset));
+      }
+
+      Variable dominator = new LocalVariable(Token.NoToken,
+                                          new TypedIdent(Token.NoToken, dominatorPredicate, Microsoft.Boogie.Type.Bool));
+      Expr dominatorExpr = verifier.MaybeDualise(new IdentifierExpr(Token.NoToken, dominator), 1, impl.Name);
+      Expr eqAccess = Expr.Eq(ghostAccess, access);
+      verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Not(dominatorExpr), eqAccess), "disabledMaintainsInstrumentation");
+      if (ghostOffset != null) {
+        Expr eqOffset = Expr.Eq(ghostOffset, offset);
+        verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Not(dominatorExpr), eqOffset), "disabledMaintainsInstrumentation");
+      }
+      // Could speculate similar invariant for benign instrumentation variable
     }
 
     /*
      * Generates candidate invariants by rewriting offset expressions.
-     * 
+     *
      * A component is an identifier (i.e., local_id_{x,y,z} or group_id_{x,y,z})
      * where /at least one/ component is necessarily distinct between distinct
      * threads. Given an offset expression we extract components using division
@@ -214,7 +263,7 @@ namespace GPUVerify {
           terms.Add(new IdentifierExpr(Token.NoToken, node));
           return base.VisitVariable(node);
       }
-      public override LiteralExpr VisitLiteralExpr(LiteralExpr node) {
+      public override Expr VisitLiteralExpr(LiteralExpr node) {
           terms.Add(node);
           return base.VisitLiteralExpr(node);
       }

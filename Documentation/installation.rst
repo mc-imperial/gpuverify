@@ -56,7 +56,7 @@ The easiest way to get started is to create a new container from the GPUVerify i
 you obtained and run an interactive shell in it (replace ``cvc4`` with ``z3`` if you
 pulled the ``z3`` image instead of the ``cvc4`` image)::
 
-    $ docker run -ti --rm delcypher/gpuverify-docker:cvc4 /bin/bash
+    $ docker run -ti --rm --entrypoint=/bin/bash delcypher/gpuverify-docker:cvc4
 
 The ``--rm`` flag will remove the container once you exit (don't use this flag if you
 want to keep the container).
@@ -75,7 +75,7 @@ mounts a directory on the underlying host machine. For example the following
 would make the ``/path/to/kernel`` directory visible inside the container as
 ``/mnt``::
 
-    $ docker run -ti --rm -v /path/to/kernels:/mnt delcypher/gpuverify-docker:cvc4 /bin/bash
+    $ docker run -ti --rm -v /path/to/kernels:/mnt --entrypoint=/bin/bash delcypher/gpuverify-docker:cvc4
 
 Building the GPUVerify image from scratch
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
