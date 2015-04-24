@@ -13,8 +13,10 @@ def getsha(path, showLocalRev=False):
   oldpath = os.getcwd()
   os.chdir(path)
   if os.path.isdir(os.path.join(path,'.git')):
-    if showLocalRev: raise Exception('Not supported')
-    sha = subprocess.check_output(['git','rev-parse','HEAD'])
+    if showLocalRev:
+      sha = subprocess.check_output(['git','rev-list','HEAD', '--count'])
+    else:
+      sha = subprocess.check_output(['git','rev-parse','HEAD'])
   elif os.path.isdir(os.path.join(path,'.hg')):
     templateKeyword = '{rev}' if showLocalRev else '{node}'
     sha = subprocess.check_output(['hg','log','-r','-1','--template', templateKeyword])
@@ -67,7 +69,7 @@ def getVersionStringFromRepos():
 
 def getVersionString():
   """
-  This will first try to see if we are in a Mercurial repo. If so
+  This will first try to see if we are in a git repo. If so
   version information is retrieved from there.
 
   If not it will look for a file GPUVerifyDeployVersionFile and if
@@ -75,9 +77,9 @@ def getVersionString():
   """
   vs="GPUVerify:"
 
-  hgPath = os.path.join(GPUVerifyDirectory, '.hg')
-  # Look for Mercurial
-  if os.path.isdir(hgPath):
+  gitPath = os.path.join(GPUVerifyDirectory, '.git')
+  # Look for git
+  if os.path.isdir(gitPath):
     vs += " Development version\n"
     vs += getVersionStringFromRepos()
   else:
