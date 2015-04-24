@@ -10,8 +10,8 @@ The documentation is written using Sphinx and can be found in
 ## Generating the Documentation
 
 To generate the documentation run:
-
+```
 $ cd Documentation
 $ make html
-
+```
 You can then view ```Documentation/_build/html/index.html``` in a browser.
