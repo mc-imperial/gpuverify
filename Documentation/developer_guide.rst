@@ -13,7 +13,6 @@ have a common set of prerequisites which are:
 
 * CMake >=2.8.8
 * Python 2.7
-* Mercurial
 * Git
 * Subversion
 
@@ -146,7 +145,7 @@ Replace as appropriate or setup an environment variable.::
 #. Get GPUVerify code and build C# components::
 
      $ cd ${BUILD_ROOT}
-     $ hg clone https://hg.codeplex.com/gpuverify
+     $ git clone git://github.com/mc-imperial/gpuverify.git
      $ cd ${BUILD_ROOT}/gpuverify
      $ xbuild /p:Configuration=Release GPUVerify.sln
 
@@ -352,7 +351,7 @@ Replace as appropriate or setup an environment variable.::
 #. Get GPUVerify code and build C# components::
 
      $ cd ${BUILD_ROOT}
-     $ hg clone https://hg.codeplex.com/gpuverify
+     $ git clone git://github.com/mc-imperial/gpuverify.git
      $ cd ${BUILD_ROOT}/gpuverify
      $ xbuild /p:Configuration=Release GPUVerify.sln
 
@@ -567,7 +566,7 @@ drives.
    Microsoft tools for the command line, then::
 
       > cd ${BUILD_ROOT}
-      > hg clone https://hg.codeplex.com/gpuverify
+      > git clone git://github.com/mc-imperial/gpuverify.git
       > cd ${BUILD_ROOT}\gpuverify
       > msbuild /p:Configuration=Release GPUVerify.sln
 
