@@ -90,7 +90,7 @@ Replace as appropriate or setup an environment variable.::
 #. Get Bugle and configure for building (we do an out of source build)::
 
      $ cd ${BUILD_ROOT}
-     $ git clone git://github.com/mc-imperial/bugle.git ${BUILD_ROOT}/bugle/src
+     $ git clone https://github.com/mc-imperial/bugle.git ${BUILD_ROOT}/bugle/src
      $ mkdir ${BUILD_ROOT}/bugle/build
      $ cd ${BUILD_ROOT}/bugle/build
      $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
@@ -145,7 +145,7 @@ Replace as appropriate or setup an environment variable.::
 #. Get GPUVerify code and build C# components::
 
      $ cd ${BUILD_ROOT}
-     $ git clone git://github.com/mc-imperial/gpuverify.git
+     $ git clone https://github.com/mc-imperial/gpuverify.git
      $ cd ${BUILD_ROOT}/gpuverify
      $ xbuild /p:Configuration=Release GPUVerify.sln
 
@@ -292,7 +292,7 @@ Replace as appropriate or setup an environment variable.::
 #. Get Bugle and configure for building (we do an out of source build)::
 
      $ cd ${BUILD_ROOT}
-     $ git clone git://github.com/mc-imperial/bugle.git ${BUILD_ROOT}/bugle/src
+     $ git clone https://github.com/mc-imperial/bugle.git ${BUILD_ROOT}/bugle/src
      $ mkdir ${BUILD_ROOT}/bugle/build
      $ cd ${BUILD_ROOT}/bugle/build
      $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
@@ -351,7 +351,7 @@ Replace as appropriate or setup an environment variable.::
 #. Get GPUVerify code and build C# components::
 
      $ cd ${BUILD_ROOT}
-     $ git clone git://github.com/mc-imperial/gpuverify.git
+     $ git clone https://github.com/mc-imperial/gpuverify.git
      $ cd ${BUILD_ROOT}/gpuverify
      $ xbuild /p:Configuration=Release GPUVerify.sln
 
@@ -523,7 +523,7 @@ drives.
 
       > cd ${BUILD_ROOT}
       > mkdir ${BUILD_ROOT}\bugle
-      > git clone git://github.com/mc-imperial/bugle.git ${BUILD_ROOT}\bugle\src
+      > git clone https://github.com/mc-imperial/bugle.git ${BUILD_ROOT}\bugle\src
       > mkdir ${BUILD_ROOT}\bugle\build
       > cd ${BUILD_ROOT}\bugle\build
       > $LLVM_SRC = "${BUILD_ROOT}\llvm_and_clang\src"
@@ -566,7 +566,7 @@ drives.
    Microsoft tools for the command line, then::
 
       > cd ${BUILD_ROOT}
-      > git clone git://github.com/mc-imperial/gpuverify.git
+      > git clone https://github.com/mc-imperial/gpuverify.git
       > cd ${BUILD_ROOT}\gpuverify
       > msbuild /p:Configuration=Release GPUVerify.sln
 
