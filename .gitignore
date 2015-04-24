@@ -1,0 +1,63 @@
+# Developer's local paths
+gvfindtools.py
+
+# Vim swap files
+*.swp
+
+# Emacs temporary files
+*~
+
+# Python temporary files
+*.pyc
+
+# Built binaries under MSVS and some versions of Mono
+Binaries/*
+
+# GPUVerifyBoogieDriver build files
+GPUVerifyBoogieDriver/bin/*
+GPUVerifyBoogieDriver/obj/*
+
+# GPUVerifyVCGen build files
+GPUVerifyVCGen/bin/*
+GPUVerifyVCGen/obj/*
+
+# GPUVerifyCruncher
+GPUVerifyCruncher/obj/*
+
+# GPUVerifyLib
+GPUVerifyLib/obj/*
+
+# GPUVerify Temporary files
+*.bc
+*.bpl
+*.gbpl
+*.cbpl
+*.loc
+
+# Monodevelop settings
+*.userprefs
+
+# Generated sphinx documentation
+Documentation/_build
+
+# Mac hidden files
+.DS_Store
+
+# gv-rise4fun configuration
+utils/GPUVerifyRise4Fun/config.py
+
+# gv-rise4fun virtual environment
+utils/GPUVerifyRise4Fun/venv
+
+# gvtester dump
+run.pickle
+
+# Visual studio-related files
+GPUVerify.v11.suo
+*/*.csproj.user
+
+# gv-rise4fun counters
+utils/GPUVerifyRise4Fun/*-counter.pickle
+
+# GPUVerify error report dump
+__gvdump.txt
