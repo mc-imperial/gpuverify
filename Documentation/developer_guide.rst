@@ -107,7 +107,7 @@ Replace as appropriate or setup an environment variable.::
 #. Get the Z3 SMT Solver and build::
 
     $ cd ${BUILD_ROOT}
-    $ git clone https://git01.codeplex.com/z3
+    $ git clone https://github.com/Z3Prover/z3.git
     $ cd ${BUILD_ROOT}/z3
     $ python scripts/mk_make.py
     $ cd build
@@ -309,7 +309,7 @@ Replace as appropriate or setup an environment variable.::
 #. Get the Z3 SMT Solver and build::
 
     $ cd ${BUILD_ROOT}
-    $ git clone https://git01.codeplex.com/z3
+    $ git clone https://github.com/Z3Prover/z3.git
     $ cd ${BUILD_ROOT}/z3
     $ python scripts/mk_make.py
     $ cd build
@@ -547,7 +547,7 @@ drives.
 #. Get the Z3 SMT Solver and build::
 
       > cd ${BUILD_ROOT}
-      > git clone https://git01.codeplex.com/z3
+      > git clone https://github.com/Z3Prover/z3.git
       > cd ${BUILD_ROOT}}\z3
       > python scripts\mk_make.py
       > cd build
@@ -681,7 +681,7 @@ building the project a little bit easier. If you wish to rebuild Boogie for use
 in GPUVerify then follow the steps below for Linux and Mac OS X.::
 
       $ cd ${BUILD_ROOT}
-      $ hg clone https://hg.codeplex.com/boogie
+      $ git clone https://github.com/boogie-org/boogie.git
       $ cd boogie/Source
       $ xbuild /p:TargetFrameworkProfile="" /p:Configuration=Release Boogie.sln
       $ cd ../Binaries
