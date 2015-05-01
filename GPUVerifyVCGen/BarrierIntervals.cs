@@ -41,11 +41,6 @@ namespace GPUVerify
       foreach(var impl in verifier.KernelProcedures.Values) {
         intervals[impl] = ComputeBarrierIntervals(impl);
       }
-
-      /*foreach(var impl in KernelProcedures.Values) {
-        IntraProceduralLiveVariableAnalysis iplva = new IntraProceduralLiveVariableAnalysis(Program, impl);
-        iplva.RunAnalysis();
-      }*/
     }
 
     private HashSet<BarrierInterval> ComputeBarrierIntervals(Implementation impl)
@@ -54,15 +49,42 @@ namespace GPUVerify
 
       ExtractCommandsIntoBlocks(impl, Item => (Item is CallCmd && GPUVerifier.IsBarrier(((CallCmd)Item).Proc)));
       Graph<Block> cfg = Program.GraphFromImpl(impl);
+
+      // If the CFG has no exit nodes, i.e. it cannot terminate,
+      // we bail out; we need a single-entry single-exit CFG
+      // and we cannot get one under such circumstances
+      if (NoExitFromCFG(cfg))
+      {
+        return result;
+      }
+ 
+      // To make the CFG single-exit, we add a special exit block
+      Block SpecialExitBlock = new Block();
+      cfg.Nodes.Add(SpecialExitBlock);
+
+      // Now link any existing CFG node that has no successors to the
+      // special exit node.
+      foreach (var b in cfg.Nodes)
+      {
+        if (b == SpecialExitBlock)
+        {
+          continue;
+        }
+        if (cfg.Successors(b).Count() == 0)
+        {
+          cfg.AddEdge(b, SpecialExitBlock);
+        }
+      }
+
       Graph<Block> dual = cfg.Dual(new Block());
       DomRelation<Block> dom = cfg.DominatorMap;
       DomRelation<Block> pdom = dual.DominatorMap;
 
-      foreach (var dominator in impl.Blocks.Where(Item => StartsWithUnconditionalBarrier(Item)))
+      foreach (var dominator in cfg.Nodes.Where(Item => StartsWithUnconditionalBarrier(Item, impl, SpecialExitBlock)))
       {
         Block smallestBarrierIntervalEnd = null;
-        foreach (var postdominator in impl.Blocks.Where(Item => Item != dominator &&
-            StartsWithUnconditionalBarrier(Item) &&
+        foreach (var postdominator in cfg.Nodes.Where(Item => Item != dominator &&
+            StartsWithUnconditionalBarrier(Item, impl, SpecialExitBlock) &&
             dom.DominatedBy(Item, dominator) &&
             pdom.DominatedBy(dominator, Item)))
         {
@@ -80,12 +102,40 @@ namespace GPUVerify
           result.Add(new BarrierInterval(dominator, smallestBarrierIntervalEnd, dom, pdom, impl));
         }
       }
-
+      if (GPUVerifyVCGenCommandLineOptions.DebugGPUVerify)
+      {
+        Console.WriteLine("Found " + result.Count() + " barrier interval(s) in " + impl.Name);
+      }
       return result;
     }
 
-    private bool StartsWithUnconditionalBarrier(Block b)
+    private static bool NoExitFromCFG(Graph<Block> cfg)
     {
+      foreach (var b in cfg.Nodes)
+      {
+        if (cfg.Successors(b).Count() == 0)
+        {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    private bool StartsWithUnconditionalBarrier(Block b, Implementation Impl, Block SpecialExitBlock)
+    {
+      if (verifier.IsKernelProcedure(Impl.Proc))
+      {
+        if (b == Impl.Blocks[0]) {
+          // There is a barrier at the very start of the kernel
+          return true;
+        }
+        if (b == SpecialExitBlock)
+        {
+          // There is a barrier at the very end of the kernel
+          return true;
+        }
+      }
+
       if(b.Cmds.Count == 0) {
         return false;
       }
@@ -200,9 +250,6 @@ namespace GPUVerify
             gc.labelTargets[i] = newBlock;
             gc.labelNames[i] = newBlock.Label;
           }
-          if(!impl.Blocks.Contains(gc.labelTargets[i])) {
-            Console.WriteLine("Block " + gc.labelTargets[i] + " still around!");
-          }
           Debug.Assert(impl.Blocks.Contains(gc.labelTargets[i]));
         }
       }
@@ -265,13 +312,31 @@ namespace GPUVerify
 
     internal HashSet<Variable> FindWrittenGroupSharedArrays(GPUVerifier verifier)
     {
+
+      // We add any group-shared array that may be written to or accessed atomically
+      // in the region.
+      //
+      // We also add any group-shared array that may be written to by an asynchronous
+      // memory copy somewhere in the kernel.  This is because asynchronous copies can
+      // cross barriers.  Currently we are very conservative about this.
+
       HashSet<Variable> result = new HashSet<Variable>();
+
+      foreach (var v in verifier.KernelArrayInfo.getGroupSharedArrays())
+      {
+        if (verifier.ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Contains(v.Name))
+        {
+          result.Add(v);
+        }
+      }
+
       foreach (var m in Blocks.Select(Item => Item.Cmds).SelectMany(Item => Item).OfType<CallCmd>()
         .Select(Item => Item.Proc.Modifies).SelectMany(Item => Item))
       {
         // m is a variable modified by a call in the barrier interval
         Variable v;
-        if(verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.WRITE, out v)) {
+        if(verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.WRITE, out v) ||
+           verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.ATOMIC, out v)) {
           if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
             result.Add(v);
           }
