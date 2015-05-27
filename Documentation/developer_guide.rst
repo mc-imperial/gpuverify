@@ -11,7 +11,7 @@ This guide will walk you through the build process.
 There are specific instructions for Linux, Mac OS X and Windows however they
 have a common set of prerequisites which are:
 
-* CMake >=2.8.8
+* CMake >=2.8.12
 * Python 2.7
 * Git
 * Subversion
@@ -46,9 +46,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.5)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.6)::
 
-     $ export LLVM_RELEASE=35
+     $ export LLVM_RELEASE=36
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -76,10 +76,10 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get libclc and build::
 
-     $ export LLVM_RELEASE=35
+     $ export LLVM_REV=232726
      $ mkdir -p ${BUILD_ROOT}/libclc
      $ cd ${BUILD_ROOT}/libclc
-     $ svn co http://llvm.org/svn/llvm-project/libclc/branches/release_${LLVM_RELEASE} src
+     $ svn co -r ${LLVM_REV} http://llvm.org/svn/llvm-project/libclc/trunk src
      $ cd ${BUILD_ROOT}/libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --prefix=${BUILD_ROOT}/libclc/install \
@@ -252,9 +252,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.5)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.6)::
 
-     $ export LLVM_RELEASE=35
+     $ export LLVM_RELEASE=36
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -277,10 +277,10 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get libclc and build::
 
-     $ export LLVM_RELEASE=35
+     $ export LLVM_REV=232726
      $ mkdir -p ${BUILD_ROOT}/libclc
      $ cd ${BUILD_ROOT}/libclc
-     $ svn co http://llvm.org/svn/llvm-project/libclc/branches/release_${LLVM_RELEASE} src
+     $ svn co -r ${LLVM_REV} http://llvm.org/svn/llvm-project/libclc/trunk src
      $ cd ${BUILD_ROOT}/libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --with-cxx-compiler=c++ \
@@ -473,9 +473,9 @@ drives.
    You can add this permanently to your ``$Profile`` so that the Microsoft
    compiler is always available at the command-line.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.5)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.6)::
 
-      > $LLVM_RELEASE=35
+      > $LLVM_RELEASE=36
       > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
@@ -506,10 +506,10 @@ drives.
    GPUVerify website and unzip this in ``${BUILD_ROOT}``. From the command
    line do::
 
-      > $LLVM_RELEASE=35
+      > $LLVM_REV=232726
       > mkdir ${BUILD_ROOT}\libclc
       > cd ${BUILD_ROOT}\libclc
-      > svn co http://llvm.org/svn/llvm-project/libclc/branches/release_$LLVM_RELEASE src
+      > svn co -r $LLVM_REV http://llvm.org/svn/llvm-project/libclc/trunk src
       > cd ${BUILD_ROOT}
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
       > (new-object System.Net.WebClient).DownloadFile($libclc_url, "${BUILD_ROOT}\libclc-nightly.zip")
