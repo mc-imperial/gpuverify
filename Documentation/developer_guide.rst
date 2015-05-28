@@ -76,7 +76,7 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get libclc and build::
 
-     $ export LLVM_REV=232978
+     $ export LLVM_REV=236113
      $ mkdir -p ${BUILD_ROOT}/libclc
      $ cd ${BUILD_ROOT}/libclc
      $ svn co -r ${LLVM_REV} http://llvm.org/svn/llvm-project/libclc/trunk src
@@ -277,7 +277,7 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get libclc and build::
 
-     $ export LLVM_REV=232978
+     $ export LLVM_REV=236113
      $ mkdir -p ${BUILD_ROOT}/libclc
      $ cd ${BUILD_ROOT}/libclc
      $ svn co -r ${LLVM_REV} http://llvm.org/svn/llvm-project/libclc/trunk src
@@ -506,7 +506,7 @@ drives.
    GPUVerify website and unzip this in ``${BUILD_ROOT}``. From the command
    line do::
 
-      > $LLVM_REV=232978
+      > $LLVM_REV=236113
       > mkdir ${BUILD_ROOT}\libclc
       > cd ${BUILD_ROOT}\libclc
       > svn co -r $LLVM_REV http://llvm.org/svn/llvm-project/libclc/trunk src
