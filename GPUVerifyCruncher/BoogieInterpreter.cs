@@ -112,9 +112,6 @@ namespace GPUVerify
     // The memory for the interpreter
     private Memory Memory = new Memory();
 
-    // The call stack
-    private List<Memory> CallStack = new List<Memory>();
-    
     // The expression trees used internally to evaluate Boogie expressions
     private Dictionary<Expr, ExprTree> ExprTrees = new Dictionary<Expr, ExprTree>();
     
