@@ -223,8 +223,7 @@ class GPUVerifyInstance (object):
     defines = ['__BUGLE_' + str(args.size_t) + '__']
 
     if args.source_language == SourceLanguage.CUDA:
-      defines += ["__CUDA_ARCH__"]
-      defines.append("__" + str(len(args.group_size)) + "D_THREAD_BLOCK")
+      defines += ["__" + str(len(args.group_size)) + "D_THREAD_BLOCK"]
       defines.append("__" + str(len(args.num_groups)) + "D_GRID")
 
       for index, value in enumerate(args.group_size):
