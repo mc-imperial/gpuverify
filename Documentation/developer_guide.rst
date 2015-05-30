@@ -76,10 +76,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get libclc and build::
 
-     $ export LLVM_REV=236113
      $ mkdir -p ${BUILD_ROOT}/libclc
      $ cd ${BUILD_ROOT}/libclc
-     $ svn co -r ${LLVM_REV} http://llvm.org/svn/llvm-project/libclc/trunk src
+     $ svn co http://llvm.org/svn/llvm-project/libclc/trunk src
      $ cd ${BUILD_ROOT}/libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --prefix=${BUILD_ROOT}/libclc/install \
@@ -277,10 +276,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get libclc and build::
 
-     $ export LLVM_REV=236113
      $ mkdir -p ${BUILD_ROOT}/libclc
      $ cd ${BUILD_ROOT}/libclc
-     $ svn co -r ${LLVM_REV} http://llvm.org/svn/llvm-project/libclc/trunk src
+     $ svn co http://llvm.org/svn/llvm-project/libclc/trunk src
      $ cd ${BUILD_ROOT}/libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --with-cxx-compiler=c++ \
@@ -506,10 +504,9 @@ drives.
    GPUVerify website and unzip this in ``${BUILD_ROOT}``. From the command
    line do::
 
-      > $LLVM_REV=236113
       > mkdir ${BUILD_ROOT}\libclc
       > cd ${BUILD_ROOT}\libclc
-      > svn co -r $LLVM_REV http://llvm.org/svn/llvm-project/libclc/trunk src
+      > svn co http://llvm.org/svn/llvm-project/libclc/trunk src
       > cd ${BUILD_ROOT}
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
       > (new-object System.Net.WebClient).DownloadFile($libclc_url, "${BUILD_ROOT}\libclc-nightly.zip")
