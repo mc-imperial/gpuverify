@@ -690,6 +690,9 @@ namespace GPUVerify
                 Region.AddInvariant(new AssertCmd(Token.NoToken, Inv.Condition, (QKeyValue)Inv.Attributes.Clone()));
               }
             }
+            // Remove pre-conditions representing procedure-wide invariants now
+            // they have bee propagated.
+            Impl.Proc.Requires = Impl.Proc.Requires.Where(Item => !QKeyValue.FindBoolAttribute(Item.Attributes, "procedure_wide_invariant")).ToList();
           }
         }
 
