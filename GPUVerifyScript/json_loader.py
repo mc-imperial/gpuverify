@@ -63,6 +63,10 @@ def __check_array_argument(data):
       pass
     elif key == "size":
       __check_positive_number(value, "Array kernel argument size")
+    elif key == "flags":
+      pass
+    elif key == "data":
+      pass
     else:
       raise JSONError("Unknown value " + str(key))
 
