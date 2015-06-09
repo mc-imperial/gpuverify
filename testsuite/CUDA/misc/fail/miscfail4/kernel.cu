@@ -16,5 +16,7 @@ void inlined(int *A, int offset)
 }
 
 __global__ void inline_test(int *A, int offset) {
+  __requires(offset >= 0);
+  __requires(offset < 1024);
   inlined(A, offset);
 }

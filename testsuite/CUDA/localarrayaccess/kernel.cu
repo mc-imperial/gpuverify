@@ -6,8 +6,8 @@
 
 __global__ void foo() {
 
-  __shared__ int A[10];
-  
+  __shared__ int A[11];
+
   A[threadIdx.x] = 2;
 
   __syncthreads ();

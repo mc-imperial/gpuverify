@@ -6,7 +6,7 @@
 
 __global__ void foo() {
 
-  __shared__ int A[10];
+  __shared__ int A[11];
 
   int* p = A + 1;
 
