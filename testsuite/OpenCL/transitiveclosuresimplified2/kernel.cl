@@ -16,6 +16,8 @@
 
 __kernel void transitive_closure_stage1_kernel(__global unsigned int* graph, __local unsigned int* primary_block_buffer, int passnum)
 {
+    __requires(passnum >= 0);
+    __requires(passnum < (1 << 12));
     
     int idxY = passnum * LOCAL_SIZE + get_local_id(Y_DIMENSION);
     int idxX = passnum * LOCAL_SIZE + get_local_id(X_DIMENSION);

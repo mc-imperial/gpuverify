@@ -4,7 +4,7 @@
 
 __kernel void foo() {
 
-  __local int A[10];
+  __local int A[65];
   
   A[get_local_id(0)] = 2;
 

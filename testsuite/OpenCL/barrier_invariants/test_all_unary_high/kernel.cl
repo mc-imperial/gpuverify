@@ -6,6 +6,8 @@
 
 
 __kernel void foo(unsigned int arbitrary) {
+  __requires(arbitrary >= 0);
+  __requires(arbitrary < SZ);
 
   __local int G[SZ];
   __local int H[SZ];

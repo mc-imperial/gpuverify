@@ -5,7 +5,7 @@
 
 __kernel void foo(__global int* p) {
 
-  __local int3 vs[10];
+  __local int3 vs[2048];
 
   vs[get_local_id(0)].x = p[get_global_id(0)];
 

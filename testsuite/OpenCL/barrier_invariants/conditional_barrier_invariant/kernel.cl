@@ -7,7 +7,7 @@
 #define iseven(x) ((x % 2) == 0)
 
 __kernel void k() {
-  __local int A[N];
+  __local int A[2*N];
 
   if (iseven(tid)) {
     A[2*tid] = tid;

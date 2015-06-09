@@ -17,5 +17,7 @@ __attribute__((always_inline)) inline void inlined(__local int *A, int offset)
 }
 
 __kernel void inline_test(__local int *A, int offset) {
+  __requires(offset >= 0);
+  __requires(offset < (1 << 23));
   inlined(A, offset);
 }
