@@ -1,5 +1,5 @@
 # Developer's local paths
-gvfindtools.py
+/gvfindtools.py
 
 # Vim swap files
 *.swp
