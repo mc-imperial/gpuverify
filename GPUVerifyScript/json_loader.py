@@ -48,6 +48,13 @@ def __check_array_of_positive_numbers(data, object_name):
   if not all(type(i) is int and i > 0 for i in data):
     raise JSONError(object_name + " expects an array of numbers > 0")
 
+def __check_array_of_strings(data, object_name):
+  if not type(data) is list:
+    raise JSONError(object_name + " expects an array of strings, received " + str(data))
+
+  if not all(type(i) is unicode for i in data):
+    raise JSONError(object_name + " expects an array of strings, received " + str(data))
+
 def __check_scalar_argument(data):
   for key, value in data.items():
     if key == "type":
@@ -57,6 +64,10 @@ def __check_scalar_argument(data):
     else:
       raise JSONError("Unknown value " + str(key))
 
+def __check_address_space(data):
+  if not (data == "global" or data == "local"):
+    raise JSONError("Address space must be 'global' or 'local'")
+
 def __check_array_argument(data):
   for key, value in data.items():
     if key == "type":
@@ -64,9 +75,11 @@ def __check_array_argument(data):
     elif key == "size":
       __check_positive_number(value, "Array kernel argument size")
     elif key == "flags":
-      pass
+      __check_array_of_strings(value, key)
     elif key == "data":
-      pass
+      __check_string(value, key)
+    elif key == "address_space":
+      __check_address_space(value)
     else:
       raise JSONError("Unknown value " + str(key))
 
@@ -133,6 +146,10 @@ def __check_host_api_calls(data):
   for i in data:
     __check_host_api_call(i)
 
+def __check_endianness(data):
+  if not (data == "little" or data == "big"):
+    raiseJSONError("endinanness must be 'little' or 'big'")
+
 DefinesIncludes = \
   namedtuple("DefinesIncludes", ["defines", "includes", "original"])
 
@@ -161,7 +178,9 @@ def __extract_defines_and_includes(compiler_flags):
 
   return DefinesIncludes(defines, includes, compiler_flags)
 
-def __process_opencl_entry(data):
+def __process_opencl_entry(data, strict):
+  if strict and not "endianness" in data:
+    raise JSONError("kernel invocation entries require an 'endianness' value")
   if not "kernel_file" in data:
     raise JSONError("kernel invocation entries require a 'kernel_file' value")
   if not "global_size" in data:
@@ -172,6 +191,8 @@ def __process_opencl_entry(data):
   for key, value in list(data.items()):
     if key in ["language", "kernel_file", "entry_point"]:
       __check_string(value, key)
+    elif key == "endianness":
+      __check_endianness(value)
     elif key in ["local_size", "global_size", "global_offset"]:
       __check_array_of_positive_numbers(value, key)
     elif key == "compiler_flags":
@@ -195,7 +216,7 @@ def __process_opencl_entry(data):
   except GlobalSizeError as e:
     raise JSONError(str(e))
 
-def __process_kernel_entry(data):
+def __process_kernel_entry(data, strict):
   if not type(data) is dict:
     raise JSONError("kernel invocation entries need to be objects")
   if not "language" in data:
@@ -203,7 +224,7 @@ def __process_kernel_entry(data):
 
   # Allow for future extension to CUDA
   if data["language"] == "OpenCL":
-    __process_opencl_entry(data)
+    __process_opencl_entry(data, strict)
   else:
     raise JSONError("'language' value needs to be 'OpenCL'")
 
@@ -218,18 +239,18 @@ def __filter_duplicates(data):
 
   return new_data, old_new_map
 
-def __process_json(data):
+def __process_json(data, strict):
   if not type(data) is list:
     raise JSONError("Expecting an array of kernel invocation objects")
 
   data, json_to_data_map = __filter_duplicates(data)
 
   for i in data:
-    __process_kernel_entry(i)
+    __process_kernel_entry(i, strict)
 
   return (data, json_to_data_map)
 
-def json_load(json_file):
+def json_load(json_file, strict = False):
   """Load GPUVerify invocation data from json_file object.
 
   The function either:
@@ -244,10 +265,15 @@ def json_load(json_file):
   a) Extracts 'defines' and 'includes' from the compiler_flags value and
      returns a named tuple (defines, includes) instead of a string.
   b) Computes num_groups from global_size and local_size.
+
+  The 'strict' argument is used to enforce extra-strong checking.  New tools
+  that use the JSON format should use strict checking, but strict checking
+  is off by default so that existing tools do not break.
+
   """
   try:
     data = json.load(json_file)
-    data, json_to_data_map = __process_json(data)
+    data, json_to_data_map = __process_json(data, strict)
     return ([__ldict(kernel) for kernel in data], json_to_data_map)
   except ValueError as e:
     raise JSONError(str(e))
