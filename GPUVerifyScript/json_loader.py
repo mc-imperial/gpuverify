@@ -65,8 +65,8 @@ def __check_scalar_argument(data):
       raise JSONError("Unknown value " + str(key))
 
 def __check_address_space(data):
-  if not (data == "global" or data == "local"):
-    raise JSONError("Address space must be 'global' or 'local'")
+  if data not in ["global", "local", "constant"]:
+    raise JSONError("Address space must be 'global', 'local' or 'constant'")
 
 def __check_array_argument(data):
   for key, value in data.items():
@@ -147,7 +147,7 @@ def __check_host_api_calls(data):
     __check_host_api_call(i)
 
 def __check_endianness(data):
-  if not (data == "little" or data == "big"):
+  if data not in ["little", "big"]:
     raiseJSONError("endinanness must be 'little' or 'big'")
 
 DefinesIncludes = \
