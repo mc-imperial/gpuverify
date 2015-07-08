@@ -53,7 +53,7 @@ utils/GPUVerifyRise4Fun/venv
 run.pickle
 
 # Visual studio-related files
-GPUVerify.v11.suo
+GPUVerify.v*.suo
 */*.csproj.user
 
 # gv-rise4fun counters
