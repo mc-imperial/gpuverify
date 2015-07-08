@@ -78,9 +78,9 @@ Each ``kernel_argument`` is an object of one of the following four forms::
 
   {
     "type" : "array",
-    "size" : number
+    "size" : number,
     "address_space" : string,
-    "flags" : [ string, ..., string ]
+    "flags" : [ string, ..., string ],
     "data" : string
   }
 
