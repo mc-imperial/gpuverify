@@ -1208,12 +1208,12 @@ namespace GPUVerify {
     }
 
     protected void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, AccessType Access) {
-      Expr expr = MakeCTimesGloalIdRangeExpr(v, constant, Access);
+      Expr expr = MakeCTimesGlobalIdRangeExpr(v, constant, Access);
       verifier.AddCandidateInvariant(region,
           expr, "accessedOffsetInRangeCTimesGid");
     }
 
-    private Expr MakeCTimesGloalIdRangeExpr(Variable v, Expr constant, AccessType Access) {
+    private Expr MakeCTimesGlobalIdRangeExpr(Variable v, Expr constant, AccessType Access) {
       Expr CTimesGlobalId = verifier.IntRep.MakeMul(constant.Clone() as Expr,
           GlobalIdExpr("X", 1));
 
