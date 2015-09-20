@@ -25,11 +25,11 @@ On Linux/OSX, we recommend installing psutil with pip::
 
      $ pip install psutil
 
-Linux
------
-In addition to the common prerequisites a Linux build of GPUVerify requires
-GCC >= 4.7 and a recent version of Mono since part of the toolchain uses C#.
-You should use a version of Mono >= 3.4.0.
+Linux and Mac OS X
+------------------
+In addition to the common prerequisites Linux and Mac OS X builds of GPUVerify
+require GCC >= 4.7 or Clang >= 3.1 and a recent version of Mono since part of
+the toolchain uses C#. You should use a version of Mono >= 3.4.0.
 
 To build GPUVerify follow this guide in a bash shell.
 
@@ -46,229 +46,27 @@ Replace as appropriate or setup an environment variable.::
 
 #. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.6)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.7)::
 
-     $ export LLVM_RELEASE=36
+     $ export LLVM_RELEASE=37
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/tools
      $ svn co http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
-     $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
-     $ svn co http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
 
    Configure LLVM and Clang for building (we do an out of source build)::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
-     $ cmake -D CMAKE_BUILD_TYPE=Release -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" ../src
+     $ cmake -D CMAKE_BUILD_TYPE=Release -D LLVM_TARGETS_TO_BUILD=NVPTX ../src
 
    Note if you have python3 installed you may need to specifiy ``-D
    PYTHON_EXECUTABLE=/usr/bin/python2.7`` to CMake.  If you would like to have
    more control over the configure process use (``cmake-gui`` or ``ccmake``
    instead of ``cmake``).
 
-   Compile  LLVM and Clang::
-
-     $ make -jN
-
-   where ``N`` is the number of jobs to run in parallel.
-
-#. Get libclc and build::
-
-     $ mkdir -p ${BUILD_ROOT}/libclc
-     $ cd ${BUILD_ROOT}/libclc
-     $ svn co http://llvm.org/svn/llvm-project/libclc/trunk src
-     $ cd ${BUILD_ROOT}/libclc/src
-     $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
-                      --prefix=${BUILD_ROOT}/libclc/install \
-                      nvptx-- nvptx64--
-     $ make
-     $ make install
-
-#. Get Bugle and configure for building (we do an out of source build)::
-
-     $ cd ${BUILD_ROOT}
-     $ git clone https://github.com/mc-imperial/bugle.git ${BUILD_ROOT}/bugle/src
-     $ mkdir ${BUILD_ROOT}/bugle/build
-     $ cd ${BUILD_ROOT}/bugle/build
-     $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
-             -D CMAKE_BUILD_TYPE=Release \
-             -D LIBCLC_DIR=${BUILD_ROOT}/libclc/install \
-             ../src
-
-   Compile Bugle::
-
-    $ make -jN
-
-   where ``N`` is the number of jobs to run in parallel.
-
-#. Get the Z3 SMT Solver and build::
-
-    $ cd ${BUILD_ROOT}
-    $ git clone https://github.com/Z3Prover/z3.git
-    $ cd ${BUILD_ROOT}/z3
-    $ python scripts/mk_make.py
-    $ cd build
-    $ make -jN
-
-   where ``N`` is the number of jobs to run in parallel.
-
-   Make a symbolic link; ``GPUVerify.py`` looks for ``z3.exe`` not ``z3``
-   ::
-
-    $ ln -s z3 z3.exe
-
-#. (Optional) Get the CVC4 SMT Solver and build.
-   Note that building CVC4 further requires automake and boost::
-
-    $ cd ${BUILD_ROOT}
-    $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
-    $ cd ${BUILD_ROOT}/CVC4/src
-    $ MACHINE_TYPE="x86_64" contrib/get-antlr-3.4
-    $ ./autogen.sh
-    $ export ANTLR=${BUILD_ROOT}/CVC4/src/antlr-3.4/bin/antlr3
-    $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/src/antlr-3.4 \
-                  --prefix=${BUILD_ROOT}/CVC4/install \
-                  --best --enable-gpl \
-                  --disable-shared --enable-static
-    $ make
-    $ make install
-
-   Make a symbolic link; ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
-   ::
-
-    $ cd ${BUILD_ROOT}/CVC4/install/bin
-    $ ln -s cvc4 cvc4.exe
-
-#. Get GPUVerify code and build C# components::
-
-     $ cd ${BUILD_ROOT}
-     $ git clone https://github.com/mc-imperial/gpuverify.git
-     $ cd ${BUILD_ROOT}/gpuverify
-     $ xbuild /p:Configuration=Release GPUVerify.sln
-
-#. Configure GPUVerify front end.
-   GPUVerify uses a front end python script (GPUVerify.py). This script needs
-   to be aware of the location of all its dependencies. We currently do this by
-   having an additional python script (gvfindtools.py) with hard coded absolute
-   paths that a developer must configure by hand. gvfindtools.py is ignored by
-   Mercurial so each developer can have their own configuration without
-   interfering with other users.
-   ::
-
-     $ cd ${BUILD_ROOT}/gpuverify
-     $ cp gvfindtools.templates/gvfindtools.dev.py gvfindtools.py
-
-   Open gvfindtools.py in a text editor and edit the paths.
-   If you followed this guide strictly then these paths will be as follows
-   and you should only need to change the ``rootDir`` variable.
-   ::
-
-      rootDir = "${BUILD_ROOT}" #< CHANGE THIS PATH
-
-      # The path to the Bugle Source directory.
-      # The include-blang/ folder should be there
-      bugleSrcDir = rootDir + "/bugle/src"
-
-      # The Path to the directory where the "bugle" executable can be found.
-      bugleBinDir = rootDir + "/bugle/build"
-
-      # The path to the libclc Source directory.
-      libclcSrcDir = rootDir + "/libclc/src"
-
-      # The path to the libclc install directory.
-      # The include/ and lib/clc/ folders should be there
-      libclcInstallDir = rootDir + "/libclc/install"
-
-      # The path to the llvm Source directory.
-      llvmSrcDir = rootDir + "/llvm_and_clang/src"
-
-      # The path to the directory containing the llvm binaries.
-      # llvm-nm, clang and opt should be there
-      llvmBinDir = rootDir + "/llvm_and_clang/build/bin"
-
-      # The path containing the llvm libraries
-      llvmLibDir = rootDir + "/llvm_and_clang/build/lib"
-
-      # The path to the directory containing the GPUVerify binaries.
-      # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
-      gpuVerifyBinDir = rootDir + "/gpuverify/Binaries"
-
-      # The path to the z3 Source directory.
-      z3SrcDir = rootDir + "/z3"
-
-      # The path to the directory containing z3.exe
-      z3BinDir = rootDir + "/z3/build"
-
-      # The path to the cvc4 Source directory.
-      cvc4SrcDir = rootDir + "/CVC4/src"
-
-      # The path to the directory containing cvc4.exe
-      cvc4BinDir = rootDir + "/CVC4/install/bin"
-
-#. (Optional) Build the documentation. This requires the Sphinx python module,
-   which you can install using ``pip``.::
-
-    $ pip install Sphinx
-    $ cd ${BUILD_ROOT}/gpuverify/Documentation
-    $ make html
-
-#. Run the GPUVerify test suite.
-   ::
-
-     $ cd ${BUILD_ROOT}/gpuverify
-     $ ./gvtester.py --write-pickle run.pickle testsuite
-
-   To run the GPUVerify test suite using the CVC4 SMT Solver:
-   ::
-
-     $ ./gvtester.py --gvopt="--solver=cvc4" --write-pickle run.pickle testsuite
-
-   You can also check that your test run matches the current baseline.
-   ::
-
-     $ ./gvtester.py --compare-pickle testsuite/baseline.pickle run.pickle
-
-   You should expect the last line of output to be.::
-
-     INFO:testsuite/baseline.pickle = new.pickle
-
-   This means that your install passes the regression suite.
-
-Mac OS X
---------
-In addition to the common prerequisites a Mac build of GPUVerify requires
-a recent version of Mono since part of the toolchain uses C#.
-You should use a version of Mono >= 3.4.0.
-
-To build GPUVerify follow this guide in a bash shell.
-
-Note ``${BUILD_ROOT}`` refers to where ever you wish to build GPUVerify.
-Replace as appropriate or setup an environment variable.::
-
-     $ export BUILD_ROOT=/path/to/build
-
-#. Obtain Mono from `<http://www.mono-project.com>`_ and install.
-
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.6)::
-
-     $ export LLVM_RELEASE=36
-     $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
-     $ cd ${BUILD_ROOT}/llvm_and_clang
-     $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
-     $ cd ${BUILD_ROOT}/llvm_and_clang/src/tools
-     $ svn co http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
-     $ cd ${BUILD_ROOT}/llvm_and_clang/src/projects
-     $ svn co http://llvm.org/svn/llvm-project/compiler-rt/branches/release_${LLVM_RELEASE} compiler-rt
-
-   Configure LLVM and Clang for building (we do an out of source build)::
-
-     $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
-     $ cd ${BUILD_ROOT}/llvm_and_clang/build
-     $ cmake -D CMAKE_BUILD_TYPE=Release -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" ../src
-
-   Compile  LLVM and Clang::
+   Compile LLVM and Clang::
 
      $ make -jN
 
@@ -341,10 +139,6 @@ Replace as appropriate or setup an environment variable.::
 
     $ cd ${BUILD_ROOT}/CVC4/install/bin
     $ ln -s cvc4 cvc4.exe
-
-   Note that if CVC4 needs to be deployed to a system different from the one
-   on which it is being built, the GMP libraries on the build system need to
-   be static and not dynamic.
 
 #. Get GPUVerify code and build C# components::
 
@@ -460,7 +254,7 @@ drives.
 #. (Optional) Setup Microsoft Visual Studio tools for your shell.
    This will enable you to build projects from the command line.::
 
-      pushd 'C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC'
+      pushd 'C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC'
       cmd /c "vcvarsall.bat & set" | foreach {
         if ($_ -match "=") {
           $v = $_.split("="); set-item -force -path "ENV:\$($v[0])" -value "$($v[1])"
@@ -471,28 +265,25 @@ drives.
    You can add this permanently to your ``$Profile`` so that the Microsoft
    compiler is always available at the command-line.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.6)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.7)::
 
-      > $LLVM_RELEASE=36
+      > $LLVM_RELEASE=37
       > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
       > cd ${BUILD_ROOT}\llvm_and_clang\src\tools
       > svn co http://llvm.org/svn/llvm-project/cfe/branches/release_$LLVM_RELEASE clang
-      > cd ${BUILD_ROOT}\llvm_and_clang\src\projects
-      > svn co http://llvm.org/svn/llvm-project/compiler-rt/branches/release_$LLVM_RELEASE compiler-rt
 
    Configure LLVM and Clang for building (we do an out of source build)::
 
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
-      > cmake -G "Visual Studio 11" `
-              -D COMPILER_RT_INCLUDE_TESTS=FALSE `
-              -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" `
+      > cmake -G "Visual Studio 12" `
+              -D LLVM_TARGETS_TO_BUILD=NVPTX `
               ..\src
 
-   In case you have Visual Studion 2013, replace ``Visual Studio 11`` by
-   ``Visual Studio 12``. This may require a version of CMake later than 2.8.8.
+   In case you have Visual Studion 2015, replace ``Visual Studio 12`` by
+   ``Visual Studio 13``. This may require a version of CMake later than 2.8.8.
 
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
@@ -525,15 +316,15 @@ drives.
       > cd ${BUILD_ROOT}\bugle\build
       > $LLVM_SRC = "${BUILD_ROOT}\llvm_and_clang\src"
       > $LLVM_BUILD = "${BUILD_ROOT}\llvm_and_clang\build"
-      > cmake -G "Visual Studio 11" `
+      > cmake -G "Visual Studio 12" `
               -D LLVM_SRC=$LLVM_SRC `
               -D LLVM_BUILD=$LLVM_BUILD `
               -D LLVM_BUILD_TYPE=Release `
               -D LIBCLC_DIR=${BUILD_ROOT}\libclc\install `
               ..\src
 
-   In case you have Visual Studion 2013, replace ``Visual Studio 11`` by
-   ``Visual Studio 12``. This may require a version of CMake later than 2.8.8.
+   In case you have Visual Studion 2015, replace ``Visual Studio 12`` by
+   ``Visual Studio 13``. This may require a version of CMake later than 2.8.8.
 
    Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools

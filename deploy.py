@@ -397,8 +397,6 @@ def main(argv):
   MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'llvm.txt'),
   FileCopy(os.path.join(gvfindtools.llvmSrcDir, 'tools' + os.sep + 'clang'), 'LICENSE.TXT', licenseDest),
   MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'clang.txt'),
-  FileCopy(os.path.join(gvfindtools.llvmSrcDir, 'projects' + os.sep + 'compiler-rt'), 'LICENSE.TXT', licenseDest),
-  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'compiler-rt.txt'),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^clang(\.exe)?$', gvfindtoolsdeploy.llvmBinDir ),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^opt(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^llvm-nm(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),

@@ -38,10 +38,10 @@ llvmSrcDir = rootDir + "/llvm_and_clang/src"
 
 # The path to the directory containing the llvm binaries.
 # llvm-nm, clang and opt should be there
-llvmBinDir = rootDir + "/llvm_and_clang/build/Release/bin"
+llvmBinDir = rootDir + "/llvm_and_clang/build/bin"
 
 # The path containing the llvm libraries
-llvmLibDir = rootDir + "/llvm_and_clang/build/Release/lib"
+llvmLibDir = rootDir + "/llvm_and_clang/build/lib"
 
 # The path to the directory containing the GPUVerify binaries.
 # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
