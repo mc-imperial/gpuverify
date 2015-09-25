@@ -279,17 +279,17 @@ drives.
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
       > cmake -G "Visual Studio 12" `
-              -D LLVM_TARGETS_TO_BUILD=NVPTX `
+              -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" `
               ..\src
 
-   In case you have Visual Studion 2015, replace ``Visual Studio 12`` by
+   In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
    ``Visual Studio 13``. This may require a version of CMake later than 2.8.8.
 
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
    for the command line, then::
 
-      > msbuild /p:Configuration=Release LLVM.sln
+      > msbuild /m /p:Configuration=Release LLVM.sln
 
 #. Get libclc source and binaries. You can download the binaries from the
    GPUVerify website and unzip this in ``${BUILD_ROOT}``. From the command
@@ -323,20 +323,20 @@ drives.
               -D LIBCLC_DIR=${BUILD_ROOT}\libclc\install `
               ..\src
 
-   In case you have Visual Studion 2015, replace ``Visual Studio 12`` by
+   In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
    ``Visual Studio 13``. This may require a version of CMake later than 2.8.8.
 
    Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
    for the command line, then::
 
-      > msbuild /p:Configuration=Release Bugle.sln
+      > msbuild /m /p:Configuration=Release Bugle.sln
 
 #. Get the Z3 SMT Solver and build::
 
       > cd ${BUILD_ROOT}
       > git clone https://github.com/Z3Prover/z3.git
-      > cd ${BUILD_ROOT}}\z3
+      > cd ${BUILD_ROOT}\z3
       > python scripts\mk_make.py
       > cd build
       > nmake
@@ -389,10 +389,10 @@ drives.
 
       # The path to the directory containing the llvm binaries.
       # llvm-nm, clang and opt should be there
-      llvmBinDir = rootDir + r"\llvm_and_clang\build\bin\Release"
+      llvmBinDir = rootDir + r"\llvm_and_clang\build\Release\bin"
 
       # The path containing the llvm libraries
-      llvmLibDir = rootDir + r"\llvm_and_clang\build\lib"
+      llvmLibDir = rootDir + r"\\llvm_and_clang\build\Release\lib"
 
       # The path to the directory containing the GPUVerify binaries.
       # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
