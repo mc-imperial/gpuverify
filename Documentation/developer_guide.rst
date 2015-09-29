@@ -283,7 +283,7 @@ drives.
               ..\src
 
    In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
-   ``Visual Studio 13``. This may require a version of CMake later than 2.8.8.
+   ``Visual Studio 14``. This may require a version of CMake later than 2.8.8.
 
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
@@ -324,7 +324,7 @@ drives.
               ..\src
 
    In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
-   ``Visual Studio 13``. This may require a version of CMake later than 2.8.8.
+   ``Visual Studio 14``. This may require a version of CMake later than 2.8.8.
 
    Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
@@ -392,7 +392,7 @@ drives.
       llvmBinDir = rootDir + r"\llvm_and_clang\build\Release\bin"
 
       # The path containing the llvm libraries
-      llvmLibDir = rootDir + r"\\llvm_and_clang\build\Release\lib"
+      llvmLibDir = rootDir + r"\llvm_and_clang\build\Release\lib"
 
       # The path to the directory containing the GPUVerify binaries.
       # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
