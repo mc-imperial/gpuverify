@@ -3,7 +3,7 @@ Trouble Shooting
 =======================
 
 If you think you have found a bug in GPUVerify, please report it via
-our issue tracker on Codeplex: http://gpuverify.codeplex.com/workitem/list/basic
+our issue tracker on Codeplex: https://github.com/mc-imperial/gpuverify/issues
 
 This page will include a list of common problems people have reported
 when getting started with GPUVerify.

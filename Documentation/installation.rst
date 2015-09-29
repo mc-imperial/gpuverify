@@ -31,8 +31,7 @@ learn how to install it.
 Z3 image
 ^^^^^^^^
 
-This container uses Z3 as its SMT solver. Z3 can only be freely used
-for non commercial purposes (see https://z3.codeplex.com/license)
+This container uses Z3 as its SMT solver.
 
 To obtain the image run::
 
@@ -41,9 +40,7 @@ To obtain the image run::
 CVC4 image
 ^^^^^^^^^^
 
-This container uses CVC4 as its SMT solver. This version of CVC4 is
-built `without GPL components so it is under a modified BSD license <http://cvc4.cs.nyu.edu/doc/copyright.html>`_
-and so is usually suitable for commercial use.
+This container uses CVC4 as its SMT solver.
 
 To obtain the image run::
 

@@ -253,7 +253,7 @@ namespace GPUVerify
         Console.Error.WriteLine("for common problems, and if this does not help, raise an issue via the");
         Console.Error.WriteLine("GPUVerify issue tracker:");
         Console.Error.WriteLine();
-        Console.Error.WriteLine("  https://gpuverify.codeplex.com");
+        Console.Error.WriteLine("  https://github.com/mc-imperial/gpuverify");
         Console.Error.WriteLine();
         #endregion
 
