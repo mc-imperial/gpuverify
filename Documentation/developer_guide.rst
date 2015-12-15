@@ -285,6 +285,11 @@ drives.
    In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
    ``Visual Studio 14``. This may require a version of CMake later than 2.8.8.
 
+   If you have Visual Studio 2015, you may need to work around a bug in the
+   Microsoft compiler in order to compile Clang, as detailed here:
+
+     `<https://connect.microsoft.com/VisualStudio/feedback/details/1741530>'_
+
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
    for the command line, then::
