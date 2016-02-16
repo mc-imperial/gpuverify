@@ -1,6 +1,6 @@
 //xfail:NOT_ALL_VERIFIED
 //--blockDim=256 --gridDim=2 --no-inline
-//Write by thread [\d]+ in block [\d]+, .+kernel\.cu:9:21:
+//Write by thread [\d]+ in thread block [\d]+ \(global id [\d]+\), .+kernel\.cu:9:21:
 
 #include <cuda.h>
 

@@ -1,6 +1,6 @@
 //xfail:NOT_ALL_VERIFIED
 //--local_size=64 --num_groups=64 --no-inline
-//kernel.cl:19:3:[\s]+error:[\s]+this assertion might not hold for work item [\d]+ in work group [\d]+[\s]+__assert\(x == 4\);
+//kernel.cl:19:3:[\s]+error:[\s]+this assertion might not hold for work item [\d]+ with local id [\d]+ in work group [\d]+[\s]+__assert\(x == 4\);
 
 
 void bar(__private int* x)

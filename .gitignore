@@ -55,6 +55,7 @@ run.pickle
 # Visual studio-related files
 GPUVerify.v*.suo
 */*.csproj.user
+.vs
 
 # gv-rise4fun counters
 utils/GPUVerifyRise4Fun/*-counter.pickle

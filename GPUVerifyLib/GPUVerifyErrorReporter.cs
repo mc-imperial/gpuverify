@@ -217,8 +217,6 @@ namespace GPUVerify {
     }
 
     private void ShowRaceInstrumentationVariables(Model Model, string CapturedState, Program OriginalProgram) {
-      string thread1, thread2, group1, group2;
-      GetThreadsAndGroupsFromModel(Model, out thread1, out thread2, out group1, out group2, false);
       foreach(var v in OriginalProgram.TopLevelDeclarations.OfType<Variable>().Where(Item =>
         QKeyValue.FindBoolAttribute(Item.Attributes, "race_checking"))) {
         foreach(var t in AccessType.Types) {
@@ -232,10 +230,10 @@ namespace GPUVerify {
               if(GetStateFromModel(CapturedState, Model).TryGet(AccessOffsetVar.Name) is Model.Number) {
                 Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " "
                   + ArrayOffsetString(Model, CapturedState, v, AccessOffsetVar, ArrayName.TrimStart(new char[] { '$' }))
-                  + " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")");
+                  + " (" + ThreadDetails(Model, 1, false) + ")");
               } else {
                 Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " " + ArrayName.TrimStart(new char[] { '$' })
-                  + " (unknown offset)" + " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")");
+                  + " (unknown offset)" + " (" + ThreadDetails(Model, 1, false) + ")");
               }
             }
             break;
@@ -245,15 +243,13 @@ namespace GPUVerify {
     }
 
     private void ShowVariablesReferencedInLoop(Graph<Block> CFG, Model Model, string CapturedState, Block Header) {
-      string thread1, thread2, group1, group2;
-      GetThreadsAndGroupsFromModel(Model, out thread1, out thread2, out group1, out group2, false);
       foreach (var v in VC.VCGen.VarsReferencedInLoop(CFG, Header).Select(Item => Item.Name).
                         Where(Item => IsOriginalProgramVariable(Item))) {
         int Id;
         var Cleaned = CleanOriginalProgramVariable(v, out Id);
         Console.Error.Write("  " + Cleaned + " = " + ExtractVariableValueFromCapturedState(v, CapturedState, Model) + " ");
-        Console.Error.WriteLine(Id == 1 ? "(" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")" :
-                                (Id == 2 ? "(" + SpecificNameForThread() + " " + thread2 + ", " + SpecificNameForGroup() + " " + group2 + ")" :
+        Console.Error.WriteLine(Id == 1 ? "(" + ThreadDetails(Model, 1, false) + ")" :
+                               (Id == 2 ? "(" + ThreadDetails(Model, 2, false) + ")" :
                                           "(uniform across threads)"));
       }
       Console.Error.WriteLine();
@@ -339,8 +335,6 @@ namespace GPUVerify {
       Console.Error.WriteLine("Bitwise values of parameters of '" + funName + "':");
       PopulateModelWithStatesIfNecessary(error);
 
-      string thread1, thread2, group1, group2;
-      GetThreadsAndGroupsFromModel(error.Model, out thread1, out thread2, out group1, out group2, false);
       foreach (var p in impl.InParams)
       {
         int id;
@@ -350,8 +344,7 @@ namespace GPUVerify {
         var VariableName = p.Name;
 
         Console.Error.Write(ExtractVariableValueFromModel(VariableName, error.Model));
-        Console.Error.WriteLine(id == 1 ? " (" + SpecificNameForThread() + " " + thread1 + ", " + SpecificNameForGroup() + " " + group1 + ")" :
-                               (id == 2 ? " (" + SpecificNameForThread() + " " + thread2 + ", " + SpecificNameForGroup() + " " + group2 + ")" : ""));
+        Console.Error.WriteLine((id == 1 || id == 2) ? " (" + ThreadDetails(error.Model, id, false) + ")" : "");
       }
       Console.Error.WriteLine();
     }
@@ -405,13 +398,10 @@ namespace GPUVerify {
         ArrayOffsetString(CallCex, RaceyArraySourceName) +
         ":\n", ErrorMsgType.Error);
 
-      string thread1, thread2, group1, group2;
-      GetThreadsAndGroupsFromModel(CallCex.Model, out thread1, out thread2, out group1, out group2, true);
-
-      Console.Error.WriteLine(access2 + " by " + SpecificNameForThread() + " " + thread2 + " in " + SpecificNameForGroup() + " " + group2 + ", " + SourceInfoForSecondAccess.Top() + ":");
+      Console.Error.WriteLine(access2 + " by " + ThreadDetails(CallCex.Model, 2, true) + ", " + SourceInfoForSecondAccess.Top() + ":");
       SourceInfoForSecondAccess.PrintStackTrace();
 
-      Console.Error.Write(access1 + " by " + SpecificNameForThread() + " " + thread1 + " in " + SpecificNameForGroup() + " " + group1 + ", ");
+      Console.Error.Write(access1 + " by " + ThreadDetails(CallCex.Model, 1, true) + ", ");
       if(PossibleSourcesForFirstAccess.Count() == 1) {
         Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0].Top() + ":");
         PossibleSourcesForFirstAccess.ToList()[0].PrintStackTrace();
@@ -744,8 +734,6 @@ namespace GPUVerify {
     }
 
     private static void ReportThreadSpecificFailure(AssertCounterexample err, string messagePrefix) {
-      string thread1, thread2, group1, group2;
-      GetThreadsAndGroupsFromModel(err.Model, out thread1, out thread2, out group1, out group2, true);
 
       AssertCmd failingAssert = err.FailingAssert;
 
@@ -755,8 +743,7 @@ namespace GPUVerify {
       int relevantThread = QKeyValue.FindIntAttribute(GetAttributes(failingAssert), "thread", -1);
       Debug.Assert(relevantThread == 1 || relevantThread == 2);
 
-      ErrorWriteLine(sli.Top() + ":", messagePrefix + " for " + SpecificNameForThread() + " " +
-                     (relevantThread == 1 ? thread1 : thread2) + " in " + SpecificNameForGroup() + " " + (relevantThread == 1 ? group1 : group2), ErrorMsgType.Error);
+      ErrorWriteLine(sli.Top() + ":", messagePrefix + " for " + ThreadDetails(err.Model, relevantThread, true), ErrorMsgType.Error);
       sli.PrintStackTrace();
       Console.Error.WriteLine();
     }
@@ -804,12 +791,9 @@ namespace GPUVerify {
         Convert.ToUInt32(QKeyValue.FindIntAttribute(arrayInfo.Attributes, "source_elem_width", -1)),
         QKeyValue.FindStringAttribute(arrayInfo.Attributes, "source_dimensions").Split(','));
 
-      string thread1, thread2, group1, group2;
-      GetThreadsAndGroupsFromModel(err.Model, out thread1, out thread2, out group1, out group2, false);
-
       var sli = new SourceLocationInfo(GetAttributes(err.FailingAssert), GetSourceFileName(), err.FailingAssert.tok);
       ErrorWriteLine(sli.Top() + ":", "possible array out-of-bounds access on array " + arrayAccess +
-        " by " + SpecificNameForThread() + " " + thread2 + " in " + SpecificNameForGroup() + " " + group2 + ":",
+        " by " + ThreadDetails(err.Model, 2, false) + ":",
         ErrorMsgType.Error);
       sli.PrintStackTrace();
       Console.Error.WriteLine();
@@ -893,106 +877,110 @@ namespace GPUVerify {
       RequiresSLI.PrintStackTrace();
     }
 
-    private static void GetThreadsAndGroupsFromModel(Model model, out string thread1, out string thread2, out string group1, out string group2, bool withSpaces) {
-      thread1 = GetThreadOne(model, withSpaces);
-      thread2 = GetThreadTwo(model, withSpaces);
-      group1 = GetGroup(model, withSpaces, 1);
-      group2 = GetGroup(model, withSpaces, 2);
+    private static void GetThreadsAndGroupsFromModel(Model model, int thread, out string localId, out string group, out string globalId, bool withSpaces) {
+      localId = GetLocalId(model, withSpaces, thread);
+      group = GetGroupId(model, withSpaces, thread);
+      globalId = GetGlobalId(model, withSpaces, thread);
     }
 
-    private static string GetGroup(Model model, bool withSpaces, int thread) {
+    private static int GetGroupIdOneDimension(Model model, string dimension, int thread)
+    {
+        string name = "group_id_" + dimension;
+        if (!((GVCommandLineOptions)CommandLineOptions.Clo).OnlyIntraGroupRaceChecking)
+        {
+            name += "$" + thread;
+        }
+
+        return model.TryGetFunc(name).GetConstant().AsInt();
+    }
+
+    private static int GetLocalIdOneDimension(Model model, String dimension, int thread)
+    {
+        return model.TryGetFunc("local_id_" + dimension + "$" + thread).GetConstant().AsInt();
+    }
+
+    private static int GetGroupSizeOneDimension(Model model, String dimension)
+    {
+        return model.TryGetFunc("group_size_" + dimension).GetConstant().AsInt();
+    }
+
+    private static int GetGlobalIdOneDimension(Model model, String dimension, int thread)
+    {
+        return GetGroupIdOneDimension(model, "x", thread) * GetGroupSizeOneDimension(model, "x") + GetLocalIdOneDimension(model, "x", thread);
+    }
+
+
+    private static string GetGroupId(Model model, bool withSpaces, int thread) {
       switch (((GVCommandLineOptions)CommandLineOptions.Clo).GridHighestDim) {
         case 0:
         return ""
-          + GetGid(model, "x", thread);
+          + GetGroupIdOneDimension(model, "x", thread);
         case 1:
         return "("
-          + GetGid(model, "x", thread)
+          + GetGroupIdOneDimension(model, "x", thread)
             + "," + (withSpaces ? " " : "")
-            + GetGid(model, "y", thread)
+            + GetGroupIdOneDimension(model, "y", thread)
             + ")";
         case 2:
         return "("
-          + GetGid(model, "x", thread)
+          + GetGroupIdOneDimension(model, "x", thread)
             + "," + (withSpaces ? " " : "")
-            + GetGid(model, "y", thread)
+            + GetGroupIdOneDimension(model, "y", thread)
             + "," + (withSpaces ? " " : "")
-            + GetGid(model, "z", thread)
+            + GetGroupIdOneDimension(model, "z", thread)
             + ")";
         default:
-        Debug.Assert(false, "GetGroup(): Reached default case in switch over GridHighestDim.");
+        Debug.Assert(false, "GetGroupId(): Reached default case in switch over GridHighestDim.");
         return "";
       }
     }
 
-    private static int GetGid(Model model, string dimension, int thread) {
-      string name = "group_id_" + dimension;
-      if(!((GVCommandLineOptions)CommandLineOptions.Clo).OnlyIntraGroupRaceChecking) {
-        name += "$" + thread;
-      }
-
-      return model.TryGetFunc(name).GetConstant().AsInt();
-    }
-
-    private static string GetThreadTwo(Model model, bool withSpaces) {
+    private static string GetLocalId(Model model, bool withSpaces, int thread) {
       switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
         case 0:
         return ""
-          + GetLidX2(model);
+          + GetLocalIdOneDimension(model, "x", thread);
         case 1:
         return "("
-          + GetLidX2(model)
+          + GetLocalIdOneDimension(model, "x", thread)
             + "," + (withSpaces ? " " : "")
-            + GetLidY2(model)
+            + GetLocalIdOneDimension(model, "y", thread)
             + ")";
         case 2:
         return "("
-          + GetLidX2(model)
+          + GetLocalIdOneDimension(model, "x", thread)
             + "," + (withSpaces ? " " : "")
-            + GetLidY2(model)
+            + GetLocalIdOneDimension(model, "y", thread)
             + "," + (withSpaces ? " " : "")
-            + GetLidZ2(model)
+            + GetLocalIdOneDimension(model, "z", thread)
             + ")";
         default:
-        Debug.Assert(false, "GetThreadTwo(): Reached default case in switch over BlockHighestDim.");
+        Debug.Assert(false, "GetLocalId(): Reached default case in switch over BlockHighestDim.");
         return "";
       }
     }
 
-
-    private static int GetLidZ2(Model model) {
-      return model.TryGetFunc("local_id_z$2").GetConstant().AsInt();
-    }
-
-    private static int GetLidY2(Model model) {
-      return model.TryGetFunc("local_id_y$2").GetConstant().AsInt();
-    }
-
-    private static int GetLidX2(Model model) {
-      return model.TryGetFunc("local_id_x$2").GetConstant().AsInt();
-    }
-
-    private static string GetThreadOne(Model model, bool withSpaces) {
+    private static string GetGlobalId(Model model, bool withSpaces, int thread) {
       switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim) {
         case 0:
         return ""
-          + model.TryGetFunc("local_id_x$1").GetConstant().AsInt();
+          + GetGlobalIdOneDimension(model, "x", thread);
         case 1:
         return "("
-          + model.TryGetFunc("local_id_x$1").GetConstant().AsInt()
+          + GetGlobalIdOneDimension(model, "x", thread)
             + "," + (withSpaces ? " " : "")
-            + model.TryGetFunc("local_id_y$1").GetConstant().AsInt()
+            + GetGlobalIdOneDimension(model, "y", thread)
             + ")";
-      case 2:
+        case 2:
         return "("
-          + model.TryGetFunc("local_id_x$1").GetConstant().AsInt()
+          + GetGlobalIdOneDimension(model, "x", thread)
             + "," + (withSpaces ? " " : "")
-            + model.TryGetFunc("local_id_y$1").GetConstant().AsInt()
+            + GetGlobalIdOneDimension(model, "y", thread)
             + "," + (withSpaces ? " " : "")
-            + model.TryGetFunc("local_id_z$1").GetConstant().AsInt()
+            + GetGlobalIdOneDimension(model, "z", thread)
             + ")";
         default:
-        Debug.Assert(false, "GetThreadOne(): Reached default case in switch over BlockHighestDim.");
+        Debug.Assert(false, "GetGlobalId(): Reached default case in switch over BlockHighestDim.");
         return "";
       }
     }
@@ -1010,20 +998,15 @@ namespace GPUVerify {
       return arrName;
     }
 
-    private static string SpecificNameForGroup() {
+    private static String ThreadDetails(Model model, int thread, bool withSpaces) {
+      string localId, group, globalId;
+      GetThreadsAndGroupsFromModel(model, thread, out localId, out group, out globalId, withSpaces);
       if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
-        return "block";
+        return "thread " + localId + " in thread block " + group + " (global id " + globalId + ")";
       } else {
-        return "work group";
+        return "work item " + globalId + " with local id " + localId + " in work group " + group;
       }
-    }
 
-    private static string SpecificNameForThread() {
-      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
-        return "thread";
-      } else {
-        return "work item";
-      }
     }
 
   }
