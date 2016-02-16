@@ -116,7 +116,7 @@ namespace GPUVerify
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32)) ||
-                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(62))
+                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(64))
                 );
         }
 

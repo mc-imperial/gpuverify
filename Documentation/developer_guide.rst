@@ -130,6 +130,7 @@ Replace as appropriate or setup an environment variable.::
     $ ./configure --with-antlr-dir=${BUILD_ROOT}/CVC4/src/antlr-3.4 \
                   --prefix=${BUILD_ROOT}/CVC4/install \
                   --best --enable-gpl \
+                  --without-glpk --without-abc \
                   --disable-shared --enable-static
     $ make
     $ make install
