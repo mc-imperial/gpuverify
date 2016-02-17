@@ -33,7 +33,7 @@ namespace GPUVerify {
       List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
       foreach (Declaration d in verifier.Program.TopLevelDeclarations) {
         if (d is Variable &&
-          verifier.KernelArrayInfo.ContainsNonPrivateArray(d as Variable) &&
+          verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(d as Variable) &&
           verifier.ArrayModelledAdversarially(d as Variable)) {
           continue;
         }
@@ -86,7 +86,7 @@ namespace GPUVerify {
       NewLocalVars = new List<Variable>();
       AbstractedCallArgCounter = 0;
       foreach (Variable v in impl.LocVars) {
-        Debug.Assert(!verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v));
+        Debug.Assert(!verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(v));
         NewLocalVars.Add(v);
       }
       impl.LocVars = NewLocalVars;
@@ -196,7 +196,7 @@ namespace GPUVerify {
       }
 
       public override Variable VisitVariable(Variable v) {
-        if (verifier.KernelArrayInfo.ContainsNonPrivateArray(v)) {
+        if (verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(v)) {
           if (verifier.ArrayModelledAdversarially(v)) {
             found = true;
           }

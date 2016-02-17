@@ -38,11 +38,11 @@ namespace GPUVerify
 
     private void RemoveArraysFromProgram(Program Program, Dictionary<string, HashSet<string>> Arrays)
     {
-      foreach (var a in Verifier.KernelArrayInfo.getPrivateArrays().ToList())
+      foreach (var a in Verifier.KernelArrayInfo.GetPrivateArrays().ToList())
       {
         if (Arrays.ContainsKey(a.Name))
         {
-          Verifier.KernelArrayInfo.getPrivateArrays().Remove(a);
+          Verifier.KernelArrayInfo.GetPrivateArrays().Remove(a);
           Program.RemoveTopLevelDeclarations(x => x == a);
 
           foreach (var l in Arrays[a.Name])
@@ -82,7 +82,7 @@ namespace GPUVerify
 
     internal LiteralIndexVisitor(GPUVerifier Verifier) {
       this.LiteralIndexedArrays = new Dictionary<string,HashSet<string>>();
-      foreach(var v in Verifier.KernelArrayInfo.getPrivateArrays()) {
+      foreach(var v in Verifier.KernelArrayInfo.GetPrivateArrays()) {
         this.LiteralIndexedArrays[v.Name] = new HashSet<string>();
       }
     }

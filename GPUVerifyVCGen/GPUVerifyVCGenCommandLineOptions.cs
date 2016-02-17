@@ -57,6 +57,7 @@ namespace GPUVerify
     public static List<List<string>> KernelInterceptorParams = new List<List<string>>();
     public static bool DisableInessentialLoopDetection = false;
     public static bool ArrayBoundsChecking = false;
+    public static HashSet<string> ArraysToCheck = null;
 
     public static int Parse(string[] args)
     {
@@ -321,6 +322,22 @@ namespace GPUVerify
           case "-checkArrayBounds":
           case "/checkArrayBounds":
           ArrayBoundsChecking = true;
+          break;
+
+          case "-checkArrays":
+          case "/checkArrays":
+          if (!hasColonArgument) {
+            Console.WriteLine("Error: a comma-separated list of array names must be provided after " + beforeColon + " argument");
+            Environment.Exit(1);
+          }
+          if(ArraysToCheck == null) {
+            ArraysToCheck = new HashSet<string>();
+          }
+          foreach(var arrayName in afterColon.Split(',')) {
+            // We add $$ to an array name to match what Bugle generates.  Means that this feature is tied to
+            // Bugle.
+            ArraysToCheck.Add("$$" + arrayName);            
+          }
           break;
 
           default:

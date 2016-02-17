@@ -186,6 +186,7 @@ namespace GPUVerify
                   }
               }
             }
+
         }
 
         private int GetSizeTBits()
@@ -378,20 +379,20 @@ namespace GPUVerify
                 {
                     if (QKeyValue.FindBoolAttribute(D.Attributes, "group_shared"))
                     {
-                        KernelArrayInfo.getGroupSharedArrays().Add(D as Variable);
+                        KernelArrayInfo.GetGroupSharedArrays().Add(D as Variable);
                     }
                     else if (QKeyValue.FindBoolAttribute(D.Attributes, "global"))
                     {
-                        KernelArrayInfo.getGlobalArrays().Add(D as Variable);
+                        KernelArrayInfo.GetGlobalArrays().Add(D as Variable);
                     }
                     else if (QKeyValue.FindBoolAttribute(D.Attributes, "constant"))
                     {
-                        KernelArrayInfo.getConstantArrays().Add(D as Variable);
+                        KernelArrayInfo.GetConstantArrays().Add(D as Variable);
                     }
                     else
                     {
                       if (!QKeyValue.FindBoolAttribute(D.Attributes, "atomic_usedmap")) {
-                        KernelArrayInfo.getPrivateArrays().Add(D as Variable);
+                        KernelArrayInfo.GetPrivateArrays().Add(D as Variable);
                       }
                     }
                 }
@@ -426,10 +427,10 @@ namespace GPUVerify
                 Debug.Assert(c.Ins.Count() >= 1);
                 var IE = c.Ins[0] as IdentifierExpr;
                 Debug.Assert(IE != null);
-                Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(IE.Decl));
-                if (!KernelArrayInfo.getAtomicallyAccessedArrays().Contains(IE.Decl))
+                Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(IE.Decl));
+                if (!KernelArrayInfo.GetAtomicallyAccessedArrays().Contains(IE.Decl))
                 {
-                  KernelArrayInfo.getAtomicallyAccessedArrays().Add(IE.Decl);
+                  KernelArrayInfo.GetAtomicallyAccessedArrays().Add(IE.Decl);
                 }
               }
             }
@@ -464,10 +465,10 @@ namespace GPUVerify
                   .Select(item => item.Modifies)
                   .SelectMany(Item => Item)
                   .Select(Item => Item.Decl)
-                  .Where(item => KernelArrayInfo.ContainsNonPrivateArray(item));
-          foreach(var v in KernelArrayInfo.getAllNonLocalArrays().Where(
+                  .Where(item => KernelArrayInfo.ContainsGlobalOrGroupSharedArray(item));
+          foreach(var v in KernelArrayInfo.GetGlobalAndGroupSharedArrays().Where(
             Item => !WrittenArrays.Contains(Item))) {
-            KernelArrayInfo.getReadOnlyNonLocalArrays().Add(v);
+            KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Add(v);
           }
 
         }
@@ -728,8 +729,8 @@ namespace GPUVerify
               (AsyncCall.Outs[1] as IdentifierExpr).Decl;
             Variable SrcArray =
               (AsyncCall.Ins[1] as IdentifierExpr).Decl;
-            Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(DstArray));
-            Debug.Assert(KernelArrayInfo.getAllNonLocalArrays().Contains(SrcArray));
+            Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(DstArray));
+            Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(SrcArray));
             ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Add(DstArray.Name);
             ArraysAccessedByAsyncWorkGroupCopy[AccessType.READ].Add(SrcArray.Name);
           }
@@ -1633,8 +1634,8 @@ namespace GPUVerify
                 barrierEntryBlock.ec = new IfCmd(Token.NoToken, IfGuard, returnstatement, null, null);
             }
 
-            var SharedArrays = KernelArrayInfo.getGroupSharedArrays();
-            SharedArrays = SharedArrays.Where(x => !KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(x)).ToList();
+            var SharedArrays = KernelArrayInfo.GetGroupSharedArrays();
+            SharedArrays = SharedArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(x)).ToList();
             if(SharedArrays.Count > 0) {
 
                 bigblocks.AddRange(
@@ -1658,8 +1659,8 @@ namespace GPUVerify
                 }
             }
 
-            var GlobalArrays = KernelArrayInfo.getGlobalArrays();
-            GlobalArrays = GlobalArrays.Where(x => !KernelArrayInfo.getReadOnlyNonLocalArrays().Contains(x)).ToList();
+            var GlobalArrays = KernelArrayInfo.GetGlobalArrays();
+            GlobalArrays = GlobalArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(x)).ToList();
             if (GlobalArrays.Count > 0)
             {
                 bigblocks.AddRange(
@@ -2005,6 +2006,23 @@ namespace GPUVerify
                 return ErrorCount;
             }
 
+            if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck == null) {
+              // If the user did not request checking to be restricted to any particular arrays,
+              // add all the non-private array names
+              GPUVerifyVCGenCommandLineOptions.ArraysToCheck = new HashSet<String>();
+              foreach(var v in KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
+                GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Add(v.Name);
+              }
+            } else {
+              // If the user provided arrays to which checking should be restricted, make sure
+              // these really exist
+              foreach(var v in GPUVerifyVCGenCommandLineOptions.ArraysToCheck) {
+                if(!KernelArrayInfo.GetGlobalAndGroupSharedArrays().Select(Item => Item.Name).Contains(v)) {
+                  Error(Token.NoToken, "Array name '" + v + "' specified for restricted checking is not found");
+                }
+              }
+            }
+
             return ErrorCount;
         }
 
@@ -2076,7 +2094,7 @@ namespace GPUVerify
             {
                 return false;
             }
-            if (KernelArrayInfo.getAtomicallyAccessedArrays().Contains(v))
+            if (KernelArrayInfo.GetAtomicallyAccessedArrays().Contains(v))
             {
               return true;
             }
@@ -2394,7 +2412,7 @@ namespace GPUVerify
                   array = call.callee.Substring(11); // "_LOG_WRITE_" is 13 characters
                 }
                 // Manual resolving yaey!
-                Variable arrayVar = KernelArrayInfo.getAllArrays().Where(v => v.Name.Equals(array)).First();
+                Variable arrayVar = KernelArrayInfo.GetAllArrays().Where(v => v.Name.Equals(array)).First();
                 Procedure proto = FindOrCreateWarpSync(arrayVar,kind,true);
                 CallCmd wsCall = new CallCmd(Token.NoToken,proto.Name,new List<Expr>(),new List<IdentifierExpr>());
                 wsCall.Proc = proto;
@@ -2421,7 +2439,7 @@ namespace GPUVerify
                   array = call.callee.Substring(13); // "_CHECK_WRITE_" is 13 characters
                 }
                 // Manual resolving yaey!
-                Variable arrayVar = KernelArrayInfo.getAllArrays().Where(v => v.Name.Equals(array)).First();
+                Variable arrayVar = KernelArrayInfo.GetAllArrays().Where(v => v.Name.Equals(array)).First();
                 Procedure proto = FindOrCreateWarpSync(arrayVar,kind,false);
                 CallCmd wsCall = new CallCmd(Token.NoToken,proto.Name,new List<Expr>(),new List<IdentifierExpr>());
                 wsCall.Proc = proto;
@@ -2521,7 +2539,7 @@ namespace GPUVerify
         internal bool TryGetArrayFromPrefixedString(string s, string prefix, out Variable v) {
           v = null;
           if(s.StartsWith(prefix)) {
-            foreach(var a in KernelArrayInfo.getAllNonLocalArrays()) {
+            foreach(var a in KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
               if(a.Name.Equals(s.Substring(prefix.Length))) {
                 v = a;
                 return true;

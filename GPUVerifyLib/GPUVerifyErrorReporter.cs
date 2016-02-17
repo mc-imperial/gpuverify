@@ -255,20 +255,8 @@ namespace GPUVerify {
       Console.Error.WriteLine();
     }
 
-    private bool IsAccessHasOccurredVariable(Variable v) {
-      if(!QKeyValue.FindBoolAttribute(v.Attributes, "race_checking")) {
-        return false;
-      }
-      foreach(var a in AccessType.Types) {
-        if(v.Name.StartsWith("_" + a + "_HAS_OCCURRED_")) {
-          return true;
-        }
-      }
-      return false;
-    }
-
     private void GetArrayNameAndAccessTypeFromAccessHasOccurredVariable(Variable v, out string ArrayName, out AccessType AccessType) {
-      Debug.Assert(IsAccessHasOccurredVariable(v));
+      Debug.Assert(GVUtil.IsAccessHasOccurredVariable(v));
       foreach(var CurrentAccessType in AccessType.Types) {
         var Prefix = "_" + CurrentAccessType + "_HAS_OCCURRED_";
         if(v.Name.StartsWith(Prefix)) {

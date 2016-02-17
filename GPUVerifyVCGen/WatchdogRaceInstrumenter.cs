@@ -48,7 +48,7 @@ namespace GPUVerify
 
       Expr Condition = Expr.And(new IdentifierExpr(Token.NoToken, MakeTrackingVariable()), Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
                                          new IdentifierExpr(Token.NoToken, OffsetParameter)));
-      if(verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
+      if(verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(v)) {
         Condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), Condition);
       }
       

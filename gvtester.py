@@ -112,7 +112,7 @@ class GPUVerifyTestKernel(object):
                     if xfailCodeAsString in [ t[1] for t in GPUVerifyErrorCodes.getValidxfailCodes() ]:
                         self.expectedReturnCode=getattr(GPUVerifyErrorCodes,xfailCodeAsString)
                     else:
-                        raise KernelParseError(1,self.path, "\"" + xfailCodeAsString + "\" is not a valid error code for expected fail.")
+                        raise KernelParseError(1,self.path, "\"" + xfailCodeAsString + "\" is not a valid error code for expected fail; valid codes are " + (", ".join([code[1] for code in GPUVerifyErrorCodes.getValidxfailCodes()])) + ".")
 
 
             #Grab command line args to pass to GPUVerify

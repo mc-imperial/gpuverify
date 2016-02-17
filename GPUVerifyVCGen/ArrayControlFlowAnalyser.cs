@@ -66,7 +66,7 @@ namespace GPUVerify
                     mayBeDerivedFrom.Add(Proc.Name, new Dictionary<string, HashSet<string>>());
                   }
 
-                  foreach (Variable v in verifier.KernelArrayInfo.getAllNonLocalArrays()) {
+                  foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
                     SetMayBeDerivedFrom(Proc.Name, v.Name, v.Name);
                   }
 

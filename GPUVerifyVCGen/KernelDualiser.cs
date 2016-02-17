@@ -539,12 +539,12 @@ namespace GPUVerify {
                 continue;
               }
 
-              if (verifier.KernelArrayInfo.getGlobalArrays().Contains(v)) {
+              if (verifier.KernelArrayInfo.GetGlobalArrays().Contains(v)) {
                 NewTopLevelDeclarations.Add(v);
                 continue;
               }
 
-              if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
+              if (verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(v)) {
                 if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                   Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
                       v.Name, new MapType(Token.NoToken, new List<TypeVariable>(),
@@ -640,8 +640,8 @@ namespace GPUVerify {
       }
 
       if (node.Decl is Constant ||
-          verifier.KernelArrayInfo.getGroupSharedArrays().Contains(node.Decl) ||
-          verifier.KernelArrayInfo.getGlobalArrays().Contains(node.Decl)) {
+          verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(node.Decl) ||
+          verifier.KernelArrayInfo.GetGlobalArrays().Contains(node.Decl)) {
         return base.VisitIdentifierExpr(node);
       }
 

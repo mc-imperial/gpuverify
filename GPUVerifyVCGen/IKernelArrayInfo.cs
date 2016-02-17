@@ -19,23 +19,23 @@ namespace GPUVerify
     interface IKernelArrayInfo
     {
 
-        ICollection<Variable> getGlobalArrays();
+        ICollection<Variable> GetGlobalArrays();
 
-        ICollection<Variable> getGroupSharedArrays();
+        ICollection<Variable> GetGroupSharedArrays();
 
-        ICollection<Variable> getConstantArrays();
+        ICollection<Variable> GetGlobalAndGroupSharedArrays();
 
-        ICollection<Variable> getPrivateArrays();
+        ICollection<Variable> GetConstantArrays();
 
-        ICollection<Variable> getAllNonLocalArrays();
+        ICollection<Variable> GetPrivateArrays();
 
-        ICollection<Variable> getAllArrays();
+        ICollection<Variable> GetAllArrays();
 
-        ICollection<Variable> getReadOnlyNonLocalArrays();
+        ICollection<Variable> GetReadOnlyGlobalAndGroupSharedArrays();
 
-        ICollection<Variable> getAtomicallyAccessedArrays();
+        ICollection<Variable> GetAtomicallyAccessedArrays();
 
-        bool ContainsNonPrivateArray(Variable v);
+        bool ContainsGlobalOrGroupSharedArray(Variable v);
 
         bool ContainsPrivateArray(Variable v);
 

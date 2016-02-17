@@ -266,7 +266,7 @@ namespace GPUVerify
       foreach(BarrierInterval interval in intervals.Values.SelectMany(Item => Item)) {
         var WrittenGroupSharedArrays = interval.FindWrittenGroupSharedArrays(verifier);
         RemoveReads(interval.Blocks,
-          verifier.KernelArrayInfo.getGroupSharedArrays().Where(Item =>
+          verifier.KernelArrayInfo.GetGroupSharedArrays().Where(Item =>
              !WrittenGroupSharedArrays.Contains(Item)));
       }
     }
@@ -322,7 +322,7 @@ namespace GPUVerify
 
       HashSet<Variable> result = new HashSet<Variable>();
 
-      foreach (var v in verifier.KernelArrayInfo.getGroupSharedArrays())
+      foreach (var v in verifier.KernelArrayInfo.GetGroupSharedArrays())
       {
         if (verifier.ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Contains(v.Name))
         {
@@ -337,7 +337,7 @@ namespace GPUVerify
         Variable v;
         if(verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.WRITE, out v) ||
            verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.ATOMIC, out v)) {
-          if (verifier.KernelArrayInfo.getGroupSharedArrays().Contains(v)) {
+          if (verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(v)) {
             result.Add(v);
           }
         }

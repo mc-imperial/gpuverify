@@ -23,7 +23,7 @@ namespace GPUVerify
         private List<Variable> GroupSharedVariables;
         private List<Variable> ConstantVariables;
         private List<Variable> PrivateVariables;
-        private List<Variable> ReadOnlyNonLocalVariables;
+        private List<Variable> ReadOnlyGlobalAndGroupSharedVariables;
         private List<Variable> AtomicallyAccessedVariables;
 
         public KernelArrayInfoLists()
@@ -32,31 +32,31 @@ namespace GPUVerify
             GroupSharedVariables = new List<Variable>();
             ConstantVariables = new List<Variable>();
             PrivateVariables = new List<Variable>();
-            ReadOnlyNonLocalVariables = new List<Variable>();
+            ReadOnlyGlobalAndGroupSharedVariables = new List<Variable>();
             AtomicallyAccessedVariables = new List<Variable>();
         }
 
-        public ICollection<Variable> getGlobalArrays()
+        public ICollection<Variable> GetGlobalArrays()
         {
             return GlobalVariables;
         }
 
-        public ICollection<Variable> getGroupSharedArrays()
+        public ICollection<Variable> GetGroupSharedArrays()
         {
             return GroupSharedVariables;
         }
 
-        public ICollection<Variable> getConstantArrays()
+        public ICollection<Variable> GetConstantArrays()
         {
             return ConstantVariables;
         }
 
-        public ICollection<Variable> getPrivateArrays()
+        public ICollection<Variable> GetPrivateArrays()
         {
             return PrivateVariables;
         }
 
-        public ICollection<Variable> getAllNonLocalArrays()
+        public ICollection<Variable> GetGlobalAndGroupSharedArrays()
         {
             List<Variable> all = new List<Variable>();
             all.AddRange(GlobalVariables);
@@ -64,28 +64,28 @@ namespace GPUVerify
             return all;
         }
 
-        public ICollection<Variable> getReadOnlyNonLocalArrays()
+        public ICollection<Variable> GetReadOnlyGlobalAndGroupSharedArrays()
         {
-            return ReadOnlyNonLocalVariables;
+            return ReadOnlyGlobalAndGroupSharedVariables;
         }
 
-        public ICollection<Variable> getAtomicallyAccessedArrays()
+        public ICollection<Variable> GetAtomicallyAccessedArrays()
         {
           return AtomicallyAccessedVariables;
         }
 
-        public ICollection<Variable> getAllArrays()
+        public ICollection<Variable> GetAllArrays()
         {
             List<Variable> all = new List<Variable>();
-            all.AddRange(getAllNonLocalArrays());
-            all.AddRange(getConstantArrays());
+            all.AddRange(GetGlobalAndGroupSharedArrays());
+            all.AddRange(GetConstantArrays());
             all.AddRange(PrivateVariables);
             return all;
         }
 
-        public bool ContainsNonPrivateArray(Variable v)
+        public bool ContainsGlobalOrGroupSharedArray(Variable v)
         {
-            return getAllNonLocalArrays().Contains(v);
+            return GetGlobalAndGroupSharedArrays().Contains(v);
         }
 
         public bool ContainsConstantArray(Variable v)
@@ -95,7 +95,7 @@ namespace GPUVerify
 
         public bool ContainsPrivateArray(Variable v)
         {
-            return getPrivateArrays().Contains(v);
+            return GetPrivateArrays().Contains(v);
         }
 
     }

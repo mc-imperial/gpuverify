@@ -342,6 +342,18 @@ namespace GPUVerify
       return p;
     }
 
+    public static bool IsAccessHasOccurredVariable(Variable v) {
+      if(!QKeyValue.FindBoolAttribute(v.Attributes, "race_checking")) {
+        return false;
+      }
+      foreach(var a in AccessType.Types) {
+        if(v.Name.StartsWith("_" + a + "_HAS_OCCURRED_")) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     public static string StripThreadIdentifier(string p)
     {
       int id;
