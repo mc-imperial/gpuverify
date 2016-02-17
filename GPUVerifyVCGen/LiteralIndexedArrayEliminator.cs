@@ -42,7 +42,7 @@ namespace GPUVerify
       {
         if (Arrays.ContainsKey(a.Name))
         {
-          Verifier.KernelArrayInfo.GetPrivateArrays().Remove(a);
+          Verifier.KernelArrayInfo.RemovePrivateArray(a);
           Program.RemoveTopLevelDeclarations(x => x == a);
 
           foreach (var l in Arrays[a.Name])

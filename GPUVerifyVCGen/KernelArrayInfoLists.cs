@@ -36,27 +36,27 @@ namespace GPUVerify
             AtomicallyAccessedVariables = new List<Variable>();
         }
 
-        public ICollection<Variable> GetGlobalArrays()
+        public IEnumerable<Variable> GetGlobalArrays()
         {
             return GlobalVariables;
         }
 
-        public ICollection<Variable> GetGroupSharedArrays()
+        public IEnumerable<Variable> GetGroupSharedArrays()
         {
             return GroupSharedVariables;
         }
 
-        public ICollection<Variable> GetConstantArrays()
+        public IEnumerable<Variable> GetConstantArrays()
         {
             return ConstantVariables;
         }
 
-        public ICollection<Variable> GetPrivateArrays()
+        public IEnumerable<Variable> GetPrivateArrays()
         {
             return PrivateVariables;
         }
 
-        public ICollection<Variable> GetGlobalAndGroupSharedArrays()
+        public IEnumerable<Variable> GetGlobalAndGroupSharedArrays()
         {
             List<Variable> all = new List<Variable>();
             all.AddRange(GlobalVariables);
@@ -64,17 +64,17 @@ namespace GPUVerify
             return all;
         }
 
-        public ICollection<Variable> GetReadOnlyGlobalAndGroupSharedArrays()
+        public IEnumerable<Variable> GetReadOnlyGlobalAndGroupSharedArrays()
         {
             return ReadOnlyGlobalAndGroupSharedVariables;
         }
 
-        public ICollection<Variable> GetAtomicallyAccessedArrays()
+        public IEnumerable<Variable> GetAtomicallyAccessedArrays()
         {
           return AtomicallyAccessedVariables;
         }
 
-        public ICollection<Variable> GetAllArrays()
+        public IEnumerable<Variable> GetAllArrays()
         {
             List<Variable> all = new List<Variable>();
             all.AddRange(GetGlobalAndGroupSharedArrays());
@@ -96,6 +96,36 @@ namespace GPUVerify
         public bool ContainsPrivateArray(Variable v)
         {
             return GetPrivateArrays().Contains(v);
+        }
+
+        public void AddGlobalArray(Variable v) {
+          GlobalVariables.Add(v);
+        }
+
+        public void AddGroupSharedArray(Variable v) {
+          GroupSharedVariables.Add(v);
+        }
+
+        public void AddPrivateArray(Variable v) {
+          PrivateVariables.Add(v);
+        }
+
+        public void AddConstantArray(Variable v) {
+          ConstantVariables.Add(v);
+        }
+
+        public void AddAtomicallyAccessedArray(Variable v) {
+          AtomicallyAccessedVariables.Add(v);
+        }
+
+        public void AddReadOnlyGlobalOrGroupSharedArray(Variable v) {
+          Debug.Assert(GlobalVariables.Contains(v) || GroupSharedVariables.Contains(v));
+          ReadOnlyGlobalAndGroupSharedVariables.Add(v);
+        }
+
+        public void RemovePrivateArray(Variable v) {
+          Debug.Assert(PrivateVariables.Contains(v));
+          PrivateVariables.Remove(v);
         }
 
     }

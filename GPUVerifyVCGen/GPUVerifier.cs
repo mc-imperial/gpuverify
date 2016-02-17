@@ -379,20 +379,20 @@ namespace GPUVerify
                 {
                     if (QKeyValue.FindBoolAttribute(D.Attributes, "group_shared"))
                     {
-                        KernelArrayInfo.GetGroupSharedArrays().Add(D as Variable);
+                        KernelArrayInfo.AddGroupSharedArray(D as Variable);
                     }
                     else if (QKeyValue.FindBoolAttribute(D.Attributes, "global"))
                     {
-                        KernelArrayInfo.GetGlobalArrays().Add(D as Variable);
+                        KernelArrayInfo.AddGlobalArray(D as Variable);
                     }
                     else if (QKeyValue.FindBoolAttribute(D.Attributes, "constant"))
                     {
-                        KernelArrayInfo.GetConstantArrays().Add(D as Variable);
+                        KernelArrayInfo.AddConstantArray(D as Variable);
                     }
                     else
                     {
                       if (!QKeyValue.FindBoolAttribute(D.Attributes, "atomic_usedmap")) {
-                        KernelArrayInfo.GetPrivateArrays().Add(D as Variable);
+                        KernelArrayInfo.AddPrivateArray(D as Variable);
                       }
                     }
                 }
@@ -430,7 +430,7 @@ namespace GPUVerify
                 Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(IE.Decl));
                 if (!KernelArrayInfo.GetAtomicallyAccessedArrays().Contains(IE.Decl))
                 {
-                  KernelArrayInfo.GetAtomicallyAccessedArrays().Add(IE.Decl);
+                  KernelArrayInfo.AddAtomicallyAccessedArray(IE.Decl);
                 }
               }
             }
@@ -468,7 +468,7 @@ namespace GPUVerify
                   .Where(item => KernelArrayInfo.ContainsGlobalOrGroupSharedArray(item));
           foreach(var v in KernelArrayInfo.GetGlobalAndGroupSharedArrays().Where(
             Item => !WrittenArrays.Contains(Item))) {
-            KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Add(v);
+            KernelArrayInfo.AddReadOnlyGlobalOrGroupSharedArray(v);
           }
 
         }
@@ -1636,7 +1636,7 @@ namespace GPUVerify
 
             var SharedArrays = KernelArrayInfo.GetGroupSharedArrays();
             SharedArrays = SharedArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(x)).ToList();
-            if(SharedArrays.Count > 0) {
+            if(SharedArrays.ToList().Count > 0) {
 
                 bigblocks.AddRange(
                       MakeResetBlocks(Expr.And(P1, LocalFence1), SharedArrays));
@@ -1661,7 +1661,7 @@ namespace GPUVerify
 
             var GlobalArrays = KernelArrayInfo.GetGlobalArrays();
             GlobalArrays = GlobalArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(x)).ToList();
-            if (GlobalArrays.Count > 0)
+            if (GlobalArrays.ToList().Count > 0)
             {
                 bigblocks.AddRange(
                       MakeResetBlocks(Expr.And(P1, GlobalFence1), GlobalArrays));
@@ -1711,9 +1711,9 @@ namespace GPUVerify
             IntRep.GetLiteral(0, 1));
         }
 
-        private List<BigBlock> MakeResetBlocks(Expr ResetCondition, ICollection<Variable> variables)
+        private List<BigBlock> MakeResetBlocks(Expr ResetCondition, IEnumerable<Variable> variables)
         {
-            Debug.Assert(variables.Count > 0);
+            Debug.Assert(variables.ToList().Count > 0);
             List<BigBlock> result = new List<BigBlock>();
             foreach (Variable v in variables)
             {
@@ -1736,7 +1736,7 @@ namespace GPUVerify
           return result;
         }
 
-        private bool SomeArrayModelledNonAdversarially(ICollection<Variable> variables) {
+        private bool SomeArrayModelledNonAdversarially(IEnumerable<Variable> variables) {
           foreach (Variable v in variables) {
             if (!ArrayModelledAdversarially(v)) {
               return true;
