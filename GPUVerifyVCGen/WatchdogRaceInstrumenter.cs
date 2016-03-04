@@ -24,6 +24,11 @@ namespace GPUVerify
     }
 
     protected override void AddLogAccessProcedure(Variable v, AccessType Access) {
+
+      // This array should be included in the set of global or group shared arrays that 
+      // are *not* disabled
+      Debug.Assert(verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(v, false));
+
       Procedure LogAccessProcedure = MakeLogAccessProcedureHeader(v, Access);
 
       Debug.Assert(v.TypedIdent.Type is MapType);
@@ -48,7 +53,7 @@ namespace GPUVerify
 
       Expr Condition = Expr.And(new IdentifierExpr(Token.NoToken, MakeTrackingVariable()), Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
                                          new IdentifierExpr(Token.NoToken, OffsetParameter)));
-      if(verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(v)) {
+      if(verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v)) {
         Condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), Condition);
       }
       

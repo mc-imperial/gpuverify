@@ -15,6 +15,7 @@ using System.Linq;
 using System.Reflection;
 using System.IO;
 using Microsoft.Boogie;
+using System.Diagnostics;
 
 using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
 
@@ -343,11 +344,30 @@ namespace GPUVerify
     }
 
     public static bool IsAccessHasOccurredVariable(Variable v) {
+
+      // Returns whether v is a "*_HAS_OCCURRED_" variable for some array
+
       if(!QKeyValue.FindBoolAttribute(v.Attributes, "race_checking")) {
         return false;
       }
       foreach(var a in AccessType.Types) {
         if(v.Name.StartsWith("_" + a + "_HAS_OCCURRED_")) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    public static bool IsAccessHasOccurredVariable(Variable v, string arrayName) {
+
+      // Returns whether v is a "*_HAS_OCCURRED_arrayName" variable
+
+      if(!IsAccessHasOccurredVariable(v)) {
+        return false;
+      }
+
+      foreach(var a in AccessType.Types) {
+        if(v.Name == "_" + a + "_HAS_OCCURRED_" + arrayName) {
           return true;
         }
       }

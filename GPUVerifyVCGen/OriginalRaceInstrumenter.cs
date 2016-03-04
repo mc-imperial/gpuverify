@@ -24,6 +24,11 @@ namespace GPUVerify
     internal OriginalRaceInstrumenter(GPUVerifier verifier) : base(verifier) { }
 
     protected override void AddLogAccessProcedure(Variable v, AccessType Access) {
+
+      // This array should be included in the set of global or group shared arrays that 
+      // are *not* disabled
+      Debug.Assert(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
+
       Procedure LogAccessProcedure = MakeLogAccessProcedureHeader(v, Access);
 
       Debug.Assert(v.TypedIdent.Type is MapType);
@@ -59,7 +64,7 @@ namespace GPUVerify
       Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter),
         new IdentifierExpr(v.tok, TrackVariable));
 
-      if(verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(v)) {
+      if(verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v)) {
         Condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), Condition);
       }
 

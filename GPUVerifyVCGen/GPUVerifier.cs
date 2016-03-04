@@ -123,6 +123,8 @@ namespace GPUVerify
 
             CheckWellFormedness();
 
+            StripOutAnnotationsForDisabledArrays();
+
             GlobalArraySourceNames = new Dictionary<string,string>();
             foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
                 string sourceName = QKeyValue.FindStringAttribute(g.Attributes, "source_name");
@@ -380,10 +382,16 @@ namespace GPUVerify
                     if (QKeyValue.FindBoolAttribute(D.Attributes, "group_shared"))
                     {
                         KernelArrayInfo.AddGroupSharedArray(D as Variable);
+                        if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null && !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains((D as Variable).Name)) {
+                          KernelArrayInfo.DisableGlobalOrGroupSharedArray(D as Variable);
+                        }
                     }
                     else if (QKeyValue.FindBoolAttribute(D.Attributes, "global"))
                     {
                         KernelArrayInfo.AddGlobalArray(D as Variable);
+                        if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null && !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains((D as Variable).Name)) {
+                          KernelArrayInfo.DisableGlobalOrGroupSharedArray(D as Variable);
+                        }
                     }
                     else if (QKeyValue.FindBoolAttribute(D.Attributes, "constant"))
                     {
@@ -427,8 +435,8 @@ namespace GPUVerify
                 Debug.Assert(c.Ins.Count() >= 1);
                 var IE = c.Ins[0] as IdentifierExpr;
                 Debug.Assert(IE != null);
-                Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(IE.Decl));
-                if (!KernelArrayInfo.GetAtomicallyAccessedArrays().Contains(IE.Decl))
+                Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays(true).Contains(IE.Decl));
+                if (!KernelArrayInfo.GetAtomicallyAccessedArrays(true).Contains(IE.Decl))
                 {
                   KernelArrayInfo.AddAtomicallyAccessedArray(IE.Decl);
                 }
@@ -465,8 +473,8 @@ namespace GPUVerify
                   .Select(item => item.Modifies)
                   .SelectMany(Item => Item)
                   .Select(Item => Item.Decl)
-                  .Where(item => KernelArrayInfo.ContainsGlobalOrGroupSharedArray(item));
-          foreach(var v in KernelArrayInfo.GetGlobalAndGroupSharedArrays().Where(
+                  .Where(item => KernelArrayInfo.ContainsGlobalOrGroupSharedArray(item, true));
+          foreach(var v in KernelArrayInfo.GetGlobalAndGroupSharedArrays(true).Where(
             Item => !WrittenArrays.Contains(Item))) {
             KernelArrayInfo.AddReadOnlyGlobalOrGroupSharedArray(v);
           }
@@ -729,8 +737,8 @@ namespace GPUVerify
               (AsyncCall.Outs[1] as IdentifierExpr).Decl;
             Variable SrcArray =
               (AsyncCall.Ins[1] as IdentifierExpr).Decl;
-            Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(DstArray));
-            Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(SrcArray));
+            Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays(true).Contains(DstArray));
+            Debug.Assert(KernelArrayInfo.GetGlobalAndGroupSharedArrays(true).Contains(SrcArray));
             ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Add(DstArray.Name);
             ArraysAccessedByAsyncWorkGroupCopy[AccessType.READ].Add(SrcArray.Name);
           }
@@ -1634,12 +1642,12 @@ namespace GPUVerify
                 barrierEntryBlock.ec = new IfCmd(Token.NoToken, IfGuard, returnstatement, null, null);
             }
 
-            var SharedArrays = KernelArrayInfo.GetGroupSharedArrays();
-            SharedArrays = SharedArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(x)).ToList();
+            var SharedArrays = KernelArrayInfo.GetGroupSharedArrays(true);
+            SharedArrays = SharedArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(x)).ToList();
             if(SharedArrays.ToList().Count > 0) {
 
                 bigblocks.AddRange(
-                      MakeResetBlocks(Expr.And(P1, LocalFence1), SharedArrays));
+                      MakeResetBlocks(Expr.And(P1, LocalFence1), SharedArrays.Where(x => KernelArrayInfo.GetGroupSharedArrays(false).Contains(x))));
 
                 // This could be relaxed to take into account whether the threads are in different
                 // groups, but for now we keep it relatively simple
@@ -1659,12 +1667,12 @@ namespace GPUVerify
                 }
             }
 
-            var GlobalArrays = KernelArrayInfo.GetGlobalArrays();
-            GlobalArrays = GlobalArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(x)).ToList();
+            var GlobalArrays = KernelArrayInfo.GetGlobalArrays(true);
+            GlobalArrays = GlobalArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(x)).ToList();
             if (GlobalArrays.ToList().Count > 0)
             {
                 bigblocks.AddRange(
-                      MakeResetBlocks(Expr.And(P1, GlobalFence1), GlobalArrays));
+                      MakeResetBlocks(Expr.And(P1, GlobalFence1), GlobalArrays.Where(x => KernelArrayInfo.GetGlobalArrays(false).Contains(x))));
 
                 Expr ThreadsInSameGroup_BothEnabled_AtLeastOneGlobalFence = 
                   Expr.And(Expr.And(GPUVerifier.ThreadsInSameGroup(), Expr.And(P1, P2)), Expr.Or(GlobalFence1, GlobalFence2));
@@ -2006,18 +2014,11 @@ namespace GPUVerify
                 return ErrorCount;
             }
 
-            if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck == null) {
-              // If the user did not request checking to be restricted to any particular arrays,
-              // add all the non-private array names
-              GPUVerifyVCGenCommandLineOptions.ArraysToCheck = new HashSet<String>();
-              foreach(var v in KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
-                GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Add(v.Name);
-              }
-            } else {
+            if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null) {
               // If the user provided arrays to which checking should be restricted, make sure
               // these really exist
               foreach(var v in GPUVerifyVCGenCommandLineOptions.ArraysToCheck) {
-                if(!KernelArrayInfo.GetGlobalAndGroupSharedArrays().Select(Item => Item.Name).Contains(v)) {
+                if(!KernelArrayInfo.GetGlobalAndGroupSharedArrays(true).Select(Item => Item.Name).Contains(v)) {
                   Error(Token.NoToken, "Array name '" + v + "' specified for restricted checking is not found");
                 }
               }
@@ -2094,7 +2095,7 @@ namespace GPUVerify
             {
                 return false;
             }
-            if (KernelArrayInfo.GetAtomicallyAccessedArrays().Contains(v))
+            if (KernelArrayInfo.GetAtomicallyAccessedArrays(true).Contains(v))
             {
               return true;
             }
@@ -2390,6 +2391,7 @@ namespace GPUVerify
 
         private Block AddWarpSyncs(Block b)
         {
+          // TODO: this code is hacky and needs an overhaul
           var result = new List<Cmd>();
           foreach (Cmd c in b.Cmds)
           {
@@ -2412,7 +2414,7 @@ namespace GPUVerify
                   array = call.callee.Substring(11); // "_LOG_WRITE_" is 13 characters
                 }
                 // Manual resolving yaey!
-                Variable arrayVar = KernelArrayInfo.GetAllArrays().Where(v => v.Name.Equals(array)).First();
+                Variable arrayVar = KernelArrayInfo.GetAllArrays(true).Where(v => v.Name.Equals(array)).First();
                 Procedure proto = FindOrCreateWarpSync(arrayVar,kind,true);
                 CallCmd wsCall = new CallCmd(Token.NoToken,proto.Name,new List<Expr>(),new List<IdentifierExpr>());
                 wsCall.Proc = proto;
@@ -2439,7 +2441,7 @@ namespace GPUVerify
                   array = call.callee.Substring(13); // "_CHECK_WRITE_" is 13 characters
                 }
                 // Manual resolving yaey!
-                Variable arrayVar = KernelArrayInfo.GetAllArrays().Where(v => v.Name.Equals(array)).First();
+                Variable arrayVar = KernelArrayInfo.GetAllArrays(true).Where(v => v.Name.Equals(array)).First();
                 Procedure proto = FindOrCreateWarpSync(arrayVar,kind,false);
                 CallCmd wsCall = new CallCmd(Token.NoToken,proto.Name,new List<Expr>(),new List<IdentifierExpr>());
                 wsCall.Proc = proto;
@@ -2536,10 +2538,10 @@ namespace GPUVerify
             }
         }
 
-        internal bool TryGetArrayFromPrefixedString(string s, string prefix, out Variable v) {
+        private bool TryGetArrayFromPrefixedString(string s, string prefix, out Variable v) {
           v = null;
           if(s.StartsWith(prefix)) {
-            foreach(var a in KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
+            foreach(var a in KernelArrayInfo.GetGlobalAndGroupSharedArrays(true)) {
               if(a.Name.Equals(s.Substring(prefix.Length))) {
                 v = a;
                 return true;
@@ -2553,7 +2555,7 @@ namespace GPUVerify
           return TryGetArrayFromPrefixedString(s, "_" + Access + "_HAS_OCCURRED_", out v);
         }
 
-        internal bool TryGetArrayFromLogOrCheckProcedure(string s, AccessType Access, string logOrCheck, out Variable v)
+        private bool TryGetArrayFromLogOrCheckProcedure(string s, AccessType Access, string logOrCheck, out Variable v)
         {
           return TryGetArrayFromPrefixedString(s, "_" + logOrCheck + "_" + Access + "_", out v);
         }
@@ -2590,6 +2592,38 @@ namespace GPUVerify
           Axiom EqualsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(AsyncNoHandleConstant), Zero(size_t_bits)));
           Program.AddTopLevelDeclarations(new Declaration[] { AsyncNoHandleConstant, EqualsZero });
           return Expr.Ident(AsyncNoHandleConstant);
+        }
+
+        internal void StripOutAnnotationsForDisabledArrays() {
+
+          // If the user has asked for checking of an array A to be disabled then we
+          // (a) remove any "*_HAS_OCCURRED" variables relating to A, and (b)
+          // replace uses of these variables with "false"
+
+          foreach(var v in KernelArrayInfo.GetGlobalAndGroupSharedArrays(true)) {
+            if(KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v)) {
+              continue;
+            }
+
+            // (a) Eliminate the relevant "*_HAS_OCCURRED" variables, tracking which were eliminated
+            var NewDecls = new List<Declaration>();
+            var VariablesToEliminate = new HashSet<Variable>();
+            foreach(var d in Program.TopLevelDeclarations) {
+              if(d is Variable && GVUtil.IsAccessHasOccurredVariable((Variable)d, v.Name)) {
+                VariablesToEliminate.Add((Variable)d);
+                continue;
+              }
+              NewDecls.Add(d);
+            }
+            Program.TopLevelDeclarations = NewDecls;
+
+            // (b) Substitute all eliminated variables for "false"
+            foreach(var b in Program.Blocks()) {
+              b.cmds = b.cmds.Select(c => Substituter.Apply(
+                x => VariablesToEliminate.Contains(x) ? (Expr)Expr.False : (Expr)Expr.Ident(x), c)).ToList();
+            }
+          }
+
         }
 
     }

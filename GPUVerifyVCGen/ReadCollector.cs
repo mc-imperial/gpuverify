@@ -59,7 +59,7 @@ namespace GPUVerify
                 var Index = node.Args[1];
                 this.VisitExpr(node.Args[1]);
 
-                if (State.ContainsGlobalOrGroupSharedArray(ReadVariable))
+                if (State.ContainsGlobalOrGroupSharedArray(ReadVariable, true))
                 {
                   nonPrivateAccesses.Add(new AccessRecord(ReadVariable, Index));
                 }

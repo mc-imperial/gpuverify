@@ -32,8 +32,9 @@ namespace GPUVerify {
     internal void Abstract() {
       List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
       foreach (Declaration d in verifier.Program.TopLevelDeclarations) {
+        // Note that we do still need to abstract arrays, even if we have disabled race checking for them
         if (d is Variable &&
-          verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(d as Variable) &&
+          verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(d as Variable, true) &&
           verifier.ArrayModelledAdversarially(d as Variable)) {
           continue;
         }
@@ -86,7 +87,7 @@ namespace GPUVerify {
       NewLocalVars = new List<Variable>();
       AbstractedCallArgCounter = 0;
       foreach (Variable v in impl.LocVars) {
-        Debug.Assert(!verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(v));
+        Debug.Assert(!verifier.KernelArrayInfo.GetGroupSharedArrays(true).Contains(v));
         NewLocalVars.Add(v);
       }
       impl.LocVars = NewLocalVars;
@@ -196,7 +197,7 @@ namespace GPUVerify {
       }
 
       public override Variable VisitVariable(Variable v) {
-        if (verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(v)) {
+        if (verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(v, true)) {
           if (verifier.ArrayModelledAdversarially(v)) {
             found = true;
           }

@@ -91,8 +91,8 @@ namespace GPUVerify
     IEnumerable<Variable> WrittenVariables;
     GetReadAndWrittenVariables(region, out ReadVariables, out WrittenVariables);
 
-    foreach(var v in ReadVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(Item)
-      && !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(Item))) {
+    foreach(var v in ReadVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(Item)
+      && !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(Item))) {
       foreach(var g in Guards) {
         verifier.AddCandidateInvariant(region,
           Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.READ)),
@@ -100,7 +100,7 @@ namespace GPUVerify
       }
     }
 
-    foreach(var v in WrittenVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays().Contains(Item))) {
+    foreach(var v in WrittenVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(Item))) {
       foreach(var g in Guards) {
         verifier.AddCandidateInvariant(region,
           Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
@@ -617,7 +617,7 @@ namespace GPUVerify
     call.AddAssignedVariables(vars);
     foreach (Variable v in vars)
     {
-     if (StateToCheck.GetGlobalAndGroupSharedArrays().Contains(v))
+     if (StateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(v))
       return true;
      if (StateToCheck.GetConstantArrays().Contains(v))
       return true;
@@ -635,7 +635,7 @@ namespace GPUVerify
      rc.Visit(rhs);
     foreach (var access in rc.nonPrivateAccesses)
     {
-     if (!StateToCheck.GetReadOnlyGlobalAndGroupSharedArrays().Contains(access.v))
+     if (!StateToCheck.GetReadOnlyGlobalAndGroupSharedArrays(false).Contains(access.v))
       return true;
     }
 

@@ -39,8 +39,8 @@ namespace GPUVerify {
       foreach(IRegion Region in verifier.Program.Implementations.Select(
         Item => verifier.RootRegion(Item).SubRegions()).SelectMany(Item => Item)) {
 
-        foreach(var a in verifier.KernelArrayInfo.GetGroupSharedArrays().Where(
-          Item => !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(Item))) {
+        foreach(var a in verifier.KernelArrayInfo.GetGroupSharedArrays(false).Where(
+          Item => !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(false).Contains(Item))) {
           foreach(var Access in AccessType.Types) {
             Region.AddInvariant(new AssertCmd(Token.NoToken,
               Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup()),
@@ -60,8 +60,8 @@ namespace GPUVerify {
                       !verifier.IsKernelProcedure(Item) &&
                       (!verifier.ProcedureHasNoImplementation(Item) || Item.Modifies.Count() > 0)
         )) {
-        foreach(var a in verifier.KernelArrayInfo.GetGroupSharedArrays().Where(
-          Item => !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(Item))) {
+        foreach(var a in verifier.KernelArrayInfo.GetGroupSharedArrays(false).Where(
+          Item => !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(false).Contains(Item))) {
           foreach(var Access in AccessType.Types) {
             Proc.Requires.Add(new Requires(false, Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup())));
             Proc.Ensures.Add(new Ensures(false, Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup())));
@@ -123,7 +123,7 @@ namespace GPUVerify {
       List<Expr> offsetPredicatesWrite = new List<Expr>();
       List<Expr> offsetPredicatesAtomic = new List<Expr>();
 
-      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false)) {
         AddNoAccessCandidateInvariants(region, v);
         AddSameWarpNoAccessCandidateInvariant(region, v, AccessType.READ);
         AddSameWarpNoAccessCandidateInvariant(region, v, AccessType.WRITE);
@@ -730,7 +730,7 @@ namespace GPUVerify {
     }
 
     public void AddKernelPrecondition() {
-      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false)) {
         AddRequiresNoPendingAccess(v);
       }
     }
@@ -767,6 +767,10 @@ namespace GPUVerify {
     }
 
     public BigBlock MakeResetReadWriteSetStatements(Variable v, Expr ResetCondition) {
+
+      // We only want to do this reset for enabled arrays
+      Debug.Assert(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
+
       BigBlock result = new BigBlock(Token.NoToken, null, new List<Cmd>(), null, null);
 
       foreach (var kind in AccessType.Types)
@@ -774,7 +778,7 @@ namespace GPUVerify {
         Expr ResetAssumeGuard = Expr.Imp(ResetCondition,
           Expr.Not(Expr.Ident(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind))));
 
-        if (verifier.KernelArrayInfo.GetGlobalArrays().Contains(v))
+        if (verifier.KernelArrayInfo.GetGlobalArrays(false).Contains(v))
           ResetAssumeGuard = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), ResetAssumeGuard);
 
         if (new AccessType[] { AccessType.READ, AccessType.WRITE }.Contains(kind)
@@ -790,6 +794,10 @@ namespace GPUVerify {
     }
 
     protected Procedure MakeLogAccessProcedureHeader(Variable v, AccessType Access) {
+
+      // We only want to make this header for enabled arrays
+      Debug.Assert(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
+
       List<Variable> inParams = new List<Variable>();
 
       Variable PredicateParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_P", Microsoft.Boogie.Type.Bool));
@@ -830,6 +838,10 @@ namespace GPUVerify {
     }
 
     protected Procedure MakeUpdateBenignFlagProcedureHeader(Variable v) {
+
+      // We only want to make this header for enabled arrays
+      Debug.Assert(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
+
       List<Variable> inParams = new List<Variable>();
 
       Variable PredicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
@@ -883,14 +895,14 @@ namespace GPUVerify {
     }
 
     public void AddRaceCheckingCandidateRequires(Procedure Proc) {
-      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false)) {
         AddNoAccessCandidateRequires(Proc, v);
         AddReadOrWrittenOffsetIsThreadIdCandidateRequires(Proc, v);
       }
     }
 
     public void AddRaceCheckingCandidateEnsures(Procedure Proc) {
-      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false)) {
         AddNoAccessCandidateEnsures(Proc, v);
         AddReadOrWrittenOffsetIsThreadIdCandidateEnsures(Proc, v);
       }
@@ -937,7 +949,7 @@ namespace GPUVerify {
     }
 
     public virtual void AddRaceCheckingDeclarations() {
-      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays()) {
+      foreach (Variable v in verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false)) {
         AddRaceCheckingDecsAndProcsForVar(v);
       }
     }
@@ -1062,7 +1074,7 @@ namespace GPUVerify {
         AccessGuard = Expr.And(AccessGuard, NoBenignTest);
       }
 
-      if (verifier.KernelArrayInfo.GetGroupSharedArrays().Contains(v)) {
+      if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v)) {
         AccessGuard = Expr.And(AccessGuard, GPUVerifier.ThreadsInSameGroup());
       }
 
@@ -1354,8 +1366,12 @@ namespace GPUVerify {
             rc.Visit(rhs);
           if (rc.nonPrivateAccesses.Count > 0) {
             foreach (AccessRecord ar in rc.nonPrivateAccesses) {
-              if(!verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays().Contains(ar.v)) {
-                AddLogAndCheckCalls(result, ar, AccessType.READ, null);
+              // Ignore disabled arrays
+              if(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(ar.v)) {
+                // Ignore read-only arrays (whether or not they are disabled)
+                if(!verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(ar.v)) {
+                  AddLogAndCheckCalls(result, ar, AccessType.READ, null);
+                }
               }
             }
           }
@@ -1364,7 +1380,10 @@ namespace GPUVerify {
             WriteCollector wc = new WriteCollector(verifier.KernelArrayInfo);
             wc.Visit(LhsRhs.Item1);
             if (wc.FoundNonPrivateWrite()) {
-              AddLogAndCheckCalls(result, wc.GetAccess(), AccessType.WRITE, LhsRhs.Item2);
+              // Ignore disabled arrays
+              if(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().v)) {
+                AddLogAndCheckCalls(result, wc.GetAccess(), AccessType.WRITE, LhsRhs.Item2);
+              }
             }
           }
         }
@@ -1495,6 +1514,10 @@ namespace GPUVerify {
     }
 
     private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
+      // We should not be adding these calls for any disabled arrays
+      Debug.Assert(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(ar.v));
+      // We also should not be adding these calls for any read-only arrays (whether or not they are disabled)
+      Debug.Assert(!verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(ar.v));
       result.Add(MakeLogCall(ar, Access, Value, null));
       if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         result.Add(MakeUpdateBenignFlagCall(ar));
