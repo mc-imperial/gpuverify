@@ -1,10 +1,5 @@
-//xfail:NOT_ALL_VERIFIED
+//pass
 //--local_size=64 --num_groups=64 --no-inline
-
-//Note: this test looks like it should pass.  However, it fails because
-//clang generates a muladd intrinsic which breaks floating point associativity.
-//We keep the test (and mark it as xfail) because it is good to know that
-//GPUVerify can pass through the intrinsic to Boogie
 
 __attribute__((always_inline)) inline bool __equal_floats(float* p, float* q) {
   char* cp = (char*)p;

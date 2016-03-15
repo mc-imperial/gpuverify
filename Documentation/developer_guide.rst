@@ -46,9 +46,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.7)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.8)::
 
-     $ export LLVM_RELEASE=37
+     $ export LLVM_RELEASE=38
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -60,11 +60,6 @@ Replace as appropriate or setup an environment variable.::
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
      $ cmake -D CMAKE_BUILD_TYPE=Release -D LLVM_TARGETS_TO_BUILD=NVPTX ../src
-
-   Note if you have python3 installed you may need to specifiy ``-D
-   PYTHON_EXECUTABLE=/usr/bin/python2.7`` to CMake.  If you would like to have
-   more control over the configure process use (``cmake-gui`` or ``ccmake``
-   instead of ``cmake``).
 
    Compile LLVM and Clang::
 
@@ -266,9 +261,9 @@ drives.
    You can add this permanently to your ``$Profile`` so that the Microsoft
    compiler is always available at the command-line.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.7)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.8)::
 
-      > $LLVM_RELEASE=37
+      > $LLVM_RELEASE=38
       > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
@@ -280,16 +275,11 @@ drives.
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
       > cmake -G "Visual Studio 12" `
-              -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" `
+              -D LLVM_TARGETS_TO_BUILD=NVPTX `
               ..\src
 
    In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
    ``Visual Studio 14``. This may require a version of CMake later than 2.8.8.
-
-   If you have Visual Studio 2015, you may need to work around a bug in the
-   Microsoft compiler in order to compile Clang, as detailed here:
-
-     `<https://connect.microsoft.com/VisualStudio/feedback/details/1741530>'_
 
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
