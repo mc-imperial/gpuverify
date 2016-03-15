@@ -2019,7 +2019,7 @@ namespace GPUVerify
               // these really exist
               foreach(var v in GPUVerifyVCGenCommandLineOptions.ArraysToCheck) {
                 if(!KernelArrayInfo.GetGlobalAndGroupSharedArrays(true).Select(Item => Item.Name).Contains(v)) {
-                  Error(Token.NoToken, "Array name '" + v + "' specified for restricted checking is not found");
+                  Error(Token.NoToken, "Array name '" + v.Substring(2) + "' specified for restricted checking is not found");
                 }
               }
             }
