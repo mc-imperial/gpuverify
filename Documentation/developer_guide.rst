@@ -99,8 +99,10 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get the Z3 SMT Solver and build::
 
+    $ export Z3_RELEASE=z3-4.4.1
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/Z3Prover/z3.git
+    $ git checkout -b ${Z3_RELEASE} ${Z3_RELEASE}
     $ cd ${BUILD_ROOT}/z3
     $ python scripts/mk_make.py
     $ cd build
@@ -330,8 +332,10 @@ drives.
 
 #. Get the Z3 SMT Solver and build::
 
+      > $Z3_RELEASE=z3-4.4.1
       > cd ${BUILD_ROOT}
       > git clone https://github.com/Z3Prover/z3.git
+      > git checkout -b $Z3_RELEASE $Z3_RELEASE
       > cd ${BUILD_ROOT}\z3
       > python scripts\mk_make.py
       > cd build
