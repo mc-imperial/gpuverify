@@ -289,7 +289,7 @@ class GPUVerifyInstance (object):
       options += [ "-target", "nvptx64--" ]
 
     if args.source_language == SourceLanguage.CUDA:
-      options += ["--cuda-device-only"]
+      options += ["--cuda-device-only", "-nocudainc"]
       options += ["-x", "cuda"]
       options += ["-Xclang", "-fcuda-is-device", "-include", "cuda.h"]
     elif args.source_language == SourceLanguage.OpenCL:
