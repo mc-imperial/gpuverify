@@ -29,7 +29,9 @@ __global__ void k(unsigned int *d_Result) {
         const int valueBase = (value * THREAD_N);
         const int  startPos = (threadIdx.x & 15) * 4;
 
-        for(int i = 0, accumPos = startPos; i < THREAD_N; i++){
+        for(int i = 0, accumPos = startPos;
+            __invariant(0 <= accumPos & accumPos < THREAD_N),
+            i < THREAD_N; i++){
             sum += s_Hist[valueBase + accumPos];
             accumPos++;
             if(accumPos == THREAD_N) accumPos = 0;
