@@ -263,8 +263,8 @@ drives.
    You can add this permanently to your ``$Profile`` so that the Microsoft
    compiler is always available at the command-line.
 
-    In case you have Visual Studio 2015, replace
-    ``Microsoft Visual Studio 12.0`` by ``Microsoft Visual Studio 14.0``.
+   In case you have Visual Studio 2015, replace ``Microsoft Visual Studio 12.0``
+   by ``Microsoft Visual Studio 14.0``.
 
 #. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.8)::
 
