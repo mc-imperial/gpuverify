@@ -263,6 +263,9 @@ drives.
    You can add this permanently to your ``$Profile`` so that the Microsoft
    compiler is always available at the command-line.
 
+    In case you have Visual Studio 2015, replace
+    ``Microsoft Visual Studio 12.0`` by ``Microsoft Visual Studio 14.0``.
+
 #. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.8)::
 
       > $LLVM_RELEASE=38
@@ -277,7 +280,7 @@ drives.
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
       > cmake -G "Visual Studio 12" `
-              -D LLVM_TARGETS_TO_BUILD=NVPTX `
+              -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" `
               ..\src
 
    In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
@@ -332,11 +335,11 @@ drives.
 
 #. Get the Z3 SMT Solver and build::
 
-      > $Z3_RELEASE=z3-4.4.1
+      > $Z3_RELEASE="z3-4.4.1"
       > cd ${BUILD_ROOT}
       > git clone https://github.com/Z3Prover/z3.git
-      > git checkout -b $Z3_RELEASE $Z3_RELEASE
       > cd ${BUILD_ROOT}\z3
+      > git checkout -b $Z3_RELEASE $Z3_RELEASE
       > python scripts\mk_make.py
       > cd build
       > nmake
@@ -346,7 +349,7 @@ drives.
       > cd ${BUILD_ROOT}
       > mkdir -p ${BUILD_ROOT}\cvc4\build
       > cd ${BUILD_ROOT}\cvc4\build
-      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2014-12-28-win32-opt.exe"
+      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2016-03-26-win32-opt.exe"
       > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
 
 #. Get GPUVerify code and build. You can do this by opening ``GPUVerify.sln``
