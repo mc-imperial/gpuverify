@@ -635,24 +635,34 @@ namespace GPUVerify
      rc.Visit(rhs);
     foreach (var access in rc.nonPrivateAccesses)
     {
-     if (!StateToCheck.GetReadOnlyGlobalAndGroupSharedArrays(false).Contains(access.v))
-      return true;
+     // Ignore disabled arrays
+     if (StateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(access.v)) {
+      // Ignore read-only arrays (whether or not they are disabled)
+      if (!StateToCheck.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(access.v))
+       return true;
+     }
     }
 
     foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
     {
      WriteCollector wc = new WriteCollector(StateToCheck);
      wc.Visit(LhsRhs.Item1);
-     if (wc.FoundNonPrivateWrite())
-      return true;
+     if (wc.FoundNonPrivateWrite()) {
+      // Ignore disabled arrays
+      if (StateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().v))
+       return true;
+     }
     }
 
     foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
     {
      ConstantWriteCollector cwc = new ConstantWriteCollector(StateToCheck);
      cwc.Visit(LhsRhs.Item1);
-     if (cwc.FoundWrite())
-      return true;
+     if (cwc.FoundWrite()) {
+      // Ignore disabled arrays
+      if (StateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(cwc.GetAccess().v))
+       return true;
+     }
     }
    }
 
@@ -662,7 +672,8 @@ namespace GPUVerify
    {
     AssertCmd assertion = c as AssertCmd;
     if (!QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc") &&
-        !QKeyValue.FindBoolAttribute(assertion.Attributes, "block_sourceloc"))
+        !QKeyValue.FindBoolAttribute(assertion.Attributes, "block_sourceloc") &&
+        !assertion.Expr.Equals(Expr.True))
      return true;
    }
 
