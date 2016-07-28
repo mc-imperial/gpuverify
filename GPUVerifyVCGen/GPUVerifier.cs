@@ -693,11 +693,15 @@ namespace GPUVerify
         }
 
         private void PropagateProcedureWideInvariants() {
-          foreach(var Impl in Program.Implementations) {
+          foreach(var Impl in Program.Implementations.ToList()) {
             foreach(var Inv in Impl.Proc.Requires.Where(Item => QKeyValue.FindBoolAttribute(Item.Attributes, "procedure_wide_invariant"))) {
               foreach(var Region in RootRegion(Impl).SubRegions()) {
-                Region.AddInvariant(new AssertCmd(Token.NoToken, Inv.Condition, (QKeyValue)Inv.Attributes.Clone()));
+                if(QKeyValue.FindBoolAttribute(Inv.Attributes, "candidate")) {
+                  AddCandidateInvariant(Region, Inv.Condition, "procedure_wide", (QKeyValue)Inv.Attributes.Clone());
+                } else {
+                  Region.AddInvariant(new AssertCmd(Token.NoToken, Inv.Condition, (QKeyValue)Inv.Attributes.Clone()));
               }
+            }
             }
             // Remove pre-conditions representing procedure-wide invariants now
             // they have bee propagated.
@@ -2043,7 +2047,11 @@ namespace GPUVerify
             return name.Equals(_GROUP_X.Name) || name.Equals(_GROUP_Y.Name) || name.Equals(_GROUP_Z.Name);
         }
 
-        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, string attribute = null)
+        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, string attribute) {
+            AddCandidateInvariant(region, e, tag, new QKeyValue(Token.NoToken, attribute, new List<object>() { }, null));
+        }
+
+        internal void AddCandidateInvariant(IRegion region, Expr e, string tag, QKeyValue attributes = null)
         {
             if (GPUVerifyVCGenCommandLineOptions.DoNotGenerateCandidates.Contains(tag)) {
                 return; // candidate *not* generated
@@ -2051,8 +2059,10 @@ namespace GPUVerify
 
             PredicateCmd predicate = Program.CreateCandidateInvariant(e, tag);
 
-            if (attribute != null)
-              predicate.Attributes = new QKeyValue(Token.NoToken, attribute, new List<object>() { }, predicate.Attributes);
+            if (attributes != null) {
+              attributes.AddLast(predicate.Attributes);
+              predicate.Attributes = attributes;
+            }
 
             region.AddInvariant(predicate);
         }
