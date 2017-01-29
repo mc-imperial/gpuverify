@@ -388,7 +388,7 @@ Advanced options
 
 Set the bitwidth of the pointers used in the kernel. This can either be 32-bit or 64-bit. The default is 32-bit.
 
-Currently some invariant inference rules are disabled in when 64-bit pointers are used. Hence, not all kernels that will verify with 32-bit pointers also verify with 64-bit pointers.
+Currently some invariant inference rules are disabled when 64-bit pointers are used. Hence, not all kernels that will verify with 32-bit pointers also verify with 64-bit pointers.
 
 .. _adversarial-abstraction:
 

@@ -55,7 +55,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/llvm_and_clang/src/tools
      $ svn co http://llvm.org/svn/llvm-project/cfe/branches/release_${LLVM_RELEASE} clang
 
-   Configure LLVM and Clang for building (we do an out of source build)::
+   Configure LLVM and Clang for building (we do an out-of-tree build)::
 
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang/build
      $ cd ${BUILD_ROOT}/llvm_and_clang/build
@@ -80,7 +80,7 @@ Replace as appropriate or setup an environment variable.::
      $ make
      $ make install
 
-#. Get Bugle and configure for building (we do an out of source build)::
+#. Get Bugle and configure for building (we do an out-of-tree build)::
 
      $ cd ${BUILD_ROOT}
      $ git clone https://github.com/mc-imperial/bugle.git ${BUILD_ROOT}/bugle/src
@@ -102,8 +102,8 @@ Replace as appropriate or setup an environment variable.::
     $ export Z3_RELEASE=z3-4.4.1
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/Z3Prover/z3.git
-    $ git checkout -b ${Z3_RELEASE} ${Z3_RELEASE}
     $ cd ${BUILD_ROOT}/z3
+    $ git checkout -b ${Z3_RELEASE} ${Z3_RELEASE}
     $ python scripts/mk_make.py
     $ cd build
     $ make -jN
@@ -138,7 +138,7 @@ Replace as appropriate or setup an environment variable.::
     $ cd ${BUILD_ROOT}/CVC4/install/bin
     $ ln -s cvc4 cvc4.exe
 
-#. Get GPUVerify code and build C# components::
+#. Get GPUVerify and build::
 
      $ cd ${BUILD_ROOT}
      $ git clone https://github.com/mc-imperial/gpuverify.git
@@ -275,7 +275,7 @@ drives.
       > cd ${BUILD_ROOT}\llvm_and_clang\src\tools
       > svn co http://llvm.org/svn/llvm-project/cfe/branches/release_$LLVM_RELEASE clang
 
-   Configure LLVM and Clang for building (we do an out of source build)::
+   Configure LLVM and Clang for building (we do an out-of-tree build)::
 
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
@@ -308,7 +308,7 @@ drives.
       > $dest.Copyhere($zip.items(), 0x14)
       > del ${BUILD_ROOT}\libclc-nightly.zip
 
-#. Get Bugle and configure for building (we do an out of source build)::
+#. Get Bugle and configure for building (we do an out-of-tree build)::
 
       > cd ${BUILD_ROOT}
       > mkdir ${BUILD_ROOT}\bugle
@@ -352,7 +352,7 @@ drives.
       > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2016-03-26-win32-opt.exe"
       > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
 
-#. Get GPUVerify code and build. You can do this by opening ``GPUVerify.sln``
+#. Get GPUVerify and build. You can do this by opening ``GPUVerify.sln``
    in Visual Studio and building, or alternatively, if you have setup the
    Microsoft tools for the command line, then::
 
