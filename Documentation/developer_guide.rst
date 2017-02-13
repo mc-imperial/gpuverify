@@ -28,12 +28,12 @@ On Linux/OSX, we recommend installing psutil with pip::
 Linux and Mac OS X
 ------------------
 In addition to the common prerequisites Linux and Mac OS X builds of GPUVerify
-require GCC >= 4.7 or Clang >= 3.1 and a recent version of Mono since part of
+require GCC >= 4.8 or Clang >= 3.1 and a recent version of Mono since part of
 the toolchain uses C#. You should use a version of Mono >= 3.4.0.
 
 To build GPUVerify follow this guide in a bash shell.
 
-Note ``${BUILD_ROOT}`` refers to where ever you wish to build GPUVerify.
+Note ``${BUILD_ROOT}`` refers to the location where you wish to build GPUVerify.
 Replace as appropriate or setup an environment variable.::
 
      $ export BUILD_ROOT=/path/to/build
@@ -46,9 +46,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 3.8)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 4.0)::
 
-     $ export LLVM_RELEASE=38
+     $ export LLVM_RELEASE=40
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -71,7 +71,7 @@ Replace as appropriate or setup an environment variable.::
 
      $ mkdir -p ${BUILD_ROOT}/libclc
      $ cd ${BUILD_ROOT}/libclc
-     $ svn co http://llvm.org/svn/llvm-project/libclc/trunk -r260301 src
+     $ svn co http://llvm.org/svn/llvm-project/libclc/trunk -r294916 src
      $ cd ${BUILD_ROOT}/libclc/src
      $ ./configure.py --with-llvm-config=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
                       --with-cxx-compiler=c++ \
@@ -99,7 +99,7 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get the Z3 SMT Solver and build::
 
-    $ export Z3_RELEASE=z3-4.4.1
+    $ export Z3_RELEASE=z3-4.5.0
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/Z3Prover/z3.git
     $ cd ${BUILD_ROOT}/z3
@@ -236,7 +236,7 @@ Replace as appropriate or setup an environment variable.::
 Windows
 -------
 In addition to the common prerequisites a Windows build of GPUVerify requires
-Microsoft Visual Studio 2012 or later.
+Microsoft Visual Studio 2015 (Update 3) or later.
 
 To build GPUVerify follow this guide in a powershell window.
 
@@ -252,7 +252,7 @@ drives.
 #. (Optional) Setup Microsoft Visual Studio tools for your shell.
    This will enable you to build projects from the command line.::
 
-      pushd 'C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC'
+      pushd 'C:\Program Files (x86)\Microsoft Visual Studio 14.0\VC'
       cmd /c "vcvarsall.bat & set" | foreach {
         if ($_ -match "=") {
           $v = $_.split("="); set-item -force -path "ENV:\$($v[0])" -value "$($v[1])"
@@ -263,12 +263,12 @@ drives.
    You can add this permanently to your ``$Profile`` so that the Microsoft
    compiler is always available at the command-line.
 
-   In case you have Visual Studio 2015, replace ``Microsoft Visual Studio 12.0``
-   by ``Microsoft Visual Studio 14.0``.
+   In case you have Visual Studio 2017, replace ``Microsoft Visual Studio 14.0``
+   by ``Microsoft Visual Studio 15.0``.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 3.8)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 4.0)::
 
-      > $LLVM_RELEASE=38
+      > $LLVM_RELEASE=40
       > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
@@ -279,12 +279,12 @@ drives.
 
       > mkdir ${BUILD_ROOT}\llvm_and_clang\build
       > cd ${BUILD_ROOT}\llvm_and_clang\build
-      > cmake -G "Visual Studio 12" `
+      > cmake -G "Visual Studio 14" `
               -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" `
               ..\src
 
-   In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
-   ``Visual Studio 14``. This may require a version of CMake later than 2.8.8.
+   In case you have Visual Studio 2017, replace ``Visual Studio 14`` by
+   ``Visual Studio 15``. This may require CMake version 3.7.2 or later.
 
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
@@ -298,7 +298,7 @@ drives.
 
       > mkdir ${BUILD_ROOT}\libclc
       > cd ${BUILD_ROOT}\libclc
-      > svn co http://llvm.org/svn/llvm-project/libclc/trunk -r260301 src
+      > svn co http://llvm.org/svn/llvm-project/libclc/trunk -r294916 src
       > cd ${BUILD_ROOT}
       > $libclc_url = "http://multicore.doc.ic.ac.uk/tools/downloads/libclc-nightly.zip"
       > (new-object System.Net.WebClient).DownloadFile($libclc_url, "${BUILD_ROOT}\libclc-nightly.zip")
@@ -317,15 +317,15 @@ drives.
       > cd ${BUILD_ROOT}\bugle\build
       > $LLVM_SRC = "${BUILD_ROOT}\llvm_and_clang\src"
       > $LLVM_BUILD = "${BUILD_ROOT}\llvm_and_clang\build"
-      > cmake -G "Visual Studio 12" `
+      > cmake -G "Visual Studio 14" `
               -D LLVM_SRC=$LLVM_SRC `
               -D LLVM_BUILD=$LLVM_BUILD `
               -D LLVM_BUILD_TYPE=Release `
               -D LIBCLC_DIR=${BUILD_ROOT}\libclc\install `
               ..\src
 
-   In case you have Visual Studio 2015, replace ``Visual Studio 12`` by
-   ``Visual Studio 14``. This may require a version of CMake later than 2.8.8.
+   In case you have Visual Studio 2017, replace ``Visual Studio 14`` by
+   ``Visual Studio 15``. This may require CMake version 3.7.2 or later.
 
    Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
    Studio and building, or alternatively, if you have setup the Microsoft tools
@@ -335,7 +335,7 @@ drives.
 
 #. Get the Z3 SMT Solver and build::
 
-      > $Z3_RELEASE="z3-4.4.1"
+      > $Z3_RELEASE="z3-4.5.0"
       > cd ${BUILD_ROOT}
       > git clone https://github.com/Z3Prover/z3.git
       > cd ${BUILD_ROOT}\z3
@@ -349,7 +349,7 @@ drives.
       > cd ${BUILD_ROOT}
       > mkdir -p ${BUILD_ROOT}\cvc4\build
       > cd ${BUILD_ROOT}\cvc4\build
-      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2016-03-26-win32-opt.exe"
+      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2017-01-19-win32-opt.exe"
       > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
 
 #. Get GPUVerify and build. You can do this by opening ``GPUVerify.sln``
