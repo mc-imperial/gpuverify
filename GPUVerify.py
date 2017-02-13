@@ -283,16 +283,23 @@ class GPUVerifyInstance (object):
   def getClangOptions(self, args):
     options = ["-Wall", "-g", "-gcolumn-info", "-emit-llvm", "-c"]
 
-    if (args.size_t == 32):
-      options += [ "-target", "nvptx--" ]
-    elif (args.size_t == 64):
-      options += [ "-target", "nvptx64--" ]
-
     if args.source_language == SourceLanguage.CUDA:
-      options += ["--cuda-device-only", "-nocudainc"]
+      # clang figures out the correct nvptx triple based on the target triple
+      # for the host code. The pointer width used matches that of the host.
+      if (args.size_t == 32):
+        options += [ "-target", "i386--" ] # gives nvptx-nvidia-cuda
+      elif (args.size_t == 64):
+        options += [ "-target", "x86_64--" ] # gives nvptx64-nvidia-cuda
+
+      options += ["--cuda-device-only", "-nocudainc", "-nocudalib"]
       options += ["-x", "cuda"]
       options += ["-Xclang", "-fcuda-is-device", "-include", "cuda.h"]
     elif args.source_language == SourceLanguage.OpenCL:
+      if (args.size_t == 32):
+        options += [ "-target", "nvptx--" ]
+      elif (args.size_t == 64):
+        options += [ "-target", "nvptx64--" ]
+
       options += ["-x", "cl"]
       options += ["-Xclang", "-cl-std=CL1.2", "-O0", "-fno-builtin",
         "-include", "opencl.h"]
