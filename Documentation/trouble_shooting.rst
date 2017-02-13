@@ -15,7 +15,7 @@ When running GPUVerify you see an error of the form::
 
      __main__.ConfigurationError: GPUVerify: CONFIGURATION_ERROR error (9): psutil required. `pip install psutil` to get it.
 
-GPUVerify requires the python module `psutil <https://code.google.com/p/psutil/>`_.
+GPUVerify requires the python module `psutil <https://github.com/giampaolo/psutil>`_.
 We recommend installing this using pip::
 
      $ pip install psutil

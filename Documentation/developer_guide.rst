@@ -11,7 +11,7 @@ This guide will walk you through the build process.
 There are specific instructions for Linux, Mac OS X and Windows however they
 have a common set of prerequisites which are:
 
-* CMake >=2.8.12
+* CMake >=3.4.3
 * Python 2.7
 * Git
 * Subversion
@@ -19,7 +19,7 @@ have a common set of prerequisites which are:
 Basic Prequisites
 -----------------
 
-GPUVerify requires python >= 2.7 and the python module `psutil <https://code.google.com/p/psutil/>`_.
+GPUVerify requires python >= 2.7 and the python module `psutil <https://github.com/giampaolo/psutil>`_.
 On Windows, we recommend installing psutil from a `prebuilt binary <https://pypi.python.org/pypi?:action=display&name=psutil#downloads>`_.
 On Linux/OSX, we recommend installing psutil with pip::
 
