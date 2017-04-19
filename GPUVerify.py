@@ -277,7 +277,7 @@ class GPUVerifyInstance (object):
     elif  args.source_language == SourceLanguage.OpenCL:
       includes.append(gvfindtools.libclcInstallDir + "/include")
 
-    includes += args.defines
+    includes += args.includes
     return includes
 
   def getClangOptions(self, args):
