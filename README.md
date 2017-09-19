@@ -1,4 +1,4 @@
-#GPUVerify
+# GPUVerify
 
 GPUVerify is a static analyser for verifying race- and divergence-freedom of
 GPU kernels written in OpenCL and CUDA.
