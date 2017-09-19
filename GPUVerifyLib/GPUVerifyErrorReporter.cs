@@ -894,7 +894,7 @@ namespace GPUVerify {
 
     private static int GetGlobalIdOneDimension(Model model, String dimension, int thread)
     {
-        return GetGroupIdOneDimension(model, "x", thread) * GetGroupSizeOneDimension(model, "x") + GetLocalIdOneDimension(model, "x", thread);
+        return GetGroupIdOneDimension(model, dimension, thread) * GetGroupSizeOneDimension(model, dimension) + GetLocalIdOneDimension(model, dimension, thread);
     }
 
 
