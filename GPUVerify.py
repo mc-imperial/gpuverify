@@ -282,6 +282,7 @@ class GPUVerifyInstance (object):
 
   def getClangOptions(self, args):
     options = ["-Wall", "-g", "-gcolumn-info", "-emit-llvm", "-c"]
+    options += ["-Xclang", "-disable-O0-optnone"]
 
     if args.source_language == SourceLanguage.CUDA:
       # clang figures out the correct nvptx triple based on the target triple
