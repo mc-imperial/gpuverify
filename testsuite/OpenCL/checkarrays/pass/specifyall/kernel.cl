@@ -1,5 +1,5 @@
 //pass
-//--local_size=256 --num_groups=2 --vcgen-opt=/checkArrays:A,B,foo.C
+//--local_size=256 --num_groups=2 --vcgen-opt=/checkArrays:A,B,C
 
 kernel void foo(global int * A, global int * B) {
   local int C[256];

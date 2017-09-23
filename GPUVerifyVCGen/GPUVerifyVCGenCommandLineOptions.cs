@@ -318,7 +318,7 @@ namespace GPUVerify
           case "/disableInessentialLoopDetection":
           DisableInessentialLoopDetection = true;
           break;
-      
+
           case "-checkArrayBounds":
           case "/checkArrayBounds":
           ArrayBoundsChecking = true;
@@ -334,9 +334,7 @@ namespace GPUVerify
             ArraysToCheck = new HashSet<string>();
           }
           foreach(var arrayName in afterColon.Split(',')) {
-            // We add $$ to an array name to match what Bugle generates.  Means that this feature is tied to
-            // Bugle.
-            ArraysToCheck.Add("$$" + arrayName);            
+            ArraysToCheck.Add(arrayName);
           }
           break;
 

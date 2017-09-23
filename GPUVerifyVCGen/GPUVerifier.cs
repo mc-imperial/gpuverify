@@ -121,16 +121,19 @@ namespace GPUVerify
 
             new ModSetCollector().DoModSetAnalysis(Program);
 
-            CheckWellFormedness();
-
-            StripOutAnnotationsForDisabledArrays();
-
             GlobalArraySourceNames = new Dictionary<string,string>();
             foreach(var g in Program.TopLevelDeclarations.OfType<GlobalVariable>()) {
                 string sourceName = QKeyValue.FindStringAttribute(g.Attributes, "source_name");
-                if (sourceName != null)
+                if (sourceName != null) {
                   GlobalArraySourceNames[g.Name] = sourceName;
+                } else {
+                  GlobalArraySourceNames[g.Name] = g.Name;
+                }
             }
+
+            CheckWellFormedness();
+
+            StripOutAnnotationsForDisabledArrays();
 
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
             {
@@ -382,14 +385,16 @@ namespace GPUVerify
                     if (QKeyValue.FindBoolAttribute(D.Attributes, "group_shared"))
                     {
                         KernelArrayInfo.AddGroupSharedArray(D as Variable);
-                        if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null && !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains((D as Variable).Name)) {
+                        if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null &&
+                           !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains(GlobalArraySourceNames[(D as Variable).Name])) {
                           KernelArrayInfo.DisableGlobalOrGroupSharedArray(D as Variable);
                         }
                     }
                     else if (QKeyValue.FindBoolAttribute(D.Attributes, "global"))
                     {
                         KernelArrayInfo.AddGlobalArray(D as Variable);
-                        if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null && !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains((D as Variable).Name)) {
+                        if(GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null &&
+                           !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains(GlobalArraySourceNames[(D as Variable).Name])) {
                           KernelArrayInfo.DisableGlobalOrGroupSharedArray(D as Variable);
                         }
                     }
@@ -2022,9 +2027,21 @@ namespace GPUVerify
               // If the user provided arrays to which checking should be restricted, make sure
               // these really exist
               foreach(var v in GPUVerifyVCGenCommandLineOptions.ArraysToCheck) {
-                if(!KernelArrayInfo.GetGlobalAndGroupSharedArrays(true).Select(Item => Item.Name).Contains(v)) {
-                  Error(Token.NoToken, "Array name '" + v.Substring(2) + "' specified for restricted checking is not found");
+                var keys = GlobalArraySourceNames.Where(x => x.Value == v).Select(x => x.Key);
+
+                bool reportError = !keys.Any();
+
+                if (!reportError)  {
+                  foreach(var a in keys) {
+                    reportError = !KernelArrayInfo.GetGlobalAndGroupSharedArrays(true).Select(Item => Item.Name).Contains(a);
+
+                    if (reportError)
+                      break;
+                  }
                 }
+
+                if (reportError)
+                  Error(Token.NoToken, "Array name '" + v + "' specified for restricted checking is not found");
               }
             }
 
