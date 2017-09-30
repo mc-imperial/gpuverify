@@ -20,8 +20,7 @@ Basic Prequisites
 -----------------
 
 GPUVerify requires python >= 2.7 and the python module `psutil <https://github.com/giampaolo/psutil>`_.
-On Windows, we recommend installing psutil from a `prebuilt binary <https://pypi.python.org/pypi?:action=display&name=psutil#downloads>`_.
-On Linux/OSX, we recommend installing psutil with pip::
+We recommend installing psutil with pip::
 
      $ pip install psutil
 
@@ -118,9 +117,11 @@ Replace as appropriate or setup an environment variable.::
 #. (Optional) Get the CVC4 SMT Solver and build.
    Note that building CVC4 further requires automake and boost::
 
+    $ export CVC4_RELEASE=1.5
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/CVC4/CVC4.git ${BUILD_ROOT}/CVC4/src
     $ cd ${BUILD_ROOT}/CVC4/src
+    $ git checkout -b ${CVC4_RELEASE} ${CVC4_RELEASE}
     $ MACHINE_TYPE="x86_64" contrib/get-antlr-3.4
     $ ./autogen.sh
     $ export ANTLR=${BUILD_ROOT}/CVC4/src/antlr-3.4/bin/antlr3
@@ -129,8 +130,10 @@ Replace as appropriate or setup an environment variable.::
                   --best --enable-gpl \
                   --without-glpk --without-abc \
                   --disable-shared --enable-static
-    $ make
+    $ make -jN
     $ make install
+
+   where ``N`` is the number of jobs to run in parallel.
 
    Make a symbolic link; ``GPUVerify.py`` looks for ``cvc4.exe`` not ``cvc4``
    ::
@@ -205,7 +208,7 @@ Replace as appropriate or setup an environment variable.::
       cvc4BinDir = rootDir + "/CVC4/install/bin"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
-   which you can install using ``pip``.::
+   which you can install using ``pip``::
 
     $ pip install Sphinx
     $ cd ${BUILD_ROOT}/gpuverify/Documentation
@@ -349,7 +352,7 @@ drives.
       > cd ${BUILD_ROOT}
       > mkdir -p ${BUILD_ROOT}\cvc4\build
       > cd ${BUILD_ROOT}\cvc4\build
-      > $cvc4_url = "http://cvc4.cs.nyu.edu/builds/win32-opt/unstable/cvc4-2017-01-19-win32-opt.exe"
+      > $cvc4_url = "http://cvc4.cs.stanford.edu/downloads/builds/win32-opt/cvc4-1.5-win32-opt.exe"
       > (new-object System.Net.WebClient).DownloadFile($cvc4_url, "${BUILD_ROOT}\cvc4\build\cvc4.exe")
 
 #. Get GPUVerify and build. You can do this by opening ``GPUVerify.sln``
