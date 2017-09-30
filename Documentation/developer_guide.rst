@@ -619,7 +619,7 @@ regular expressions fail to match.  ``gvtester.py`` has its own special error
 code for this. At run time ``gvtester.py`` will check there is no conflict
 between the GPUVerify error codes and REGEX_MISMATCH_ERROR.
 
-To add an error code simply add it to the ErrorCodes class in ``GPUVerify.py``.
-Make sure your new error code has a value larger than existing error codes.
-There is no need to regenerate the baseline unless you've changed the testsuite
-in some way.
+To add an error code simply add it to the ``ErrorCodes`` class in
+``GPUVerifyScript/error_codes.py``. Make sure your new error code has a value
+larger than existing error codes. There is no need to regenerate the baseline
+unless you've changed the testsuite in some way.
