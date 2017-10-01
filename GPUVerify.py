@@ -490,11 +490,13 @@ class GPUVerifyInstance (object):
     popenargs['stdin']=subprocess.PIPE
 
     proc = psutil.Popen(command, **popenargs)
+    if "get_children" not in dir(proc):
+      proc.get_children = proc.children
     if args.timeout > 0:
       try:
         return_code = proc.wait(timeout = self.timeout)
       except psutil.TimeoutExpired:
-        children = proc.get_children(True)
+        children = proc.get_children(recursive=True)
         proc.terminate()
         for child in children:
           try:
