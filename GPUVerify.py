@@ -38,9 +38,7 @@ try:
   import psutil
 except ImportError:
   sys.stderr.write("GPUVerify requires Python to be equipped with the psutil module.\n")
-  sys.stderr.write("On Windows we recommend installing psutil from a prebuilt binary:\n")
-  sys.stderr.write("  https://pypi.python.org/pypi?:action=display&name=psutil#downloads\n")
-  sys.stderr.write("On Linux/OSX, we recommend installing psutil with pip:\n")
+  sys.stderr.write("We recommend installing psutil with pip:\n")
   sys.stderr.write("  pip install psutil\n")
   raise ConfigurationError("Module psutil not found")
 
