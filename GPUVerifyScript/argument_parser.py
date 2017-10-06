@@ -47,7 +47,7 @@ def __positive(string):
   except ValueError:
     raise argparse.ArgumentTypeError("Argument must be a positive integer")
 
-  if i < 0:
+  if i <= 0:
     raise argparse.ArgumentTypeError("non-positive value {} given as argument" \
       .format(i))
 
@@ -171,6 +171,9 @@ def __build_parser(default_solver, version):
   general.add_argument("--timeout=", type = __non_negative, default = 300,
     metavar = "X", help = "Allow each component to run for at most X seconds. \
     A timeout of 0 disables the timeout. The default is 300s")
+
+  general.add_argument("--error-limit=", type = __positive,
+    metavar = "X", help = "Limit the number of errors printed to X.")
 
   language = general.add_mutually_exclusive_group()
   language.add_argument("--opencl", dest = 'source_language',

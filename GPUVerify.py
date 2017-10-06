@@ -281,6 +281,9 @@ class GPUVerifyInstance (object):
     options = ["-Wall", "-g", "-gcolumn-info", "-emit-llvm", "-c"]
     options += ["-Xclang", "-disable-O0-optnone"]
 
+    if args.error_limit:
+      options.append("-ferror-limit=" + str(args.error_limit))
+
     if args.source_language == SourceLanguage.CUDA:
       # clang figures out the correct nvptx triple based on the target triple
       # for the host code. The pointer width used matches that of the host.
@@ -408,6 +411,9 @@ class GPUVerifyInstance (object):
   def getSharedCruncherAndBoogieOptions(self, args):
     options = ["/nologo", "/typeEncoding:m", "/mv:-", "/doModSetAnalysis",
       "/useArrayTheory", "/doNotUseLabels", "/enhancedErrorMessages:1"]
+
+    if args.error_limit:
+      options.append("/errorLimit:" + str(args.error_limit))
 
     if args.source_language:
       options.append("/sourceLanguage:" + self.getSourceLanguageString(args))
