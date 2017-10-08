@@ -237,7 +237,7 @@ class GPUVerifyInstance (object):
           defines.append("__GRID_DIM_" + str(index) + "=" + str(value))
 
     elif args.source_language == SourceLanguage.OpenCL:
-      defines += ["cl_khr_fp64", "__OPENCL_VERSION__=120"]
+      defines += ["__OPENCL_VERSION__=120"]
       defines.append("__" + str(len(args.group_size)) + "D_WORK_GROUP")
       defines.append("__" + str(len(args.num_groups)) + "D_GRID")
 
