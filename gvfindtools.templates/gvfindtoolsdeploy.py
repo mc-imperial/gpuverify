@@ -28,7 +28,7 @@ defaultSolver=None
 useMono = True if '@USE_MONO@' == 'True' else False
 
 def init(pathPrefix):
-  """Modify this modules variables by adding a path prefix"""
+  """Modify the modules variables by adding a path prefix"""
 
   global bugleSrcDir, bugleBinDir, libclcSrcDir, libclcInstallDir
   global llvmSrcDir, llvmBinDir, llvmLibDir
