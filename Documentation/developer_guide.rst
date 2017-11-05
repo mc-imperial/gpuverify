@@ -477,7 +477,8 @@ in GPUVerify then follow the steps below for Linux and Mac OS X.::
       $ cd ${BUILD_ROOT}
       $ git clone https://github.com/boogie-org/boogie.git
       $ cd boogie/Source
-      $ xbuild /p:TargetFrameworkProfile="" /p:Configuration=Release Boogie.sln
+      $ nuget restore Boogie.sln
+      $ xbuild /p:Configuration=Release Boogie.sln
       $ cd ../Binaries
       $ ls ${BUILD_ROOT}/gpuverify/BoogieBinaries \
              | xargs -I{} -t cp {} ${BUILD_ROOT}/gpuverify/BoogieBinaries
