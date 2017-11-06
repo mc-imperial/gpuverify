@@ -1,6 +1,6 @@
 //pass
 //--version
-//^local-revision\s+:\s+\d{4,}
+//^local-revision\s+:\s+\d+
 
 /*
 * This tests that --version shows
