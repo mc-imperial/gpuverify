@@ -1,5 +1,7 @@
 # GPUVerify
 
+[![Build Status](https://travis-ci.org/mc-imperial/gpuverify.svg?branch=master)](https://travis-ci.org/mc-imperial/gpuverify)
+
 GPUVerify is a static analyser for verifying race- and divergence-freedom of
 GPU kernels written in OpenCL and CUDA.
 
