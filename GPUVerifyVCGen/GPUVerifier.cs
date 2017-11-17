@@ -1492,7 +1492,7 @@ namespace GPUVerify
                             inParams,
                             new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", resultType)));
           f.AddAttribute("inline", Expr.True);
-          f.Body = Expr.Binary(infixOp, new IdentifierExpr(Token.NoToken, lhs), new IdentifierExpr(Token.NoToken, rhs)); 
+          f.Body = Expr.Binary(infixOp, new IdentifierExpr(Token.NoToken, lhs), new IdentifierExpr(Token.NoToken, rhs));
 
           Program.AddTopLevelDeclaration(f);
           ResContext.AddProcedure(f);
@@ -1665,7 +1665,7 @@ namespace GPUVerify
                   Expr.Or(Expr.And(P1, LocalFence1), Expr.And(P2, LocalFence2));
 
                 if (SomeArrayModelledNonAdversarially(SharedArrays)) {
-                  var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ? 
+                  var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ?
                     SharedArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
                     Enumerable.Empty<Variable>();
                   var HavocVars = SharedArrays.Concat(NoAccessVars).ToList();
@@ -1687,7 +1687,7 @@ namespace GPUVerify
                   Expr.And(Expr.And(GPUVerifier.ThreadsInSameGroup(), Expr.And(P1, P2)), Expr.Or(GlobalFence1, GlobalFence2));
 
                 if (SomeArrayModelledNonAdversarially(GlobalArrays)) {
-                  var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ? 
+                  var NoAccessVars = GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks ?
                     GlobalArrays.Select(x => FindOrCreateNotAccessedVariable(x.Name, (x.TypedIdent.Type as MapType).Arguments[0])) :
                     Enumerable.Empty<Variable>();
                   var HavocVars = GlobalArrays.Concat(NoAccessVars).ToList();
@@ -1709,8 +1709,8 @@ namespace GPUVerify
             }
 
             StmtList statements = new StmtList(bigblocks, BarrierProcedure.tok);
-            Implementation BarrierImplementation = 
-                new Implementation(BarrierProcedure.tok, BarrierProcedure.Name, new List<TypeVariable>(), 
+            Implementation BarrierImplementation =
+                new Implementation(BarrierProcedure.tok, BarrierProcedure.Name, new List<TypeVariable>(),
                     BarrierProcedure.InParams, BarrierProcedure.OutParams, new List<Variable>(), statements);
 
             BarrierImplementation.Resolve(ResContext);
@@ -1724,7 +1724,7 @@ namespace GPUVerify
         }
 
         private NAryExpr MakeFenceExpr(Variable v) {
-          return Expr.Neq(new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, v.TypedIdent)), 
+          return Expr.Neq(new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, v.TypedIdent)),
             IntRep.GetLiteral(0, 1));
         }
 
@@ -1783,8 +1783,8 @@ namespace GPUVerify
 
         private BigBlock HavocSharedArray(Variable v)
         {
-            return new BigBlock(Token.NoToken, null, 
-              new List<Cmd>(new Cmd[] { new HavocCmd(Token.NoToken, 
+            return new BigBlock(Token.NoToken, null,
+              new List<Cmd>(new Cmd[] { new HavocCmd(Token.NoToken,
                 new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, v) })) }), null, null);
         }
 
@@ -2262,9 +2262,9 @@ namespace GPUVerify
         }
 
         internal static Expr GroupSharedIndexingExpr(int Thread) {
-          return Thread == 1 ? (Expr)(new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1)) : 
-            new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken), new List<Expr> 
-              { ThreadsInSameGroup(), 
+          return Thread == 1 ? (Expr)(new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1)) :
+            new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken), new List<Expr>
+              { ThreadsInSameGroup(),
                 new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1),
                 new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 1)
               });
@@ -2380,7 +2380,7 @@ namespace GPUVerify
 
           Microsoft.Boogie.Type mapType = new MapType(
             Token.NoToken,
-            new List<TypeVariable>(), 
+            new List<TypeVariable>(),
             new List<Microsoft.Boogie.Type> { IntRep.GetIntType(size_t_bits) },
             new MapType(Token.NoToken,
                         new List<TypeVariable>(),
@@ -2395,7 +2395,7 @@ namespace GPUVerify
         private Expr FlattenedThreadId(int thread)
         {
           return IntRep.MakeAdd(Expr.Ident(MakeThreadId("X",thread)), IntRep.MakeAdd(
-                IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",thread)), Expr.Ident(GetGroupSize("X"))), 
+                IntRep.MakeMul(Expr.Ident(MakeThreadId("Y",thread)), Expr.Ident(GetGroupSize("X"))),
                 IntRep.MakeMul(Expr.Ident(MakeThreadId("Z",thread)), IntRep.MakeMul(Expr.Ident(GetGroupSize("X")),Expr.Ident(GetGroupSize("Y"))))));
         }
 
