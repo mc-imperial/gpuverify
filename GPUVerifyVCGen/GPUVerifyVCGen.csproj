@@ -114,6 +114,7 @@
     <Compile Include="WatchdogRaceInstrumenter.cs" />
     <Compile Include="WriteCollector.cs" />
     <Compile Include="ConstantWriteCollector.cs" />
+    <Compile Include="ExpressionSimplifier.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
