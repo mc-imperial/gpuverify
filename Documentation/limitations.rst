@@ -59,29 +59,3 @@ Known Sources of Unsoundness in GPUVerify
       b[get_global_id(0)] = a[0];
       __assert(!__read(a));
     }
-
-Using Structures as Kernel Parameters
--------------------------------------
-
-By default the clang compiler as used by GPUVerify replace any structure passed
-to a kernel by a char pointer plus a memory copy. For example, the following
-kernel::
-
-  struct S {
-    int *a;
-    int *b;
-  };
-
-  __global__ void foo(struct S s) {
-  }
-
-will internally represented by::
-
-  __global__ void foo(char *s_in) {
-    struct S s;
-    memcpy(&s, s_in, sizeof(s));
-  }
-
-Consequently, although it is possible to write kernel preconditions like
-``__requires(s.a == NULL)``, these will be ignored during the verification.
-As a workaround ``__assume(s.a == NULL)`` can be used.
