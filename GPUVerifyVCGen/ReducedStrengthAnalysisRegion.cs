@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-using Microsoft.Boogie;
-using Microsoft.Boogie.GraphUtil;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.Boogie;
+using Microsoft.Boogie.GraphUtil;
 
 namespace GPUVerify {
 
@@ -143,7 +143,7 @@ class ReducedStrengthAnalysisRegion {
 
   void AnalyseAssignment(Variable variable, List<Tuple<IRegion, Expr>> defs, Graph<Block> cfg, HashSet<Variable> modSet) {
     // Ensure defs[0] refers to the definition from the outermost region
-    // This also checks that the defintions are in different regions
+    // This also checks that the definitions are in different regions
     if (!OrderDefs(defs, cfg))
       return;
 

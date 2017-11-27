@@ -1,4 +1,4 @@
-﻿//===-----------------------------------------------------------------------==//
+//===-----------------------------------------------------------------------==//
 //
 //                GPUVerify - a Verifier for GPU Kernels
 //
@@ -7,11 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
 using Microsoft.Boogie.GraphUtil;
@@ -57,7 +55,7 @@ namespace GPUVerify
       {
         return result;
       }
- 
+
       // To make the CFG single-exit, we add a special exit block
       Block SpecialExitBlock = new Block();
       cfg.Nodes.Add(SpecialExitBlock);

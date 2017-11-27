@@ -7,16 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using Microsoft.Boogie;
-using Microsoft.Basetypes;
 
 namespace GPUVerify {
 

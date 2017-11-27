@@ -7,19 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using System.Text;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using Microsoft.Boogie;
 using Microsoft.Boogie.GraphUtil;
-using Microsoft.Basetypes;
-using System.Text.RegularExpressions;
-using System.Diagnostics.Contracts;
 
 
 namespace GPUVerify {
@@ -35,7 +31,7 @@ namespace GPUVerify {
     private static void ErrorWriteLine(string locInfo, string message, ErrorMsgType msgtype) {
       Contract.Requires(message != null);
       ConsoleColor col = Console.ForegroundColor;
-      if (!String.IsNullOrEmpty(locInfo)) {
+      if (!string.IsNullOrEmpty(locInfo)) {
         Console.Error.Write(locInfo + " ");
       }
 
@@ -62,8 +58,8 @@ namespace GPUVerify {
     private readonly int size_t_bits;
 
     internal GPUVerifyErrorReporter(Program program, string implName) {
-      this.impl = program.Implementations.Where(Item => Item.Name.Equals(implName)).ToList()[0];
-      this.size_t_bits = GetSizeTBits(program);
+        impl = program.Implementations.Where(Item => Item.Name.Equals(implName)).ToList()[0];
+        size_t_bits = GetSizeTBits(program);
     }
 
     private int GetSizeTBits(Program program)
@@ -803,8 +799,8 @@ namespace GPUVerify {
 
     private static string GetArrayAccess(long offset, string name, uint elWidth, uint srcElWidth, string[] dims)
     {
-      Debug.Assert(elWidth != UInt32.MaxValue && elWidth % 8 == 0);
-      Debug.Assert(srcElWidth != UInt32.MaxValue && srcElWidth % 8 == 0);
+      Debug.Assert(elWidth != uint.MaxValue && elWidth % 8 == 0);
+      Debug.Assert(srcElWidth != uint.MaxValue && srcElWidth % 8 == 0);
 
       elWidth /= 8;
       srcElWidth /= 8;
@@ -882,17 +878,17 @@ namespace GPUVerify {
         return model.TryGetFunc(name).GetConstant().AsInt();
     }
 
-    private static int GetLocalIdOneDimension(Model model, String dimension, int thread)
+    private static int GetLocalIdOneDimension(Model model, string dimension, int thread)
     {
         return model.TryGetFunc("local_id_" + dimension + "$" + thread).GetConstant().AsInt();
     }
 
-    private static int GetGroupSizeOneDimension(Model model, String dimension)
+    private static int GetGroupSizeOneDimension(Model model, string dimension)
     {
         return model.TryGetFunc("group_size_" + dimension).GetConstant().AsInt();
     }
 
-    private static int GetGlobalIdOneDimension(Model model, String dimension, int thread)
+    private static int GetGlobalIdOneDimension(Model model, string dimension, int thread)
     {
         return GetGroupIdOneDimension(model, dimension, thread) * GetGroupSizeOneDimension(model, dimension) + GetLocalIdOneDimension(model, dimension, thread);
     }
@@ -986,7 +982,7 @@ namespace GPUVerify {
       return arrName;
     }
 
-    private static String ThreadDetails(Model model, int thread, bool withSpaces) {
+    private static string ThreadDetails(Model model, int thread, bool withSpaces) {
       string localId, group, globalId;
       GetThreadsAndGroupsFromModel(model, thread, out localId, out group, out globalId, withSpaces);
       if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {

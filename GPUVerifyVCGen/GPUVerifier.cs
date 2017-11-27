@@ -1,4 +1,4 @@
-﻿//===-----------------------------------------------------------------------==//
+//===-----------------------------------------------------------------------==//
 //
 //                GPUVerify - a Verifier for GPU Kernels
 //
@@ -7,18 +7,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.IO;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.Numerics;
 using System.Globalization;
 using Microsoft.Boogie;
-using Microsoft.Boogie.Houdini;
 using Microsoft.Basetypes;
 
 namespace GPUVerify
@@ -98,7 +95,7 @@ namespace GPUVerify
         internal Dictionary<AccessType, HashSet<string>> ArraysAccessedByAsyncWorkGroupCopy;
 
         internal GPUVerifier(string filename, Program program, ResolutionContext rc)
-            : base((IErrorSink)null)
+            : base(null)
         {
             this.outputFilename = filename;
             this.Program = program;
@@ -503,7 +500,7 @@ namespace GPUVerify
 
         internal void doit()
         {
-            Microsoft.Boogie.CommandLineOptions.Clo.PrintUnstructured = 2;
+            CommandLineOptions.Clo.PrintUnstructured = 2;
 
             if(GPUVerifyVCGenCommandLineOptions.PrintLoopStatistics) {
               PrintLoopStatistics();
@@ -1057,7 +1054,7 @@ namespace GPUVerify
 
         private void AddCandidateEnsures(Procedure Proc)
         {
-            HashSet<string> names = new HashSet<String>();
+            HashSet<string> names = new HashSet<string>();
             foreach (Variable v in Proc.OutParams)
             {
                 names.Add(GVUtil.StripThreadIdentifier(v.Name));
@@ -1075,7 +1072,7 @@ namespace GPUVerify
 
         private void AddCandidateRequires(Procedure Proc)
         {
-            HashSet<string> names = new HashSet<String>();
+            HashSet<string> names = new HashSet<string>();
             foreach (Variable v in Proc.InParams)
             {
                 names.Add(GVUtil.StripThreadIdentifier(v.Name));
@@ -1174,7 +1171,7 @@ namespace GPUVerify
             return false;
           }
           for (int i = 1; i < v.Length; i++) {
-            if (!Char.IsDigit(v.ToCharArray()[i])) {
+            if (!char.IsDigit(v.ToCharArray()[i])) {
               return false;
             }
           }
@@ -1189,7 +1186,7 @@ namespace GPUVerify
           if (lv.Length >= 2) {
             if (lv.Substring(0, 1).Equals("p") || lv.Substring(0, 1).Equals("v")) {
               for (int i = 1; i < lv.Length; i++) {
-                if (!Char.IsDigit(lv.ToCharArray()[i])) {
+                if (!char.IsDigit(lv.ToCharArray()[i])) {
                   return false;
                 }
               }
@@ -1416,7 +1413,7 @@ namespace GPUVerify
           return IntRep.GetLiteral(0, bits);
         }
 
-        private void GeneratePreconditionsForDimension(String dimension)
+        private void GeneratePreconditionsForDimension(string dimension)
         {
             foreach (Declaration D in Program.TopLevelDeclarations.ToList())
             {

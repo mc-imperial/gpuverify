@@ -7,15 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using Microsoft.Boogie;
-using Microsoft.Basetypes;
 
 namespace GPUVerify
 {
@@ -114,7 +110,7 @@ namespace GPUVerify
             if (expr is IdentifierExpr)
             {
                 IdentifierExpr iexpr = expr as IdentifierExpr;
-                String name = iexpr.Name;
+                string name = iexpr.Name;
                 Match match = Regex.Match(name, @"v[0-9]+");
                 return match.Success;
             }
@@ -163,8 +159,6 @@ namespace GPUVerify
 
         private Kind isPowerOfTwoOperation(Variable v, Expr expr)
         {
-            //Console.WriteLine("relational:isPowerOfTwoOperation {0} {1}", v, expr);
-
             if (!(
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||
@@ -179,20 +173,20 @@ namespace GPUVerify
             if (IntegerRepresentationHelper.IsFun(expr, "MUL", out lhs, out rhs)) {
                 if ((IsVariable(lhs, v) || IsVariable(rhs, v)) && (IsConstant(lhs, 2) || IsConstant(rhs, 2))) return Kind.Inc;
             }
-        
+
             if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs) ||
                 IntegerRepresentationHelper.IsFun(expr, "SDIV", out lhs, out rhs)) {
                 if (IsVariable(lhs, v) && IsConstant(rhs, 2)) return Kind.Dec;
             }
-        
+
             if (IntegerRepresentationHelper.IsFun(expr, "SHL", out lhs, out rhs)) {
                 if (IsVariable(lhs, v) && IsConstant(rhs, 1)) return Kind.Inc;
             }
-        
+
             if (IntegerRepresentationHelper.IsFun(expr, "ASHR", out lhs, out rhs)) {
                 if (IsVariable(lhs, v) && IsConstant(rhs, 1)) return Kind.Dec;
             }
-            
+
             if (IntegerRepresentationHelper.IsFun(expr, "LSHR", out lhs, out rhs)) {
               if (IsVariable(lhs, v) && IsConstant(rhs, 1)) return Kind.Dec;
             }

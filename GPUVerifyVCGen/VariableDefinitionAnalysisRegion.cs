@@ -9,7 +9,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using Microsoft.Boogie;
 using Microsoft.Boogie.GraphUtil;
@@ -254,7 +253,7 @@ class VariableDefinitionAnalysisRegion {
     }
   }
 
-  public Expr DefOfVariableName(String variable) {
+  public Expr DefOfVariableName(string variable) {
     if (rootSubstitution.ContainsKey(variable) && rootSubstitution[variable] != null) {
       var v = new SubstitutionPrimitiveDuplicator(rootSubstitution);
       return v.VisitExpr(rootSubstitution[variable]);

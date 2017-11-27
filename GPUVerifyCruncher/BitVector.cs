@@ -15,31 +15,31 @@ namespace GPUVerify
 {
     public class BitVector
     {
-        private static Dictionary<int,BitVector> ZeroBVs = new Dictionary<int,BitVector>();
-        private static Dictionary<int,BitVector> MaxBVs = new Dictionary<int,BitVector>();
+        private static Dictionary<int, BitVector> ZeroBVs = new Dictionary<int, BitVector>();
+        private static Dictionary<int, BitVector> MaxBVs = new Dictionary<int, BitVector>();
 
         public static BitVector False = new BitVector(0, 1);
         public static BitVector True = new BitVector(1, 1);
         public string Bits;
 
-        public BitVector (int val, int width = 32)
+        public BitVector(int val, int width = 32)
         {
             Bits = Convert.ToString(val, 2);
             Pad(width, '0');
         }
 
-        public BitVector (long val, int width = 64)
+        public BitVector(long val, int width = 64)
         {
             Bits = Convert.ToString(val, 2);
             Pad(width, '0');
         }
-        
-        public BitVector (string bits)
+
+        public BitVector(string bits)
         {
             Bits = bits;
         }
 
-        public BitVector (BvConst bv)
+        public BitVector(BvConst bv)
         {
             // Create bit-string representation
             string str = bv.ToReadableString();
@@ -60,12 +60,12 @@ namespace GPUVerify
             Pad(bv.Bits, '0');
         }
 
-        private void Pad (int width, char bit)
+        private void Pad(int width, char bit)
         {
             if (Bits.Length < width)
                 Bits = Bits.PadLeft(width, bit);
         }
-        
+
         private string HexToBinary(char hex)
         {
             switch (hex)
@@ -110,11 +110,11 @@ namespace GPUVerify
                     return "1111";
                 default:
                     Print.ExitMessage("Unhandled hex character " + hex);
-                    return "";  
+                    return "";
             }
         }
-        
-        public int ConvertToInt32 ()
+
+        public int ConvertToInt32()
         {
            try
             {
@@ -126,7 +126,7 @@ namespace GPUVerify
             }
         }
 
-        public long ConvertToInt64 ()
+        public long ConvertToInt64()
         {
            try
             {
@@ -158,19 +158,19 @@ namespace GPUVerify
             return Bits;
         }
 
-        public static BitVector Zero (int width)
+        public static BitVector Zero(int width)
         {
             if (!ZeroBVs.ContainsKey(width))
             {
                 if (width <= 32)
                     ZeroBVs[width] = new BitVector(0, width);
                 else
-                    ZeroBVs[width] = new BitVector((long) 0, width);
+                    ZeroBVs[width] = new BitVector((long)0, width);
             }
             return ZeroBVs[width];
         }
 
-        public static BitVector Max (int width)
+        public static BitVector Max(int width)
         {
             if (!MaxBVs.ContainsKey(width))
             {
@@ -182,7 +182,7 @@ namespace GPUVerify
             return MaxBVs[width];
         }
 
-        public static BitVector operator+(BitVector a, BitVector b)
+        public static BitVector operator +(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "+ operator : Bit vectors must have equal widths");
             int width = a.Bits.Length;
@@ -200,7 +200,7 @@ namespace GPUVerify
             }
         }
 
-        public static BitVector operator-(BitVector a, BitVector b)
+        public static BitVector operator -(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "- operator : Bit vectors must have equal widths");
             int width = a.Bits.Length;
@@ -218,7 +218,7 @@ namespace GPUVerify
             }
         }
 
-        public static BitVector operator*(BitVector a, BitVector b)
+        public static BitVector operator *(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "* operator : Bit vectors must have equal widths");
             int width = a.Bits.Length;
@@ -236,7 +236,7 @@ namespace GPUVerify
             }
         }
 
-        public static BitVector operator/(BitVector a, BitVector b)
+        public static BitVector operator /(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "/ operator : Bit vectors must have equal widths");
             int width = a.Bits.Length;
@@ -261,7 +261,7 @@ namespace GPUVerify
             }
         }
 
-        public static BitVector operator%(BitVector a, BitVector b)
+        public static BitVector operator %(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "% operator : Bit vectors must have equal widths");
             int width = a.Bits.Length;
@@ -286,7 +286,7 @@ namespace GPUVerify
             }
         }
 
-        public static BitVector operator&(BitVector a, BitVector b)
+        public static BitVector operator &(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "& operator : Bit vectors must have equal widths");
             int width = a.Bits.Length;
@@ -304,7 +304,7 @@ namespace GPUVerify
             }
         }
 
-        public static BitVector operator|(BitVector a, BitVector b)
+        public static BitVector operator |(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "| operator : Bit vectors must have equal widths");
             int width = a.Bits.Length;
@@ -321,10 +321,10 @@ namespace GPUVerify
                 return new BitVector(aData | bData, width);
             }
         }
-                
-        public static BitVector operator^(BitVector a, BitVector b)
+
+        public static BitVector operator ^(BitVector a, BitVector b)
         {
-            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "^ operator : Bit vectors must have equal widths"); 
+            Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "^ operator : Bit vectors must have equal widths");
             char[] bits = new char[a.Bits.Length];
             for (int i = 0; i < a.Bits.Length; ++i)
             {
@@ -338,7 +338,7 @@ namespace GPUVerify
             return new BitVector(new string(bits));
         }
 
-        public static BitVector operator>>(BitVector a, int shift)
+        public static BitVector operator >>(BitVector a, int shift)
         {
             int width = a.Bits.Length;
             try
@@ -374,8 +374,8 @@ namespace GPUVerify
               return new BitVector(0, a.Bits.Length);
         }
 
-        public static BitVector operator<<(BitVector a, int shift)
-        {            
+        public static BitVector operator <<(BitVector a, int shift)
+        {
             int width = a.Bits.Length;
             try
             {
@@ -396,7 +396,7 @@ namespace GPUVerify
             }
         }
 
-        public static bool operator==(BitVector a, BitVector b)
+        public static bool operator ==(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "== operator : Bit vectors must have equal widths");
             if (object.ReferenceEquals(a, null))
@@ -404,13 +404,13 @@ namespace GPUVerify
             return a.Equals(b);
         }
 
-        public static bool operator!=(BitVector a, BitVector b)
+        public static bool operator !=(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "!= operator : Bit vectors must have equal widths");
             return !(a == b);
         }
 
-        public static bool operator<(BitVector a, BitVector b)
+        public static bool operator <(BitVector a, BitVector b)
         {
             int width = a.Bits.Length;
             if (width <= 32)
@@ -427,7 +427,7 @@ namespace GPUVerify
             }
         }
 
-        public static bool operator<=(BitVector a, BitVector b)
+        public static bool operator <=(BitVector a, BitVector b)
         {
             int width = a.Bits.Length;
             if (width <= 32)
@@ -444,7 +444,7 @@ namespace GPUVerify
             }
         }
 
-        public static bool operator>(BitVector a, BitVector b)
+        public static bool operator >(BitVector a, BitVector b)
         {
             int width = a.Bits.Length;
             if (width <= 32)
@@ -461,7 +461,7 @@ namespace GPUVerify
             }
         }
 
-        public static bool operator>=(BitVector a, BitVector b)
+        public static bool operator >=(BitVector a, BitVector b)
         {
             int width = a.Bits.Length;
             if (width <= 32)
@@ -477,31 +477,31 @@ namespace GPUVerify
                 return aData >= bData;
             }
         }
-        
-        public static BitVector Slice (BitVector a, int high, int low)
+
+        public static BitVector Slice(BitVector a, int high, int low)
         {
-            Print.ConditionalExitMessage(high > low, "Slicing " + a.ToString() + 
-            " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not valid"); 
+            Print.ConditionalExitMessage(high > low, "Slicing " + a.ToString() +
+            " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not valid");
             int startIndex = a.Bits.Length - high;
             int length = high - low;
             string bits = a.Bits.Substring(startIndex, length);
             return new BitVector(bits);
         }
-        
-        public static BitVector Concatenate (BitVector a, BitVector b)
+
+        public static BitVector Concatenate(BitVector a, BitVector b)
         {
             string bits = a.Bits + b.Bits;
             return new BitVector(bits);
         }
-        
-        public static BitVector ZeroExtend (BitVector a, int width)
+
+        public static BitVector ZeroExtend(BitVector a, int width)
         {
             string bits = a.Bits;
             bits = bits.PadLeft(width, '0');
             return new BitVector(bits);
         }
-        
-        public static BitVector SignExtend (BitVector a, int width)
+
+        public static BitVector SignExtend(BitVector a, int width)
         {
             string bits = a.Bits;
             char sign = bits[0];
@@ -510,4 +510,3 @@ namespace GPUVerify
         }
     }
 }
-

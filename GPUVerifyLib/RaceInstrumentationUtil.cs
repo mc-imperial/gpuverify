@@ -1,4 +1,4 @@
-﻿//===-----------------------------------------------------------------------==//
+//===-----------------------------------------------------------------------==//
 //
 //                GPUVerify - a Verifier for GPU Kernels
 //
@@ -7,11 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using Microsoft.Boogie;
 
 namespace GPUVerify
@@ -20,7 +15,7 @@ namespace GPUVerify
   public enum RaceCheckingMethod {
     ORIGINAL, WATCHDOG_SINGLE, WATCHDOG_MULTIPLE
   }
-  
+
   public class RaceInstrumentationUtil
   {
 
@@ -44,9 +39,9 @@ namespace GPUVerify
 
     public static Variable MakeOffsetVariable(string Name, AccessType Access, Microsoft.Boogie.Type Type)
     {
-      var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeOffsetVariableName(Name, Access),
+      var Ident = new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access),
           Type);
-      if(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
+      if(RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
         return new GlobalVariable(Token.NoToken, Ident);
       }
       return new Constant(Token.NoToken, Ident, false);
@@ -60,9 +55,9 @@ namespace GPUVerify
     }
 
     public static Variable MakeValueVariable(string Name, AccessType Access, Microsoft.Boogie.Type Type) {
-      var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeValueVariableName(Name, Access),
+      var Ident = new TypedIdent(Token.NoToken, MakeValueVariableName(Name, Access),
           Type);
-      if(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
+      if(RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
         return new GlobalVariable(Token.NoToken, Ident);
       }
       return new Constant(Token.NoToken, Ident, false);
@@ -75,10 +70,10 @@ namespace GPUVerify
 
     public static Variable MakeAsyncHandleVariable(string Name, AccessType Access, Microsoft.Boogie.Type Type)
     {
-      var Ident = new TypedIdent(Token.NoToken, RaceInstrumentationUtil.MakeAsyncHandleVariableName(Name, Access),
+      var Ident = new TypedIdent(Token.NoToken, MakeAsyncHandleVariableName(Name, Access),
           Type);
       return new GlobalVariable(Token.NoToken, Ident);
     }
-    
+
   }
 }

@@ -7,13 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using Microsoft.Boogie;
 using Microsoft.Basetypes;
 
@@ -30,7 +27,7 @@ namespace GPUVerify {
 
     private string procName = null;
 
-    internal void DualiseProcedure(Microsoft.Boogie.Procedure proc) {
+    internal void DualiseProcedure(Procedure proc) {
       procName = proc.Name;
 
       proc.Requires = DualiseRequires(proc.Requires);
@@ -97,7 +94,7 @@ namespace GPUVerify {
     }
 
     private AssertCmd MakeThreadSpecificAssert(AssertCmd a, int Thread) {
-      AssertCmd result = new AssertCmd(Token.NoToken, new VariableDualiser(Thread, 
+      AssertCmd result = new AssertCmd(Token.NoToken, new VariableDualiser(Thread,
         verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr),
         MakeThreadSpecificAttributes(a.Attributes, Thread));
       return result;
@@ -166,7 +163,7 @@ namespace GPUVerify {
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks) {
               foreach (Expr AccessExpr in BIDescriptor.GetAccessedExprs()) {
                 var Assert = new AssertCmd(Token.NoToken, AccessExpr, MakeThreadSpecificAttributes(SourceLocationInfo,1));
-                Assert.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant_access_check", 
+                Assert.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant_access_check",
                   new List<object> { Expr.True }, Assert.Attributes);
                 cs.Add(vd.VisitAssertCmd(Assert));
               }
@@ -297,8 +294,8 @@ namespace GPUVerify {
 
         HavocCmd newHavoc;
 
-        newHavoc = new HavocCmd(havoc.tok, new List<IdentifierExpr>(new IdentifierExpr[] { 
-                    (IdentifierExpr)(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr)), 
+        newHavoc = new HavocCmd(havoc.tok, new List<IdentifierExpr>(new IdentifierExpr[] {
+                    (IdentifierExpr)(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr)),
                     (IdentifierExpr)(new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr))
                 }));
 
@@ -311,7 +308,7 @@ namespace GPUVerify {
           || QKeyValue.FindBoolAttribute(a.Attributes, "block_sourceloc")
           || QKeyValue.FindBoolAttribute(a.Attributes, "array_bounds")) {
           // This is just a location marker, so we do not dualise it
-          cs.Add(new AssertCmd(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr), 
+          cs.Add(new AssertCmd(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr),
             (QKeyValue)a.Attributes.Clone()));
         }
         else {
@@ -351,21 +348,21 @@ namespace GPUVerify {
 
           foreach (int i in (new int[] { 0, 1 })) {
             AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Not(new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-              new List<Expr> { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
-                new List<Expr> { arrayref, offsets[i] }), 
+              new List<Expr> { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
+                new List<Expr> { arrayref, offsets[i] }),
                 vars[i] })));
 
             cs.Add(newAss);
 
             var lhs = new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, new SimpleAssignLhs(Token.NoToken, arrayref),
                 new List<Expr> { offsets[i] }), new List<Expr> { vars[i] });
-            AssignCmd assign = new AssignCmd(c.tok, 
+            AssignCmd assign = new AssignCmd(c.tok,
               new List<AssignLhs> { lhs },
               new List<Expr> {Expr.True});
 
             cs.Add(assign);
 
-          }  
+          }
 
         }
         else {

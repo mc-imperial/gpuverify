@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -175,7 +174,7 @@ namespace GPUVerify
     public static void DisableAssertions(Program program)
     {
       // We want to disable all assertions, with the exception
-      // of assetions at loop heads (these are invariants)
+      // of assertions at loop heads (these are invariants)
       // and candidate assertions that the user has provided
       // for Houdini
       foreach(var impl in program.Implementations) {
@@ -190,7 +189,7 @@ namespace GPUVerify
                 // Keep it: it's a Houdini candidate or a loop invariant
                 newCmds.Add(c);
               } else {
-                // Discard the invariant (by not adding it the the new list of commands)
+                // Discard the invariant (by not adding it the new list of commands)
               }
             } else {
               newCmds.Add(c);
@@ -362,36 +361,36 @@ namespace GPUVerify
         default:
         Contract.Assert(false);  // unexpected outcome
         throw new cce.UnreachableException();
-        case VCGen.Outcome.ReachedBound:
-        GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
+        case ConditionGeneration.Outcome.ReachedBound:
+        GVUtil.IO.Inform(string.Format("{0}verified", timeIndication));
         Console.WriteLine(string.Format("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound));
         counters.Verified++;
         break;
-        case VCGen.Outcome.Correct:
+        case ConditionGeneration.Outcome.Correct:
         if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-          GVUtil.IO.Inform(String.Format("{0}credible", timeIndication));
+          GVUtil.IO.Inform(string.Format("{0}credible", timeIndication));
           counters.Verified++;
         }
         else {
-          GVUtil.IO.Inform(String.Format("{0}verified", timeIndication));
+          GVUtil.IO.Inform(string.Format("{0}verified", timeIndication));
           counters.Verified++;
         }
         break;
-        case VCGen.Outcome.TimedOut:
+        case ConditionGeneration.Outcome.TimedOut:
         counters.TimeOuts++;
-        GVUtil.IO.Inform(String.Format("{0}timed out", timeIndication));
+        GVUtil.IO.Inform(string.Format("{0}timed out", timeIndication));
         break;
-        case VCGen.Outcome.OutOfMemory:
+        case ConditionGeneration.Outcome.OutOfMemory:
         counters.OutOfMemories++;
-        GVUtil.IO.Inform(String.Format("{0}out of memory", timeIndication));
+        GVUtil.IO.Inform(string.Format("{0}out of memory", timeIndication));
         break;
-        case VCGen.Outcome.Inconclusive:
+        case ConditionGeneration.Outcome.Inconclusive:
         counters.Inconclusives++;
-        GVUtil.IO.Inform(String.Format("{0}inconclusive", timeIndication));
+        GVUtil.IO.Inform(string.Format("{0}inconclusive", timeIndication));
         break;
-        case VCGen.Outcome.Errors:
+        case ConditionGeneration.Outcome.Errors:
         if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed) {
-          GVUtil.IO.Inform(String.Format("{0}doomed", timeIndication));
+          GVUtil.IO.Inform(string.Format("{0}doomed", timeIndication));
           counters.VerificationErrors++;
         } //else {
         Contract.Assert(errors != null);  // guaranteed by postcondition of VerifyImplementation
@@ -410,7 +409,7 @@ namespace GPUVerify
             counters.VerificationErrors++;
           }
           //}
-          GVUtil.IO.Inform(String.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
+          GVUtil.IO.Inform(string.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
         }
         break;
       }

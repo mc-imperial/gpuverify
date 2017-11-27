@@ -7,15 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using Microsoft.Boogie;
-using Microsoft.Basetypes;
-using Microsoft.Boogie.GraphUtil;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Microsoft.Boogie;
+using Microsoft.Boogie.GraphUtil;
 using GPUVerify.InvariantGenerationRules;
 
 namespace GPUVerify
@@ -175,7 +172,7 @@ namespace GPUVerify
     foreach(var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item))) {
       var Guard = MaybeExtractGuard(verifier, impl, succ);
       if(Guard != null) {
-        // There is at most one successor, so it's safe not use use GuardIncludingLoopCondition ont the rhs
+        // There is at most one successor, so it's safe not use GuardIncludingLoopCondition on the rhs
         GuardIncludingLoopCondition = GuardEnclosingLoop == null ? Guard : Expr.And(GuardEnclosingLoop, Guard);
         break;
       }
@@ -485,7 +482,7 @@ namespace GPUVerify
 
     Dictionary<string, int> assignmentCounts = GetAssignmentCounts(Impl);
 
-    HashSet<string> alreadyConsidered = new HashSet<String>();
+    HashSet<string> alreadyConsidered = new HashSet<string>();
 
     foreach (var v in LocalVars)
     {
@@ -517,7 +514,7 @@ namespace GPUVerify
       continue;
      }
 
-     AddPredicatedEqualityCandidateInvariant(region, LoopPredicate, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lv, Microsoft.Boogie.Type.Int)));
+     AddPredicatedEqualityCandidateInvariant(region, LoopPredicate, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lv, Type.Int)));
     }
 
    }

@@ -8,11 +8,8 @@
 //===----------------------------------------------------------------------===//
 
 using System;
-using System.Diagnostics;
 using System.Text;
-using System.Linq;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using Microsoft.Basetypes;
 using Microsoft.Boogie;
 
@@ -36,6 +33,7 @@ namespace GPUVerify
             levels[0] = new HashSet<Node>();
             levels[0].Add(root);
             SetLevels(root, 0);
+
             // Set node IDs and see if any scalar node is a race offset variable
             int nodeID = 0;
             foreach (Node node in nodes)
@@ -46,7 +44,7 @@ namespace GPUVerify
                     ScalarSymbolNode _node = node as ScalarSymbolNode;
                     if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
                         offsetVariables.Add(_node.symbol);
-                    
+
                     if (RegularExpressions.WATCHDOG_VARIABLE.IsMatch(_node.symbol))
                     {
                         var visitor = new VariablesOccurringInExpressionVisitor();
@@ -116,12 +114,12 @@ namespace GPUVerify
             StringBuilder builder = new StringBuilder();
             for (int i = 0; i < height; ++i)
             {
-                builder.Append(String.Format("Level {0}", i)).Append(Environment.NewLine);
+                builder.Append(string.Format("Level {0}", i)).Append(Environment.NewLine);
                 foreach (Node node in levels[i])
                 {
                     builder.Append(node.ID);
                     if (i > 0)
-                        builder.Append(String.Format(" (parent = {0})  ", node.GetParent().ID));
+                        builder.Append(string.Format(" (parent = {0})  ", node.GetParent().ID));
                 }
                 builder.Append(Environment.NewLine);
             }
@@ -234,7 +232,7 @@ namespace GPUVerify
                         else
                             nary = nary2;
                     }
-                    
+
                     IdentifierExpr identifier = nary.Args[0] as IdentifierExpr;
                     Node parent = new MapSymbolNode(identifier.Name);
                     foreach (Expr index in indices)
@@ -375,7 +373,7 @@ namespace GPUVerify
         {
             this.symbol = symbol;
             this.type = type;
-            this.isOffsetVariable = RegularExpressions.OFFSET_VARIABLE.IsMatch(symbol); 
+            this.isOffsetVariable = RegularExpressions.OFFSET_VARIABLE.IsMatch(symbol);
         }
 
         public override string ToString()
@@ -447,4 +445,3 @@ namespace GPUVerify
         }
     }
 }
-

@@ -9,8 +9,6 @@
 
 using System.Collections.Generic;
 using System;
-using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
 
@@ -31,7 +29,7 @@ namespace GPUVerify
     {
     }
 
-    protected override bool ParseOption(string name, CommandLineOptionEngine.CommandLineParseState ps)
+    protected override bool ParseOption(string name, CommandLineParseState ps)
     {
       if (name == "sequential") {
         if (ps.ConfirmArgumentCount(1)) {
@@ -154,8 +152,8 @@ namespace GPUVerify
           string parameterStr = engineStr.Substring(LU.Name.Length);
           Dictionary<string, string> parameters = GetParameters(LU.Name,
                                                                 LU.GetAllowedParameters(),
-                                                                 LU.GetRequiredParameters(),
-                                                                 parameterStr);
+                                                                LU.GetRequiredParameters(),
+                                                                parameterStr);
           int errorLimit = ParseIntParameter(parameters,
                                              SMTEngine.GetErrorLimitParameter().Name,
                                              SMTEngine.GetErrorLimitParameter().DefaultValue);
@@ -184,7 +182,7 @@ namespace GPUVerify
         }
         else
         {
-          Console.WriteLine(String.Format("Unknown cruncher engine: '{0}'", engine));
+          Console.WriteLine(string.Format("Unknown cruncher engine: '{0}'", engine));
           System.Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
         }
       }
@@ -207,7 +205,7 @@ namespace GPUVerify
           string paramName = values[0];
           if (allowedParams.Find(item => item.Name.Equals(paramName)) == null)
           {
-            Console.WriteLine(String.Format("Parameter '{0}' is not valid for cruncher engine '{1}'", paramName, engine));
+            Console.WriteLine(string.Format("Parameter '{0}' is not valid for cruncher engine '{1}'", paramName, engine));
             System.Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
           }
           map[paramName] = values[1].ToLower();
@@ -217,7 +215,7 @@ namespace GPUVerify
       {
         if (!map.ContainsKey(param.Name))
         {
-          Console.WriteLine(String.Format("For cruncher engine '{0}' you must supply parameter '{1}'", engine, param.Name));
+          Console.WriteLine(string.Format("For cruncher engine '{0}' you must supply parameter '{1}'", engine, param.Name));
           System.Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
         }
       }
@@ -232,7 +230,7 @@ namespace GPUVerify
       {
         if (parameters.ContainsKey(tuple.Item1.Name) && parameters.ContainsKey(tuple.Item2.Name))
         {
-          Console.WriteLine(String.Format("Parameters '{0}' and '{1}' are mutually exclusive in cruncher engine '{2}'",
+          Console.WriteLine(string.Format("Parameters '{0}' and '{1}' are mutually exclusive in cruncher engine '{2}'",
             tuple.Item1.Name, tuple.Item2.Name, engine));
           System.Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
         }
@@ -245,7 +243,7 @@ namespace GPUVerify
       {
         if (!SMTEngine.GetSolverParameter().IsValidValue(parameters[SMTEngine.GetSolverParameter().Name]))
         {
-          Console.WriteLine(String.Format("Unknown solver '{0}'", parameters[SMTEngine.GetSolverParameter().Name]));
+          Console.WriteLine(string.Format("Unknown solver '{0}'", parameters[SMTEngine.GetSolverParameter().Name]));
           System.Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
         }
         return parameters[SMTEngine.GetSolverParameter().Name];
@@ -265,12 +263,12 @@ namespace GPUVerify
       }
       catch (FormatException)
       {
-        Console.WriteLine(String.Format("'{0}' must be an integer. You gave '{1}'", paramName, parameters[paramName]));
+        Console.WriteLine(string.Format("'{0}' must be an integer. You gave '{1}'", paramName, parameters[paramName]));
         System.Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
       }
       catch (OverflowException)
       {
-        Console.WriteLine(String.Format("'{0}' must fit into a 32-bit integer. You gave '{1}'", paramName, parameters[paramName]));
+        Console.WriteLine(string.Format("'{0}' must fit into a 32-bit integer. You gave '{1}'", paramName, parameters[paramName]));
         System.Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
       }
       return -1;

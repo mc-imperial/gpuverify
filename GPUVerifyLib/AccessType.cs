@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,7 +15,7 @@ namespace GPUVerify
 {
   public sealed class AccessType {
 
-    private readonly String name;
+    private readonly string name;
 
     public static readonly AccessType READ = new AccessType ("READ");
     public static readonly AccessType WRITE = new AccessType ("WRITE");
@@ -37,11 +36,11 @@ namespace GPUVerify
       throw new NotSupportedException("Unknown access type: " + access);
     }
 
-    private AccessType(String name) {
+    private AccessType(string name) {
       this.name = name;
     }
 
-    public override String ToString() {
+    public override string ToString() {
       return name;
     }
 

@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
-using System;
 using Microsoft.Boogie;
 
 namespace GPUVerify
@@ -55,4 +53,3 @@ namespace GPUVerify
     }
   }
 }
-

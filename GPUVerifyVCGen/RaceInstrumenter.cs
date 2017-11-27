@@ -7,16 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Diagnostics;
-using System.Diagnostics.Contracts;
 using Microsoft.Boogie;
-using Microsoft.Basetypes;
 
 namespace GPUVerify {
 
@@ -317,8 +312,8 @@ namespace GPUVerify {
        *      d = (access/ys) - (c*xs/ys)
        */
       public IEnumerable<Expr> GenerateCandidateInvariants(GPUVerifier verifier, Variable v, AccessType Access) {
-        // Mixing of ids of type bv32 and offests of type bv64 is
-        // possible with CUDA, and incompatble with the current code.
+        // Mixing of ids of type bv32 and offsets of type bv64 is
+        // possible with CUDA, and incompatible with the current code.
         if (verifier.size_t_bits == 64) return Enumerable.Empty<Expr>();
         if (!CanAccessBreak) return Enumerable.Empty<Expr>();
 
@@ -327,7 +322,7 @@ namespace GPUVerify {
         foreach (var c in ComponentMap.Keys) {
           Expr invariant = new IdentifierExpr(Token.NoToken, offsetVar);
           var xs = ComponentMap[c];
-          foreach (var x in xs) { 
+          foreach (var x in xs) {
             invariant = verifier.IntRep.MakeDiv(invariant, x);
           }
           foreach (var d in ComponentMap.Keys.Where(x => x != c)) {
@@ -336,7 +331,7 @@ namespace GPUVerify {
             foreach (var y in ys.Except(xs)) {
               subexpr = verifier.IntRep.MakeMul(subexpr, y);
             }
-            foreach (var x in xs.Except(ys)) { 
+            foreach (var x in xs.Except(ys)) {
               subexpr = verifier.IntRep.MakeDiv(subexpr, x);
             }
             invariant = verifier.IntRep.MakeSub(invariant, subexpr);
@@ -395,7 +390,7 @@ namespace GPUVerify {
      * Distribute multiplication over addition in an expression.
      *
      * We rewrite all subexpressions of the form
-     *   (mul t (add e1 e2)) 
+     *   (mul t (add e1 e2))
      * into
      *   (add (mul t e1) (mul t e2))
      *
@@ -646,16 +641,16 @@ namespace GPUVerify {
 
       bool guardHasOuterNot = false;
       if (expr is NAryExpr &&
-          (expr as NAryExpr).Fun is BinaryOperator && 
+          (expr as NAryExpr).Fun is BinaryOperator &&
           ((expr as NAryExpr).Fun as BinaryOperator).Op == BinaryOperator.Opcode.And) {
         Expr lhs = (expr as NAryExpr).Args[0];
         Expr rhs = (expr as NAryExpr).Args[1];
 
         // !v && !v
-        if (lhs is NAryExpr && 
+        if (lhs is NAryExpr &&
               (lhs as NAryExpr).Fun is UnaryOperator &&
               ((lhs as NAryExpr).Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&
-            rhs is NAryExpr && 
+            rhs is NAryExpr &&
               (rhs as NAryExpr).Fun is UnaryOperator &&
               ((rhs as NAryExpr).Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not) {
           lhs = (lhs as NAryExpr).Args[0];
@@ -1060,7 +1055,7 @@ namespace GPUVerify {
       verifier.Program.AddTopLevelDeclaration(CheckAccessProcedure);
     }
 
-    protected void AddCheckAccessCheck(Variable v, Procedure CheckAccessProcedure, Variable PredicateParameter, Variable OffsetParameter, Expr NoBenignTest, AccessType Access, String attribute) {
+    protected void AddCheckAccessCheck(Variable v, Procedure CheckAccessProcedure, Variable PredicateParameter, Variable OffsetParameter, Expr NoBenignTest, AccessType Access, string attribute) {
       // Check atomic by thread 2 does not conflict with read by thread 1
       Variable AccessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, Access);
       Variable AccessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, Access, verifier.IntRep.GetIntType(verifier.size_t_bits));
@@ -1454,9 +1449,9 @@ namespace GPUVerify {
         new List<string> { "exit" },
         new List<Block> { ExitBlock });
       ExitBlock.TransferCmd = new ReturnCmd(Token.NoToken);
-      
+
       EntryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Neq(ResultHandle, verifier.FindOrCreateAsyncNoHandleConstant())));
-      EntryBlock.Cmds.Add(new AssignCmd(Token.NoToken, new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, ResultHandle) }, 
+      EntryBlock.Cmds.Add(new AssignCmd(Token.NoToken, new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, ResultHandle) },
               new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
                 new List<Expr> {
                   Expr.Eq(Handle, verifier.FindOrCreateAsyncNoHandleConstant()), ResultHandle, Handle
@@ -1494,7 +1489,7 @@ namespace GPUVerify {
         ProcedureName, new List<TypeVariable>(), InParams, OutParams, Locals, Blocks);
       AsyncWorkGroupCopyImplementation.Proc = AsyncWorkGroupCopyProcedure;
       GPUVerifier.AddInlineAttribute(AsyncWorkGroupCopyImplementation);
-        
+
       verifier.Program.AddTopLevelDeclaration(AsyncWorkGroupCopyProcedure);
       verifier.Program.AddTopLevelDeclaration(AsyncWorkGroupCopyImplementation);
 
@@ -1546,7 +1541,7 @@ namespace GPUVerify {
         "check_id", new List<object>() { CheckState }, captureStateAssume.Attributes);
       captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
         "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
-      
+
       result.Add(captureStateAssume);
       CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
       checkAccessCallCmd.Proc = checkProcedure;
@@ -1574,8 +1569,8 @@ namespace GPUVerify {
 
     private void ExitWithNoSourceError(Variable v, AccessType Access)
     {
-      Console.Error.WriteLine("No source location information available when processing " + 
-        Access + " operation on " + v + " at " + GPUVerifyVCGenCommandLineOptions.inputFiles[0] + ":" + 
+      Console.Error.WriteLine("No source location information available when processing " +
+        Access + " operation on " + v + " at " + GPUVerifyVCGenCommandLineOptions.inputFiles[0] + ":" +
         v.tok.line + ":" + v.tok.col + ".  Aborting.");
       Environment.Exit(1);
     }
@@ -1629,6 +1624,5 @@ namespace GPUVerify {
     }
 
   }
-
 
 }

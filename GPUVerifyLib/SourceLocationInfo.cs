@@ -7,13 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.IO;
-using System.Diagnostics;
 using Microsoft.Boogie;
 
 namespace GPUVerify {
@@ -159,7 +156,7 @@ namespace GPUVerify {
             records.Add(blangRecord);
         }
       } catch (Exception e) {
-        Console.Error.WriteLine("warning: getting souce loc info failed with: " + e.Message);
+        Console.Error.WriteLine("warning: getting source loc info failed with: " + e.Message);
         records.Add(new Record(fallBackToken.line, fallBackToken.col, fallBackToken.filename, ""));
       }
     }
@@ -211,12 +208,12 @@ namespace GPUVerify {
     }
 
     private static string TrimLeadingSpaces(string s1, int noOfSpaces) {
-      if (String.IsNullOrWhiteSpace(s1)) {
+      if (string.IsNullOrWhiteSpace(s1)) {
         return s1;
       }
 
       int index;
-      for (index = 0; (index + 1) < s1.Length && Char.IsWhiteSpace(s1[index]); ++index) ;
+      for (index = 0; (index + 1) < s1.Length && char.IsWhiteSpace(s1[index]); ++index) ;
       string returnString = s1.Substring(index);
       for (int i = noOfSpaces; i > 0; --i) {
         returnString = " " + returnString;

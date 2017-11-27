@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Linq;
@@ -32,12 +31,12 @@ namespace GPUVerify
       this.initialVariable = variable;
       DiscoverVariableAssignments(this.initialVariable);
     }
-  
+
     public HashSet<Variable> GetGPUVariables()
     {
       return GPUVariables;
     }
-  
+
     public Expr GetUnexpandedExpr()
     {
       Debug.Assert(unexpandedExpr != null);
@@ -80,7 +79,7 @@ namespace GPUVerify
           }
         }
       }
-            
+
       // Label used to allow exit from multiple levels in the previous loop nest
       AnalyseAssignment:
       if (assignment != null)
@@ -92,11 +91,10 @@ namespace GPUVerify
           if (TEMP_VARIABLE.IsMatch(discovered.Name) && discovered.Name != variable.Name)
             DiscoverVariableAssignments(discovered);
           else if (GPU_VARIABLE.IsMatch(discovered.Name))
-            GPUVariables.Add(discovered); 
+            GPUVariables.Add(discovered);
         }
       }
-    }  
+    }
   }
- 
-}
 
+}

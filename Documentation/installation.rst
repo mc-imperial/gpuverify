@@ -134,7 +134,7 @@ Replace as appropriate or setup an environment variable.::
 
      INFO:testsuite/baseline.pickle = new.pickle
 
-   This means that your install passes the regression suite. 
+   This means that your install passes the regression suite.
 
 Windows
 ^^^^^^^
@@ -176,5 +176,5 @@ drives.
 
       INFO:testsuite/baseline.pickle = new.pickle
 
-   This means that your install passes the regression suite. 
+   This means that your install passes the regression suite.
 

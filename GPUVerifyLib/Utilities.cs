@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -15,7 +14,6 @@ using System.Linq;
 using System.Reflection;
 using System.IO;
 using Microsoft.Boogie;
-using System.Diagnostics;
 
 using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
 
@@ -247,7 +245,7 @@ namespace GPUVerify
 
         const string DUMP_FILE = "__gvdump.txt";
 
-        #region Give generic internal error messsage
+        #region Give generic internal error message
         Console.Error.WriteLine("\nGPUVerify: an internal error has occurred, details written to " + DUMP_FILE + ".");
         Console.Error.WriteLine();
         Console.Error.WriteLine("Please consult the troubleshooting guide in the GPUVerify documentation");
@@ -383,7 +381,7 @@ namespace GPUVerify
     public static Program GetFreshProgram(IList<string> fileNames, bool disableChecks, bool inline)
     {
       KernelAnalyser.PipelineOutcome oc;
-      Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
+      Program program = IO.ParseBoogieProgram(fileNames, false);
       if (program == null) Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
       oc = KernelAnalyser.ResolveAndTypecheck(program, fileNames[fileNames.Count - 1]);
       if (oc != KernelAnalyser.PipelineOutcome.ResolvedAndTypeChecked)

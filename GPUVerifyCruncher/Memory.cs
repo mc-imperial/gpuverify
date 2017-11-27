@@ -8,31 +8,28 @@
 //===----------------------------------------------------------------------===//
 
 using System;
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Linq;
+using System.Text;
 using Microsoft.Boogie;
 
 namespace GPUVerify
 {
     class UnitialisedException : Exception
     {
-        public UnitialisedException(string message): 
+        public UnitialisedException(string message) :
           base(message)
-        { 
+        {
         }
     }
-    
-    enum MemorySpace {GLOBAL, GROUP_SHARED};
+
+    enum MemorySpace { GLOBAL, GROUP_SHARED }
 
     class Memory
     {
         private static Random Random = new Random();
         private Dictionary<string, BitVector> scalars = new Dictionary<string, BitVector>();
-        private Dictionary<string, Dictionary <SubscriptExpr, BitVector>> arrays = new Dictionary<string, Dictionary <SubscriptExpr, BitVector>>();
+        private Dictionary<string, Dictionary<SubscriptExpr, BitVector>> arrays = new Dictionary<string, Dictionary<SubscriptExpr, BitVector>>();
         private Dictionary<string, HashSet<BitVector>> raceArrayOffsets = new Dictionary<string, HashSet<BitVector>>();
         private Dictionary<string, MemorySpace> arrayLocations = new Dictionary<string, MemorySpace>();
 
@@ -56,24 +53,24 @@ namespace GPUVerify
             return raceArrayOffsets.ContainsKey(name);
         }
 
-        public void AddRaceArrayOffsetVariables (string name)
+        public void AddRaceArrayOffsetVariables(string name)
         {
             raceArrayOffsets["_WRITE_OFFSET_" + name] = new HashSet<BitVector>();
             raceArrayOffsets["_READ_OFFSET_" + name] = new HashSet<BitVector>();
             raceArrayOffsets["_ATOMIC_OFFSET_" + name] = new HashSet<BitVector>();
         }
-        
-        public void SetMemorySpace (string name, MemorySpace space)
+
+        public void SetMemorySpace(string name, MemorySpace space)
         {
             arrayLocations[name] = space;
         }
-        
-        public bool IsInGlobalMemory (string name)
+
+        public bool IsInGlobalMemory(string name)
         {
             return arrayLocations.ContainsKey(name) && arrayLocations[name] == MemorySpace.GLOBAL;
         }
-        
-        public bool IsInGroupSharedMemory (string name)
+
+        public bool IsInGroupSharedMemory(string name)
         {
             return arrayLocations.ContainsKey(name) && arrayLocations[name] == MemorySpace.GROUP_SHARED;
         }
@@ -112,7 +109,7 @@ namespace GPUVerify
         {
             if (arrays.ContainsKey(name))
             {
-                Dictionary <SubscriptExpr, BitVector> arrayLocations = arrays[name];
+                Dictionary<SubscriptExpr, BitVector> arrayLocations = arrays[name];
                 foreach (KeyValuePair<SubscriptExpr, BitVector> item in arrayLocations)
                 {
                     if (SubscriptExpr.Matches(item.Key, subscript))
@@ -136,23 +133,22 @@ namespace GPUVerify
         {
             if (scalars.ContainsKey(name))
                 return scalars[name];
-            throw new UnitialisedException(String.Format("Location '{0}' has not been initialised", name));
+            throw new UnitialisedException(string.Format("Location '{0}' has not been initialised", name));
         }
 
         public BitVector GetValue(string name, SubscriptExpr subscript)
         {
-            Print.ConditionalExitMessage(arrays.ContainsKey(name), String.Format("Unable to find array '{0}' in memory", name));
-            Dictionary <SubscriptExpr, BitVector> arrayLocations = arrays[name];
+            Print.ConditionalExitMessage(arrays.ContainsKey(name), string.Format("Unable to find array '{0}' in memory", name));
+            Dictionary<SubscriptExpr, BitVector> arrayLocations = arrays[name];
             foreach (KeyValuePair<SubscriptExpr, BitVector> item in arrayLocations)
             {
                 if (SubscriptExpr.Matches(item.Key, subscript))
                     return arrays[name][item.Key];
             }
-            Print.WarningMessage(String.Format("Location '{0}' in array '{1}' has not been initialised", subscript.ToString(), name));
+            Print.WarningMessage(string.Format("Location '{0}' in array '{1}' has not been initialised", subscript.ToString(), name));
+
             // Assign a random value
-            int lowestVal = (int)-Math.Pow(2, 32 - 1);
-            int highestVal = (int)Math.Pow(2, 32 - 1) - 1;
-            BitVector val = new BitVector(Random.Next(lowestVal, highestVal));
+            BitVector val = new BitVector(Random.Next(int.MinValue, int.MaxValue));
             arrays[name][subscript] = val;
             return val;
         }
@@ -171,7 +167,7 @@ namespace GPUVerify
             int maxLength = 0;
             foreach (string name in scalars.Keys.ToList())
                 maxLength = Math.Max(maxLength, name.Length);
-			
+
             Console.WriteLine("===== Scalar memory contents =====");
             foreach (KeyValuePair<string, BitVector> item in scalars)
                 Console.WriteLine(item.Key
@@ -179,9 +175,9 @@ namespace GPUVerify
                 + " = "
                 + item.Value.ToString());
             Console.WriteLine("==================================");
-			
+
             Console.WriteLine("===== Array memory contents ======");
-            foreach (KeyValuePair<string, Dictionary <SubscriptExpr, BitVector>> item in arrays)
+            foreach (KeyValuePair<string, Dictionary<SubscriptExpr, BitVector>> item in arrays)
             {
                 foreach (KeyValuePair<SubscriptExpr, BitVector> item2 in item.Value)
                     Console.WriteLine(item.Key +
@@ -191,7 +187,7 @@ namespace GPUVerify
                     item2.Value.ToString());
             }
             Console.WriteLine("==================================");
-			
+
             maxLength = 0;
             foreach (string name in raceArrayOffsets.Keys.ToList())
                 maxLength = Math.Max(maxLength, name.Length);
@@ -217,6 +213,10 @@ namespace GPUVerify
     {
         public List<BitVector> indices = new List<BitVector>();
 
+        public SubscriptExpr()
+        {
+        }
+
         public static bool Matches(SubscriptExpr expr1, SubscriptExpr expr2)
         {
             if (expr1.indices.Count != expr2.indices.Count)
@@ -239,10 +239,6 @@ namespace GPUVerify
             return null;
         }
 
-        public SubscriptExpr()
-        {
-        }
-
         public override string ToString()
         {
             StringBuilder builder = new StringBuilder();
@@ -257,4 +253,3 @@ namespace GPUVerify
         }
     }
 }
-

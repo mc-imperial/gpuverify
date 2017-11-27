@@ -7,15 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.IO;
-using System.Diagnostics;
 using Microsoft.Boogie;
-using System.Diagnostics.Contracts;
 
 namespace GPUVerify
 {
@@ -69,8 +64,8 @@ namespace GPUVerify
                 Environment.Exit(1);
             }
 
-            Microsoft.Boogie.CommandLineOptions.Clo.DoModSetAnalysis = true;
-            Microsoft.Boogie.CommandLineOptions.Clo.PruneInfeasibleEdges = GPUVerifyVCGenCommandLineOptions.PruneInfeasibleEdges;
+            CommandLineOptions.Clo.DoModSetAnalysis = true;
+            CommandLineOptions.Clo.PruneInfeasibleEdges = GPUVerifyVCGenCommandLineOptions.PruneInfeasibleEdges;
 
             rc = new ResolutionContext(null);
             program.Resolve(rc);
@@ -122,7 +117,7 @@ namespace GPUVerify
 
         public static Program ParseBoogieProgram(List<string> fileNames, bool suppressTraceOutput)
         {
-            Microsoft.Boogie.CommandLineOptions.Install(new Microsoft.Boogie.CommandLineOptions());
+            CommandLineOptions.Install(new Microsoft.Boogie.CommandLineOptions());
 
             Program program = null;
             bool okay = true;

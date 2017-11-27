@@ -1,4 +1,4 @@
-﻿//===-----------------------------------------------------------------------==//
+//===-----------------------------------------------------------------------==//
 //
 //                GPUVerify - a Verifier for GPU Kernels
 //
@@ -7,12 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-
-
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
 
@@ -25,7 +21,7 @@ namespace GPUVerify
 
     protected override void AddLogAccessProcedure(Variable v, AccessType Access) {
 
-      // This array should be included in the set of global or group shared arrays that 
+      // This array should be included in the set of global or group shared arrays that
       // are *not* disabled
       Debug.Assert(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
 

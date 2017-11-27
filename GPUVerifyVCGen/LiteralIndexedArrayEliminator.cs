@@ -1,7 +1,14 @@
-﻿using System;
+//===-----------------------------------------------------------------------==//
+//
+//                GPUVerify - a Verifier for GPU Kernels
+//
+// This file is distributed under the Microsoft Public License.  See
+// LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
 
@@ -22,7 +29,6 @@ namespace GPUVerify
       var Arrays = CollectRelevantArrays(Program);
       RemoveArraysFromProgram(Program, Arrays);
       ReplaceArraysUsesWithVariables(Program, Arrays);
-
     }
 
     private void ReplaceArraysUsesWithVariables(Program Program, Dictionary<string, HashSet<string>> Arrays)
@@ -177,10 +183,10 @@ namespace GPUVerify
         lhs.tok, new IdentifierExpr(Token.NoToken,
           Eliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString())));
     }
-    
+
     public override Cmd VisitAssignCmd(AssignCmd node)
     {
-      return new AssignCmd(node.tok, 
+      return new AssignCmd(node.tok,
         node.Lhss.Select(Item => TransformLhs(Item)).ToList(),
         node.Rhss.Select(Item => VisitExpr(Item)).ToList());
     }

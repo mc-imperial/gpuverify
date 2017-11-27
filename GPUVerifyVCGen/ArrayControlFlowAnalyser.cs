@@ -1,4 +1,4 @@
-﻿//===-----------------------------------------------------------------------==//
+//===-----------------------------------------------------------------------==//
 //
 //                GPUVerify - a Verifier for GPU Kernels
 //
@@ -7,11 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
 
@@ -188,7 +186,7 @@ namespace GPUVerify
                                 {
                                     continue;
                                 }
-                                foreach (String s in mayBeDerivedFrom[impl.Name][v.Name])
+                                foreach (string s in mayBeDerivedFrom[impl.Name][v.Name])
                                 {
                                     if (mayBeDerivedFrom[impl.Name].ContainsKey(lhs.AssignedVariable.Name) && !mayBeDerivedFrom[impl.Name][lhs.AssignedVariable.Name].Contains(s))
                                     {
@@ -222,7 +220,7 @@ namespace GPUVerify
                               }
 
 
-                              foreach (String s in mayBeDerivedFrom[impl.Name][v.Name]) {
+                              foreach (string s in mayBeDerivedFrom[impl.Name][v.Name]) {
                                 if (!mayBeDerivedFrom[callCmd.callee][CalleeImplementation.InParams[i].Name].Contains(s)) {
                                   SetMayBeDerivedFrom(callCmd.callee, CalleeImplementation.InParams[i].Name, s);
                                 }
@@ -232,7 +230,7 @@ namespace GPUVerify
                           }
 
                           for (int i = 0; i < CalleeImplementation.OutParams.Count(); i++) {
-                            foreach (String s in mayBeDerivedFrom[callCmd.callee][CalleeImplementation.OutParams[i].Name]) {
+                            foreach (string s in mayBeDerivedFrom[callCmd.callee][CalleeImplementation.OutParams[i].Name]) {
                               if (!mayBeDerivedFrom[impl.Name][callCmd.Outs[i].Name].Contains(s)) {
                                 SetMayBeDerivedFrom(impl.Name, callCmd.Outs[i].Name, s);
                               }

@@ -7,14 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Diagnostics;
 using Microsoft.Boogie;
-using Microsoft.Basetypes;
 
 namespace GPUVerify
 {
@@ -39,7 +33,7 @@ namespace GPUVerify
         {
             Debug.Assert(NoWrittenVariable());
 
-            if (!State.ContainsGlobalOrGroupSharedArray(node.DeepAssignedVariable, true) 
+            if (!State.ContainsGlobalOrGroupSharedArray(node.DeepAssignedVariable, true)
                   && !State.ContainsPrivateArray(node.DeepAssignedVariable))
             {
                 return node;

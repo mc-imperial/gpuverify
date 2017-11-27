@@ -7,14 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using Microsoft.Boogie;
 
-using System.Diagnostics;
 
 namespace GPUVerify
 {
@@ -108,7 +105,6 @@ namespace GPUVerify
             return base.VisitVariable(node);
         }
 
-
         public override Expr VisitNAryExpr(NAryExpr node)
         {
           if (node.Fun is MapSelect) {
@@ -124,8 +120,8 @@ namespace GPUVerify
             var v = (node.Args[0] as IdentifierExpr).Decl;
             if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
               return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-                new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), 
-                  new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) })), 
+                new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
+                  new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) })),
                   VisitExpr(node.Args[1]) }));
             }
           }

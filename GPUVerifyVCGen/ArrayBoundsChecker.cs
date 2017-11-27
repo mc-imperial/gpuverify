@@ -1,7 +1,15 @@
+//===-----------------------------------------------------------------------==//
+//
+//                GPUVerify - a Verifier for GPU Kernels
+//
+// This file is distributed under the Microsoft Public License.  See
+// LICENSE.TXT for details.
+//
+//===----------------------------------------------------------------------===//
+
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Diagnostics;
 using Microsoft.Boogie;
 
 namespace GPUVerify
@@ -83,12 +91,12 @@ namespace GPUVerify
     {
       List<string> arrayDimensionSizes = new List<string>(arraySize.Split(','));
       int totalArraySize = 1;
-      foreach (string size in arrayDimensionSizes) 
+      foreach (string size in arrayDimensionSizes)
         totalArraySize *= Convert.ToInt32(size);
       return totalArraySize;
     }
 
-    private List<AccessRecord> GetArrayAccesses(AssignCmd assign) 
+    private List<AccessRecord> GetArrayAccesses(AssignCmd assign)
     {
       List<AccessRecord> accesses = new List<AccessRecord>();
       ReadCollector rc = new ReadCollector(this.verifier.KernelArrayInfo);
@@ -111,20 +119,20 @@ namespace GPUVerify
       return accesses;
     }
 
-    private List<Cmd> GenArrayBoundChecks(bool onlyLower, AccessRecord ar, int arrDim) 
+    private List<Cmd> GenArrayBoundChecks(bool onlyLower, AccessRecord ar, int arrDim)
     {
       List<Cmd> boundChecks = new List<Cmd>();
 
       var ArrayOffset = verifier.FindOrCreateArrayOffsetVariable(ar.v.Name);
 
-      boundChecks.Add(new AssignCmd(Token.NoToken, 
+      boundChecks.Add(new AssignCmd(Token.NoToken,
         new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, Expr.Ident(ArrayOffset)) },
         new List<Expr> { ar.Index }));
 
-      boundChecks.Add(new AssumeCmd(Token.NoToken, Expr.True, 
-        new QKeyValue(Token.NoToken, "do_not_predicate", new List<object> { }, 
+      boundChecks.Add(new AssumeCmd(Token.NoToken, Expr.True,
+        new QKeyValue(Token.NoToken, "do_not_predicate", new List<object> { },
         new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + ArraySourceID },
-        new QKeyValue(Token.NoToken, "captureState", new List<object> { "bounds_check_state_" + ArraySourceID }, 
+        new QKeyValue(Token.NoToken, "captureState", new List<object> { "bounds_check_state_" + ArraySourceID },
         null)))));
       boundChecks.Add(GenBoundCheck(BOUND_TYPE.LOWER, ar, arrDim, ArrayOffset));
 

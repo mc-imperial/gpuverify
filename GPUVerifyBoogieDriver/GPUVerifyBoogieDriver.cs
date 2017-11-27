@@ -1,4 +1,4 @@
-﻿//===-----------------------------------------------------------------------==//
+//===-----------------------------------------------------------------------==//
 //
 //                GPUVerify - a Verifier for GPU Kernels
 //
@@ -6,7 +6,6 @@
 // LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-
 
 using GPUVerify;
 
@@ -140,7 +139,7 @@ namespace Microsoft.Boogie
             outcome = vcgen.VerifyImplementation(impl, out errors);
           }
           catch (VCGenException e) {
-            GVUtil.IO.ReportBplError(impl, String.Format("Error BP5010: {0}  Encountered in implementation {1}.", e.Message, impl.Name), true, true);
+            GVUtil.IO.ReportBplError(impl, string.Format("Error BP5010: {0}  Encountered in implementation {1}.", e.Message, impl.Name), true, true);
             errors = null;
             outcome = VCGen.Outcome.Inconclusive;
           }

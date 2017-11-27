@@ -7,12 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Diagnostics;
 using Microsoft.Boogie;
 
 namespace GPUVerify {
@@ -35,7 +29,7 @@ namespace GPUVerify {
       base("GPUVerify", "GPUVerify kernel analyser") {
     }
 
-    protected override bool ParseOption(string name, CommandLineOptionEngine.CommandLineParseState ps) {
+    protected override bool ParseOption(string name, CommandLineParseState ps) {
 
       if (name == "sourceLanguage") {
         if (ps.ConfirmArgumentCount(1)) {
