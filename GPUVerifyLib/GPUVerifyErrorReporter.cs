@@ -56,10 +56,21 @@ namespace GPUVerify {
     private Implementation impl;
     internal const string _SIZE_T_BITS_TYPE = "_SIZE_T_TYPE";
     private readonly int size_t_bits;
+    private readonly Dictionary<string, string> globalArraySourceNames;
 
     internal GPUVerifyErrorReporter(Program program, string implName) {
         impl = program.Implementations.Where(Item => Item.Name.Equals(implName)).ToList()[0];
         size_t_bits = GetSizeTBits(program);
+
+        globalArraySourceNames = new Dictionary<string,string>();
+        foreach(var g in program.TopLevelDeclarations.OfType<GlobalVariable>()) {
+            string sourceName = QKeyValue.FindStringAttribute(g.Attributes, "source_name");
+            if (sourceName != null) {
+                globalArraySourceNames[g.Name] = sourceName;
+            } else {
+                globalArraySourceNames[g.Name] = g.Name;
+            }
+        }
     }
 
     private int GetSizeTBits(Program program)
@@ -225,7 +236,7 @@ namespace GPUVerify {
             if(ExtractVariableValueFromCapturedState(v.Name, CapturedState, Model) == "true") {
               if(GetStateFromModel(CapturedState, Model).TryGet(AccessOffsetVar.Name) is Model.Number) {
                 Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " "
-                  + ArrayOffsetString(Model, CapturedState, v, AccessOffsetVar, ArrayName.TrimStart(new char[] { '$' }))
+                  + ArrayOffsetString(Model, CapturedState, v, AccessOffsetVar, ArrayName)
                   + " (" + ThreadDetails(Model, 1, false) + ")");
               } else {
                 Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " " + ArrayName.TrimStart(new char[] { '$' })
@@ -256,7 +267,7 @@ namespace GPUVerify {
       foreach(var CurrentAccessType in AccessType.Types) {
         var Prefix = "_" + CurrentAccessType + "_HAS_OCCURRED_";
         if(v.Name.StartsWith(Prefix)) {
-          ArrayName = v.Name.Substring(Prefix.Count());
+          ArrayName = globalArraySourceNames[v.Name.Substring(Prefix.Count())];
           AccessType = CurrentAccessType;
           return;
         }
@@ -267,7 +278,10 @@ namespace GPUVerify {
     }
 
     private bool IsOriginalProgramVariable(string Name) {
-      return Name.Count() > 0 && Name.StartsWith("$");
+      // We ignore the following variables:
+      // * Variables not starting with "$", these are internal variables.
+      // * Variables prefixed with "$arrayId", these are internal pointer names.
+      return Name.Count() > 0 && Name.StartsWith("$") && !Name.StartsWith("$arrayId");
     }
 
     private Block FindNodeContainingCaptureState(Graph<Block> CFG, string CaptureState) {
@@ -333,9 +347,12 @@ namespace GPUVerify {
       Console.Error.WriteLine();
     }
 
-    private static string CleanOriginalProgramVariable(string Name, out int Id) {
-      return GVUtil.StripThreadIdentifier(Name, out Id).TrimStart(new char[] { '$' })
-        .Split(new char[] { '.' })[0];
+    private string CleanOriginalProgramVariable(string Name, out int Id) {
+      string StrippedName = GVUtil.StripThreadIdentifier(Name, out Id);
+      if (globalArraySourceNames.ContainsKey(StrippedName))
+        return globalArraySourceNames[StrippedName];
+      else
+        return StrippedName.TrimStart(new char[] { '$' }).Split(new char[] { '.' })[0];
     }
 
     private static string ExtractValueFromModelElement(Model.Element Element) {
