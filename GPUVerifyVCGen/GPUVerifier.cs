@@ -2647,8 +2647,7 @@ namespace GPUVerify
                 x => VariablesToEliminate.Contains(x) ? (Expr)Expr.False : (Expr)Expr.Ident(x), c)).ToList();
             }
 
-            var ExprSimplify = new ExpressionSimplifier();
-            ExprSimplify.Visit(Program);
+            ExpressionSimplifier.Simplify(Program);
           }
 
         }
