@@ -8,5 +8,5 @@ wget -c \
 if [ ! -d "${Z3}" ]; then
   unzip ${Z3}.zip
 fi
-cd ${TRAVIS_BUILD_DIR}
+cd ${BUILD_ROOT}
 ln -s ${DOWNLOADS_DIR}/${Z3}/bin/z3 z3.exe

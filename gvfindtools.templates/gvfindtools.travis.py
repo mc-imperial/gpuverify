@@ -17,7 +17,7 @@ import sys
 # rootDir = r"c:\projects\gpuverify"
 # bugleSrcDir = rootDir + r"\bugle\src"
 
-rootDir = os.environ["TRAVIS_BUILD_DIR"]
+rootDir = os.environ["BUILD_ROOT"]
 
 # The path to the Bugle Source directory.
 # The include-blang/ folder should be there
