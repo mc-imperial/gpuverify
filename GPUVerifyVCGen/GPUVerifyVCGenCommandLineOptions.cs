@@ -84,7 +84,7 @@ namespace GPUVerify
           afterColon = afterColon.Trim();
           if (afterColon.StartsWith("[") && afterColon.EndsWith("]"))
           {
-            afterColon = afterColon.Substring(1,afterColon.Length-2);
+            afterColon = afterColon.Substring(1, afterColon.Length-2);
           }
           else if (!afterColon.StartsWith("[") && !afterColon.EndsWith("]")) // Don't have to do any processing
           {
@@ -297,9 +297,9 @@ namespace GPUVerify
             Console.WriteLine("Error: one of 'ORIGINAL', 'SINGLE' or 'MULTIPLE' expected after " + beforeColon + " argument");
             Environment.Exit(1);
           }
-          if(afterColon == "ORIGINAL") {
+          if (afterColon == "ORIGINAL") {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.ORIGINAL;
-          } else if(afterColon == "SINGLE") {
+          } else if (afterColon == "SINGLE") {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
           } else {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
@@ -327,10 +327,10 @@ namespace GPUVerify
             Console.WriteLine("Error: a comma-separated list of array names must be provided after " + beforeColon + " argument");
             Environment.Exit(1);
           }
-          if(ArraysToCheck == null) {
+          if (ArraysToCheck == null) {
             ArraysToCheck = new HashSet<string>();
           }
-          foreach(var arrayName in afterColon.Split(',')) {
+          foreach (var arrayName in afterColon.Split(',')) {
             ArraysToCheck.Add(arrayName);
           }
           break;

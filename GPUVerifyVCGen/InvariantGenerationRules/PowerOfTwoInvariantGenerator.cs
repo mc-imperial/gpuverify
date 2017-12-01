@@ -34,10 +34,10 @@ namespace GPUVerify.InvariantGenerationRules
                     if (verifier.ContainsNamedVariable(modset, basicName))
                     {
                         var bitwiseInv = Expr.Or(
-                            Expr.Eq(new IdentifierExpr(v.tok,v), verifier.Zero(32)),
+                            Expr.Eq(new IdentifierExpr(v.tok, v), verifier.Zero(32)),
                             Expr.Eq(verifier.IntRep.MakeAnd(
-                                new IdentifierExpr(v.tok,v),
-                                verifier.IntRep.MakeSub(new IdentifierExpr(v.tok,v), verifier.IntRep.GetLiteral(1,32))
+                                new IdentifierExpr(v.tok, v),
+                                verifier.IntRep.MakeSub(new IdentifierExpr(v.tok, v), verifier.IntRep.GetLiteral(1, 32))
                                 ), verifier.Zero(32)));
                         verifier.AddCandidateInvariant(region, bitwiseInv, "pow2");
 

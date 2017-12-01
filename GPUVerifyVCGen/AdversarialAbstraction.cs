@@ -72,7 +72,7 @@ namespace GPUVerify {
       foreach (IdentifierExpr e in proc.Modifies) {
         var visitor = new AccessesAdversarialArrayVisitor(verifier);
         visitor.VisitIdentifierExpr(e);
-        if(!visitor.found) {
+        if (!visitor.found) {
           NewModifies.Add(e);
         }
       }
@@ -110,7 +110,7 @@ namespace GPUVerify {
             continue;
           }
 
-          for(int i = 0; i < call.Ins.Count; i++) {
+          for (int i = 0; i < call.Ins.Count; i++) {
             ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
             rc.Visit(call.Ins[i]);
             bool foundAdversarial = false;

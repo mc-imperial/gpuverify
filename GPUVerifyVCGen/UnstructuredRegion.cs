@@ -54,7 +54,7 @@ class UnstructuredRegion : IRegion {
       }
       // Find the immediate post-dominator of the successors
       Block block = null;
-      foreach(var succ in blockGraph.Successors(LoopConditionDominator).Where(Item => loopNodes[header].Contains(Item))) {
+      foreach (var succ in blockGraph.Successors(LoopConditionDominator).Where(Item => loopNodes[header].Contains(Item))) {
         if (block == null)
           block = succ;
         else
@@ -103,7 +103,7 @@ class UnstructuredRegion : IRegion {
       this.loopNodes[h] = loopNodes;
       foreach (var n in loopNodes)
         if (n != h) {
-          if(!innermostHeader.ContainsKey(n)) {
+          if (!innermostHeader.ContainsKey(n)) {
             innermostHeader[n] = h;
           }
         }

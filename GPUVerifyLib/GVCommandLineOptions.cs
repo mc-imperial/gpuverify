@@ -9,12 +9,15 @@
 
 using Microsoft.Boogie;
 
-namespace GPUVerify {
+namespace GPUVerify
+{
+  public enum SourceLanguage
+  {
+    OpenCL, CUDA
+  }
 
-  public enum SourceLanguage { OpenCL, CUDA }
-
-  public class GVCommandLineOptions : CommandLineOptions {
-
+  public class GVCommandLineOptions : CommandLineOptions
+  {
     public string ArrayToCheck = null;
     public bool OnlyIntraGroupRaceChecking = false;
     public bool DebugGPUVerify = false;
@@ -33,9 +36,9 @@ namespace GPUVerify {
 
       if (name == "sourceLanguage") {
         if (ps.ConfirmArgumentCount(1)) {
-          if(ps.args[ps.i] == "cl") {
+          if (ps.args[ps.i] == "cl") {
             SourceLanguage = SourceLanguage.OpenCL;
-          } else if(ps.args[ps.i] == "cu") {
+          } else if (ps.args[ps.i] == "cu") {
             SourceLanguage = SourceLanguage.CUDA;
           }
         }
@@ -64,11 +67,11 @@ namespace GPUVerify {
 
       if (name == "raceChecking") {
         if (ps.ConfirmArgumentCount(1)) {
-          if(ps.args[ps.i] == "ORIGINAL") {
+          if (ps.args[ps.i] == "ORIGINAL") {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.ORIGINAL;
-          } else if(ps.args[ps.i] == "SINGLE") {
+          } else if (ps.args[ps.i] == "SINGLE") {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
-          } else if(ps.args[ps.i] == "MULTIPLE") {
+          } else if (ps.args[ps.i] == "MULTIPLE") {
             RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
           }
         }

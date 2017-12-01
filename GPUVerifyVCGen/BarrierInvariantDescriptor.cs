@@ -38,7 +38,7 @@ namespace GPUVerify {
       if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks) {
         var visitor = new SubExprVisitor();
         visitor.VisitExpr(this.BarrierInvariant);
-        foreach (Tuple<Expr,IdentifierExpr,Expr> pair in visitor.SubExprs) {
+        foreach (Tuple<Expr, IdentifierExpr, Expr> pair in visitor.SubExprs) {
           var cond = pair.Item1;
           var v = pair.Item2;
           var index = pair.Item3;
@@ -84,11 +84,11 @@ namespace GPUVerify {
     }
 
     class SubExprVisitor : StandardVisitor {
-      internal HashSet<Tuple<Expr,IdentifierExpr,Expr>> SubExprs;
+      internal HashSet<Tuple<Expr, IdentifierExpr, Expr>> SubExprs;
       internal List<Expr> Path;
 
       internal SubExprVisitor() {
-        this.SubExprs = new HashSet<Tuple<Expr,IdentifierExpr,Expr>>();
+        this.SubExprs = new HashSet<Tuple<Expr, IdentifierExpr, Expr>>();
         this.Path = new List<Expr>();
       }
 
@@ -101,7 +101,7 @@ namespace GPUVerify {
       }
 
       internal Expr BuildPathCondition() {
-        return Path.Aggregate((Expr.True as Expr), (e1,e2) => Expr.And(e1, e2));
+        return Path.Aggregate((Expr.True as Expr), (e1, e2) => Expr.And(e1, e2));
       }
 
       public override Expr VisitNAryExpr(NAryExpr node) {
@@ -113,7 +113,7 @@ namespace GPUVerify {
               QKeyValue.FindBoolAttribute(v.Decl.Attributes, "global")) {
             Expr cond = BuildPathCondition();
             Expr index = node.Args[1];
-            SubExprs.Add(new Tuple<Expr,IdentifierExpr,Expr>(cond,v,index));
+            SubExprs.Add(new Tuple<Expr, IdentifierExpr, Expr>(cond, v, index));
           }
         } else if (node.Fun is BinaryOperator &&
                    (node.Fun as BinaryOperator).Op == BinaryOperator.Opcode.Imp) {

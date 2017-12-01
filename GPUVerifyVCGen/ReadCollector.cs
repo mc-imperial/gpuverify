@@ -39,7 +39,7 @@ namespace GPUVerify
                     MultiDimensionalMapError();
                 }
 
-                if(!(node.Args[0] is IdentifierExpr)) {
+                if (!(node.Args[0] is IdentifierExpr)) {
                   // This should only happen if the map is one of the special _USED maps for atomics
                   var NodeArgs0 = node.Args[0] as NAryExpr;
                   Debug.Assert(NodeArgs0 != null);

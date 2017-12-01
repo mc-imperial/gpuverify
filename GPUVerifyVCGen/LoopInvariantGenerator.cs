@@ -60,7 +60,7 @@ namespace GPUVerify
 
   private static void GenerateCandidateForEnablednessWhenAccessingSharedArrays(GPUVerifier verifier, Implementation impl, IRegion region) {
     Block header = region.Header();
-    if(verifier.uniformityAnalyser.IsUniform(impl.Name, header)) {
+    if (verifier.uniformityAnalyser.IsUniform(impl.Name, header)) {
       return;
     }
 
@@ -70,17 +70,17 @@ namespace GPUVerify
     CFG.ComputeLoops();
 
     List<Expr> Guards = new List<Expr>();
-    foreach(var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
-      foreach(var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item))) {
+    foreach (var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
+      foreach (var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item))) {
         var Guard = MaybeExtractGuard(verifier, impl, succ);
-        if(Guard != null) {
+        if (Guard != null) {
           Guards.Add(Guard);
           break;
         }
       }
     }
 
-    if(Guards.Count == 0) {
+    if (Guards.Count == 0) {
       return;
     }
 
@@ -88,17 +88,17 @@ namespace GPUVerify
     IEnumerable<Variable> WrittenVariables;
     GetReadAndWrittenVariables(region, out ReadVariables, out WrittenVariables);
 
-    foreach(var v in ReadVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(Item)
+    foreach (var v in ReadVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(Item)
       && !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(Item))) {
-      foreach(var g in Guards) {
+      foreach (var g in Guards) {
         verifier.AddCandidateInvariant(region,
           Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.READ)),
                     g), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
       }
     }
 
-    foreach(var v in WrittenVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(Item))) {
-      foreach(var g in Guards) {
+    foreach (var v in WrittenVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(Item))) {
+      foreach (var g in Guards) {
         verifier.AddCandidateInvariant(region,
           Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
                     g), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
@@ -126,7 +126,7 @@ namespace GPUVerify
 
   private static void GenerateCandidateForEnabledness(GPUVerifier verifier, Implementation impl, IRegion region) {
     Block header = region.Header();
-    if(verifier.uniformityAnalyser.IsUniform(impl.Name, header)) {
+    if (verifier.uniformityAnalyser.IsUniform(impl.Name, header)) {
       return;
     }
 
@@ -137,17 +137,17 @@ namespace GPUVerify
     var LoopNodes = CFG.BackEdgeNodes(header).Select(Item => CFG.NaturalLoops(header, Item)).SelectMany(Item => Item);
 
     Expr GuardEnclosingLoop = null;
-    foreach(var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
-      foreach(var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item))) {
+    foreach (var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header()))) {
+      foreach (var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item))) {
         var Guard = MaybeExtractGuard(verifier, impl, succ);
-        if(Guard != null) {
+        if (Guard != null) {
           GuardEnclosingLoop = GuardEnclosingLoop == null ? Guard : Expr.And(GuardEnclosingLoop, Guard);
           break;
         }
       }
     }
 
-    if(GuardEnclosingLoop != null) {
+    if (GuardEnclosingLoop != null) {
       verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Ident(verifier.FindOrCreateEnabledVariable()), GuardEnclosingLoop), "conditionsImpliedByEnabledness");
     }
 
@@ -158,7 +158,7 @@ namespace GPUVerify
     while (CFG.Successors(LoopConditionDominator).Count(Item => LoopNodes.Contains(Item)) > 1) {
       // Find the immediate post-dominator of the successors
       Block block = null;
-      foreach(var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item))) {
+      foreach (var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item))) {
         if (block == null)
           block = succ;
         else
@@ -169,16 +169,16 @@ namespace GPUVerify
     }
 
     Expr GuardIncludingLoopCondition = null;
-    foreach(var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item))) {
+    foreach (var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item))) {
       var Guard = MaybeExtractGuard(verifier, impl, succ);
-      if(Guard != null) {
+      if (Guard != null) {
         // There is at most one successor, so it's safe not use GuardIncludingLoopCondition on the rhs
         GuardIncludingLoopCondition = GuardEnclosingLoop == null ? Guard : Expr.And(GuardEnclosingLoop, Guard);
         break;
       }
     }
 
-    if(GuardIncludingLoopCondition != null) {
+    if (GuardIncludingLoopCondition != null) {
       verifier.AddCandidateInvariant(region, Expr.Imp(GuardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", "do_not_predicate");
     }
 
@@ -191,7 +191,7 @@ namespace GPUVerify
       if (a != null && QKeyValue.FindBoolAttribute(a.Attributes, "partition")) {
         if (a.Expr is IdentifierExpr) {
           return verifier.varDefAnalysesRegion[impl].DefOfVariableName(((IdentifierExpr)a.Expr).Name);
-        } else if(a.Expr is NAryExpr) {
+        } else if (a.Expr is NAryExpr) {
           var nary = (NAryExpr)a.Expr;
           if (nary.Fun is UnaryOperator &&
               (nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&

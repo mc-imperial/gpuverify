@@ -33,10 +33,10 @@ namespace GPUVerify
 
     private void ReplaceArraysUsesWithVariables(Program Program, Dictionary<string, HashSet<string>> Arrays)
     {
-      foreach(var b in Program.Blocks()) {
+      foreach (var b in Program.Blocks()) {
         b.Cmds = new EliminatorVisitor(Arrays, this).VisitCmdSeq(b.Cmds);
       }
-      foreach(var p in Program.TopLevelDeclarations.OfType<Procedure>()) {
+      foreach (var p in Program.TopLevelDeclarations.OfType<Procedure>()) {
         p.Requires = new EliminatorVisitor(Arrays, this).VisitRequiresSeq(p.Requires);
         p.Ensures = new EliminatorVisitor(Arrays, this).VisitEnsuresSeq(p.Ensures);
       }
@@ -87,18 +87,18 @@ namespace GPUVerify
     internal readonly Dictionary<string, HashSet<string>> LiteralIndexedArrays;
 
     internal LiteralIndexVisitor(GPUVerifier Verifier) {
-      this.LiteralIndexedArrays = new Dictionary<string,HashSet<string>>();
-      foreach(var v in Verifier.KernelArrayInfo.GetPrivateArrays()) {
+      this.LiteralIndexedArrays = new Dictionary<string, HashSet<string>>();
+      foreach (var v in Verifier.KernelArrayInfo.GetPrivateArrays()) {
         this.LiteralIndexedArrays[v.Name] = new HashSet<string>();
       }
     }
 
     public override Expr VisitNAryExpr(NAryExpr node)
     {
-      if(node.Fun is MapSelect && node.Args.Count() == 2) {
+      if (node.Fun is MapSelect && node.Args.Count() == 2) {
         var map = node.Args[0] as IdentifierExpr;
-        if(map != null) {
-          if(LiteralIndexedArrays.ContainsKey(map.Name)) {
+        if (map != null) {
+          if (LiteralIndexedArrays.ContainsKey(map.Name)) {
             UpdateIndexingInfo(node.Args[1], map.Name);
           }
         }
@@ -108,7 +108,7 @@ namespace GPUVerify
 
     public override Cmd VisitAssignCmd(AssignCmd node)
     {
-      foreach(var lhs in node.Lhss.OfType<MapAssignLhs>()) {
+      foreach (var lhs in node.Lhss.OfType<MapAssignLhs>()) {
         if (!(lhs.Map is SimpleAssignLhs)) {
           continue;
         }
@@ -116,7 +116,7 @@ namespace GPUVerify
           continue;
         }
         var map = (lhs.Map as SimpleAssignLhs).AssignedVariable;
-        if(LiteralIndexedArrays.ContainsKey(map.Name)) {
+        if (LiteralIndexedArrays.ContainsKey(map.Name)) {
           UpdateIndexingInfo(lhs.Indexes[0], map.Name);
         }
       }
@@ -150,10 +150,10 @@ namespace GPUVerify
 
     public override Expr VisitNAryExpr(NAryExpr node)
     {
-      if(node.Fun is MapSelect && node.Args.Count() == 2) {
+      if (node.Fun is MapSelect && node.Args.Count() == 2) {
         var map = node.Args[0] as IdentifierExpr;
-        if(map != null) {
-          if(Arrays.ContainsKey(map.Name)) {
+        if (map != null) {
+          if (Arrays.ContainsKey(map.Name)) {
             Debug.Assert(node.Args[1] is LiteralExpr);
             return new IdentifierExpr(Token.NoToken,
               Eliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
@@ -173,7 +173,7 @@ namespace GPUVerify
 
       var map = (mapLhs.Map as SimpleAssignLhs).AssignedVariable;
 
-      if(!Arrays.ContainsKey(map.Name)) {
+      if (!Arrays.ContainsKey(map.Name)) {
         return (AssignLhs)Visit(lhs);
       }
 

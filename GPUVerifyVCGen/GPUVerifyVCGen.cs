@@ -44,7 +44,7 @@ namespace GPUVerify
 
             parseProcessOutput();
           } catch (Exception e) {
-            if(GPUVerifyVCGenCommandLineOptions.DebugGPUVerify) {
+            if (GPUVerifyVCGenCommandLineOptions.DebugGPUVerify) {
               Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
               Console.Error.WriteLine(e);
               throw e;

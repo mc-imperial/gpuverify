@@ -73,7 +73,7 @@ namespace GPUVerify
 
     internal void ParsePipelineString ()
     {
-      if(PipelineString == null) {
+      if (PipelineString == null) {
         return;
       }
       const char lhsDelimiter = '[';
@@ -133,7 +133,7 @@ namespace GPUVerify
           int errorLimit = ParseIntParameter(parameters,
                                              SMTEngine.GetErrorLimitParameter().Name,
                                              SMTEngine.GetErrorLimitParameter().DefaultValue);
-          Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(),GetSolverValue(parameters),errorLimit));
+          Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(), GetSolverValue(parameters), errorLimit));
         }
         else if (engine.ToUpper().Equals(SSTEP.Name))
         {
@@ -145,7 +145,7 @@ namespace GPUVerify
           int errorLimit = ParseIntParameter(parameters,
                                              SMTEngine.GetErrorLimitParameter().Name,
                                              SMTEngine.GetErrorLimitParameter().DefaultValue);
-          Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(),GetSolverValue(parameters),errorLimit));
+          Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(), GetSolverValue(parameters), errorLimit));
         }
         else if (engine.ToUpper().Equals(LU.Name))
         {

@@ -11,24 +11,25 @@ using Microsoft.Boogie;
 
 namespace GPUVerify
 {
-
-  public enum RaceCheckingMethod {
+  public enum RaceCheckingMethod
+  {
     ORIGINAL, WATCHDOG_SINGLE, WATCHDOG_MULTIPLE
   }
 
   public class RaceInstrumentationUtil
   {
-
     public static RaceCheckingMethod RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
 
     public static string MakeOffsetVariableName(string Name, AccessType Access)
     {
-      if(RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE) {
+      if (RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE) {
         return "_WATCHED_OFFSET";
       }
-      if(RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE) {
+
+      if (RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE) {
         return "_WATCHED_OFFSET_" + Name;
       }
+
       return "_" + Access + "_OFFSET_" + Name;
     }
 
@@ -41,25 +42,28 @@ namespace GPUVerify
     {
       var Ident = new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access),
           Type);
-      if(RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
+      if (RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
         return new GlobalVariable(Token.NoToken, Ident);
       }
+
       return new Constant(Token.NoToken, Ident, false);
     }
 
     public static string MakeValueVariableName(string Name, AccessType Access) {
-      if(RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
+      if (RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
         return "_" + Access + "_VALUE_" + Name;
       }
+
       return "_WATCHED_VALUE_" + Name;
     }
 
     public static Variable MakeValueVariable(string Name, AccessType Access, Microsoft.Boogie.Type Type) {
       var Ident = new TypedIdent(Token.NoToken, MakeValueVariableName(Name, Access),
           Type);
-      if(RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
+      if (RaceCheckingMethod == RaceCheckingMethod.ORIGINAL) {
         return new GlobalVariable(Token.NoToken, Ident);
       }
+
       return new Constant(Token.NoToken, Ident, false);
     }
 
@@ -74,6 +78,5 @@ namespace GPUVerify
           Type);
       return new GlobalVariable(Token.NoToken, Ident);
     }
-
   }
 }

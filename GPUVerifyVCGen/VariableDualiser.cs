@@ -28,7 +28,7 @@ namespace GPUVerify
         private bool SkipDualiseVariable(Variable node) {
           var AEF = new AsymmetricExpressionFinder();
           AEF.Visit(node);
-          if(AEF.foundAsymmetricExpr()) {
+          if (AEF.foundAsymmetricExpr()) {
             return true;
           }
           if (node.Name.Contains("_NOT_ACCESSED_")) return true;
@@ -66,7 +66,7 @@ namespace GPUVerify
 
           if (GPUVerifier.IsGroupIdConstant(node.Decl))
           {
-              if(GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
+              if (GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                 return node;
               }
               return new IdentifierExpr(node.tok, new Constant(node.tok, DualiseTypedIdent(node.Decl)));
@@ -109,7 +109,7 @@ namespace GPUVerify
         {
           if (node.Fun is MapSelect) {
             Debug.Assert((node.Fun as MapSelect).Arity == 1);
-            if(node.Args[0] is NAryExpr) {
+            if (node.Args[0] is NAryExpr) {
               var inner = node.Args[0] as NAryExpr;
               Debug.Assert(inner.Fun is MapSelect);
               Debug.Assert(inner.Args[0] is IdentifierExpr);
@@ -162,7 +162,7 @@ namespace GPUVerify
         public override AssignLhs VisitMapAssignLhs(MapAssignLhs node) {
 
           var v = node.DeepAssignedVariable;
-          if(QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
+          if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
             return new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, node.Map,
               new List<Expr>(new Expr[] { GPUVerifier.GroupSharedIndexingExpr(id) })), 
               node.Indexes.Select(idx => this.VisitExpr(idx)).ToList());

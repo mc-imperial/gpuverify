@@ -40,7 +40,7 @@ namespace GPUVerify
                 {
                     Implementation Impl = D as Implementation;
 
-                    if(!mayBeDerivedFrom.ContainsKey(Impl.Name)) {
+                    if (!mayBeDerivedFrom.ContainsKey(Impl.Name)) {
                       mayBeDerivedFrom.Add(Impl.Name, new Dictionary<string, HashSet<string>>());
                     }
 
@@ -76,7 +76,7 @@ namespace GPUVerify
                     SetNotDerivedFromSharedState(Proc.Name, v.Name);
                   }
 
-                  foreach(Requires r in Proc.Requires) {
+                  foreach (Requires r in Proc.Requires) {
                     ExprMayAffectControlFlow(Proc.Name, r.Condition);
                   }
 
@@ -206,7 +206,7 @@ namespace GPUVerify
                         foreach (Expr param in callCmd.Ins) {
                             ExprMayAffectControlFlow(impl.Name, param);
                         }
-                    } else if(!GPUVerifier.IsBarrier(callCmd.Proc)) {
+                    } else if (!GPUVerifier.IsBarrier(callCmd.Proc)) {
 
                         Implementation CalleeImplementation = verifier.GetImplementation(callCmd.callee);
                         if (CalleeImplementation != null) {

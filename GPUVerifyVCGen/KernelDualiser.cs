@@ -162,7 +162,7 @@ namespace GPUVerify {
             var vd = new VariableDualiser(1, verifier.uniformityAnalyser, procName);
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks) {
               foreach (Expr AccessExpr in BIDescriptor.GetAccessedExprs()) {
-                var Assert = new AssertCmd(Token.NoToken, AccessExpr, MakeThreadSpecificAttributes(SourceLocationInfo,1));
+                var Assert = new AssertCmd(Token.NoToken, AccessExpr, MakeThreadSpecificAttributes(SourceLocationInfo, 1));
                 Assert.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant_access_check",
                   new List<object> { Expr.True }, Assert.Attributes);
                 cs.Add(vd.VisitAssertCmd(Assert));
@@ -178,7 +178,7 @@ namespace GPUVerify {
           if (verifier.uniformityAnalyser.knowsOf(Call.callee) && verifier.uniformityAnalyser.IsUniform(Call.callee, verifier.uniformityAnalyser.GetInParameter(Call.callee, i))) {
             uniformNewIns.Add(Call.Ins[i]);
           }
-          else if(!verifier.OnlyThread2.Contains(Call.callee)) {
+          else if (!verifier.OnlyThread2.Contains(Call.callee)) {
             nonUniformNewIns.Add(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(Call.Ins[i]));
           }
         }
@@ -223,11 +223,11 @@ namespace GPUVerify {
         {
           QKeyValue curr = NewCallCmd.Attributes;
           if (curr.Key.StartsWith("arg"))
-            NewCallCmd.Attributes = new QKeyValue(Token.NoToken, curr.Key, new List<object>(new object[]{Dualise(curr.Params[0] as Expr,1)}), curr.Next);
+            NewCallCmd.Attributes = new QKeyValue(Token.NoToken, curr.Key, new List<object>(new object[]{Dualise(curr.Params[0] as Expr, 1)}), curr.Next);
           for (curr = NewCallCmd.Attributes; curr.Next != null; curr = curr.Next)
             if (curr.Next.Key.StartsWith("arg"))
             {
-              curr.Next = new QKeyValue(Token.NoToken, curr.Next.Key, new List<object>(new object[]{Dualise(curr.Next.Params[0] as Expr,1)}), curr.Next.Next);
+              curr.Next = new QKeyValue(Token.NoToken, curr.Next.Key, new List<object>(new object[]{Dualise(curr.Next.Params[0] as Expr, 1)}), curr.Next.Next);
             }
         }
         else if (NewCallCmd.callee.StartsWith("_CHECK_ATOMIC"))
@@ -238,7 +238,7 @@ namespace GPUVerify {
           for (curr = NewCallCmd.Attributes; curr.Next != null; curr = curr.Next)
             if (curr.Next.Key.StartsWith("arg"))
             {
-              curr.Next = new QKeyValue(Token.NoToken, curr.Next.Key, new List<object>(new object[]{Dualise(curr.Next.Params[0] as Expr,2)}), curr.Next.Next);
+              curr.Next = new QKeyValue(Token.NoToken, curr.Next.Key, new List<object>(new object[]{Dualise(curr.Next.Params[0] as Expr, 2)}), curr.Next.Next);
             }
         }
 
@@ -266,8 +266,8 @@ namespace GPUVerify {
         List<Expr> rhss1 = new List<Expr>();
         List<Expr> rhss2 = new List<Expr>();
  
-        foreach(var pair in assign.Lhss.Zip(assign.Rhss)) {
-          if(pair.Item1 is SimpleAssignLhs &&
+        foreach (var pair in assign.Lhss.Zip(assign.Rhss)) {
+          if (pair.Item1 is SimpleAssignLhs &&
             verifier.uniformityAnalyser.IsUniform(procName, 
             (pair.Item1 as SimpleAssignLhs).AssignedVariable.Name)) {
             lhss1.Add(pair.Item1);
@@ -283,7 +283,7 @@ namespace GPUVerify {
         Debug.Assert(lhss1.Count > 0);
         cs.Add(new AssignCmd(Token.NoToken, lhss1, rhss1));
 
-        if(lhss2.Count > 0) {
+        if (lhss2.Count > 0) {
           cs.Add(new AssignCmd(Token.NoToken, lhss2, rhss2));
         }
 
@@ -486,7 +486,7 @@ namespace GPUVerify {
         // get put into the program's top level declarations and also need to
         // be dualised.
         var decls = verifier.Program.TopLevelDeclarations.ToList();
-        for(int i = 0; i < UpdateDeclarationsAndCountTotal(decls); i++)
+        for (int i = 0; i < UpdateDeclarationsAndCountTotal(decls); i++)
         {
             Declaration d = decls[i];
 
@@ -501,7 +501,7 @@ namespace GPUVerify {
               // Test whether dualisation had any effect by seeing whether the new
               // axioms are syntactically indistinguishable.  If they are, then there
               // is no point adding the second axiom.
-              if(!NewAxiom1.ToString().Equals(NewAxiom2.ToString())) {
+              if (!NewAxiom1.ToString().Equals(NewAxiom2.ToString())) {
                 NewTopLevelDeclarations.Add(NewAxiom2);
               }
               continue;
@@ -542,7 +542,7 @@ namespace GPUVerify {
               }
 
               if (verifier.KernelArrayInfo.GetGroupSharedArrays(true).Contains(v)) {
-                if(!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
+                if (!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
                   Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
                       v.Name, new MapType(Token.NoToken, new List<TypeVariable>(),
                       new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.GetBvType(1) },

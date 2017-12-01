@@ -31,12 +31,12 @@ namespace GPUVerify {
     {
       // Here we add invariants that are guaranteed to be true
       // by construction.
-      foreach(IRegion Region in verifier.Program.Implementations.Select(
+      foreach (IRegion Region in verifier.Program.Implementations.Select(
         Item => verifier.RootRegion(Item).SubRegions()).SelectMany(Item => Item)) {
 
-        foreach(var a in verifier.KernelArrayInfo.GetGroupSharedArrays(false).Where(
+        foreach (var a in verifier.KernelArrayInfo.GetGroupSharedArrays(false).Where(
           Item => !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(false).Contains(Item))) {
-          foreach(var Access in AccessType.Types) {
+          foreach (var Access in AccessType.Types) {
             Region.AddInvariant(new AssertCmd(Token.NoToken,
               Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup()),
               new QKeyValue(Token.NoToken, "tag", new List<object> { "groupSharedArraysDisjointAcrossGroups" }, null)));
@@ -50,14 +50,14 @@ namespace GPUVerify {
     {
       // Here we add pre- and post-conditions that are guaranteed to be true
       // by construction.
-      foreach(Procedure Proc in verifier.Program.TopLevelDeclarations.OfType<Procedure>().
+      foreach (Procedure Proc in verifier.Program.TopLevelDeclarations.OfType<Procedure>().
         Where(Item => !verifier.ProcedureIsInlined(Item) &&
                       !verifier.IsKernelProcedure(Item) &&
                       (!verifier.ProcedureHasNoImplementation(Item) || Item.Modifies.Count() > 0)
         )) {
-        foreach(var a in verifier.KernelArrayInfo.GetGroupSharedArrays(false).Where(
+        foreach (var a in verifier.KernelArrayInfo.GetGroupSharedArrays(false).Where(
           Item => !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(false).Contains(Item))) {
-          foreach(var Access in AccessType.Types) {
+          foreach (var Access in AccessType.Types) {
             Proc.Requires.Add(new Requires(false, Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup())));
             Proc.Ensures.Add(new Ensures(false, Expr.Imp(AccessHasOccurredExpr(a, Access), GPUVerifier.ThreadsInSameGroup())));
           }
@@ -172,7 +172,7 @@ namespace GPUVerify {
         offset = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateOffsetVariable(v.Name, Access));
       }
 
-      foreach(Block b in region.PreHeaders()) {
+      foreach (Block b in region.PreHeaders()) {
         b.Cmds.Add(Cmd.SimpleAssign(Token.NoToken, ghostAccess, access));
         if (ghostOffset != null)
           b.Cmds.Add(Cmd.SimpleAssign(Token.NoToken, ghostOffset, offset));
@@ -810,13 +810,13 @@ namespace GPUVerify {
 
       inParams.Add(PredicateParameter);
       inParams.Add(OffsetParameter);
-      if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         inParams.Add(ValueParameter);
       }
-      if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access == AccessType.WRITE) {
         inParams.Add(ValueOldParameter);
       }
-      if((Access == AccessType.READ || Access == AccessType.WRITE) &&
+      if ((Access == AccessType.READ || Access == AccessType.WRITE) &&
         verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(v.Name)) {
         inParams.Add(AsyncHandleParameter);
       }
@@ -1139,7 +1139,7 @@ namespace GPUVerify {
       IdentifierExpr AtomicAccessOccurred1 = new IdentifierExpr(v.tok, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.ATOMIC));
 
       foreach (var Proc in verifier.KernelProcedures.Keys) {
-        Proc.Requires.Add(new Requires(false,Expr.And(Expr.And(Expr.Not(ReadAccessOccurred1), Expr.Not(WriteAccessOccurred1)),Expr.Not(AtomicAccessOccurred1))));
+        Proc.Requires.Add(new Requires(false, Expr.And(Expr.And(Expr.Not(ReadAccessOccurred1), Expr.Not(WriteAccessOccurred1)), Expr.Not(AtomicAccessOccurred1))));
       }
     }
 
@@ -1305,9 +1305,9 @@ namespace GPUVerify {
 
         if (c is CallCmd) {
           CallCmd call = c as CallCmd;
-          if (QKeyValue.FindBoolAttribute(call.Attributes,"atomic"))
+          if (QKeyValue.FindBoolAttribute(call.Attributes, "atomic"))
           {
-            AddLogAndCheckCalls(result,new AccessRecord((call.Ins[0] as IdentifierExpr).Decl,call.Ins[1]),AccessType.ATOMIC,null);
+            AddLogAndCheckCalls(result, new AccessRecord((call.Ins[0] as IdentifierExpr).Decl, call.Ins[1]), AccessType.ATOMIC, null);
             Debug.Assert(call.Outs.Count() == 2); // The receiving variable and the array should be assigned to
             result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { call.Outs[0] })); // We havoc the receiving variable.  We do not need to havoc the array, because it *must* be the case that this array is modelled adversarially
             continue;
@@ -1334,8 +1334,8 @@ namespace GPUVerify {
             // Assert that the handle passed is uniform
             result.Add(new AssertCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(Handle), SourceLocAttributes));
 
-            foreach(var Access in verifier.ArraysAccessedByAsyncWorkGroupCopy.Keys) {
-              foreach(var Array in verifier.ArraysAccessedByAsyncWorkGroupCopy[Access]) {
+            foreach (var Access in verifier.ArraysAccessedByAsyncWorkGroupCopy.Keys) {
+              foreach (var Array in verifier.ArraysAccessedByAsyncWorkGroupCopy[Access]) {
                 // Set the handle associated with an array access to the "no handle"
                 // value if it's current handle matches the given handle
                 IdentifierExpr HandleVariable = Expr.Ident(RaceInstrumentationUtil.MakeAsyncHandleVariable(Array, Access, verifier.IntRep.GetIntType(verifier.size_t_bits)));
@@ -1362,9 +1362,9 @@ namespace GPUVerify {
           if (rc.nonPrivateAccesses.Count > 0) {
             foreach (AccessRecord ar in rc.nonPrivateAccesses) {
               // Ignore disabled arrays
-              if(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(ar.v)) {
+              if (verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(ar.v)) {
                 // Ignore read-only arrays (whether or not they are disabled)
-                if(!verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(ar.v)) {
+                if (!verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(ar.v)) {
                   AddLogAndCheckCalls(result, ar, AccessType.READ, null);
                 }
               }
@@ -1376,7 +1376,7 @@ namespace GPUVerify {
             wc.Visit(LhsRhs.Item1);
             if (wc.FoundNonPrivateWrite()) {
               // Ignore disabled arrays
-              if(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().v)) {
+              if (verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().v)) {
                 AddLogAndCheckCalls(result, wc.GetAccess(), AccessType.WRITE, LhsRhs.Item2);
               }
             }
@@ -1396,7 +1396,7 @@ namespace GPUVerify {
       List<Procedure> CandidateProcedures =
         verifier.Program.TopLevelDeclarations.OfType<Procedure>().Where(
           Item => Item.Name == ProcedureName).ToList();
-      if(CandidateProcedures.Count() > 0) {
+      if (CandidateProcedures.Count() > 0) {
         Debug.Assert(CandidateProcedures.Count() == 1);
         return CandidateProcedures[0];
       }
@@ -1523,7 +1523,7 @@ namespace GPUVerify {
     }
 
     private CallCmd MakeCheckCall(List<Cmd> result, AccessRecord ar, AccessType Access, Expr Value) {
-      if(SourceLocationAttributes == null) {
+      if (SourceLocationAttributes == null) {
         ExitWithNoSourceError(ar.v, Access);
       }
       List<Expr> inParamsChk = new List<Expr>();
@@ -1551,7 +1551,7 @@ namespace GPUVerify {
     }
 
     private CallCmd MakeLogCall(AccessRecord ar, AccessType Access, Expr Value, Expr AsyncHandle) {
-      if(SourceLocationAttributes == null) {
+      if (SourceLocationAttributes == null) {
         ExitWithNoSourceError(ar.v, Access);
       }
       List<Expr> inParamsLog = new List<Expr>();
@@ -1599,11 +1599,11 @@ namespace GPUVerify {
     }
 
     private void MaybeAddAsyncHandleParameter(List<Expr> parameters, AccessRecord ar, Expr AsyncHandle, AccessType Access) {
-      if(!(new AccessType[] { AccessType.READ, AccessType.WRITE }).Contains(Access)) {
+      if (!(new AccessType[] { AccessType.READ, AccessType.WRITE }).Contains(Access)) {
         return;
       }
-      if(verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(ar.v.Name)) {
-        if(AsyncHandle != null) {
+      if (verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(ar.v.Name)) {
+        if (AsyncHandle != null) {
           parameters.Add(AsyncHandle);
         } else {
           parameters.Add(verifier.FindOrCreateAsyncNoHandleConstant());

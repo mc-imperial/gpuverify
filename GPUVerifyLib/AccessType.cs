@@ -24,13 +24,13 @@ namespace GPUVerify
     public static readonly IEnumerable<AccessType> Types = new List<AccessType> { READ, WRITE, ATOMIC };
 
     public static AccessType Create(string access) {
-      if(access.ToUpper() == "READ") {
+      if (access.ToUpper() == "READ") {
         return READ;
       }
-      if(access.ToUpper() == "WRITE") {
+      if (access.ToUpper() == "WRITE") {
         return WRITE;
       }
-      if(access.ToUpper() == "ATOMIC") {
+      if (access.ToUpper() == "ATOMIC") {
         return ATOMIC;
       }
       throw new NotSupportedException("Unknown access type: " + access);
@@ -49,10 +49,10 @@ namespace GPUVerify
     }
 
     public string Direction() {
-      if(this == READ) {
+      if (this == READ) {
         return "from";
       }
-      if(this == WRITE) {
+      if (this == WRITE) {
         return "to";
       }
       Debug.Assert(this == ATOMIC);

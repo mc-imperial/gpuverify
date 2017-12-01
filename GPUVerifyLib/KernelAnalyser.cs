@@ -140,7 +140,7 @@ namespace GPUVerify
         foreach (Cmd c in block.Cmds) {
           CallCmd callCmd = c as CallCmd;
           // TODO: refine into proper check
-          if(callCmd == null || !(callCmd.callee.Contains("_CHECK_READ") ||
+          if (callCmd == null || !(callCmd.callee.Contains("_CHECK_READ") ||
                                   callCmd.callee.Contains("_CHECK_WRITE") ||
                                   callCmd.callee.Contains("_CHECK_ATOMIC"))) {
             newCmds.Add(c);
@@ -177,15 +177,15 @@ namespace GPUVerify
       // of assertions at loop heads (these are invariants)
       // and candidate assertions that the user has provided
       // for Houdini
-      foreach(var impl in program.Implementations) {
+      foreach (var impl in program.Implementations) {
         var CFG = Program.GraphFromImpl(impl);
         CFG.ComputeLoops();
-        foreach(var b in impl.Blocks) {
+        foreach (var b in impl.Blocks) {
           var newCmds = new List<Cmd>();
           bool CmdCouldBeLoopInvariant = CFG.Headers.Contains(b);
-          foreach(var c in b.Cmds) {
-            if(c is AssertCmd) {
-              if(IsCandidateAssert(c as AssertCmd) || CmdCouldBeLoopInvariant) {
+          foreach (var c in b.Cmds) {
+            if (c is AssertCmd) {
+              if (IsCandidateAssert(c as AssertCmd) || CmdCouldBeLoopInvariant) {
                 // Keep it: it's a Houdini candidate or a loop invariant
                 newCmds.Add(c);
               } else {
@@ -194,7 +194,7 @@ namespace GPUVerify
             } else {
               newCmds.Add(c);
             }
-            if(!(c is AssertCmd || c is AssumeCmd)) {
+            if (!(c is AssertCmd || c is AssumeCmd)) {
               // On seeing a command that isn't an assertion or an assumption,
               // we must be past the sequence of assert and assume commands that
               // form invariants if the block in which they live is a loop header.
@@ -229,7 +229,7 @@ namespace GPUVerify
       const string ALL_SUPPORTED = "LOGIC=ALL_SUPPORTED";
       // For now it's necessary to handle this separately depending on whether we're using
       // Concurrent Houdini or not.
-      if(taskID >= 0) {
+      if (taskID >= 0) {
         var ProverOptions = CommandLineOptions.Clo.Cho[taskID].ProverOptions;
         if (UsingCVC4AndQuantifiersPresent(program, ProverOptions))
         {

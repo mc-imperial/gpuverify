@@ -8,25 +8,24 @@
 //===----------------------------------------------------------------------===//
 
 using System;
-using System.IO;
 using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
+using System.IO;
+using System.Linq;
+using System.Numerics;
 using Microsoft.Boogie;
 using Microsoft.Boogie.GraphUtil;
 
-
-namespace GPUVerify {
-
-  public class GPUVerifyErrorReporter {
-
-    enum ErrorMsgType {
+namespace GPUVerify
+{
+  public class GPUVerifyErrorReporter
+  {
+    private enum ErrorMsgType {
       Error,
       Note,
       NoError
-    };
+    }
 
     private static void ErrorWriteLine(string locInfo, string message, ErrorMsgType msgtype) {
       Contract.Requires(message != null);
@@ -62,8 +61,8 @@ namespace GPUVerify {
         impl = program.Implementations.Where(Item => Item.Name.Equals(implName)).ToList()[0];
         size_t_bits = GetSizeTBits(program);
 
-        globalArraySourceNames = new Dictionary<string,string>();
-        foreach(var g in program.TopLevelDeclarations.OfType<GlobalVariable>()) {
+        globalArraySourceNames = new Dictionary<string, string>();
+        foreach (var g in program.TopLevelDeclarations.OfType<GlobalVariable>()) {
             string sourceName = QKeyValue.FindStringAttribute(g.Attributes, "source_name");
             if (sourceName != null) {
                 globalArraySourceNames[g.Name] = sourceName;
@@ -84,16 +83,16 @@ namespace GPUVerify {
         return candidates.ToList()[0].Body.BvBits;
     }
 
-    internal void ReportCounterexample(Counterexample error) {
-
+    internal void ReportCounterexample(Counterexample error)
+    {
       int WindowWidth;
       try {
         WindowWidth = Console.WindowWidth;
-      } catch(IOException) {
+      } catch (IOException) {
         WindowWidth = 20;
       }
 
-      for(int i = 0; i < WindowWidth; i++) {
+      for (int i = 0; i < WindowWidth; i++) {
         Console.Error.Write("-");
       }
 
@@ -143,7 +142,7 @@ namespace GPUVerify {
 
       DisplayParameterValues(error);
 
-      if(((GVCommandLineOptions)CommandLineOptions.Clo).DisplayLoopAbstractions) {
+      if (((GVCommandLineOptions)CommandLineOptions.Clo).DisplayLoopAbstractions) {
         DisplayLoopAbstractions(error);
       }
 
@@ -155,9 +154,9 @@ namespace GPUVerify {
       Program OriginalProgram = GetOriginalProgram();
       var CFG = OriginalProgram.ProcessLoops(GetOriginalImplementation(OriginalProgram));
 
-      for(int i = 0; i < error.Trace.Count(); i++) {
+      for (int i = 0; i < error.Trace.Count(); i++) {
         MaybeDisplayLoopHeadState(error.Trace[i], CFG, error.Model, OriginalProgram);
-        if(i < error.Trace.Count() - 1) {
+        if (i < error.Trace.Count() - 1) {
           MaybeDisplayLoopEntryState(error.Trace[i], error.Trace[i + 1], CFG, error.Model, OriginalProgram);
         }
         MaybeDisplayLoopBackEdgeState(error.Trace[i], CFG, error.Model, OriginalProgram);
@@ -166,13 +165,13 @@ namespace GPUVerify {
 
     private void MaybeDisplayLoopEntryState(Block current, Block next, Graph<Block> CFG, Model Model, Program OriginalProgram) {
       var LoopHeadState = FindLoopHeadState(next);
-      if(LoopHeadState == null) {
+      if (LoopHeadState == null) {
         return;
       }
       Block Header = FindLoopHeaderWithStateName(LoopHeadState, CFG);
       var LoopHeadStateSuffix = LoopHeadState.Substring("loop_head_state_".Count());
       var RelevantLoopEntryStates = GetCaptureStates(current).Where(Item => Item.Contains("loop_entry_state_" + LoopHeadStateSuffix));
-      if(RelevantLoopEntryStates.Count() == 0) {
+      if (RelevantLoopEntryStates.Count() == 0) {
         return;
       }
       Debug.Assert(RelevantLoopEntryStates.Count() == 1);
@@ -183,8 +182,8 @@ namespace GPUVerify {
     }
 
     private SourceLocationInfo GetSourceLocationForBasicBlock(Block Header) {
-      foreach(var a in Header.Cmds.OfType<AssertCmd>()) {
-        if(QKeyValue.FindBoolAttribute(a.Attributes, "block_sourceloc")) {
+      foreach (var a in Header.Cmds.OfType<AssertCmd>()) {
+        if (QKeyValue.FindBoolAttribute(a.Attributes, "block_sourceloc")) {
           return new SourceLocationInfo(a.Attributes, GetSourceFileName(), Header.tok);
         }
       }
@@ -194,12 +193,12 @@ namespace GPUVerify {
 
     private void MaybeDisplayLoopBackEdgeState(Block current, Graph<Block> CFG, Model Model, Program OriginalProgram) {
       var RelevantLoopBackEdgeStates = GetCaptureStates(current).Where(Item => Item.Contains("loop_back_edge_state"));
-      if(RelevantLoopBackEdgeStates.Count() == 0) {
+      if (RelevantLoopBackEdgeStates.Count() == 0) {
         return;
       }
       Debug.Assert(RelevantLoopBackEdgeStates.Count() == 1);
       var LoopBackEdgeState = RelevantLoopBackEdgeStates.ToList()[0];
-      if(GetStateFromModel(LoopBackEdgeState, Model) == null) {
+      if (GetStateFromModel(LoopBackEdgeState, Model) == null) {
         return;
       }
 
@@ -212,7 +211,7 @@ namespace GPUVerify {
 
     private void MaybeDisplayLoopHeadState(Block Header, Graph<Block> CFG, Model Model, Program OriginalProgram) {
       var StateName = FindLoopHeadState(Header);
-      if(StateName == null) {
+      if (StateName == null) {
         return;
       }
       Block OriginalHeader = FindLoopHeaderWithStateName(StateName, CFG);
@@ -224,17 +223,17 @@ namespace GPUVerify {
     }
 
     private void ShowRaceInstrumentationVariables(Model Model, string CapturedState, Program OriginalProgram) {
-      foreach(var v in OriginalProgram.TopLevelDeclarations.OfType<Variable>().Where(Item =>
+      foreach (var v in OriginalProgram.TopLevelDeclarations.OfType<Variable>().Where(Item =>
         QKeyValue.FindBoolAttribute(Item.Attributes, "race_checking"))) {
-        foreach(var t in AccessType.Types) {
-          if(v.Name.StartsWith("_" + t + "_HAS_OCCURRED_")) {
+        foreach (var t in AccessType.Types) {
+          if (v.Name.StartsWith("_" + t + "_HAS_OCCURRED_")) {
             string ArrayName;
             AccessType Access;
             GetArrayNameAndAccessTypeFromAccessHasOccurredVariable(v, out ArrayName, out Access);
             var AccessOffsetVar = OriginalProgram.TopLevelDeclarations.OfType<Variable>().Where(Item =>
               Item.Name == RaceInstrumentationUtil.MakeOffsetVariableName(ArrayName, Access)).ToList()[0];
-            if(ExtractVariableValueFromCapturedState(v.Name, CapturedState, Model) == "true") {
-              if(GetStateFromModel(CapturedState, Model).TryGet(AccessOffsetVar.Name) is Model.Number) {
+            if (ExtractVariableValueFromCapturedState(v.Name, CapturedState, Model) == "true") {
+              if (GetStateFromModel(CapturedState, Model).TryGet(AccessOffsetVar.Name) is Model.Number) {
                 Console.Error.WriteLine("  " + Access.ToString().ToLower() + " " + Access.Direction() + " "
                   + ArrayOffsetString(Model, CapturedState, v, AccessOffsetVar, ArrayName)
                   + " (" + ThreadDetails(Model, 1, false) + ")");
@@ -264,9 +263,9 @@ namespace GPUVerify {
 
     private void GetArrayNameAndAccessTypeFromAccessHasOccurredVariable(Variable v, out string ArrayName, out AccessType AccessType) {
       Debug.Assert(GVUtil.IsAccessHasOccurredVariable(v));
-      foreach(var CurrentAccessType in AccessType.Types) {
+      foreach (var CurrentAccessType in AccessType.Types) {
         var Prefix = "_" + CurrentAccessType + "_HAS_OCCURRED_";
-        if(v.Name.StartsWith(Prefix)) {
+        if (v.Name.StartsWith(Prefix)) {
           ArrayName = globalArraySourceNames[v.Name.Substring(Prefix.Count())];
           AccessType = CurrentAccessType;
           return;
@@ -285,9 +284,9 @@ namespace GPUVerify {
     }
 
     private Block FindNodeContainingCaptureState(Graph<Block> CFG, string CaptureState) {
-      foreach(var b in CFG.Nodes) {
-        foreach(var c in b.Cmds.OfType<AssumeCmd>()) {
-          if(QKeyValue.FindStringAttribute(c.Attributes, "captureState") == CaptureState) {
+      foreach (var b in CFG.Nodes) {
+        foreach (var c in b.Cmds.OfType<AssumeCmd>()) {
+          if (QKeyValue.FindStringAttribute(c.Attributes, "captureState") == CaptureState) {
             return b;
           }
         }
@@ -296,9 +295,9 @@ namespace GPUVerify {
     }
 
     private Block FindHeaderForBackEdgeNode(Graph<Block> CFG, Block BackEdgeNode) {
-      foreach(var Header in CFG.Headers) {
-        foreach(var CurrentBackEdgeNode in CFG.BackEdgeNodes(Header)) {
-          if(BackEdgeNode == CurrentBackEdgeNode) {
+      foreach (var Header in CFG.Headers) {
+        foreach (var CurrentBackEdgeNode in CFG.BackEdgeNodes(Header)) {
+          if (BackEdgeNode == CurrentBackEdgeNode) {
             return Header;
           }
         }
@@ -403,16 +402,16 @@ namespace GPUVerify {
       SourceInfoForSecondAccess.PrintStackTrace();
 
       Console.Error.Write(access1 + " by " + ThreadDetails(CallCex.Model, 1, true) + ", ");
-      if(PossibleSourcesForFirstAccess.Count() == 1) {
+      if (PossibleSourcesForFirstAccess.Count() == 1) {
         Console.Error.WriteLine(PossibleSourcesForFirstAccess.ToList()[0].Top() + ":");
         PossibleSourcesForFirstAccess.ToList()[0].PrintStackTrace();
-      } else if(PossibleSourcesForFirstAccess.Count() == 0) {
+      } else if (PossibleSourcesForFirstAccess.Count() == 0) {
         Console.Error.WriteLine("from external source location\n");
       } else {
         Console.Error.WriteLine("possible sources are:");
         List<SourceLocationInfo> LocationsAsList = PossibleSourcesForFirstAccess.ToList();
         LocationsAsList.Sort(new SourceLocationInfo.SourceLocationInfoComparison());
-        foreach(var sli in LocationsAsList) {
+        foreach (var sli in LocationsAsList) {
           Console.Error.WriteLine(sli.Top() + ":");
           sli.PrintStackTrace();
         }
@@ -459,6 +458,7 @@ namespace GPUVerify {
     {
       return GetStateName(AssertCex.FailingAssert.Attributes, AssertCex);
     }
+
     private static string GetSourceFileName()
     {
       return CommandLineOptions.Clo.Files[CommandLineOptions.Clo.Files.Count() - 1];
@@ -541,7 +541,7 @@ namespace GPUVerify {
         // so we need to find the original state name.  This can be computed as the substring before the first
         // occurrence of '$'.  This inversion is fragile, and would be a good candidate for making robust
         string ConflictingStatePrefix;
-        if(ConflictingState.Contains('$')) {
+        if (ConflictingState.Contains('$')) {
           ConflictingStatePrefix = ConflictingState.Substring(0, ConflictingState.IndexOf('$'));
         } else {
           ConflictingStatePrefix = ConflictingState;
@@ -555,7 +555,7 @@ namespace GPUVerify {
         );
         return GetSourceLocationsFromBlocks("_CHECK_" + AccessType + "_" + ArrayName, LoopNodes);
       }
-      else if(ConflictingState.Contains("call_return_state")  ) {
+      else if (ConflictingState.Contains("call_return_state")  ) {
         return GetSourceLocationsFromCall("_CHECK_" + AccessType + "_" + ArrayName,
           QKeyValue.FindStringAttribute(ConflictingAction.Attributes, "procedureName"));
       } else {
@@ -645,7 +645,7 @@ namespace GPUVerify {
     {
       Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
       var Bodies =  originalProgram.Implementations.Where(Item => Item.Name.Equals(CalleeName)).ToList();
-      if(Bodies.Count == 0) {
+      if (Bodies.Count == 0) {
         return new HashSet<SourceLocationInfo>();
       }
       return GetSourceLocationsFromBlocks(CheckProcedureName, Bodies[0].Blocks);
@@ -660,7 +660,7 @@ namespace GPUVerify {
         {
           PossibleSources.Add(new SourceLocationInfo(c.Attributes, GetSourceFileName(), c.tok));
         } else {
-          foreach(var sl in GetSourceLocationsFromCall(CheckProcedureName, c.callee)) {
+          foreach (var sl in GetSourceLocationsFromCall(CheckProcedureName, c.callee)) {
             PossibleSources.Add(sl);
           }
         }
@@ -813,7 +813,6 @@ namespace GPUVerify {
       }
     }
 
-
     private static string GetArrayAccess(long offset, string name, uint elWidth, uint srcElWidth, string[] dims)
     {
       Debug.Assert(elWidth != uint.MaxValue && elWidth % 8 == 0);
@@ -850,7 +849,6 @@ namespace GPUVerify {
 
       return ArrayAccess;
     }
-
 
     private static void ReportEnsuresFailure(Absy node) {
       Console.Error.WriteLine();
@@ -909,7 +907,6 @@ namespace GPUVerify {
     {
         return GetGroupIdOneDimension(model, dimension, thread) * GetGroupSizeOneDimension(model, dimension) + GetLocalIdOneDimension(model, dimension, thread);
     }
-
 
     private static string GetGroupId(Model model, bool withSpaces, int thread) {
       switch (((GVCommandLineOptions)CommandLineOptions.Clo).GridHighestDim) {
@@ -1002,14 +999,12 @@ namespace GPUVerify {
     private static string ThreadDetails(Model model, int thread, bool withSpaces) {
       string localId, group, globalId;
       GetThreadsAndGroupsFromModel(model, thread, out localId, out group, out globalId, withSpaces);
-      if(((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
+      if (((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA) {
         return "thread " + localId + " in thread block " + group + " (global id " + globalId + ")";
       } else {
         return "work item " + globalId + " with local id " + localId + " in work group " + group;
       }
 
     }
-
   }
-
 }

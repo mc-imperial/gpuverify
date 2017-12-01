@@ -10,9 +10,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
+using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.IO;
 using Microsoft.Boogie;
 
 using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
@@ -225,7 +225,7 @@ namespace GPUVerify
       public static void DumpExceptionInformation(Exception e)
       {
 
-        if(e.ToString().Contains("An attempt was made to load an assembly from a network location")) {
+        if (e.ToString().Contains("An attempt was made to load an assembly from a network location")) {
           Console.Error.WriteLine();
           Console.Error.WriteLine("GPUVerify has had trouble loading one of its components due to security settings.");
           Console.Error.WriteLine();
@@ -259,11 +259,11 @@ namespace GPUVerify
         #region Now try to give the user a specific hint if this looks like a common problem
         try {
           throw e;
-        } catch(ProverException) {
+        } catch (ProverException) {
           Console.Error.WriteLine("Hint: It looks like GPUVerify is having trouble invoking its");
           Console.Error.WriteLine("supporting theorem prover, which by default is Z3.  Have you");
           Console.Error.WriteLine("installed Z3?");
-        } catch(Exception) {
+        } catch (Exception) {
           // Nothing to say about this
         }
         #endregion
@@ -321,7 +321,9 @@ namespace GPUVerify
         }
 
         return copiedObject;
-      } else throw new ArgumentException("Unknown type");
+      } else {
+        throw new ArgumentException("Unknown type");
+      }
     }
 
     public static string StripThreadIdentifier(string p, out int id)
@@ -341,34 +343,36 @@ namespace GPUVerify
       return p;
     }
 
-    public static bool IsAccessHasOccurredVariable(Variable v) {
+    // Returns whether v is a "*_HAS_OCCURRED_" variable for some array
+    public static bool IsAccessHasOccurredVariable(Variable v)
+    {
 
-      // Returns whether v is a "*_HAS_OCCURRED_" variable for some array
-
-      if(!QKeyValue.FindBoolAttribute(v.Attributes, "race_checking")) {
+      if (!QKeyValue.FindBoolAttribute(v.Attributes, "race_checking")) {
         return false;
       }
-      foreach(var a in AccessType.Types) {
-        if(v.Name.StartsWith("_" + a + "_HAS_OCCURRED_")) {
+
+      foreach (var a in AccessType.Types) {
+        if (v.Name.StartsWith("_" + a + "_HAS_OCCURRED_")) {
           return true;
         }
       }
+
       return false;
     }
 
-    public static bool IsAccessHasOccurredVariable(Variable v, string arrayName) {
-
-      // Returns whether v is a "*_HAS_OCCURRED_arrayName" variable
-
-      if(!IsAccessHasOccurredVariable(v)) {
+    // Returns whether v is a "*_HAS_OCCURRED_arrayName" variable
+    public static bool IsAccessHasOccurredVariable(Variable v, string arrayName)
+    {
+      if (!IsAccessHasOccurredVariable(v)) {
         return false;
       }
 
-      foreach(var a in AccessType.Types) {
-        if(v.Name == "_" + a + "_HAS_OCCURRED_" + arrayName) {
+      foreach (var a in AccessType.Types) {
+        if (v.Name == "_" + a + "_HAS_OCCURRED_" + arrayName) {
           return true;
         }
       }
+
       return false;
     }
 
@@ -398,7 +402,5 @@ namespace GPUVerify
 
       return program;
     }
-
-
   }
 }

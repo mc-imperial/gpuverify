@@ -34,8 +34,8 @@ namespace GPUVerify
 
         public override Variable VisitVariable(Variable node)
         {
-          foreach(var prefix in AsymmetricNamePrefixes) {
-            if(node.TypedIdent.Name.StartsWith(prefix)) {
+          foreach (var prefix in AsymmetricNamePrefixes) {
+            if (node.TypedIdent.Name.StartsWith(prefix)) {
                 found = true;
             }
           }

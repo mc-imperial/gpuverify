@@ -222,7 +222,7 @@ class VariableDefinitionAnalysisRegion {
   void Analyse(IRegion rootRegion, Graph<Block> cfg) {
     foreach (var r in rootRegion.SubRegions())
       AnalyseRegion(r, cfg);
-    foreach(var v in possibleInductionVarDefs.Select(i => i.Value))
+    foreach (var v in possibleInductionVarDefs.Select(i => i.Value))
       possibleInductionVars.UnionWith(v.Select(i => i.Key));
     AnalyseRootRegion(rootRegion);
   }

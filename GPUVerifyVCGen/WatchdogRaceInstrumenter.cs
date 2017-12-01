@@ -50,11 +50,11 @@ namespace GPUVerify
 
       Expr Condition = Expr.And(new IdentifierExpr(Token.NoToken, MakeTrackingVariable()), Expr.Eq(new IdentifierExpr(Token.NoToken, AccessOffsetVariable),
                                          new IdentifierExpr(Token.NoToken, OffsetParameter)));
-      if(verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v)) {
+      if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v)) {
         Condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), Condition);
       }
 
-      if(!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
+      if (!GPUVerifyVCGenCommandLineOptions.NoBenign && Access.isReadOrWrite()) {
         Condition = Expr.And(Condition, Expr.Eq(new IdentifierExpr(Token.NoToken, AccessValueVariable), new IdentifierExpr(Token.NoToken, ValueParameter)));
       }
 
@@ -69,7 +69,7 @@ namespace GPUVerify
             new IdentifierExpr(Token.NoToken, ValueOldParameter))));
       }
 
-      if((Access == AccessType.READ || Access == AccessType.WRITE) && verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(v.Name)) {
+      if ((Access == AccessType.READ || Access == AccessType.WRITE) && verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(v.Name)) {
         LoggingCommands.Cmds.Add(MakeConditionalAssignment(AccessAsyncHandleVariable,
           Condition,
           Expr.Ident(AsyncHandleParameter)));

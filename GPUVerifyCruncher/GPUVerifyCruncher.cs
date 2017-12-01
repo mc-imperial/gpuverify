@@ -65,7 +65,7 @@ namespace GPUVerify
         Scheduler scheduler = new Scheduler(fileList);
         Environment.Exit(scheduler.ErrorCode);
       } catch (Exception e) {
-        if(GetCommandLineOptions().DebugGPUVerify) {
+        if (GetCommandLineOptions().DebugGPUVerify) {
           Console.Error.WriteLine("Exception thrown in GPUVerifyCruncher");
           Console.Error.WriteLine(e);
           throw e;

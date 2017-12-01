@@ -60,7 +60,7 @@ namespace GPUVerify
       Expr Condition = Expr.And(new IdentifierExpr(v.tok, PredicateParameter),
         new IdentifierExpr(v.tok, TrackVariable));
 
-      if(verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v)) {
+      if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v)) {
         Condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), Condition);
       }
 
@@ -80,7 +80,7 @@ namespace GPUVerify
           Expr.Neq(new IdentifierExpr(v.tok, ValueParameter),
             new IdentifierExpr(v.tok, ValueOldParameter))));
       }
-      if((Access == AccessType.READ || Access == AccessType.WRITE) &&
+      if ((Access == AccessType.READ || Access == AccessType.WRITE) &&
         verifier.ArraysAccessedByAsyncWorkGroupCopy[Access].Contains(v.Name)) {
         simpleCmds.Add(MakeConditionalAssignment(AccessAsyncHandleVariable,
           Condition,

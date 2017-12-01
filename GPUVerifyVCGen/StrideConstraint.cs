@@ -110,7 +110,7 @@ class StrideConstraint {
 
     var ie = e as IdentifierExpr;
     if (ie != null) {
-      if(GPUVerifier.IsConstantInCurrentRegion(ie))
+      if (GPUVerifier.IsConstantInCurrentRegion(ie))
         return new EqStrideConstraint(e);
 
       var rsa = verifier.reducedStrengthAnalysesRegion[impl];

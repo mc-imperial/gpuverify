@@ -64,7 +64,7 @@ namespace Microsoft.Boogie
         var results = VerifyFiles(fileList);
         Environment.Exit(KernelAnalyser.GetExitCode(results));
       } catch (Exception e) {
-        if(GetCommandLineOptions().DebugGPUVerify) {
+        if (GetCommandLineOptions().DebugGPUVerify) {
           Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
           Console.Error.WriteLine(e);
           throw e;

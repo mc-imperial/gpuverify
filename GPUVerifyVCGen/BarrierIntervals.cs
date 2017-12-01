@@ -35,8 +35,8 @@ namespace GPUVerify
 
     internal void Compute() {
       Debug.Assert(intervals == null);
-      intervals = new Dictionary<Implementation,HashSet<BarrierInterval>>();
-      foreach(var impl in verifier.KernelProcedures.Values) {
+      intervals = new Dictionary<Implementation, HashSet<BarrierInterval>>();
+      foreach (var impl in verifier.KernelProcedures.Values) {
         intervals[impl] = ComputeBarrierIntervals(impl);
       }
     }
@@ -134,33 +134,33 @@ namespace GPUVerify
         }
       }
 
-      if(b.Cmds.Count == 0) {
+      if (b.Cmds.Count == 0) {
         return false;
       }
       CallCmd c = b.Cmds[0] as CallCmd;
-      if(c == null || !GPUVerifier.IsBarrier(c.Proc)) {
+      if (c == null || !GPUVerifier.IsBarrier(c.Proc)) {
         return false;
       }
 
       var BarrierProcedure = c.Proc;
 
-      if(!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name)) {
+      if (!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name)) {
         // We may be able to do better in this case, but for now we conservatively say no
         return false;
       }
 
-      if(BarrierHasNonUniformArgument(BarrierProcedure)) {
+      if (BarrierHasNonUniformArgument(BarrierProcedure)) {
         // Also we may be able to do better in this case, but for now we conservatively say no
         return false;
       }
 
       Debug.Assert(c.Ins.Count() == 2);
-      if(strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL) {
-        if(!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1))) {
+      if (strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL) {
+        if (!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1))) {
           return false;
         }
-      } else if(strength == BarrierStrength.GLOBAL || strength == BarrierStrength.ALL) {
-        if(!c.Ins[1].Equals(verifier.IntRep.GetLiteral(1, 1))) {
+      } else if (strength == BarrierStrength.GLOBAL || strength == BarrierStrength.ALL) {
+        if (!c.Ins[1].Equals(verifier.IntRep.GetLiteral(1, 1))) {
           return false;
         }
       } else {
@@ -172,8 +172,8 @@ namespace GPUVerify
 
     private bool BarrierHasNonUniformArgument(Procedure BarrierProcedure)
     {
-      foreach(var v in BarrierProcedure.InParams) {
-        if(!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name, GVUtil.StripThreadIdentifier(v.Name))) {
+      foreach (var v in BarrierProcedure.InParams) {
+        if (!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name, GVUtil.StripThreadIdentifier(v.Name))) {
           return true;
         }
       }
@@ -184,8 +184,8 @@ namespace GPUVerify
       List<List<Cmd>> result = new List<List<Cmd>>();
       List<Cmd> current = new List<Cmd>();
       result.Add(current);
-      foreach(Cmd cmd in Cmds) {
-        if(Predicate(cmd) && current.Count > 0) {
+      foreach (Cmd cmd in Cmds) {
+        if (Predicate(cmd) && current.Count > 0) {
            current = new List<Cmd>();
            result.Add(current);
         }
@@ -195,7 +195,7 @@ namespace GPUVerify
     }
 
     void ExtractCommandsIntoBlocks(Implementation impl, Func<Cmd, bool> Predicate) {
-      Dictionary<Block, Block> oldToNew = new Dictionary<Block,Block>();
+      Dictionary<Block, Block> oldToNew = new Dictionary<Block, Block>();
       HashSet<Block> newBlocks = new HashSet<Block>();
       HashSet<Block> removedBlocks = new HashSet<Block>();
       Block newEntryBlock = null;
@@ -203,7 +203,7 @@ namespace GPUVerify
       foreach (Block b in impl.Blocks)
       {
         List<List<Cmd>> partition = PartitionCmdsAccordingToPredicate(b.Cmds, Predicate);
-        if(partition.Count == 1) {
+        if (partition.Count == 1) {
           // Nothing to do: either no command in this block matches the predicate, or there
           // is only one command in the block
           continue;
@@ -212,18 +212,18 @@ namespace GPUVerify
         removedBlocks.Add(b);
 
         List<Block> newBlocksForPartitionEntry = new List<Block>();
-        for(int i = 0; i < partition.Count; i++) {
+        for (int i = 0; i < partition.Count; i++) {
           newBlocksForPartitionEntry.Add(new Block(b.tok, "__partitioned_block_" + b.Label + "_" + i, partition[i], null));
           newBlocks.Add(newBlocksForPartitionEntry[i]);
-          if(i > 0) {
+          if (i > 0) {
             newBlocksForPartitionEntry[i - 1].TransferCmd = new GotoCmd(b.tok, new List<string> { newBlocksForPartitionEntry[i].Label }, new List<Block> { newBlocksForPartitionEntry[i] });
           }
-          if(i == partition.Count - 1) {
+          if (i == partition.Count - 1) {
             newBlocksForPartitionEntry[i].TransferCmd = b.TransferCmd;
           }
         }
         oldToNew[b] = newBlocksForPartitionEntry[0];
-        if(b == impl.Blocks[0]) {
+        if (b == impl.Blocks[0]) {
           Debug.Assert(newEntryBlock == null);
           newEntryBlock = newBlocksForPartitionEntry[0];
         }
@@ -231,7 +231,7 @@ namespace GPUVerify
 
       impl.Blocks.RemoveAll(Item => removedBlocks.Contains(Item));
 
-      if(newEntryBlock != null) {
+      if (newEntryBlock != null) {
         // Replace the entry block if necessary
         impl.Blocks.Insert(0, newEntryBlock);
         newBlocks.Remove(newEntryBlock);
@@ -242,8 +242,8 @@ namespace GPUVerify
 
       foreach (var gc in impl.Blocks.Select(Item => Item.TransferCmd).OfType<GotoCmd>()) {
         Debug.Assert(gc.labelNames.Count == gc.labelTargets.Count);
-        for(int i = 0; i < gc.labelTargets.Count; i++) {
-          if(oldToNew.ContainsKey(gc.labelTargets[i])) {
+        for (int i = 0; i < gc.labelTargets.Count; i++) {
+          if (oldToNew.ContainsKey(gc.labelTargets[i])) {
             Block newBlock = oldToNew[gc.labelTargets[i]];
             gc.labelTargets[i] = newBlock;
             gc.labelNames[i] = newBlock.Label;
@@ -257,11 +257,11 @@ namespace GPUVerify
 
     internal void RemoveRedundantReads()
     {
-      if(strength == BarrierStrength.GLOBAL) {
+      if (strength == BarrierStrength.GLOBAL) {
         return;
       }
 
-      foreach(BarrierInterval interval in intervals.Values.SelectMany(Item => Item)) {
+      foreach (BarrierInterval interval in intervals.Values.SelectMany(Item => Item)) {
         var WrittenGroupSharedArrays = interval.FindWrittenGroupSharedArrays(verifier);
         RemoveReads(interval.Blocks,
           verifier.KernelArrayInfo.GetGroupSharedArrays(true).Where(Item =>
@@ -270,17 +270,17 @@ namespace GPUVerify
     }
 
     internal void RemoveReads(IEnumerable<Block> blocks, IEnumerable<Variable> arrays) {
-      foreach(var b in blocks) {
+      foreach (var b in blocks) {
         List<Cmd> newCmds = new List<Cmd>();
-        foreach(var c in b.Cmds) {
+        foreach (var c in b.Cmds) {
           CallCmd callCmd = c as CallCmd;
-          if(callCmd != null) {
+          if (callCmd != null) {
             Variable v;
             verifier.TryGetArrayFromLogProcedure(callCmd.callee, AccessType.READ, out v);
-            if(v == null) {
+            if (v == null) {
               verifier.TryGetArrayFromCheckProcedure(callCmd.callee, AccessType.READ, out v);
             }
-            if(v != null && arrays.Contains(v)) {
+            if (v != null && arrays.Contains(v)) {
               continue;
             }
           }
@@ -333,7 +333,7 @@ namespace GPUVerify
       {
         // m is a variable modified by a call in the barrier interval
         Variable v;
-        if(verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.WRITE, out v) ||
+        if (verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.WRITE, out v) ||
            verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.ATOMIC, out v)) {
           if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v)) {
             result.Add(v);

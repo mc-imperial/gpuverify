@@ -146,7 +146,7 @@ namespace GPUVerify
             Houdini.GetCandidateWithoutConstant(p.Expr, candidates, out c, out e);
             Debug.Assert(e != null);
             NAryExpr ne = e as NAryExpr;
-            if(ne != null && ne.Fun is BinaryOperator && ((BinaryOperator)ne.Fun).Op == BinaryOperator.Opcode.Imp
+            if (ne != null && ne.Fun is BinaryOperator && ((BinaryOperator)ne.Fun).Op == BinaryOperator.Opcode.Imp
               && ne.Args[0] is IdentifierExpr && ((IdentifierExpr)ne.Args[0]).Name.Equals(antecedent.Name)) {
               Expr consequent = ne.Args[1];
               toRemove.Add(current);
@@ -173,7 +173,7 @@ namespace GPUVerify
           oldCandidateInvariants.RemoveAll(item => toRemove.Contains(item));
         }
 
-      } while(antecedent != null);
+      } while (antecedent != null);
 
     }
 
@@ -222,7 +222,7 @@ namespace GPUVerify
         string c; Expr e;
         Houdini.GetCandidateWithoutConstant(p.Expr, candidates, out c, out e);
         IdentifierExpr possibleResult = (e as NAryExpr).Args[0] as IdentifierExpr;
-        if(!visited.Contains(possibleResult)) {
+        if (!visited.Contains(possibleResult)) {
           return possibleResult;
         }
       }

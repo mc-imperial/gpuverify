@@ -18,14 +18,14 @@ namespace GPUVerify
 
     internal void Eliminate(Program Program)
     {
-      foreach(var impl in Program.Implementations) {
+      foreach (var impl in Program.Implementations) {
         var CFG = Program.GraphFromImpl(impl);
         var visitor = new UFRemoverVisitor(Program);
-        foreach(var b in impl.Blocks) {
+        foreach (var b in impl.Blocks) {
           visitor.NewBlock();
           b.Cmds = visitor.VisitCmdSeq(b.Cmds);
-          if(visitor.UFTemps.Last().Count() > 0) {
-            foreach(var p in CFG.Predecessors(b)) {
+          if (visitor.UFTemps.Last().Count() > 0) {
+            foreach (var p in CFG.Predecessors(b)) {
               p.Cmds.Add(new HavocCmd(Token.NoToken, visitor.UFTemps.Last().Select(Item => new IdentifierExpr(Token.NoToken, Item)).ToList()));
             }
           }
@@ -41,12 +41,12 @@ namespace GPUVerify
 
     internal static bool IsInterpreted(Function fun, Program prog)
     {
-      if(fun.Body != null ||
+      if (fun.Body != null ||
          QKeyValue.FindStringAttribute(fun.Attributes, "bvbuiltin") != null ||
          QKeyValue.FindBoolAttribute(fun.Attributes, "constructor")) {
         return true;
       }
-      if(fun.Name.Contains('#')) {
+      if (fun.Name.Contains('#')) {
         return true;
       }
       return prog.TopLevelDeclarations.OfType<Axiom>().Any(Item => UsesFun(Item, fun));
@@ -81,7 +81,7 @@ namespace GPUVerify
     public override Expr VisitNAryExpr(NAryExpr node)
     {
       var FunCall = node.Fun as FunctionCall;
-      if(FunCall == null || UninterpretedFunctionRemover.IsInterpreted(FunCall.Func, prog)) {
+      if (FunCall == null || UninterpretedFunctionRemover.IsInterpreted(FunCall.Func, prog)) {
         return base.VisitNAryExpr(node);
       }
       LocalVariable UFTemp = new LocalVariable(Token.NoToken,
@@ -111,8 +111,8 @@ namespace GPUVerify
 
     public override Expr VisitNAryExpr(NAryExpr node)
     {
-      if(node.Fun is FunctionCall) {
-        if(((FunctionCall)node.Fun).Func.Name.Equals(fun.Name)) {
+      if (node.Fun is FunctionCall) {
+        if (((FunctionCall)node.Fun).Func.Name.Equals(fun.Name)) {
           found = true;
         }
       }

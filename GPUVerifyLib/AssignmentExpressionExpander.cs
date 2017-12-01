@@ -7,10 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Diagnostics;
-using System.Text.RegularExpressions;
-using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.Boogie;
 using Microsoft.Boogie.GraphUtil;
 
@@ -96,5 +96,4 @@ namespace GPUVerify
       }
     }
   }
-
 }

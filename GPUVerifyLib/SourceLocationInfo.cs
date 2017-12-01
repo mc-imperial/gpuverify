@@ -9,15 +9,16 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using Microsoft.Boogie;
 
-namespace GPUVerify {
-
-  public class SourceLocationInfo {
-
-    public class Record {
+namespace GPUVerify
+{
+  public class SourceLocationInfo
+  {
+    public class Record
+    {
       private int line;
       private int column;
       private string file;
@@ -52,7 +53,7 @@ namespace GPUVerify {
       }
 
       public override bool Equals(object obj) {
-        if(!(obj is Record)) {
+        if (!(obj is Record)) {
           return false;
         }
         Record ThatRecord = obj as Record;
@@ -66,7 +67,6 @@ namespace GPUVerify {
         // A naive hash code function
         return line + column + file.GetHashCode() + directory.GetHashCode();
       }
-
     }
 
     private List<Record> records;
@@ -75,28 +75,28 @@ namespace GPUVerify {
       public int Compare(Record s1, Record s2) {
 
         int directories = s1.GetDirectory().CompareTo(s2.GetDirectory());
-        if(directories != 0) {
+        if (directories != 0) {
           return directories;
         }
 
         int files = s1.GetFile().CompareTo(s2.GetFile());
-        if(files != 0) {
+        if (files != 0) {
           return files;
         }
 
-        if(s1.GetLine() < s2.GetLine()) {
+        if (s1.GetLine() < s2.GetLine()) {
           return -1;
         }
 
-        if(s1.GetLine() > s2.GetLine()) {
+        if (s1.GetLine() > s2.GetLine()) {
           return 1;
         }
 
-        if(s1.GetColumn() < s2.GetColumn()) {
+        if (s1.GetColumn() < s2.GetColumn()) {
           return -1;
         }
 
-        if(s1.GetColumn() > s2.GetColumn()) {
+        if (s1.GetColumn() > s2.GetColumn()) {
           return 1;
         }
 
@@ -107,9 +107,9 @@ namespace GPUVerify {
 
     public class SourceLocationInfoComparison : IComparer<SourceLocationInfo> {
       public int Compare(SourceLocationInfo s1, SourceLocationInfo s2) {
-        foreach(var recordPair in s1.records.Zip(s2.records)) {
+        foreach (var recordPair in s1.records.Zip(s2.records)) {
           int result = new RecordComparison().Compare(recordPair.Item1, recordPair.Item2);
-          if(result != 0) {
+          if (result != 0) {
             return result;
           }
         }
@@ -123,7 +123,8 @@ namespace GPUVerify {
       }
     }
 
-    public SourceLocationInfo(QKeyValue attributes, string sourceFileName, IToken fallBackToken) {
+    public SourceLocationInfo(QKeyValue attributes, string sourceFileName, IToken fallBackToken)
+    {
       records = new List<Record>();
       try {
         var sourceLocFileName = Path.Combine(
@@ -131,20 +132,20 @@ namespace GPUVerify {
           Path.GetFileNameWithoutExtension(sourceFileName) + ".loc");
         using (StreamReader sr = new StreamReader(sourceLocFileName)) {
           int number = QKeyValue.FindIntAttribute(attributes, "sourceloc_num", -1);
-          if(number == -1) {
+          if (number == -1) {
             throw new Exception();
           }
           var info = sr.ReadLine().Split(new char[] { '\x1D' })[number];
           var chain = info.Split(new char[] { '\x1E' });
           Record blangRecord = null;
-          foreach(var c in chain) {
-            if(c != "") {
+          foreach (var c in chain) {
+            if (c != string.Empty) {
               var sourceInfo = c.Split(new char[] { '\x1F' });
               int line = Convert.ToInt32(sourceInfo[0]);
               int column = Convert.ToInt32(sourceInfo[1]);
               string file = sourceInfo[2];
               string directory = sourceInfo[3];
-              if(file.Contains("include-blang")) {
+              if (file.Contains("include-blang")) {
                 // Do not keep source info if it is in one of our special header files
                 blangRecord = new Record(line, column, file, directory);
                 continue;
@@ -162,7 +163,7 @@ namespace GPUVerify {
     }
 
     private string FetchCodeLine(int i) {
-      if(File.Exists(records[i].GetFile())) {
+      if (File.Exists(records[i].GetFile())) {
         return FetchCodeLine(records[i].GetFile(), records[i].GetLine());
       }
       return FetchCodeLine(Path.Combine(records[i].GetDirectory(), Path.GetFileName(records[i].GetFile())), records[i].GetLine());
@@ -200,7 +201,7 @@ namespace GPUVerify {
 
     public void PrintStackTrace() {
       GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(0), 2));
-      for(int i = 1; i < Count(); i++) {
+      for (int i = 1; i < Count(); i++) {
         Console.Error.WriteLine("invoked from " + records[i] + ":");
         GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(i), 2));
       }
@@ -213,7 +214,7 @@ namespace GPUVerify {
       }
 
       int index;
-      for (index = 0; (index + 1) < s1.Length && char.IsWhiteSpace(s1[index]); ++index) ;
+      for (index = 0; (index + 1) < s1.Length && char.IsWhiteSpace(s1[index]); ++index);
       string returnString = s1.Substring(index);
       for (int i = noOfSpaces; i > 0; --i) {
         returnString = " " + returnString;
@@ -222,15 +223,15 @@ namespace GPUVerify {
     }
 
     public override bool Equals(object obj) {
-      if(!(obj is SourceLocationInfo)) {
+      if (!(obj is SourceLocationInfo)) {
         return false;
       }
       SourceLocationInfo ThatSourceLocationInfo = obj as SourceLocationInfo;
-      if(this.records.Count() != ThatSourceLocationInfo.records.Count()) {
+      if (this.records.Count() != ThatSourceLocationInfo.records.Count()) {
         return false;
       }
-      foreach(var Pair in this.records.Zip(ThatSourceLocationInfo.records)) {
-        if(!Pair.Item1.Equals(Pair.Item2)) {
+      foreach (var Pair in this.records.Zip(ThatSourceLocationInfo.records)) {
+        if (!Pair.Item1.Equals(Pair.Item2)) {
           return false;
         }
       }
@@ -240,12 +241,10 @@ namespace GPUVerify {
     public override int GetHashCode() {
       // A naive hashcode function
       int result = 0;
-      foreach(var record in records) {
+      foreach (var record in records) {
         result += record.GetHashCode();
       }
       return result;
     }
-
   }
-
 }
