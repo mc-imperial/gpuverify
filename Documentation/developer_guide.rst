@@ -146,7 +146,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}
      $ git clone https://github.com/mc-imperial/gpuverify.git
      $ cd ${BUILD_ROOT}/gpuverify
-     $ xbuild /p:Configuration=Release GPUVerify.sln
+     $ msbuild /m /p:Configuration=Release GPUVerify.sln
 
 #. Configure GPUVerify front end.
    GPUVerify uses a front end python script (GPUVerify.py). This script needs
@@ -478,7 +478,7 @@ in GPUVerify then follow the steps below for Linux and Mac OS X.::
       $ git clone https://github.com/boogie-org/boogie.git
       $ cd boogie/Source
       $ nuget restore Boogie.sln
-      $ xbuild /p:Configuration=Release Boogie.sln
+      $ msbuild /m /p:Configuration=Release Boogie.sln
       $ cd ../Binaries
       $ ls ${BUILD_ROOT}/gpuverify/BoogieBinaries \
              | xargs -I{} -t cp {} ${BUILD_ROOT}/gpuverify/BoogieBinaries
