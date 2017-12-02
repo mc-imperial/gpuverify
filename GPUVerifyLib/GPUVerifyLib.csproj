@@ -85,6 +85,13 @@
     <Compile Include="VariablesOccurringInExpressionVisitor.cs" />
     <Compile Include="ToolExitCodes.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Analyzer Include="..\packages\StyleCop.Analyzers.1.0.2\analyzers\dotnet\cs\StyleCop.Analyzers.CodeFixes.dll" />
+    <Analyzer Include="..\packages\StyleCop.Analyzers.1.0.2\analyzers\dotnet\cs\StyleCop.Analyzers.dll" />
+  </ItemGroup>
   <Target Name="Clean">
     <RemoveDir Directories="$(ProjectDir)\bin" />
     <RemoveDir Directories="$(ProjectDir)\obj" />
