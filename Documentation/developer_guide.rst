@@ -146,6 +146,7 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}
      $ git clone https://github.com/mc-imperial/gpuverify.git
      $ cd ${BUILD_ROOT}/gpuverify
+     $ nuget restore GPUVerify.sln
      $ msbuild /m /p:Configuration=Release GPUVerify.sln
 
 #. Configure GPUVerify front end.
@@ -360,8 +361,11 @@ drives.
    Microsoft tools for the command line, then::
 
       > cd ${BUILD_ROOT}
+      > $nuget_url = "https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+      > (new-object System.Net.WebClient).DownloadFile($nuget_url, "${BUILD_ROOT}\nuget.exe")
       > git clone https://github.com/mc-imperial/gpuverify.git
       > cd ${BUILD_ROOT}\gpuverify
+      > ${BUILD_ROOT}\nuget restore GPUVerify.sln
       > msbuild /p:Configuration=Release GPUVerify.sln
 
 #. Configure GPUVerify front end::
