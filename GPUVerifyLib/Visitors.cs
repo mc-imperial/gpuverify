@@ -7,49 +7,54 @@
 //
 //===----------------------------------------------------------------------===//
 
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
-  public class CheckForQuantifiers : StandardVisitor
-  {
-    bool quantifiersExist = false;
+    using Microsoft.Boogie;
 
-    private CheckForQuantifiers() { }
-
-    public override QuantifierExpr VisitQuantifierExpr(QuantifierExpr node)
+    public class CheckForQuantifiers : StandardVisitor
     {
-      node = base.VisitQuantifierExpr(node);
-      quantifiersExist = true;
-      return node;
+        bool quantifiersExist = false;
+
+        private CheckForQuantifiers() { }
+
+        public override QuantifierExpr VisitQuantifierExpr(QuantifierExpr node)
+        {
+            node = base.VisitQuantifierExpr(node);
+            quantifiersExist = true;
+            return node;
+        }
+
+        public static bool Found(Program node)
+        {
+            var cfq = new CheckForQuantifiers();
+            cfq.VisitProgram(node);
+            return cfq.quantifiersExist;
+        }
     }
 
-    public static bool Found(Program node)
+    internal class VariableFinderVisitor : StandardVisitor
     {
-      var cfq = new CheckForQuantifiers();
-      cfq.VisitProgram(node);
-      return cfq.quantifiersExist;
-    }
-  }
+        private string VarName;
+        private Variable Variable = null;
 
-  internal class VariableFinderVisitor : StandardVisitor
-  {
-    private string VarName;
-    private Variable Variable = null;
+        internal VariableFinderVisitor(string VarName)
+        {
+            this.VarName = VarName;
+        }
 
-    internal VariableFinderVisitor(string VarName) {
-      this.VarName = VarName;
-    }
+        public override Variable VisitVariable(Variable node)
+        {
+            if (node.Name.Equals(VarName))
+            {
+                Variable = node;
+            }
 
-    public override Variable VisitVariable(Variable node) {
-      if (node.Name.Equals(VarName)) {
-        Variable = node;
-      }
-      return base.VisitVariable(node);
-    }
+            return base.VisitVariable(node);
+        }
 
-    internal Variable GetVariable() {
-      return Variable;
+        internal Variable GetVariable()
+        {
+            return Variable;
+        }
     }
-  }
 }

@@ -7,16 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Collections.Generic;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
-    class AsymmetricExpressionFinder : StandardVisitor
+    using System.Collections.Generic;
+    using Microsoft.Boogie;
+
+    internal class AsymmetricExpressionFinder : StandardVisitor
     {
         private bool found = false;
 
-        internal bool foundAsymmetricExpr()
+        public bool foundAsymmetricExpr()
         {
             return found;
         }
@@ -34,13 +34,15 @@ namespace GPUVerify
 
         public override Variable VisitVariable(Variable node)
         {
-          foreach (var prefix in AsymmetricNamePrefixes) {
-            if (node.TypedIdent.Name.StartsWith(prefix)) {
-                found = true;
+            foreach (var prefix in AsymmetricNamePrefixes)
+            {
+                if (node.TypedIdent.Name.StartsWith(prefix))
+                {
+                    found = true;
+                }
             }
-          }
-          return node;
-        }
 
+            return node;
+        }
     }
 }

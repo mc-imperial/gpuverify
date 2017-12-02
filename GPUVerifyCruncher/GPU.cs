@@ -7,26 +7,26 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.RegularExpressions;
-
 namespace GPUVerify
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Text;
+    using System.Text.RegularExpressions;
+
     public enum DIMENSION { X, Y, Z }
 
     public class GPU
     {
-        public Dictionary<DIMENSION, int> gridDim  = new Dictionary<DIMENSION, int>();
+        public Dictionary<DIMENSION, int> gridDim = new Dictionary<DIMENSION, int>();
         public Dictionary<DIMENSION, int> blockDim = new Dictionary<DIMENSION, int>();
         public Dictionary<DIMENSION, int> gridOffset = new Dictionary<DIMENSION, int>();
 
         public GPU()
         {
-            gridDim[DIMENSION.X]  = -1;
-            gridDim[DIMENSION.Y]  = -1;
-            gridDim[DIMENSION.Z]  = -1;
+            gridDim[DIMENSION.X] = -1;
+            gridDim[DIMENSION.Y] = -1;
+            gridDim[DIMENSION.Z] = -1;
             blockDim[DIMENSION.X] = -1;
             blockDim[DIMENSION.Y] = -1;
             blockDim[DIMENSION.Z] = -1;

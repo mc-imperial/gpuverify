@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Collections.Generic;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
-    interface IKernelArrayInfo
+    using System.Collections.Generic;
+    using Microsoft.Boogie;
+
+    internal interface IKernelArrayInfo
     {
 
         IEnumerable<Variable> GetGlobalArrays(bool includeDisabled);
@@ -52,6 +52,5 @@ namespace GPUVerify
         void RemovePrivateArray(Variable v);
 
         void DisableGlobalOrGroupSharedArray(Variable v);
-
     }
 }

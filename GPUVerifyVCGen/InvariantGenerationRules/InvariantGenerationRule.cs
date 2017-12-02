@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-using Microsoft.Boogie;
-
 namespace GPUVerify.InvariantGenerationRules
 {
-    abstract class InvariantGenerationRule
+    using Microsoft.Boogie;
+
+    internal abstract class InvariantGenerationRule
     {
         protected GPUVerifier verifier;
 
@@ -22,5 +22,4 @@ namespace GPUVerify.InvariantGenerationRules
 
         public abstract void GenerateCandidates(Implementation Impl, IRegion region);
     }
-
 }

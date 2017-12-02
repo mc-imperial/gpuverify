@@ -7,18 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Text;
+    using Microsoft.Boogie;
+
     class UnitialisedException : Exception
     {
-        public UnitialisedException(string message) :
-          base(message)
+        public UnitialisedException(string message)
+            : base(message)
         {
         }
     }
@@ -39,8 +39,8 @@ namespace GPUVerify
 
         public void Clear()
         {
-          scalars.Clear();
-          arrays.Clear();
+            scalars.Clear();
+            arrays.Clear();
         }
 
         public void ClearRaceArrayOffset(string name)
@@ -116,6 +116,7 @@ namespace GPUVerify
                         return true;
                 }
             }
+
             return false;
         }
 
@@ -164,33 +165,30 @@ namespace GPUVerify
 
         public void Dump()
         {
-            int maxLength = 0;
-            foreach (string name in scalars.Keys.ToList())
-                maxLength = Math.Max(maxLength, name.Length);
+            int maxLength = scalars.Keys.Aggregate(0, (curMax, name) => Math.Max(curMax, name.Length));
 
             Console.WriteLine("===== Scalar memory contents =====");
             foreach (KeyValuePair<string, BitVector> item in scalars)
-                Console.WriteLine(item.Key
-                + getEmptySpaces(maxLength, item.Key.Length)
-                + " = "
-                + item.Value.ToString());
+            {
+                Console.WriteLine(
+                    item.Key + getEmptySpaces(maxLength, item.Key.Length) +
+                    " = " + item.Value.ToString());
+            }
             Console.WriteLine("==================================");
 
             Console.WriteLine("===== Array memory contents ======");
             foreach (KeyValuePair<string, Dictionary<SubscriptExpr, BitVector>> item in arrays)
             {
                 foreach (KeyValuePair<SubscriptExpr, BitVector> item2 in item.Value)
-                    Console.WriteLine(item.Key +
-                    "[" +
-                    item2.Key.ToString() +
-                    "] = " +
-                    item2.Value.ToString());
+                {
+                    Console.WriteLine(
+                        item.Key + "[" + item2.Key.ToString() + "] = " +
+                        item2.Value.ToString());
+                }
             }
             Console.WriteLine("==================================");
 
-            maxLength = 0;
-            foreach (string name in raceArrayOffsets.Keys.ToList())
-                maxLength = Math.Max(maxLength, name.Length);
+            maxLength = raceArrayOffsets.Keys.Aggregate(0, (curMax, name) => Math.Max(curMax, name.Length));
             Console.WriteLine("=========== Race-checking sets ===========");
             foreach (KeyValuePair<string, HashSet<BitVector>> item in raceArrayOffsets)
             {
@@ -221,11 +219,13 @@ namespace GPUVerify
         {
             if (expr1.indices.Count != expr2.indices.Count)
                 return false;
+
             foreach (var pair in expr1.indices.Zip(expr2.indices))
             {
                 if (!pair.Item1.Equals(pair.Item2))
                     return false;
             }
+
             return true;
         }
 
@@ -236,6 +236,7 @@ namespace GPUVerify
                 if (Matches(expr, expr2))
                     return expr2;
             }
+
             return null;
         }
 
@@ -249,6 +250,7 @@ namespace GPUVerify
                 if (++i < indices.Count)
                     builder.Append(", ");
             }
+
             return builder.ToString();
         }
     }

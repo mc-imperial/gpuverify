@@ -7,53 +7,58 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using System.Collections.Generic;
-using System.IO;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
+    using System;
+    using System.Collections.Generic;
+    using System.IO;
+    using Microsoft.Boogie;
+
     class GPUVerify
     {
         public static void Main(string[] args)
         {
-          try {
-            int showHelp = GPUVerifyVCGenCommandLineOptions.Parse(args);
+            try
+            {
+                int showHelp = GPUVerifyVCGenCommandLineOptions.Parse(args);
 
-            if (showHelp == -1) {
-              GPUVerifyVCGenCommandLineOptions.Usage();
-              System.Environment.Exit(0);
+                if (showHelp == -1)
+                {
+                    GPUVerifyVCGenCommandLineOptions.Usage();
+                    System.Environment.Exit(0);
+                }
+
+                if (GPUVerifyVCGenCommandLineOptions.inputFiles.Count < 1)
+                {
+                    Console.WriteLine("*** Error: No input files were specified.");
+                    Environment.Exit(1);
+                }
+
+                foreach (string file in GPUVerifyVCGenCommandLineOptions.inputFiles)
+                {
+                    string extension = Path.GetExtension(file)?.ToLower();
+
+                    if (extension != ".gbpl")
+                    {
+                        Console.WriteLine("GPUVerify: error: {0} is not a .gbpl file", file);
+                        Environment.Exit(1);
+                    }
+                }
+
+                parseProcessOutput();
             }
+            catch (Exception e)
+            {
+                if (GPUVerifyVCGenCommandLineOptions.DebugGPUVerify)
+                {
+                    Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
+                    Console.Error.WriteLine(e);
+                    throw e;
+                }
 
-            if (GPUVerifyVCGenCommandLineOptions.inputFiles.Count < 1) {
-              Console.WriteLine("*** Error: No input files were specified.");
-              Environment.Exit(1);
-            }
-
-            foreach (string file in GPUVerifyVCGenCommandLineOptions.inputFiles) {
-              string extension = Path.GetExtension(file);
-              if (extension != null) {
-                extension = extension.ToLower();
-              }
-              if (extension != ".gbpl") {
-                Console.WriteLine("GPUVerify: error: {0} is not a .gbpl file", file);
+                GVUtil.IO.DumpExceptionInformation(e);
                 Environment.Exit(1);
-              }
             }
-
-            parseProcessOutput();
-          } catch (Exception e) {
-            if (GPUVerifyVCGenCommandLineOptions.DebugGPUVerify) {
-              Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
-              Console.Error.WriteLine(e);
-              throw e;
-            }
-
-            GVUtil.IO.DumpExceptionInformation(e);
-
-            Environment.Exit(1);
-          }
         }
 
         public static Program parse(out ResolutionContext rc)
@@ -94,6 +99,7 @@ namespace GPUVerify
                     return v2;
                 }
             }
+
             return null;
         }
 
@@ -110,6 +116,7 @@ namespace GPUVerify
                 if (Path.GetExtension(inputFile).ToLower() != ".bpl")
                     fn = Path.GetFileNameWithoutExtension(inputFile);
             }
+
             ResolutionContext rc;
             Program program = parse(out rc);
             new GPUVerifier(fn, program, rc).doit();
@@ -144,6 +151,7 @@ namespace GPUVerify
                     okay = false;
                     continue;
                 }
+
                 if (program == null)
                 {
                     program = programSnippet;
@@ -153,6 +161,7 @@ namespace GPUVerify
                     program.AddTopLevelDeclarations(programSnippet.TopLevelDeclarations);
                 }
             }
+
             if (!okay)
             {
                 return null;

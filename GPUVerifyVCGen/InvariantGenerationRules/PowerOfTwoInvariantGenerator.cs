@@ -7,19 +7,18 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.Boogie;
-
 namespace GPUVerify.InvariantGenerationRules
 {
-    class PowerOfTwoInvariantGenerator : InvariantGenerationRule
+    using System.Collections.Generic;
+    using System.Linq;
+    using Microsoft.Boogie;
+
+    internal class PowerOfTwoInvariantGenerator : InvariantGenerationRule
     {
 
         public PowerOfTwoInvariantGenerator(GPUVerifier verifier)
             : base(verifier)
         {
-
         }
 
         public override void GenerateCandidates(Implementation Impl, IRegion region)
@@ -62,12 +61,11 @@ namespace GPUVerify.InvariantGenerationRules
                     verifier.AddCandidateInvariant(region, mulInv, "relationalPow2");
                     var disjInv = Expr.Or(
                       Expr.And(Expr.Eq(new IdentifierExpr(dec.tok, dec), verifier.Zero(32)),
-                               Expr.Eq(new IdentifierExpr(inc.tok, inc), verifier.IntRep.GetLiteral(2*i, 32))),
+                               Expr.Eq(new IdentifierExpr(inc.tok, inc), verifier.IntRep.GetLiteral(2 * i, 32))),
                       mulInv);
                     verifier.AddCandidateInvariant(region, disjInv, "relationalPow2");
                 }
             }
         }
-
     }
 }

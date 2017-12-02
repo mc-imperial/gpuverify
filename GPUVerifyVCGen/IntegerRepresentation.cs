@@ -7,309 +7,366 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.RegularExpressions;
-using System.Numerics;
-using Microsoft.Boogie;
-using Microsoft.Basetypes;
-
 namespace GPUVerify
 {
-  interface IntegerRepresentation
-  {
-    Microsoft.Boogie.Type GetIntType(int Width);
-    LiteralExpr GetLiteral(int Value, int Width);
-    LiteralExpr GetLiteral(BigInteger Value, int Width);
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Numerics;
+    using System.Text.RegularExpressions;
+    using Microsoft.Basetypes;
+    using Microsoft.Boogie;
 
-    Expr MakeSub(Expr lhs, Expr rhs);
-    Expr MakeAnd(Expr lhs, Expr rhs);
-    Expr MakeUlt(Expr lhs, Expr rhs);
-    Expr MakeUle(Expr lhs, Expr rhs);
-    Expr MakeUgt(Expr lhs, Expr rhs);
-    Expr MakeUge(Expr lhs, Expr rhs);
-    Expr MakeSlt(Expr lhs, Expr rhs);
-    Expr MakeSle(Expr lhs, Expr rhs);
-    Expr MakeSgt(Expr lhs, Expr rhs);
-    Expr MakeSge(Expr lhs, Expr rhs);
-    Expr MakeAdd(Expr lhs, Expr rhs);
-    Expr MakeMul(Expr lhs, Expr rhs);
-    Expr MakeDiv(Expr lhs, Expr rhs);
-    Expr MakeModPow2(Expr lhs, Expr rhs);
-    Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType);
-    bool IsAdd(Expr e, out Expr lhs, out Expr rhs);
-    bool IsMul(Expr e, out Expr lhs, out Expr rhs);
-  }
-
-  class IntegerRepresentationHelper {
-    internal static bool IsFun(Expr e, string mneumonic, out Expr lhs, out Expr rhs)
+    internal interface IntegerRepresentation
     {
-      lhs = rhs = null;
+        Microsoft.Boogie.Type GetIntType(int Width);
 
-      var ne = e as NAryExpr;
-      if (ne == null)
-      {
-        return false;
-      }
-      var fc = ne.Fun as FunctionCall;
-      if (fc == null)
-      {
-        return false;
-      }
+        LiteralExpr GetLiteral(int Value, int Width);
 
-      if (!Regex.IsMatch(fc.FunctionName, "BV[0-9]+_" + mneumonic))
-      {
-        return false;
-      }
+        LiteralExpr GetLiteral(BigInteger Value, int Width);
 
-      lhs = ne.Args[0];
-      rhs = ne.Args[1];
-      return true;
-    }
-  }
+        Expr MakeSub(Expr lhs, Expr rhs);
 
-  class BVIntegerRepresentation : IntegerRepresentation {
+        Expr MakeAnd(Expr lhs, Expr rhs);
 
-    private GPUVerifier verifier;
+        Expr MakeUlt(Expr lhs, Expr rhs);
 
-    public BVIntegerRepresentation(GPUVerifier verifier) {
-      this.verifier = verifier;
-    }
+        Expr MakeUle(Expr lhs, Expr rhs);
 
-    public Microsoft.Boogie.Type GetIntType(int Width) {
-      return Microsoft.Boogie.Type.GetBvType(Width);
-    }
+        Expr MakeUgt(Expr lhs, Expr rhs);
 
-    public LiteralExpr GetLiteral(int Value, int Width) {
-      return new LiteralExpr(Token.NoToken, BigNum.FromInt(Value), Width);
-    }
+        Expr MakeUge(Expr lhs, Expr rhs);
 
-    public LiteralExpr GetLiteral(BigInteger Value, int Width) {
-      var V = Value;
-      if (V < 0)
-        V += BigInteger.Pow(2, Width);
-      return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(V), Width);
+        Expr MakeSlt(Expr lhs, Expr rhs);
+
+        Expr MakeSle(Expr lhs, Expr rhs);
+
+        Expr MakeSgt(Expr lhs, Expr rhs);
+
+        Expr MakeSge(Expr lhs, Expr rhs);
+
+        Expr MakeAdd(Expr lhs, Expr rhs);
+
+        Expr MakeMul(Expr lhs, Expr rhs);
+
+        Expr MakeDiv(Expr lhs, Expr rhs);
+
+        Expr MakeModPow2(Expr lhs, Expr rhs);
+
+        Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType);
+
+        bool IsAdd(Expr e, out Expr lhs, out Expr rhs);
+
+        bool IsMul(Expr e, out Expr lhs, out Expr rhs);
     }
 
-    private Expr MakeBitVectorBinaryBoolean(string suffix, string smtName, Expr lhs, Expr rhs)
+    internal class IntegerRepresentationHelper
     {
-        return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, Microsoft.Boogie.Type.Bool, lhs, rhs);
+        internal static bool IsFun(Expr e, string mneumonic, out Expr lhs, out Expr rhs)
+        {
+            lhs = rhs = null;
+
+            var ne = e as NAryExpr;
+            if (ne == null)
+            {
+                return false;
+            }
+
+            var fc = ne.Fun as FunctionCall;
+            if (fc == null)
+            {
+                return false;
+            }
+
+            if (!Regex.IsMatch(fc.FunctionName, "BV[0-9]+_" + mneumonic))
+            {
+                return false;
+            }
+
+            lhs = ne.Args[0];
+            rhs = ne.Args[1];
+            return true;
+        }
     }
 
-    private Expr MakeBitVectorUnaryBitVector(string suffix, string smtName, Expr expr, Microsoft.Boogie.Type resultType)
+    internal class BVIntegerRepresentation : IntegerRepresentation
     {
-        return MakeBVFunctionCall("BV" + expr.Type.BvBits + "_" + suffix, smtName, resultType, expr);
+        private GPUVerifier verifier;
+
+        public BVIntegerRepresentation(GPUVerifier verifier)
+        {
+            this.verifier = verifier;
+        }
+
+        public Microsoft.Boogie.Type GetIntType(int Width)
+        {
+            return Microsoft.Boogie.Type.GetBvType(Width);
+        }
+
+        public LiteralExpr GetLiteral(int Value, int Width)
+        {
+            return new LiteralExpr(Token.NoToken, BigNum.FromInt(Value), Width);
+        }
+
+        public LiteralExpr GetLiteral(BigInteger Value, int Width)
+        {
+            var V = Value;
+            if (V < 0)
+                V += BigInteger.Pow(2, Width);
+            return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(V), Width);
+        }
+
+        private Expr MakeBitVectorBinaryBoolean(string suffix, string smtName, Expr lhs, Expr rhs)
+        {
+            return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, Microsoft.Boogie.Type.Bool, lhs, rhs);
+        }
+
+        private Expr MakeBitVectorUnaryBitVector(string suffix, string smtName, Expr expr, Microsoft.Boogie.Type resultType)
+        {
+            return MakeBVFunctionCall("BV" + expr.Type.BvBits + "_" + suffix, smtName, resultType, expr);
+        }
+
+        private Expr MakeBitVectorBinaryBitVector(string suffix, string smtName, Expr lhs, Expr rhs)
+        {
+            return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, lhs.Type, lhs, rhs);
+        }
+
+        private Expr MakeBVFunctionCall(string functionName, string smtName, Microsoft.Boogie.Type resultType, params Expr[] args)
+        {
+            Function f = verifier.GetOrCreateBVFunction(functionName, smtName, resultType, args.Select(a => a.Type).ToArray());
+            var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr>(args));
+            e.Type = resultType;
+            return e;
+        }
+
+        public Expr MakeSub(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBitVector("SUB", "bvsub", lhs, rhs);
+        }
+
+        public Expr MakeAnd(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBitVector("AND", "bvand", lhs, rhs);
+        }
+
+        public Expr MakeUge(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBoolean("UGE", "bvuge", lhs, rhs);
+        }
+
+        public Expr MakeUlt(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBoolean("ULT", "bvult", lhs, rhs);
+        }
+
+        public Expr MakeUle(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBoolean("ULE", "bvule", lhs, rhs);
+        }
+
+        public Expr MakeUgt(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBoolean("UGT", "bvugt", lhs, rhs);
+        }
+
+        public Expr MakeSge(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBoolean("SGE", "bvsge", lhs, rhs);
+        }
+
+        public Expr MakeSlt(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBoolean("SLT", "bvslt", lhs, rhs);
+        }
+
+        public Expr MakeSle(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBoolean("SLE", "bvsle", lhs, rhs);
+        }
+
+        public Expr MakeSgt(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBoolean("SGT", "bvsgt", lhs, rhs);
+        }
+
+        public Expr MakeAdd(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBitVector("ADD", "bvadd", lhs, rhs);
+        }
+
+        public Expr MakeMul(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBitVector("MUL", "bvmul", lhs, rhs);
+        }
+
+        public Expr MakeDiv(Expr lhs, Expr rhs)
+        {
+            return MakeBitVectorBinaryBitVector("DIV", "bvsdiv", lhs, rhs);
+        }
+
+        public Expr MakeModPow2(Expr lhs, Expr rhs)
+        {
+            var BVType = rhs.Type as BvType;
+            return MakeAnd(MakeSub(rhs, GetLiteral(1, BVType.Bits)), lhs);
+        }
+
+        public Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType)
+        {
+            if (expr.Type.BvBits == resultType.BvBits)
+                return expr;
+            else
+                return MakeBitVectorUnaryBitVector("ZEXT" + resultType.BvBits, "zero_extend " + (resultType.BvBits - expr.Type.BvBits), expr, resultType);
+        }
+
+        public bool IsAdd(Expr e, out Expr lhs, out Expr rhs)
+        {
+            return IntegerRepresentationHelper.IsFun(e, "ADD", out lhs, out rhs);
+        }
+
+        public bool IsMul(Expr e, out Expr lhs, out Expr rhs)
+        {
+            return IntegerRepresentationHelper.IsFun(e, "MUL", out lhs, out rhs);
+        }
+
     }
 
-    private Expr MakeBitVectorBinaryBitVector(string suffix, string smtName, Expr lhs, Expr rhs)
+    internal class MathIntegerRepresentation : IntegerRepresentation
     {
-        return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, lhs.Type, lhs, rhs);
+        private GPUVerifier verifier;
+
+        public MathIntegerRepresentation(GPUVerifier verifier)
+        {
+            this.verifier = verifier;
+        }
+
+        public Microsoft.Boogie.Type GetIntType(int Width)
+        {
+            return Microsoft.Boogie.Type.Int;
+        }
+
+        public LiteralExpr GetLiteral(int Value, int Width)
+        {
+            return new LiteralExpr(Token.NoToken, BigNum.FromInt(Value));
+        }
+
+        public LiteralExpr GetLiteral(BigInteger Value, int Width)
+        {
+            return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(Value));
+        }
+
+        private Expr MakeIntBinaryInt(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
+        {
+            return MakeIntFunctionCall("BV32_" + suffix, infixOp, lhs.Type, lhs, rhs);
+        }
+
+        private Expr MakeIntBinaryIntUF(string suffix, Expr lhs, Expr rhs)
+        {
+            return MakeIntUFFunctionCall("BV32_" + suffix, lhs.Type, lhs, rhs);
+        }
+
+        private Expr MakeIntBinaryBool(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
+        {
+            return MakeIntFunctionCall("BV32_" + suffix, infixOp, Microsoft.Boogie.Type.Bool, lhs, rhs);
+        }
+
+        private Expr MakeIntFunctionCall(string functionName, BinaryOperator.Opcode infixOp, Microsoft.Boogie.Type resultType, Expr lhs, Expr rhs)
+        {
+            Function f = verifier.GetOrCreateIntFunction(functionName, infixOp, resultType, lhs.Type, rhs.Type);
+            var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
+            e.Type = resultType;
+            return e;
+        }
+
+        private Expr MakeIntUFFunctionCall(string functionName, Microsoft.Boogie.Type resultType, Expr lhs, Expr rhs)
+        {
+            Function f = verifier.GetOrCreateBinaryUF(functionName, resultType, lhs.Type, rhs.Type);
+            var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
+            e.Type = resultType;
+            return e;
+        }
+
+        public Expr MakeSub(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryInt("SUB", BinaryOperator.Opcode.Sub, lhs, rhs);
+        }
+
+        public Expr MakeAdd(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryInt("ADD", BinaryOperator.Opcode.Add, lhs, rhs);
+        }
+
+        public Expr MakeMul(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryInt("MUL", BinaryOperator.Opcode.Mul, lhs, rhs);
+        }
+
+        public Expr MakeDiv(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryInt("MUL", BinaryOperator.Opcode.Div, lhs, rhs);
+        }
+
+        public Expr MakeAnd(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryIntUF("AND", lhs, rhs);
+        }
+
+        public Expr MakeUgt(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryBool("UGT", BinaryOperator.Opcode.Gt, lhs, rhs);
+        }
+
+        public Expr MakeUge(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryBool("UGE", BinaryOperator.Opcode.Ge, lhs, rhs);
+        }
+
+        public Expr MakeUlt(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryBool("ULT", BinaryOperator.Opcode.Lt, lhs, rhs);
+        }
+
+        public Expr MakeUle(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryBool("ULE", BinaryOperator.Opcode.Le, lhs, rhs);
+        }
+
+        public Expr MakeSgt(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryBool("SGT", BinaryOperator.Opcode.Gt, lhs, rhs);
+        }
+
+        public Expr MakeSge(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryBool("SGE", BinaryOperator.Opcode.Ge, lhs, rhs);
+        }
+
+        public Expr MakeSlt(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryBool("SLT", BinaryOperator.Opcode.Lt, lhs, rhs);
+        }
+
+        public Expr MakeSle(Expr lhs, Expr rhs)
+        {
+            return MakeIntBinaryBool("SLE", BinaryOperator.Opcode.Le, lhs, rhs);
+        }
+
+        public Expr MakeModPow2(Expr lhs, Expr rhs)
+        {
+            return Expr.Binary(BinaryOperator.Opcode.Mod, lhs, rhs);
+        }
+
+        public Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType)
+        {
+            return expr;
+        }
+
+        public bool IsAdd(Expr e, out Expr lhs, out Expr rhs)
+        {
+            return IntegerRepresentationHelper.IsFun(e, "ADD", out lhs, out rhs);
+        }
+
+        public bool IsMul(Expr e, out Expr lhs, out Expr rhs)
+        {
+            return IntegerRepresentationHelper.IsFun(e, "MUL", out lhs, out rhs);
+        }
     }
-
-    private Expr MakeBVFunctionCall(string functionName, string smtName, Microsoft.Boogie.Type resultType, params Expr[] args)
-    {
-        Function f = verifier.GetOrCreateBVFunction(functionName, smtName, resultType, args.Select(a => a.Type).ToArray());
-        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr>(args));
-        e.Type = resultType;
-        return e;
-    }
-
-    public Expr MakeSub(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBitVector("SUB", "bvsub", lhs, rhs);
-    }
-
-    public Expr MakeAnd(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBitVector("AND", "bvand", lhs, rhs);
-    }
-
-    public Expr MakeUge(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBoolean("UGE", "bvuge", lhs, rhs);
-    }
-
-    public Expr MakeUlt(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBoolean("ULT", "bvult", lhs, rhs);
-    }
-
-    public Expr MakeUle(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBoolean("ULE", "bvule", lhs, rhs);
-    }
-
-    public Expr MakeUgt(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBoolean("UGT", "bvugt", lhs, rhs);
-    }
-
-    public Expr MakeSge(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBoolean("SGE", "bvsge", lhs, rhs);
-    }
-
-    public Expr MakeSlt(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBoolean("SLT", "bvslt", lhs, rhs);
-    }
-
-    public Expr MakeSle(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBoolean("SLE", "bvsle", lhs, rhs);
-    }
-
-    public Expr MakeSgt(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBoolean("SGT", "bvsgt", lhs, rhs);
-    }
-
-    public Expr MakeAdd(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBitVector("ADD", "bvadd", lhs, rhs);
-    }
-
-    public Expr MakeMul(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBitVector("MUL", "bvmul", lhs, rhs);
-    }
-
-    public Expr MakeDiv(Expr lhs, Expr rhs) {
-      return MakeBitVectorBinaryBitVector("DIV", "bvsdiv", lhs, rhs);
-    }
-
-    public Expr MakeModPow2(Expr lhs, Expr rhs) {
-      var BVType = rhs.Type as BvType;
-      return MakeAnd(MakeSub(rhs, GetLiteral(1, BVType.Bits)), lhs);
-    }
-
-    public Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType)
-    {
-      if (expr.Type.BvBits == resultType.BvBits)
-        return expr;
-      else
-        return MakeBitVectorUnaryBitVector("ZEXT" + resultType.BvBits, "zero_extend " + (resultType.BvBits - expr.Type.BvBits), expr, resultType);
-    }
-
-    public bool IsAdd(Expr e, out Expr lhs, out Expr rhs) {
-      return IntegerRepresentationHelper.IsFun(e, "ADD", out lhs, out rhs);
-    }
-
-    public bool IsMul(Expr e, out Expr lhs, out Expr rhs) {
-      return IntegerRepresentationHelper.IsFun(e, "MUL", out lhs, out rhs);
-    }
-
-  }
-
-  class MathIntegerRepresentation : IntegerRepresentation {
-
-    private GPUVerifier verifier;
-
-    public MathIntegerRepresentation(GPUVerifier verifier) {
-      this.verifier = verifier;
-    }
-
-    public Microsoft.Boogie.Type GetIntType(int Width) {
-      return Microsoft.Boogie.Type.Int;
-    }
-
-    public LiteralExpr GetLiteral(int Value, int Width) {
-      return new LiteralExpr(Token.NoToken, BigNum.FromInt(Value));
-    }
-
-    public LiteralExpr GetLiteral(BigInteger Value, int Width) {
-      return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(Value));
-    }
-
-    private Expr MakeIntBinaryInt(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
-    {
-        return MakeIntFunctionCall("BV32_" + suffix, infixOp, lhs.Type, lhs, rhs);
-    }
-
-    private Expr MakeIntBinaryIntUF(string suffix, Expr lhs, Expr rhs)
-    {
-        return MakeIntUFFunctionCall("BV32_" + suffix, lhs.Type, lhs, rhs);
-    }
-
-    private Expr MakeIntBinaryBool(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
-    {
-        return MakeIntFunctionCall("BV32_" + suffix, infixOp, Microsoft.Boogie.Type.Bool, lhs, rhs);
-    }
-
-    private Expr MakeIntFunctionCall(string functionName, BinaryOperator.Opcode infixOp, Microsoft.Boogie.Type resultType, Expr lhs, Expr rhs)
-    {
-        Function f = verifier.GetOrCreateIntFunction(functionName, infixOp, resultType, lhs.Type, rhs.Type);
-        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
-        e.Type = resultType;
-        return e;
-    }
-
-    private Expr MakeIntUFFunctionCall(string functionName, Microsoft.Boogie.Type resultType, Expr lhs, Expr rhs)
-    {
-        Function f = verifier.GetOrCreateBinaryUF(functionName, resultType, lhs.Type, rhs.Type);
-        var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
-        e.Type = resultType;
-        return e;
-    }
-
-
-    public Expr MakeSub(Expr lhs, Expr rhs) {
-      return MakeIntBinaryInt("SUB", BinaryOperator.Opcode.Sub, lhs, rhs);
-    }
-
-    public Expr MakeAdd(Expr lhs, Expr rhs) {
-      return MakeIntBinaryInt("ADD", BinaryOperator.Opcode.Add, lhs, rhs);
-    }
-
-    public Expr MakeMul(Expr lhs, Expr rhs) {
-      return MakeIntBinaryInt("MUL", BinaryOperator.Opcode.Mul, lhs, rhs);
-    }
-
-    public Expr MakeDiv(Expr lhs, Expr rhs) {
-      return MakeIntBinaryInt("MUL", BinaryOperator.Opcode.Div, lhs, rhs);
-    }
-
-    public Expr MakeAnd(Expr lhs, Expr rhs) {
-      return MakeIntBinaryIntUF("AND", lhs, rhs);
-    }
-
-    public Expr MakeUgt(Expr lhs, Expr rhs) {
-      return MakeIntBinaryBool("UGT", BinaryOperator.Opcode.Gt, lhs, rhs);
-    }
-
-    public Expr MakeUge(Expr lhs, Expr rhs) {
-      return MakeIntBinaryBool("UGE", BinaryOperator.Opcode.Ge, lhs, rhs);
-    }
-
-    public Expr MakeUlt(Expr lhs, Expr rhs) {
-      return MakeIntBinaryBool("ULT", BinaryOperator.Opcode.Lt, lhs, rhs);
-    }
-
-    public Expr MakeUle(Expr lhs, Expr rhs) {
-      return MakeIntBinaryBool("ULE", BinaryOperator.Opcode.Le, lhs, rhs);
-    }
-
-    public Expr MakeSgt(Expr lhs, Expr rhs) {
-      return MakeIntBinaryBool("SGT", BinaryOperator.Opcode.Gt, lhs, rhs);
-    }
-
-    public Expr MakeSge(Expr lhs, Expr rhs) {
-      return MakeIntBinaryBool("SGE", BinaryOperator.Opcode.Ge, lhs, rhs);
-    }
-
-    public Expr MakeSlt(Expr lhs, Expr rhs) {
-      return MakeIntBinaryBool("SLT", BinaryOperator.Opcode.Lt, lhs, rhs);
-    }
-
-    public Expr MakeSle(Expr lhs, Expr rhs) {
-      return MakeIntBinaryBool("SLE", BinaryOperator.Opcode.Le, lhs, rhs);
-    }
-
-    public Expr MakeModPow2(Expr lhs, Expr rhs) {
-      return Expr.Binary(BinaryOperator.Opcode.Mod, lhs, rhs);
-    }
-
-    public Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType)
-    {
-      return expr;
-    }
-
-    public bool IsAdd(Expr e, out Expr lhs, out Expr rhs) {
-      return IntegerRepresentationHelper.IsFun(e, "ADD", out lhs, out rhs);
-    }
-
-    public bool IsMul(Expr e, out Expr lhs, out Expr rhs) {
-      return IntegerRepresentationHelper.IsFun(e, "MUL", out lhs, out rhs);
-    }
-
-  }
-
 }

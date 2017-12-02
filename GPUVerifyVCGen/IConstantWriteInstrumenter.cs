@@ -9,7 +9,7 @@
 
 namespace GPUVerify
 {
-    interface IConstantWriteInstrumenter
+    internal interface IConstantWriteInstrumenter
     {
         void AddConstantWriteInstrumentation();
     }

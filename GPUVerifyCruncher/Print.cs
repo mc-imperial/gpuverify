@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
+    using System;
+    using Microsoft.Boogie;
+
     public class Print
     {
         public static int debug = 0;

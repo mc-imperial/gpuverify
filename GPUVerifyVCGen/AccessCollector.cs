@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
-    abstract class AccessCollector : StandardVisitor
+    using System;
+    using Microsoft.Boogie;
+
+    internal abstract class AccessCollector : StandardVisitor
     {
         protected IKernelArrayInfo State;
 

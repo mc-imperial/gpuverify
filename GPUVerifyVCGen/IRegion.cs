@@ -7,25 +7,37 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Collections.Generic;
-using Microsoft.Boogie;
+namespace GPUVerify
+{
+    using System.Collections.Generic;
+    using Microsoft.Boogie;
 
-namespace GPUVerify {
+    internal interface IRegion
+    {
+        object Identifier();
 
-interface IRegion {
-  object Identifier();
-  IEnumerable<Cmd> Cmds();
-  IEnumerable<object> CmdsChildRegions();
-  IEnumerable<IRegion> SubRegions();
-  IEnumerable<Block> PreHeaders();
-  Block Header();
-  IEnumerable<Block> SubBlocks();
-  Expr Guard();
-  void AddInvariant(PredicateCmd pc);
-  void AddLoopInvariantDisabledTag();
-  List<PredicateCmd> RemoveInvariants();
-  HashSet<Variable> PartitionVariablesOfHeader();
-  HashSet<Variable> PartitionVariablesOfRegion();
-}
+        IEnumerable<Cmd> Cmds();
 
+        IEnumerable<object> CmdsChildRegions();
+
+        IEnumerable<IRegion> SubRegions();
+
+        IEnumerable<Block> PreHeaders();
+
+        Block Header();
+
+        IEnumerable<Block> SubBlocks();
+
+        Expr Guard();
+
+        void AddInvariant(PredicateCmd pc);
+
+        void AddLoopInvariantDisabledTag();
+
+        List<PredicateCmd> RemoveInvariants();
+
+        HashSet<Variable> PartitionVariablesOfHeader();
+
+        HashSet<Variable> PartitionVariablesOfRegion();
+    }
 }

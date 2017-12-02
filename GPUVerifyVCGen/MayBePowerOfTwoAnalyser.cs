@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using System.Collections.Generic;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
+    using System;
+    using System.Collections.Generic;
+    using Microsoft.Boogie;
+
     class MayBePowerOfTwoAnalyser
     {
         private GPUVerifier verifier;
@@ -105,21 +105,21 @@ namespace GPUVerify
             }
         }
 
-
-        private bool variableHasPowerOfTwoType(Variable v) {
-            return (
+        private bool variableHasPowerOfTwoType(Variable v)
+        {
+            return
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32)) ||
-                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(64))
-                );
+                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(64));
         }
 
         private Variable getPowerOfTwoRhsVariable(Expr expr)
         {
             Expr lhs, rhs;
 
-            if (IntegerRepresentationHelper.IsFun(expr, "MUL", out lhs, out rhs)) {
+            if (IntegerRepresentationHelper.IsFun(expr, "MUL", out lhs, out rhs))
+            {
                 if (IsVariable(lhs) && IsConstant(rhs, 2))
                     return GetVariable(lhs);
                 else if (IsConstant(lhs, 2) && IsVariable(rhs))
@@ -129,7 +129,8 @@ namespace GPUVerify
             }
 
             if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs) ||
-                IntegerRepresentationHelper.IsFun(expr, "SDIV", out lhs, out rhs)) {
+                IntegerRepresentationHelper.IsFun(expr, "SDIV", out lhs, out rhs))
+            {
                 if (IsVariable(lhs) && IsConstant(rhs, 2))
                     return GetVariable(lhs);
                 else
@@ -138,7 +139,8 @@ namespace GPUVerify
 
             if (IntegerRepresentationHelper.IsFun(expr, "SHL", out lhs, out rhs) ||
                 IntegerRepresentationHelper.IsFun(expr, "ASHR", out lhs, out rhs) ||
-                IntegerRepresentationHelper.IsFun(expr, "LSHR", out lhs, out rhs)) {
+                IntegerRepresentationHelper.IsFun(expr, "LSHR", out lhs, out rhs))
+            {
                 if (IsVariable(lhs) && IsConstant(rhs))
                     return GetVariable(lhs);
                 else
@@ -157,8 +159,8 @@ namespace GPUVerify
 
             LiteralExpr lit = expr as LiteralExpr;
 
-            return ((lit.Val is BvConst) ||
-                    (lit.Val is Microsoft.Basetypes.BigNum));
+            return (lit.Val is BvConst) ||
+                    (lit.Val is Microsoft.Basetypes.BigNum);
         }
 
         private bool IsConstant(Expr expr, int x)
@@ -172,30 +174,31 @@ namespace GPUVerify
 
             if (lit.Val is BvConst)
             {
-                if (((BvConst)lit.Val).Value.InInt32) {
+                if (((BvConst)lit.Val).Value.InInt32)
+                {
                     return ((BvConst)lit.Val).Value.ToIntSafe == x;
                 }
             }
 
             if (lit.Val is Microsoft.Basetypes.BigNum)
             {
-                if (((Microsoft.Basetypes.BigNum)lit.Val).InInt32) {
+                if (((Microsoft.Basetypes.BigNum)lit.Val).InInt32)
+                {
                     return ((Microsoft.Basetypes.BigNum)lit.Val).ToInt == x;
                 }
             }
 
             return false;
-
         }
 
         private bool IsVariable(Expr expr)
         {
-            return (expr is IdentifierExpr);
+            return expr is IdentifierExpr;
         }
 
         private Variable GetVariable(Expr expr)
         {
-            return ((expr as IdentifierExpr).Decl);
+            return (expr as IdentifierExpr).Decl;
         }
 
         private void dump()
@@ -209,9 +212,7 @@ namespace GPUVerify
                         (mayBePowerOfTwoInfo[p][v] ? "may be power of two" : "likely not power of two"));
                 }
             }
-
         }
-
 
         internal bool MayBePowerOfTwo(string p, string v)
         {

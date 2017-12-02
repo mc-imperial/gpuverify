@@ -7,83 +7,103 @@
 //
 //===----------------------------------------------------------------------===//
 
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
-  public enum SourceLanguage
-  {
-    OpenCL, CUDA
-  }
+    using Microsoft.Boogie;
 
-  public class GVCommandLineOptions : CommandLineOptions
-  {
-    public string ArrayToCheck = null;
-    public bool OnlyIntraGroupRaceChecking = false;
-    public bool DebugGPUVerify = false;
-    // Dimensionality of block = BlockHighestDim + 1
-    public int BlockHighestDim = 2;
-    // Dimensionality of grid = GridHighestDim + 1
-    public int GridHighestDim = 2;
-    public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
-    public bool DisplayLoopAbstractions = false;
-
-    public GVCommandLineOptions() :
-      base("GPUVerify", "GPUVerify kernel analyser") {
+    public enum SourceLanguage
+    {
+        OpenCL, CUDA
     }
 
-    protected override bool ParseOption(string name, CommandLineParseState ps) {
+    public class GVCommandLineOptions : CommandLineOptions
+    {
+        public string ArrayToCheck = null;
+        public bool OnlyIntraGroupRaceChecking = false;
+        public bool DebugGPUVerify = false;
+        // Dimensionality of block = BlockHighestDim + 1
+        public int BlockHighestDim = 2;
+        // Dimensionality of grid = GridHighestDim + 1
+        public int GridHighestDim = 2;
+        public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
+        public bool DisplayLoopAbstractions = false;
 
-      if (name == "sourceLanguage") {
-        if (ps.ConfirmArgumentCount(1)) {
-          if (ps.args[ps.i] == "cl") {
-            SourceLanguage = SourceLanguage.OpenCL;
-          } else if (ps.args[ps.i] == "cu") {
-            SourceLanguage = SourceLanguage.CUDA;
-          }
+        public GVCommandLineOptions()
+            : base("GPUVerify", "GPUVerify kernel analyser")
+        {
         }
-        return true;
-      }
 
-      if (name == "blockHighestDim") {
-        ps.GetNumericArgument(ref BlockHighestDim, 3);
-        return true;
-      }
+        protected override bool ParseOption(string name, CommandLineParseState ps)
+        {
+            if (name == "sourceLanguage")
+            {
+                if (ps.ConfirmArgumentCount(1))
+                {
+                    if (ps.args[ps.i] == "cl")
+                    {
+                        SourceLanguage = SourceLanguage.OpenCL;
+                    }
+                    else if (ps.args[ps.i] == "cu")
+                    {
+                        SourceLanguage = SourceLanguage.CUDA;
+                    }
+                }
 
-      if (name == "gridHighestDim") {
-        ps.GetNumericArgument(ref GridHighestDim, 3);
-        return true;
-      }
+                return true;
+            }
 
-      if (name == "debugGPUVerify") {
-        DebugGPUVerify = true;
-        return true;
-      }
+            if (name == "blockHighestDim")
+            {
+                ps.GetNumericArgument(ref BlockHighestDim, 3);
+                return true;
+            }
 
-      if (name == "onlyIntraGroupRaceChecking") {
-        OnlyIntraGroupRaceChecking = true;
-        return true;
-      }
+            if (name == "gridHighestDim")
+            {
+                ps.GetNumericArgument(ref GridHighestDim, 3);
+                return true;
+            }
 
-      if (name == "raceChecking") {
-        if (ps.ConfirmArgumentCount(1)) {
-          if (ps.args[ps.i] == "ORIGINAL") {
-            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.ORIGINAL;
-          } else if (ps.args[ps.i] == "SINGLE") {
-            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
-          } else if (ps.args[ps.i] == "MULTIPLE") {
-            RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
-          }
+            if (name == "debugGPUVerify")
+            {
+                DebugGPUVerify = true;
+                return true;
+            }
+
+            if (name == "onlyIntraGroupRaceChecking")
+            {
+                OnlyIntraGroupRaceChecking = true;
+                return true;
+            }
+
+            if (name == "raceChecking")
+            {
+                if (ps.ConfirmArgumentCount(1))
+                {
+                    if (ps.args[ps.i] == "ORIGINAL")
+                    {
+                        RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.ORIGINAL;
+                    }
+                    else if (ps.args[ps.i] == "SINGLE")
+                    {
+                        RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
+                    }
+                    else if (ps.args[ps.i] == "MULTIPLE")
+                    {
+                        RaceInstrumentationUtil.RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_MULTIPLE;
+                    }
+                }
+
+                return true;
+            }
+
+            if (name == "displayLoopAbstractions")
+            {
+                DisplayLoopAbstractions = true;
+                return true;
+            }
+
+            return base.ParseOption(name, ps);  // defer to superclass
         }
-        return true;
-      }
-
-      if (name == "displayLoopAbstractions") {
-        DisplayLoopAbstractions = true;
-        return true;
-      }
-
-      return base.ParseOption(name, ps);  // defer to superclass
     }
-  }
 }

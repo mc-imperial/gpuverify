@@ -7,14 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using System.Text;
-using System.Collections.Generic;
-using Microsoft.Basetypes;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
+    using System;
+    using System.Text;
+    using System.Collections.Generic;
+    using Microsoft.Basetypes;
+    using Microsoft.Boogie;
+
     public class ExprTree : System.Collections.IEnumerable
     {
         protected Dictionary<int, HashSet<Node>> levels = new Dictionary<int, HashSet<Node>>();
@@ -66,6 +66,7 @@ namespace GPUVerify
                                 break;
                             }
                         }
+
                         offsetVariables.Add(offsetVariable);
                     }
                 }
@@ -93,6 +94,7 @@ namespace GPUVerify
                 if (!(node is LiteralNode))
                     node.ClearState();
             }
+
             initialised = true;
         }
 
@@ -241,6 +243,7 @@ namespace GPUVerify
                         parent.children.Add(child);
                         child.parent = parent;
                     }
+
                     return parent;
                 }
                 else
@@ -321,8 +324,8 @@ namespace GPUVerify
     {
         public string op;
 
-        public OpNode(string op) :
-            base()
+        public OpNode(string op)
+            : base()
         {
             this.op = op;
         }
@@ -335,8 +338,8 @@ namespace GPUVerify
 
     public class TernaryNode : OpNode
     {
-        public TernaryNode(string op, Node one, Node two, Node three) :
-            base(op)
+        public TernaryNode(string op, Node one, Node two, Node three)
+            : base(op)
         {
             children.Add(one);
             children.Add(two);
@@ -346,8 +349,8 @@ namespace GPUVerify
 
     public class BinaryNode : OpNode
     {
-        public BinaryNode(string op, Node one, Node two) :
-            base(op)
+        public BinaryNode(string op, Node one, Node two)
+            : base(op)
         {
             children.Add(one);
             children.Add(two);
@@ -356,8 +359,8 @@ namespace GPUVerify
 
     public class UnaryNode : OpNode
     {
-        public UnaryNode(string op, Node one) :
-            base(op)
+        public UnaryNode(string op, Node one)
+            : base(op)
         {
             children.Add(one);
         }
@@ -428,7 +431,7 @@ namespace GPUVerify
     {
         public ForAllNode(Node one)
         {
-          children.Add(one);
+            children.Add(one);
         }
     }
 

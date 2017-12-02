@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
-    class AccessRecord
+    using Microsoft.Boogie;
+
+    internal class AccessRecord
     {
         public Variable v;
         public Expr Index;

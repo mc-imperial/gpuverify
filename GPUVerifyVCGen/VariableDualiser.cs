@@ -7,33 +7,39 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using Microsoft.Boogie;
-
-
 namespace GPUVerify
 {
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Linq;
+    using Microsoft.Boogie;
+
     class VariableDualiser : Duplicator
     {
-      static internal HashSet<string> otherFunctionNames =
-        new HashSet<string>(new string[] { "__other_bool", "__other_bv32", "__other_bv64", "__other_arrayId" });
+        static internal HashSet<string> otherFunctionNames =
+          new HashSet<string>(new string[] { "__other_bool", "__other_bv32", "__other_bv64", "__other_arrayId" });
 
         private int id;
         private UniformityAnalyser uniformityAnalyser;
         private string procName;
         private HashSet<Variable> quantifiedVars;
 
-        private bool SkipDualiseVariable(Variable node) {
-          var AEF = new AsymmetricExpressionFinder();
-          AEF.Visit(node);
-          if (AEF.foundAsymmetricExpr()) {
-            return true;
-          }
-          if (node.Name.Contains("_NOT_ACCESSED_")) return true;
-          if (quantifiedVars.Contains(node)) return true;
-          return false;
+        private bool SkipDualiseVariable(Variable node)
+        {
+            var AEF = new AsymmetricExpressionFinder();
+            AEF.Visit(node);
+            if (AEF.foundAsymmetricExpr())
+            {
+                return true;
+            }
+
+            if (node.Name.Contains("_NOT_ACCESSED_"))
+                return true;
+
+            if (quantifiedVars.Contains(node))
+                return true;
+
+            return false;
         }
 
         public VariableDualiser(int id, UniformityAnalyser uniformityAnalyser, string procName)
@@ -49,46 +55,49 @@ namespace GPUVerify
 
         public override Expr VisitIdentifierExpr(IdentifierExpr node)
         {
-          if (node.Decl is Formal) {
-            return new IdentifierExpr(node.tok, new Formal(node.tok, DualiseTypedIdent(node.Decl),
-              (node.Decl as Formal).InComing));
-          }
+            if (node.Decl is Formal)
+            {
+                return new IdentifierExpr(node.tok, new Formal(node.tok, DualiseTypedIdent(node.Decl),
+                  (node.Decl as Formal).InComing));
+            }
 
-          if (!(node.Decl is Constant) && !SkipDualiseVariable(node.Decl as Variable))
-          {
-              return new IdentifierExpr(node.tok, new LocalVariable(node.tok, DualiseTypedIdent(node.Decl)));
-          }
+            if (!(node.Decl is Constant) && !SkipDualiseVariable(node.Decl as Variable))
+            {
+                return new IdentifierExpr(node.tok, new LocalVariable(node.tok, DualiseTypedIdent(node.Decl)));
+            }
 
-          if (GPUVerifier.IsThreadLocalIdConstant(node.Decl))
-          {
-              return new IdentifierExpr(node.tok, new Constant(node.tok, DualiseTypedIdent(node.Decl)));
-          }
+            if (GPUVerifier.IsThreadLocalIdConstant(node.Decl))
+            {
+                return new IdentifierExpr(node.tok, new Constant(node.tok, DualiseTypedIdent(node.Decl)));
+            }
 
-          if (GPUVerifier.IsGroupIdConstant(node.Decl))
-          {
-              if (GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
-                return node;
-              }
-              return new IdentifierExpr(node.tok, new Constant(node.tok, DualiseTypedIdent(node.Decl)));
-          }
+            if (GPUVerifier.IsGroupIdConstant(node.Decl))
+            {
+                if (GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
+                {
+                    return node;
+                }
 
-          return node;
+                return new IdentifierExpr(node.tok, new Constant(node.tok, DualiseTypedIdent(node.Decl)));
+            }
+
+            return node;
         }
 
         private TypedIdent DualiseTypedIdent(Variable v)
         {
-          if (QKeyValue.FindBoolAttribute(v.Attributes, "global") ||
-              QKeyValue.FindBoolAttribute(v.Attributes, "group_shared")) {
-            return new TypedIdent(v.tok, v.Name, v.TypedIdent.Type);
-          }
+            if (QKeyValue.FindBoolAttribute(v.Attributes, "global") ||
+                QKeyValue.FindBoolAttribute(v.Attributes, "group_shared"))
+            {
+                return new TypedIdent(v.tok, v.Name, v.TypedIdent.Type);
+            }
 
-          if (uniformityAnalyser != null && uniformityAnalyser.IsUniform(procName, v.Name))
-          {
-            return new TypedIdent(v.tok, v.Name, v.TypedIdent.Type);
-          }
+            if (uniformityAnalyser != null && uniformityAnalyser.IsUniform(procName, v.Name))
+            {
+                return new TypedIdent(v.tok, v.Name, v.TypedIdent.Type);
+            }
 
-          return new TypedIdent(v.tok, v.Name + "$" + id, v.TypedIdent.Type);
-
+            return new TypedIdent(v.tok, v.Name + "$" + id, v.TypedIdent.Type);
         }
 
         public override Variable VisitVariable(Variable node)
@@ -107,70 +116,78 @@ namespace GPUVerify
 
         public override Expr VisitNAryExpr(NAryExpr node)
         {
-          if (node.Fun is MapSelect) {
-            Debug.Assert((node.Fun as MapSelect).Arity == 1);
-            if (node.Args[0] is NAryExpr) {
-              var inner = node.Args[0] as NAryExpr;
-              Debug.Assert(inner.Fun is MapSelect);
-              Debug.Assert(inner.Args[0] is IdentifierExpr);
-              Debug.Assert(QKeyValue.FindBoolAttribute(((IdentifierExpr)inner.Args[0]).Decl.Attributes, "atomic_usedmap"));
-              return base.VisitNAryExpr(node);
-            }
-            Debug.Assert(node.Args[0] is IdentifierExpr);
-            var v = (node.Args[0] as IdentifierExpr).Decl;
-            if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
-              return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-                new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-                  new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) })),
-                  VisitExpr(node.Args[1]) }));
-            }
-          }
-
-          if (node.Fun is FunctionCall)
-          {
-            FunctionCall call = node.Fun as FunctionCall;
-
-            // Alternate dualisation for "other thread" functions
-            if (otherFunctionNames.Contains(call.Func.Name))
+            if (node.Fun is MapSelect)
             {
-              Debug.Assert(id == 1 || id == 2);
-              int otherId = id == 1 ? 2 : 1;
-              return new VariableDualiser(otherId, uniformityAnalyser, procName).VisitExpr(
-                  node.Args[0]);
+                Debug.Assert((node.Fun as MapSelect).Arity == 1);
+                if (node.Args[0] is NAryExpr)
+                {
+                    var inner = node.Args[0] as NAryExpr;
+                    Debug.Assert(inner.Fun is MapSelect);
+                    Debug.Assert(inner.Args[0] is IdentifierExpr);
+                    Debug.Assert(QKeyValue.FindBoolAttribute(((IdentifierExpr)inner.Args[0]).Decl.Attributes, "atomic_usedmap"));
+                    return base.VisitNAryExpr(node);
+                }
+
+                Debug.Assert(node.Args[0] is IdentifierExpr);
+                var v = (node.Args[0] as IdentifierExpr).Decl;
+                if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
+                {
+                    return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
+                      new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
+                      new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) })),
+                      VisitExpr(node.Args[1]) }));
+                }
             }
 
-          }
+            if (node.Fun is FunctionCall)
+            {
+                FunctionCall call = node.Fun as FunctionCall;
 
-          return base.VisitNAryExpr(node);
+                // Alternate dualisation for "other thread" functions
+                if (otherFunctionNames.Contains(call.Func.Name))
+                {
+                    Debug.Assert(id == 1 || id == 2);
+                    int otherId = id == 1 ? 2 : 1;
+                    return new VariableDualiser(otherId, uniformityAnalyser, procName).VisitExpr(
+                        node.Args[0]);
+                }
+
+            }
+
+            return base.VisitNAryExpr(node);
         }
 
         // Do not dualise quantified variables
-        public override QuantifierExpr VisitQuantifierExpr(QuantifierExpr node) {
-          List<Variable> vs = node.Dummies;
-          foreach (Variable dummy in vs)
-          {
-            quantifiedVars.Add(dummy);
-          }
-          base.VisitQuantifierExpr(node);
-          foreach (Variable dummy in vs)
-          {
-            quantifiedVars.Remove(dummy);
-          }
-          return node;
+        public override QuantifierExpr VisitQuantifierExpr(QuantifierExpr node)
+        {
+            List<Variable> vs = node.Dummies;
+            foreach (Variable dummy in vs)
+            {
+                quantifiedVars.Add(dummy);
+            }
+
+            base.VisitQuantifierExpr(node);
+            foreach (Variable dummy in vs)
+            {
+                quantifiedVars.Remove(dummy);
+            }
+
+            return node;
         }
 
-        public override AssignLhs VisitMapAssignLhs(MapAssignLhs node) {
+        public override AssignLhs VisitMapAssignLhs(MapAssignLhs node)
+        {
 
-          var v = node.DeepAssignedVariable;
-          if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking) {
-            return new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, node.Map,
-              new List<Expr>(new Expr[] { GPUVerifier.GroupSharedIndexingExpr(id) })), 
-              node.Indexes.Select(idx => this.VisitExpr(idx)).ToList());
+            var v = node.DeepAssignedVariable;
+            if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
+            {
+                return new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, node.Map,
+                  new List<Expr>(new Expr[] { GPUVerifier.GroupSharedIndexingExpr(id) })),
+                  node.Indexes.Select(idx => this.VisitExpr(idx)).ToList());
 
-          }
-          return base.VisitMapAssignLhs(node);
+            }
+
+            return base.VisitMapAssignLhs(node);
         }
-
     }
-
 }

@@ -7,14 +7,14 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Collections.Generic;
-using System.Linq;
-using Microsoft.Boogie;
-using System.Diagnostics;
-
 namespace GPUVerify
 {
-    class KernelArrayInfoLists : IKernelArrayInfo
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Linq;
+    using Microsoft.Boogie;
+
+    internal class KernelArrayInfoLists : IKernelArrayInfo
     {
         private List<Variable> GlobalArrays;
         private List<Variable> GroupSharedArrays;
@@ -35,8 +35,9 @@ namespace GPUVerify
             DisabledArrays = new List<Variable>();
         }
 
-        private IEnumerable<Variable> FilterDisabled(IEnumerable<Variable> arrays, bool includeDisabled) {
-          return arrays.Where(Item => includeDisabled || !DisabledArrays.Contains(Item));
+        private IEnumerable<Variable> FilterDisabled(IEnumerable<Variable> arrays, bool includeDisabled)
+        {
+            return arrays.Where(Item => includeDisabled || !DisabledArrays.Contains(Item));
         }
 
         public IEnumerable<Variable> GetGlobalArrays(bool includeDisabled)
@@ -74,7 +75,7 @@ namespace GPUVerify
 
         public IEnumerable<Variable> GetAtomicallyAccessedArrays(bool includeDisabled)
         {
-          return FilterDisabled(AtomicallyAccessedArrays, includeDisabled);
+            return FilterDisabled(AtomicallyAccessedArrays, includeDisabled);
         }
 
         public IEnumerable<Variable> GetAllArrays(bool includeDisabled)
@@ -102,47 +103,54 @@ namespace GPUVerify
             return PrivateArrays.Contains(v);
         }
 
-        public void AddGlobalArray(Variable v) {
-          Debug.Assert(!GlobalArrays.Contains(v));
-          GlobalArrays.Add(v);
+        public void AddGlobalArray(Variable v)
+        {
+            Debug.Assert(!GlobalArrays.Contains(v));
+            GlobalArrays.Add(v);
         }
 
-        public void AddGroupSharedArray(Variable v) {
-          Debug.Assert(!GroupSharedArrays.Contains(v));
-          GroupSharedArrays.Add(v);
+        public void AddGroupSharedArray(Variable v)
+        {
+            Debug.Assert(!GroupSharedArrays.Contains(v));
+            GroupSharedArrays.Add(v);
         }
 
-        public void AddPrivateArray(Variable v) {
-          Debug.Assert(!PrivateArrays.Contains(v));
-          PrivateArrays.Add(v);
+        public void AddPrivateArray(Variable v)
+        {
+            Debug.Assert(!PrivateArrays.Contains(v));
+            PrivateArrays.Add(v);
         }
 
-        public void AddConstantArray(Variable v) {
-          Debug.Assert(!ConstantArrays.Contains(v));
-          ConstantArrays.Add(v);
+        public void AddConstantArray(Variable v)
+        {
+            Debug.Assert(!ConstantArrays.Contains(v));
+            ConstantArrays.Add(v);
         }
 
-        public void AddAtomicallyAccessedArray(Variable v) {
-          Debug.Assert(!AtomicallyAccessedArrays.Contains(v));
-          AtomicallyAccessedArrays.Add(v);
+        public void AddAtomicallyAccessedArray(Variable v)
+        {
+            Debug.Assert(!AtomicallyAccessedArrays.Contains(v));
+            AtomicallyAccessedArrays.Add(v);
         }
 
-        public void AddReadOnlyGlobalOrGroupSharedArray(Variable v) {
-          Debug.Assert(GlobalArrays.Contains(v) || GroupSharedArrays.Contains(v));
-          Debug.Assert(!ReadOnlyGlobalAndGroupSharedArrays.Contains(v));
-          ReadOnlyGlobalAndGroupSharedArrays.Add(v);
+        public void AddReadOnlyGlobalOrGroupSharedArray(Variable v)
+        {
+            Debug.Assert(GlobalArrays.Contains(v) || GroupSharedArrays.Contains(v));
+            Debug.Assert(!ReadOnlyGlobalAndGroupSharedArrays.Contains(v));
+            ReadOnlyGlobalAndGroupSharedArrays.Add(v);
         }
 
-        public void RemovePrivateArray(Variable v) {
-          Debug.Assert(PrivateArrays.Contains(v));
-          PrivateArrays.Remove(v);
+        public void RemovePrivateArray(Variable v)
+        {
+            Debug.Assert(PrivateArrays.Contains(v));
+            PrivateArrays.Remove(v);
         }
 
-        public void DisableGlobalOrGroupSharedArray(Variable v) {
-          Debug.Assert(GetGlobalAndGroupSharedArrays(true).Contains(v));
-          Debug.Assert(!DisabledArrays.Contains(v));
-          DisabledArrays.Add(v);
+        public void DisableGlobalOrGroupSharedArray(Variable v)
+        {
+            Debug.Assert(GetGlobalAndGroupSharedArrays(true).Contains(v));
+            Debug.Assert(!DisabledArrays.Contains(v));
+            DisabledArrays.Add(v);
         }
-
     }
 }

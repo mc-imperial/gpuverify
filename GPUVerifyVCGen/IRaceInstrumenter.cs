@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
-    interface IRaceInstrumenter
+    using Microsoft.Boogie;
+
+    internal interface IRaceInstrumenter
     {
         void AddRaceCheckingCandidateInvariants(Implementation impl, IRegion region);
 
@@ -30,6 +30,5 @@ namespace GPUVerify
         void AddDefaultLoopInvariants();
 
         void AddDefaultContracts();
-
     }
 }

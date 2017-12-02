@@ -7,56 +7,71 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-
 namespace GPUVerify
 {
-  public sealed class AccessType {
+    using System;
+    using System.Collections.Generic;
+    using System.Diagnostics;
 
-    private readonly string name;
+    public sealed class AccessType
+    {
+        private readonly string name;
 
-    public static readonly AccessType READ = new AccessType ("READ");
-    public static readonly AccessType WRITE = new AccessType ("WRITE");
-    public static readonly AccessType ATOMIC = new AccessType ("ATOMIC");
+        public static readonly AccessType READ = new AccessType("READ");
+        public static readonly AccessType WRITE = new AccessType("WRITE");
+        public static readonly AccessType ATOMIC = new AccessType("ATOMIC");
 
-    public static readonly IEnumerable<AccessType> Types = new List<AccessType> { READ, WRITE, ATOMIC };
+        public static readonly IEnumerable<AccessType> Types = new List<AccessType> { READ, WRITE, ATOMIC };
 
-    public static AccessType Create(string access) {
-      if (access.ToUpper() == "READ") {
-        return READ;
-      }
-      if (access.ToUpper() == "WRITE") {
-        return WRITE;
-      }
-      if (access.ToUpper() == "ATOMIC") {
-        return ATOMIC;
-      }
-      throw new NotSupportedException("Unknown access type: " + access);
+        public static AccessType Create(string access)
+        {
+            if (access.ToUpper() == "READ")
+            {
+                return READ;
+            }
+
+            if (access.ToUpper() == "WRITE")
+            {
+                return WRITE;
+            }
+
+            if (access.ToUpper() == "ATOMIC")
+            {
+                return ATOMIC;
+            }
+
+            throw new NotSupportedException("Unknown access type: " + access);
+        }
+
+        private AccessType(string name)
+        {
+            this.name = name;
+        }
+
+        public override string ToString()
+        {
+            return name;
+        }
+
+        public bool isReadOrWrite()
+        {
+            return this == READ || this == WRITE;
+        }
+
+        public string Direction()
+        {
+            if (this == READ)
+            {
+                return "from";
+            }
+
+            if (this == WRITE)
+            {
+                return "to";
+            }
+
+            Debug.Assert(this == ATOMIC);
+            return "on";
+        }
     }
-
-    private AccessType(string name) {
-      this.name = name;
-    }
-
-    public override string ToString() {
-      return name;
-    }
-
-    public bool isReadOrWrite() {
-      return this == READ || this == WRITE;
-    }
-
-    public string Direction() {
-      if (this == READ) {
-        return "from";
-      }
-      if (this == WRITE) {
-        return "to";
-      }
-      Debug.Assert(this == ATOMIC);
-      return "on";
-    }
-  }
 }

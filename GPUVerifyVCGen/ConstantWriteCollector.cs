@@ -7,15 +7,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Diagnostics;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
+    using System.Diagnostics;
+    using Microsoft.Boogie;
 
-    class ConstantWriteCollector : AccessCollector
+    internal class ConstantWriteCollector : AccessCollector
     {
-
         private AccessRecord access = null;
 
         public ConstantWriteCollector(IKernelArrayInfo State)
@@ -64,6 +62,5 @@ namespace GPUVerify
         {
             return access;
         }
-
     }
 }

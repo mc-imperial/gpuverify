@@ -57,6 +57,7 @@ namespace GPUVerify
                 int val = Convert.ToInt32(bareStr);
                 Bits = Convert.ToString(val, 2);
             }
+
             Pad(bv.Bits, '0');
         }
 
@@ -116,7 +117,7 @@ namespace GPUVerify
 
         public int ConvertToInt32()
         {
-           try
+            try
             {
                 return Convert.ToInt32(Bits, 2);
             }
@@ -128,7 +129,7 @@ namespace GPUVerify
 
         public long ConvertToInt64()
         {
-           try
+            try
             {
                 return Convert.ToInt64(Bits, 2);
             }
@@ -167,6 +168,7 @@ namespace GPUVerify
                 else
                     ZeroBVs[width] = new BitVector((long)0, width);
             }
+
             return ZeroBVs[width];
         }
 
@@ -335,6 +337,7 @@ namespace GPUVerify
                 else
                     bits[i] = '0';
             }
+
             return new BitVector(new string(bits));
         }
 
@@ -363,15 +366,17 @@ namespace GPUVerify
         public static BitVector LogicalShiftRight(BitVector a, int shift)
         {
             int endIndex = a.Bits.Length - shift;
-            string bits;
+
             if (endIndex > 0)
             {
-              bits = a.Bits.Substring(0, endIndex);
-              bits = bits.PadLeft(a.Bits.Length, '0');
-              return new BitVector(bits);
+                string bits = a.Bits.Substring(0, endIndex);
+                bits = bits.PadLeft(a.Bits.Length, '0');
+                return new BitVector(bits);
             }
             else
-              return new BitVector(0, a.Bits.Length);
+            {
+                return new BitVector(0, a.Bits.Length);
+            }
         }
 
         public static BitVector operator <<(BitVector a, int shift)
@@ -399,8 +404,8 @@ namespace GPUVerify
         public static bool operator ==(BitVector a, BitVector b)
         {
             Print.ConditionalExitMessage(a.Bits.Length == b.Bits.Length, "== operator : Bit vectors must have equal widths");
-            if (object.ReferenceEquals(a, null))
-                return object.ReferenceEquals(b, null);
+            if (ReferenceEquals(a, null))
+                return ReferenceEquals(b, null);
             return a.Equals(b);
         }
 
@@ -480,8 +485,8 @@ namespace GPUVerify
 
         public static BitVector Slice(BitVector a, int high, int low)
         {
-            Print.ConditionalExitMessage(high > low, "Slicing " + a.ToString() +
-            " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not valid");
+            Print.ConditionalExitMessage(high > low,
+                "Slicing " + a.ToString() + " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not valid");
             int startIndex = a.Bits.Length - high;
             int length = high - low;
             string bits = a.Bits.Substring(startIndex, length);
