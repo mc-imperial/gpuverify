@@ -43,7 +43,6 @@ namespace GPUVerify
             Contract.Requires(bplFileName != null);
 
             // ---------- Resolve ----------
-
             if (CommandLineOptions.Clo.NoResolve)
             {
                 return PipelineOutcome.Done;
@@ -57,7 +56,6 @@ namespace GPUVerify
             }
 
             // ---------- Type check ----------
-
             if (CommandLineOptions.Clo.NoTypecheck)
             {
                 return PipelineOutcome.Done;
@@ -106,12 +104,12 @@ namespace GPUVerify
             Contract.Requires(program != null);
 
             // Inline
-            var TopLevelDeclarations = cce.NonNull(program.TopLevelDeclarations);
+            var topLevelDeclarations = cce.NonNull(program.TopLevelDeclarations);
 
             if (CommandLineOptions.Clo.ProcedureInlining != CommandLineOptions.Inlining.None)
             {
                 bool inline = false;
-                foreach (var d in TopLevelDeclarations)
+                foreach (var d in topLevelDeclarations)
                 {
                     if (d.FindExprAttribute("inline") != null)
                     {
@@ -121,7 +119,7 @@ namespace GPUVerify
 
                 if (inline)
                 {
-                    foreach (var d in TopLevelDeclarations)
+                    foreach (var d in topLevelDeclarations)
                     {
                         var impl = d as Implementation;
                         if (impl != null)
@@ -131,7 +129,7 @@ namespace GPUVerify
                         }
                     }
 
-                    foreach (var d in TopLevelDeclarations)
+                    foreach (var d in topLevelDeclarations)
                     {
                         var impl = d as Implementation;
                         if (impl != null && !impl.SkipVerification)
@@ -140,7 +138,7 @@ namespace GPUVerify
                         }
                     }
 
-                    foreach (var d in TopLevelDeclarations)
+                    foreach (var d in topLevelDeclarations)
                     {
                         var impl = d as Implementation;
                         if (impl != null)
@@ -160,8 +158,8 @@ namespace GPUVerify
                 List<Cmd> newCmds = new List<Cmd>();
                 foreach (Cmd c in block.Cmds)
                 {
-                    CallCmd callCmd = c as CallCmd;
                     // TODO: refine into proper check
+                    CallCmd callCmd = c as CallCmd;
                     if (callCmd == null || !(callCmd.callee.Contains("_CHECK_READ") ||
                                             callCmd.callee.Contains("_CHECK_WRITE") ||
                                             callCmd.callee.Contains("_CHECK_ATOMIC")))
@@ -181,8 +179,8 @@ namespace GPUVerify
                 List<Cmd> newCmds = new List<Cmd>();
                 foreach (Cmd c in block.Cmds)
                 {
-                    CallCmd callCmd = c as CallCmd;
                     // TODO: refine into proper check
+                    CallCmd callCmd = c as CallCmd;
                     if (callCmd == null || !(callCmd.callee.Contains("_LOG_READ") ||
                                              callCmd.callee.Contains("_LOG_WRITE") ||
                                              callCmd.callee.Contains("_LOG_ATOMIC")))
@@ -208,17 +206,17 @@ namespace GPUVerify
             // for Houdini
             foreach (var impl in program.Implementations)
             {
-                var CFG = Program.GraphFromImpl(impl);
-                CFG.ComputeLoops();
+                var cfg = Program.GraphFromImpl(impl);
+                cfg.ComputeLoops();
                 foreach (var b in impl.Blocks)
                 {
                     var newCmds = new List<Cmd>();
-                    bool CmdCouldBeLoopInvariant = CFG.Headers.Contains(b);
+                    bool cmdCouldBeLoopInvariant = cfg.Headers.Contains(b);
                     foreach (var c in b.Cmds)
                     {
                         if (c is AssertCmd)
                         {
-                            if (IsCandidateAssert(c as AssertCmd) || CmdCouldBeLoopInvariant)
+                            if (IsCandidateAssert(c as AssertCmd) || cmdCouldBeLoopInvariant)
                             {
                                 // Keep it: it's a Houdini candidate or a loop invariant
                                 newCmds.Add(c);
@@ -239,7 +237,7 @@ namespace GPUVerify
                             // we must be past the sequence of assert and assume commands that
                             // form invariants if the block in which they live is a loop header.
                             // Thus future commands in this block cannot be invariants
-                            CmdCouldBeLoopInvariant = false;
+                            cmdCouldBeLoopInvariant = false;
                         }
                     }
 
@@ -276,29 +274,28 @@ namespace GPUVerify
             // Concurrent Houdini or not.
             if (taskID >= 0)
             {
-                var ProverOptions = CommandLineOptions.Clo.Cho[taskID].ProverOptions;
-                if (UsingCVC4AndQuantifiersPresent(program, ProverOptions))
+                var proverOptions = CommandLineOptions.Clo.Cho[taskID].ProverOptions;
+                if (UsingCVC4AndQuantifiersPresent(program, proverOptions))
                 {
-                    ProverOptions.Remove(QF_ALL_SUPPORTED);
-                    ProverOptions.Add(ALL_SUPPORTED);
+                    proverOptions.Remove(QF_ALL_SUPPORTED);
+                    proverOptions.Add(ALL_SUPPORTED);
                 }
             }
             else
             {
                 if (UsingCVC4AndQuantifiersPresent(program, CommandLineOptions.Clo.ProverOptions))
                 {
-                    CommandLineOptions.Clo.ProverOptions = CommandLineOptions.Clo.ProverOptions.Where(Item => !Item.Equals(QF_ALL_SUPPORTED));
+                    CommandLineOptions.Clo.ProverOptions = CommandLineOptions.Clo.ProverOptions.Where(item => !item.Equals(QF_ALL_SUPPORTED));
                     CommandLineOptions.Clo.ProverOptions = CommandLineOptions.Clo.ProverOptions.Concat1(ALL_SUPPORTED);
                 }
             }
-
         }
 
-        private static bool UsingCVC4AndQuantifiersPresent(Program program, IEnumerable<string> ProverOptions)
+        private static bool UsingCVC4AndQuantifiersPresent(Program program, IEnumerable<string> proverOptions)
         {
-            return (ProverOptions.Contains("SOLVER=cvc4") ||
-                        ProverOptions.Contains("SOLVER=CVC4")) &&
-                        ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
+            return (proverOptions.Contains("SOLVER=cvc4") ||
+                        proverOptions.Contains("SOLVER=CVC4")) &&
+                        proverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
                         CheckForQuantifiers.Found(program);
         }
 
@@ -332,22 +329,22 @@ namespace GPUVerify
 
             public override string ToString()
             {
-                var SB = new StringBuilder();
-                SB.AppendFormat("Errors: {0}", VerificationErrors);
-                SB.AppendLine();
-                SB.AppendFormat("Verified: {0}", Verified);
-                SB.AppendLine();
-                SB.AppendFormat("Inconclusives: {0}", Inconclusives);
-                SB.AppendLine();
-                SB.AppendFormat("TimeOuts: {0}", Inconclusives);
-                SB.AppendLine();
-                SB.AppendFormat("OutOfMemories: {0}", OutOfMemories);
-                SB.AppendLine();
-                SB.AppendFormat("InputErrors: {0}", InputErrors);
-                SB.AppendLine();
-                SB.AppendFormat("InternalErrors: {0}", InternalErrors);
-                SB.AppendLine();
-                return SB.ToString();
+                var sb = new StringBuilder();
+                sb.AppendFormat("Errors: {0}", VerificationErrors);
+                sb.AppendLine();
+                sb.AppendFormat("Verified: {0}", Verified);
+                sb.AppendLine();
+                sb.AppendFormat("Inconclusives: {0}", Inconclusives);
+                sb.AppendLine();
+                sb.AppendFormat("TimeOuts: {0}", Inconclusives);
+                sb.AppendLine();
+                sb.AppendFormat("OutOfMemories: {0}", OutOfMemories);
+                sb.AppendLine();
+                sb.AppendFormat("InputErrors: {0}", InputErrors);
+                sb.AppendLine();
+                sb.AppendFormat("InternalErrors: {0}", InternalErrors);
+                sb.AppendLine();
+                return sb.ToString();
             }
 
             public void Reset()
@@ -462,7 +459,6 @@ namespace GPUVerify
                     }
 
                     GVUtil.IO.Inform(string.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
-
                     break;
             }
         }

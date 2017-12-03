@@ -11,13 +11,13 @@ namespace GPUVerify
 {
     using Microsoft.Boogie;
 
-    class StrideConstraint
+    internal class StrideConstraint
     {
-
         public static StrideConstraint Bottom(GPUVerifier verifier, Expr e)
         {
-            return new ModStrideConstraint(verifier.IntRep.GetLiteral(1, e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits),
-                                           verifier.Zero(e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits));
+            return new ModStrideConstraint(
+                verifier.IntRep.GetLiteral(1, e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits),
+                verifier.Zero(e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits));
         }
 
         public bool IsBottom()
@@ -52,9 +52,7 @@ namespace GPUVerify
         private static StrideConstraint BuildAddStrideConstraint(GPUVerifier verifier, Expr e, StrideConstraint lhsc, StrideConstraint rhsc)
         {
             if (lhsc is EqStrideConstraint && rhsc is EqStrideConstraint)
-            {
                 return new EqStrideConstraint(e);
-            }
 
             if (lhsc is EqStrideConstraint && rhsc is ModStrideConstraint)
                 return BuildAddStrideConstraint(verifier, e, rhsc, lhsc);
@@ -82,9 +80,7 @@ namespace GPUVerify
         private static StrideConstraint BuildMulStrideConstraint(GPUVerifier verifier, Expr e, StrideConstraint lhsc, StrideConstraint rhsc)
         {
             if (lhsc is EqStrideConstraint && rhsc is EqStrideConstraint)
-            {
                 return new EqStrideConstraint(e);
-            }
 
             if (lhsc is EqStrideConstraint && rhsc is ModStrideConstraint)
                 return BuildMulStrideConstraint(verifier, e, rhsc, lhsc);
@@ -94,8 +90,9 @@ namespace GPUVerify
                 var lhsmc = (ModStrideConstraint)lhsc;
                 var rhsec = (EqStrideConstraint)rhsc;
 
-                return new ModStrideConstraint(verifier.IntRep.MakeMul(lhsmc.mod, rhsec.eq),
-                                               verifier.IntRep.MakeMul(lhsmc.modEq, rhsec.eq));
+                return new ModStrideConstraint(
+                    verifier.IntRep.MakeMul(lhsmc.mod, rhsec.eq),
+                    verifier.IntRep.MakeMul(lhsmc.modEq, rhsec.eq));
             }
 
             return Bottom(verifier, e);
@@ -156,19 +153,25 @@ namespace GPUVerify
 
             return Bottom(verifier, e);
         }
-
     }
 
-    class EqStrideConstraint : StrideConstraint
+    internal class EqStrideConstraint : StrideConstraint
     {
-        public EqStrideConstraint(Expr eq) { this.eq = eq; }
+        public EqStrideConstraint(Expr eq)
+        {
+            this.eq = eq;
+        }
 
         public Expr eq;
     }
 
-    class ModStrideConstraint : StrideConstraint
+    internal class ModStrideConstraint : StrideConstraint
     {
-        public ModStrideConstraint(Expr mod, Expr modEq) { this.mod = mod; this.modEq = modEq; }
+        public ModStrideConstraint(Expr mod, Expr modEq)
+        {
+            this.mod = mod;
+            this.modEq = modEq;
+        }
 
         public Expr mod, modEq;
     }

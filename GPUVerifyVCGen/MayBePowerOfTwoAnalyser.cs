@@ -13,7 +13,7 @@ namespace GPUVerify
     using System.Collections.Generic;
     using Microsoft.Boogie;
 
-    class MayBePowerOfTwoAnalyser
+    internal class MayBePowerOfTwoAnalyser
     {
         private GPUVerifier verifier;
 
@@ -26,44 +26,52 @@ namespace GPUVerify
             mayBePowerOfTwoInfo = new Dictionary<string, Dictionary<string, bool>>();
         }
 
-        internal void Analyse()
+        public void Analyse()
         {
-            foreach (Declaration D in verifier.Program.TopLevelDeclarations)
+            foreach (Declaration decl in verifier.Program.TopLevelDeclarations)
             {
-                if (D is Implementation)
+                if (decl is Implementation)
                 {
-                    Implementation Impl = D as Implementation;
-                    mayBePowerOfTwoInfo.Add(Impl.Name, new Dictionary<string, bool>());
+                    Implementation impl = decl as Implementation;
+                    mayBePowerOfTwoInfo.Add(impl.Name, new Dictionary<string, bool>());
 
-                    SetNotPowerOfTwo(Impl.Name, GPUVerifier._X.Name);
-                    SetNotPowerOfTwo(Impl.Name, GPUVerifier._Y.Name);
-                    SetNotPowerOfTwo(Impl.Name, GPUVerifier._Z.Name);
+                    SetNotPowerOfTwo(impl.Name, GPUVerifier._X.Name);
+                    SetNotPowerOfTwo(impl.Name, GPUVerifier._Y.Name);
+                    SetNotPowerOfTwo(impl.Name, GPUVerifier._Z.Name);
 
-                    foreach (Variable v in Impl.LocVars)
+                    foreach (Variable v in impl.LocVars)
                     {
-                        SetNotPowerOfTwo(Impl.Name, v.Name);
+                        SetNotPowerOfTwo(impl.Name, v.Name);
                     }
 
-                    foreach (Variable v in Impl.InParams)
+                    foreach (Variable v in impl.InParams)
                     {
-                        SetNotPowerOfTwo(Impl.Name, v.Name);
+                        SetNotPowerOfTwo(impl.Name, v.Name);
                     }
 
-                    foreach (Variable v in Impl.OutParams)
+                    foreach (Variable v in impl.OutParams)
                     {
-                        SetNotPowerOfTwo(Impl.Name, v.Name);
+                        SetNotPowerOfTwo(impl.Name, v.Name);
                     }
 
                     // Fixpoint not required - this is just syntactic
-                    Analyse(Impl);
-
+                    Analyse(impl);
                 }
             }
 
             if (GPUVerifyVCGenCommandLineOptions.ShowMayBePowerOfTwoAnalysis)
-            {
-                dump();
-            }
+                Dump();
+        }
+
+        public bool MayBePowerOfTwo(string p, string v)
+        {
+            if (!mayBePowerOfTwoInfo.ContainsKey(p))
+                return false;
+
+            if (!mayBePowerOfTwoInfo[p].ContainsKey(v))
+                return false;
+
+            return mayBePowerOfTwoInfo[p][v];
         }
 
         private void SetNotPowerOfTwo(string p, string v)
@@ -71,9 +79,9 @@ namespace GPUVerify
             mayBePowerOfTwoInfo[p][v] = false;
         }
 
-        private void Analyse(Implementation Impl)
+        private void Analyse(Implementation impl)
         {
-            Analyse(Impl, verifier.RootRegion(Impl));
+            Analyse(impl, verifier.RootRegion(impl));
         }
 
         private void Analyse(Implementation impl, IRegion region)
@@ -89,10 +97,10 @@ namespace GPUVerify
                         if (assign.Lhss[i] is SimpleAssignLhs)
                         {
                             Variable lhs = (assign.Lhss[i] as SimpleAssignLhs).AssignedVariable.Decl;
-                            if (variableHasPowerOfTwoType(lhs) &&
+                            if (VariableHasPowerOfTwoType(lhs) &&
                                 mayBePowerOfTwoInfo[impl.Name].ContainsKey(lhs.Name))
                             {
-                                Variable rhs = getPowerOfTwoRhsVariable(assign.Rhss[i]);
+                                Variable rhs = GetPowerOfTwoRhsVariable(assign.Rhss[i]);
                                 if (rhs != null)
                                 {
                                     mayBePowerOfTwoInfo[impl.Name][lhs.Name] = true;
@@ -105,7 +113,7 @@ namespace GPUVerify
             }
         }
 
-        private bool variableHasPowerOfTwoType(Variable v)
+        private bool VariableHasPowerOfTwoType(Variable v)
         {
             return
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
@@ -114,7 +122,7 @@ namespace GPUVerify
                 v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(64));
         }
 
-        private Variable getPowerOfTwoRhsVariable(Expr expr)
+        private Variable GetPowerOfTwoRhsVariable(Expr expr)
         {
             Expr lhs, rhs;
 
@@ -201,7 +209,7 @@ namespace GPUVerify
             return (expr as IdentifierExpr).Decl;
         }
 
-        private void dump()
+        private void Dump()
         {
             foreach (string p in mayBePowerOfTwoInfo.Keys)
             {
@@ -212,21 +220,6 @@ namespace GPUVerify
                         (mayBePowerOfTwoInfo[p][v] ? "may be power of two" : "likely not power of two"));
                 }
             }
-        }
-
-        internal bool MayBePowerOfTwo(string p, string v)
-        {
-            if (!mayBePowerOfTwoInfo.ContainsKey(p))
-            {
-                return false;
-            }
-
-            if (!mayBePowerOfTwoInfo[p].ContainsKey(v))
-            {
-                return false;
-            }
-
-            return mayBePowerOfTwoInfo[p][v];
         }
     }
 }

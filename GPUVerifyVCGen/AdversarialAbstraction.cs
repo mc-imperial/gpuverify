@@ -18,8 +18,8 @@ namespace GPUVerify
     {
         private GPUVerifier verifier;
 
-        private List<Variable> NewLocalVars = null;
-        private int AbstractedCallArgCounter = 0;
+        private List<Variable> newLocalVars = null;
+        private int abstractedCallArgCounter = 0;
 
         public AdversarialAbstraction(GPUVerifier verifier)
         {
@@ -28,32 +28,27 @@ namespace GPUVerify
 
         public void Abstract()
         {
-            List<Declaration> NewTopLevelDeclarations = new List<Declaration>();
+            List<Declaration> newTopLevelDeclarations = new List<Declaration>();
             foreach (Declaration d in verifier.Program.TopLevelDeclarations)
             {
                 // Note that we do still need to abstract arrays, even if we have disabled race checking for them
                 if (d is Variable &&
-                  verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(d as Variable, true) &&
-                  verifier.ArrayModelledAdversarially(d as Variable))
+                        verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray((Variable)d, true) &&
+                        verifier.ArrayModelledAdversarially((Variable)d))
                 {
                     continue;
                 }
 
                 if (d is Implementation)
-                {
-                    Abstract(d as Implementation);
-                }
+                    Abstract((Implementation)d);
 
                 if (d is Procedure)
-                {
-                    Abstract(d as Procedure);
-                }
+                    Abstract((Procedure)d);
 
-                NewTopLevelDeclarations.Add(d);
-
+                newTopLevelDeclarations.Add(d);
             }
 
-            verifier.Program.TopLevelDeclarations = NewTopLevelDeclarations;
+            verifier.Program.TopLevelDeclarations = newTopLevelDeclarations;
         }
 
         private void AbstractRequiresClauses(Procedure proc)
@@ -63,10 +58,8 @@ namespace GPUVerify
             {
                 var visitor = new AccessesAdversarialArrayVisitor(verifier);
                 visitor.VisitRequires(r);
-                if (!visitor.found)
-                {
+                if (!visitor.Found)
                     newRequires.Add(r);
-                }
             }
 
             proc.Requires = newRequires;
@@ -80,38 +73,36 @@ namespace GPUVerify
 
         private void AbstractModifiesSet(Procedure proc)
         {
-            List<IdentifierExpr> NewModifies = new List<IdentifierExpr>();
+            List<IdentifierExpr> newModifies = new List<IdentifierExpr>();
             foreach (IdentifierExpr e in proc.Modifies)
             {
                 var visitor = new AccessesAdversarialArrayVisitor(verifier);
                 visitor.VisitIdentifierExpr(e);
-                if (!visitor.found)
-                {
-                    NewModifies.Add(e);
-                }
+                if (!visitor.Found)
+                    newModifies.Add(e);
             }
 
-            proc.Modifies = NewModifies;
+            proc.Modifies = newModifies;
         }
 
         private void Abstract(Implementation impl)
         {
-            NewLocalVars = new List<Variable>();
-            AbstractedCallArgCounter = 0;
+            newLocalVars = new List<Variable>();
+            abstractedCallArgCounter = 0;
             foreach (Variable v in impl.LocVars)
             {
                 Debug.Assert(!verifier.KernelArrayInfo.GetGroupSharedArrays(true).Contains(v));
-                NewLocalVars.Add(v);
+                newLocalVars.Add(v);
             }
-            impl.LocVars = NewLocalVars;
-            impl.Blocks = impl.Blocks.Select(Abstract).ToList();
-            NewLocalVars = null;
 
+            impl.LocVars = newLocalVars;
+            impl.Blocks = impl.Blocks.Select(Abstract).ToList();
+            newLocalVars = null;
         }
 
         private Block Abstract(Block b)
         {
-            var NewCmds = new List<Cmd>();
+            var newCmds = new List<Cmd>();
 
             foreach (Cmd c in b.Cmds)
             {
@@ -123,9 +114,9 @@ namespace GPUVerify
                     {
                         // Discard the call
                         Debug.Assert(call.Ins.Count >= 1);
-                        var IE = call.Ins[0] as IdentifierExpr;
-                        Debug.Assert(IE != null);
-                        Debug.Assert(verifier.ArrayModelledAdversarially(IE.Decl));
+                        var ie = call.Ins[0] as IdentifierExpr;
+                        Debug.Assert(ie != null);
+                        Debug.Assert(verifier.ArrayModelledAdversarially(ie.Decl));
                         continue;
                     }
 
@@ -145,12 +136,14 @@ namespace GPUVerify
 
                         if (foundAdversarial)
                         {
-                            LocalVariable lv = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
-                              "_abstracted_call_arg_" + AbstractedCallArgCounter, call.Ins[i].Type));
-                            AbstractedCallArgCounter++;
-                            NewLocalVars.Add(lv);
-                            NewCmds.Add(new HavocCmd(Token.NoToken,
-                              new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, lv) })));
+                            LocalVariable lv = new LocalVariable(
+                                Token.NoToken,
+                                new TypedIdent(Token.NoToken, "_abstracted_call_arg_" + abstractedCallArgCounter, call.Ins[i].Type));
+                            abstractedCallArgCounter++;
+                            newLocalVars.Add(lv);
+                            newCmds.Add(new HavocCmd(
+                                Token.NoToken,
+                                new List<IdentifierExpr>(new IdentifierExpr[] { new IdentifierExpr(Token.NoToken, lv) })));
                             call.Ins[i] = new IdentifierExpr(Token.NoToken, lv);
                         }
                     }
@@ -163,10 +156,10 @@ namespace GPUVerify
                     var lhss = new List<AssignLhs>();
                     var rhss = new List<Expr>();
 
-                    foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
+                    foreach (var lhsRhs in assign.Lhss.Zip(assign.Rhss))
                     {
-                        AssignLhs lhs = LhsRhs.Item1;
-                        Expr rhs = LhsRhs.Item2;
+                        AssignLhs lhs = lhsRhs.Item1;
+                        Expr rhs = lhsRhs.Item2;
                         ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
                         rc.Visit(rhs);
 
@@ -183,7 +176,7 @@ namespace GPUVerify
                         if (foundAdversarial)
                         {
                             Debug.Assert(lhs is SimpleAssignLhs);
-                            NewCmds.Add(new HavocCmd(c.tok, new List<IdentifierExpr>(new IdentifierExpr[] { (lhs as SimpleAssignLhs).AssignedVariable })));
+                            newCmds.Add(new HavocCmd(c.tok, new List<IdentifierExpr>(new IdentifierExpr[] { (lhs as SimpleAssignLhs).AssignedVariable })));
                             continue;
                         }
 
@@ -203,29 +196,30 @@ namespace GPUVerify
 
                     if (lhss.Count != 0)
                     {
-                        NewCmds.Add(new AssignCmd(assign.tok, lhss, rhss));
+                        newCmds.Add(new AssignCmd(assign.tok, lhss, rhss));
                     }
 
                     continue;
                 }
 
-                NewCmds.Add(c);
+                newCmds.Add(c);
             }
 
-            b.Cmds = NewCmds;
+            b.Cmds = newCmds;
             return b;
         }
 
-        class AccessesAdversarialArrayVisitor : StandardVisitor
+        private class AccessesAdversarialArrayVisitor : StandardVisitor
         {
-            internal bool found;
             private GPUVerifier verifier;
 
-            internal AccessesAdversarialArrayVisitor(GPUVerifier verifier)
+            public AccessesAdversarialArrayVisitor(GPUVerifier verifier)
             {
-                this.found = false;
                 this.verifier = verifier;
+                this.Found = false;
             }
+
+            public bool Found { get; private set; }
 
             public override Variable VisitVariable(Variable v)
             {
@@ -233,7 +227,7 @@ namespace GPUVerify
                 {
                     if (verifier.ArrayModelledAdversarially(v))
                     {
-                        found = true;
+                        Found = true;
                     }
                 }
 

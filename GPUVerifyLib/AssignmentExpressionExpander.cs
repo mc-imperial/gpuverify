@@ -18,12 +18,12 @@ namespace GPUVerify
 
     public class AssignmentExpressionExpander
     {
-        private static Regex TEMP_VARIABLE = new Regex("^v[0-9]+$");
-        private static Regex GPU_VARIABLE = new Regex("(local|global)_id_(x|y|z)$");
+        private static readonly Regex TempVariable = new Regex("^v[0-9]+$");
+        private static readonly Regex GpuVariable = new Regex("(local|global)_id_(x|y|z)$");
         private Graph<Block> cfg;
         private Variable initialVariable;
         private Expr unexpandedExpr = null;
-        private HashSet<Variable> GPUVariables = new HashSet<Variable>();
+        private HashSet<Variable> gpuVariables = new HashSet<Variable>();
 
         public AssignmentExpressionExpander(Graph<Block> cfg, Variable variable)
         {
@@ -34,7 +34,7 @@ namespace GPUVerify
 
         public HashSet<Variable> GetGPUVariables()
         {
-            return GPUVariables;
+            return gpuVariables;
         }
 
         public Expr GetUnexpandedExpr()
@@ -54,13 +54,13 @@ namespace GPUVerify
                     {
                         AssignCmd assignCmd = cmd as AssignCmd;
                         var lhss = assignCmd.Lhss.OfType<SimpleAssignLhs>();
-                        foreach (var LhsRhs in lhss.Zip(assignCmd.Rhss))
+                        foreach (var lhsRhs in lhss.Zip(assignCmd.Rhss))
                         {
-                            if (LhsRhs.Item1.DeepAssignedVariable.Name == variable.Name)
+                            if (lhsRhs.Item1.DeepAssignedVariable.Name == variable.Name)
                             {
-                                assignment = LhsRhs.Item2;
+                                assignment = lhsRhs.Item2;
                                 if (variable.Name == this.initialVariable.Name)
-                                    unexpandedExpr = LhsRhs.Item2;
+                                    unexpandedExpr = lhsRhs.Item2;
                                 goto AnalyseAssignment;
                             }
                         }
@@ -88,10 +88,10 @@ namespace GPUVerify
                 visitor.Visit(assignment);
                 foreach (Variable discovered in visitor.GetVariables())
                 {
-                    if (TEMP_VARIABLE.IsMatch(discovered.Name) && discovered.Name != variable.Name)
+                    if (TempVariable.IsMatch(discovered.Name) && discovered.Name != variable.Name)
                         DiscoverVariableAssignments(discovered);
-                    else if (GPU_VARIABLE.IsMatch(discovered.Name))
-                        GPUVariables.Add(discovered);
+                    else if (GpuVariable.IsMatch(discovered.Name))
+                        gpuVariables.Add(discovered);
                 }
             }
         }

@@ -18,11 +18,11 @@ namespace GPUVerify
 
     internal interface IntegerRepresentation
     {
-        Microsoft.Boogie.Type GetIntType(int Width);
+        Type GetIntType(int width);
 
-        LiteralExpr GetLiteral(int Value, int Width);
+        LiteralExpr GetLiteral(int value, int width);
 
-        LiteralExpr GetLiteral(BigInteger Value, int Width);
+        LiteralExpr GetLiteral(BigInteger value, int width);
 
         Expr MakeSub(Expr lhs, Expr rhs);
 
@@ -52,7 +52,7 @@ namespace GPUVerify
 
         Expr MakeModPow2(Expr lhs, Expr rhs);
 
-        Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType);
+        Expr MakeZext(Expr expr, Type resultType);
 
         bool IsAdd(Expr e, out Expr lhs, out Expr rhs);
 
@@ -97,30 +97,30 @@ namespace GPUVerify
             this.verifier = verifier;
         }
 
-        public Microsoft.Boogie.Type GetIntType(int Width)
+        public Type GetIntType(int width)
         {
-            return Microsoft.Boogie.Type.GetBvType(Width);
+            return Type.GetBvType(width);
         }
 
-        public LiteralExpr GetLiteral(int Value, int Width)
+        public LiteralExpr GetLiteral(int value, int width)
         {
-            return new LiteralExpr(Token.NoToken, BigNum.FromInt(Value), Width);
+            return new LiteralExpr(Token.NoToken, BigNum.FromInt(value), width);
         }
 
-        public LiteralExpr GetLiteral(BigInteger Value, int Width)
+        public LiteralExpr GetLiteral(BigInteger value, int width)
         {
-            var V = Value;
-            if (V < 0)
-                V += BigInteger.Pow(2, Width);
-            return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(V), Width);
+            var v = value;
+            if (v < 0)
+                v += BigInteger.Pow(2, width);
+            return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(v), width);
         }
 
         private Expr MakeBitVectorBinaryBoolean(string suffix, string smtName, Expr lhs, Expr rhs)
         {
-            return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, Microsoft.Boogie.Type.Bool, lhs, rhs);
+            return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, Type.Bool, lhs, rhs);
         }
 
-        private Expr MakeBitVectorUnaryBitVector(string suffix, string smtName, Expr expr, Microsoft.Boogie.Type resultType)
+        private Expr MakeBitVectorUnaryBitVector(string suffix, string smtName, Expr expr, Type resultType)
         {
             return MakeBVFunctionCall("BV" + expr.Type.BvBits + "_" + suffix, smtName, resultType, expr);
         }
@@ -130,7 +130,7 @@ namespace GPUVerify
             return MakeBVFunctionCall("BV" + lhs.Type.BvBits + "_" + suffix, smtName, lhs.Type, lhs, rhs);
         }
 
-        private Expr MakeBVFunctionCall(string functionName, string smtName, Microsoft.Boogie.Type resultType, params Expr[] args)
+        private Expr MakeBVFunctionCall(string functionName, string smtName, Type resultType, params Expr[] args)
         {
             Function f = verifier.GetOrCreateBVFunction(functionName, smtName, resultType, args.Select(a => a.Type).ToArray());
             var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr>(args));
@@ -205,11 +205,11 @@ namespace GPUVerify
 
         public Expr MakeModPow2(Expr lhs, Expr rhs)
         {
-            var BVType = rhs.Type as BvType;
-            return MakeAnd(MakeSub(rhs, GetLiteral(1, BVType.Bits)), lhs);
+            var bvType = rhs.Type as BvType;
+            return MakeAnd(MakeSub(rhs, GetLiteral(1, bvType.Bits)), lhs);
         }
 
-        public Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType)
+        public Expr MakeZext(Expr expr, Type resultType)
         {
             if (expr.Type.BvBits == resultType.BvBits)
                 return expr;
@@ -226,7 +226,6 @@ namespace GPUVerify
         {
             return IntegerRepresentationHelper.IsFun(e, "MUL", out lhs, out rhs);
         }
-
     }
 
     internal class MathIntegerRepresentation : IntegerRepresentation
@@ -238,19 +237,19 @@ namespace GPUVerify
             this.verifier = verifier;
         }
 
-        public Microsoft.Boogie.Type GetIntType(int Width)
+        public Type GetIntType(int width)
         {
-            return Microsoft.Boogie.Type.Int;
+            return Type.Int;
         }
 
-        public LiteralExpr GetLiteral(int Value, int Width)
+        public LiteralExpr GetLiteral(int value, int width)
         {
-            return new LiteralExpr(Token.NoToken, BigNum.FromInt(Value));
+            return new LiteralExpr(Token.NoToken, BigNum.FromInt(value));
         }
 
-        public LiteralExpr GetLiteral(BigInteger Value, int Width)
+        public LiteralExpr GetLiteral(BigInteger value, int width)
         {
-            return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(Value));
+            return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(value));
         }
 
         private Expr MakeIntBinaryInt(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
@@ -265,10 +264,10 @@ namespace GPUVerify
 
         private Expr MakeIntBinaryBool(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
         {
-            return MakeIntFunctionCall("BV32_" + suffix, infixOp, Microsoft.Boogie.Type.Bool, lhs, rhs);
+            return MakeIntFunctionCall("BV32_" + suffix, infixOp, Type.Bool, lhs, rhs);
         }
 
-        private Expr MakeIntFunctionCall(string functionName, BinaryOperator.Opcode infixOp, Microsoft.Boogie.Type resultType, Expr lhs, Expr rhs)
+        private Expr MakeIntFunctionCall(string functionName, BinaryOperator.Opcode infixOp, Type resultType, Expr lhs, Expr rhs)
         {
             Function f = verifier.GetOrCreateIntFunction(functionName, infixOp, resultType, lhs.Type, rhs.Type);
             var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
@@ -276,7 +275,7 @@ namespace GPUVerify
             return e;
         }
 
-        private Expr MakeIntUFFunctionCall(string functionName, Microsoft.Boogie.Type resultType, Expr lhs, Expr rhs)
+        private Expr MakeIntUFFunctionCall(string functionName, Type resultType, Expr lhs, Expr rhs)
         {
             Function f = verifier.GetOrCreateBinaryUF(functionName, resultType, lhs.Type, rhs.Type);
             var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
@@ -354,7 +353,7 @@ namespace GPUVerify
             return Expr.Binary(BinaryOperator.Opcode.Mod, lhs, rhs);
         }
 
-        public Expr MakeZext(Expr expr, Microsoft.Boogie.Type resultType)
+        public Expr MakeZext(Expr expr, Type resultType)
         {
             return expr;
         }

@@ -20,7 +20,7 @@ namespace GPUVerify
     {
         public static RaceCheckingMethod RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
 
-        public static string MakeOffsetVariableName(string Name, AccessType Access)
+        public static string MakeOffsetVariableName(string name, AccessType access)
         {
             if (RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE)
             {
@@ -29,58 +29,58 @@ namespace GPUVerify
 
             if (RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE)
             {
-                return "_WATCHED_OFFSET_" + Name;
+                return "_WATCHED_OFFSET_" + name;
             }
 
-            return "_" + Access + "_OFFSET_" + Name;
+            return "_" + access + "_OFFSET_" + name;
         }
 
-        public static string MakeHasOccurredVariableName(string Name, AccessType Access)
+        public static string MakeHasOccurredVariableName(string name, AccessType access)
         {
-            return "_" + Access + "_HAS_OCCURRED_" + Name;
+            return "_" + access + "_HAS_OCCURRED_" + name;
         }
 
-        public static Variable MakeOffsetVariable(string Name, AccessType Access, Type Type)
+        public static Variable MakeOffsetVariable(string name, AccessType access, Type type)
         {
-            var Ident = new TypedIdent(Token.NoToken, MakeOffsetVariableName(Name, Access), Type);
+            var ident = new TypedIdent(Token.NoToken, MakeOffsetVariableName(name, access), type);
             if (RaceCheckingMethod == RaceCheckingMethod.ORIGINAL)
             {
-                return new GlobalVariable(Token.NoToken, Ident);
+                return new GlobalVariable(Token.NoToken, ident);
             }
 
-            return new Constant(Token.NoToken, Ident, false);
+            return new Constant(Token.NoToken, ident, false);
         }
 
-        public static string MakeValueVariableName(string Name, AccessType Access)
+        public static string MakeValueVariableName(string name, AccessType access)
         {
             if (RaceCheckingMethod == RaceCheckingMethod.ORIGINAL)
             {
-                return "_" + Access + "_VALUE_" + Name;
+                return "_" + access + "_VALUE_" + name;
             }
 
-            return "_WATCHED_VALUE_" + Name;
+            return "_WATCHED_VALUE_" + name;
         }
 
-        public static Variable MakeValueVariable(string Name, AccessType Access, Type Type)
+        public static Variable MakeValueVariable(string name, AccessType access, Type type)
         {
-            var Ident = new TypedIdent(Token.NoToken, MakeValueVariableName(Name, Access), Type);
+            var ident = new TypedIdent(Token.NoToken, MakeValueVariableName(name, access), type);
             if (RaceCheckingMethod == RaceCheckingMethod.ORIGINAL)
             {
-                return new GlobalVariable(Token.NoToken, Ident);
+                return new GlobalVariable(Token.NoToken, ident);
             }
 
-            return new Constant(Token.NoToken, Ident, false);
+            return new Constant(Token.NoToken, ident, false);
         }
 
-        public static string MakeAsyncHandleVariableName(string Name, AccessType Access)
+        public static string MakeAsyncHandleVariableName(string name, AccessType access)
         {
-            return "_" + Access + "_ASYNC_HANDLE_" + Name;
+            return "_" + access + "_ASYNC_HANDLE_" + name;
         }
 
-        public static Variable MakeAsyncHandleVariable(string Name, AccessType Access, Type Type)
+        public static Variable MakeAsyncHandleVariable(string name, AccessType access, Type type)
         {
-            var Ident = new TypedIdent(Token.NoToken, MakeAsyncHandleVariableName(Name, Access), Type);
-            return new GlobalVariable(Token.NoToken, Ident);
+            var ident = new TypedIdent(Token.NoToken, MakeAsyncHandleVariableName(name, access), type);
+            return new GlobalVariable(Token.NoToken, ident);
         }
     }
 }

@@ -16,70 +16,70 @@ namespace GPUVerify
 
     internal class LiteralIndexedArrayEliminator
     {
-        private GPUVerifier Verifier;
+        private GPUVerifier verifier;
         private Dictionary<string, GlobalVariable> arrayCache = new Dictionary<string, GlobalVariable>();
 
-        public LiteralIndexedArrayEliminator(GPUVerifier Verifier)
+        public LiteralIndexedArrayEliminator(GPUVerifier verifier)
         {
-            this.Verifier = Verifier;
+            this.verifier = verifier;
         }
 
-        internal void Eliminate(Program Program)
+        public void Eliminate(Program program)
         {
-            var Arrays = CollectRelevantArrays(Program);
-            RemoveArraysFromProgram(Program, Arrays);
-            ReplaceArraysUsesWithVariables(Program, Arrays);
+            var arrays = CollectRelevantArrays(program);
+            RemoveArraysFromProgram(program, arrays);
+            ReplaceArraysUsesWithVariables(program, arrays);
         }
 
-        private void ReplaceArraysUsesWithVariables(Program Program, Dictionary<string, HashSet<string>> Arrays)
+        private void ReplaceArraysUsesWithVariables(Program program, Dictionary<string, HashSet<string>> arrays)
         {
-            foreach (var b in Program.Blocks())
+            foreach (var b in program.Blocks())
             {
-                b.Cmds = new EliminatorVisitor(Arrays, this).VisitCmdSeq(b.Cmds);
+                b.Cmds = new EliminatorVisitor(arrays, this).VisitCmdSeq(b.Cmds);
             }
 
-            foreach (var p in Program.TopLevelDeclarations.OfType<Procedure>())
+            foreach (var p in program.TopLevelDeclarations.OfType<Procedure>())
             {
-                p.Requires = new EliminatorVisitor(Arrays, this).VisitRequiresSeq(p.Requires);
-                p.Ensures = new EliminatorVisitor(Arrays, this).VisitEnsuresSeq(p.Ensures);
+                p.Requires = new EliminatorVisitor(arrays, this).VisitRequiresSeq(p.Requires);
+                p.Ensures = new EliminatorVisitor(arrays, this).VisitEnsuresSeq(p.Ensures);
             }
         }
 
-        private void RemoveArraysFromProgram(Program Program, Dictionary<string, HashSet<string>> Arrays)
+        private void RemoveArraysFromProgram(Program program, Dictionary<string, HashSet<string>> arrays)
         {
-            foreach (var a in Verifier.KernelArrayInfo.GetPrivateArrays().ToList())
+            foreach (var a in verifier.KernelArrayInfo.GetPrivateArrays().ToList())
             {
-                if (Arrays.ContainsKey(a.Name))
+                if (arrays.ContainsKey(a.Name))
                 {
-                    Verifier.KernelArrayInfo.RemovePrivateArray(a);
-                    Program.RemoveTopLevelDeclarations(x => x == a);
+                    verifier.KernelArrayInfo.RemovePrivateArray(a);
+                    program.RemoveTopLevelDeclarations(x => x == a);
 
-                    foreach (var l in Arrays[a.Name])
+                    foreach (var l in arrays[a.Name])
                     {
-                        Program.AddTopLevelDeclaration(MakeVariableForArrayIndex(a, l));
+                        program.AddTopLevelDeclaration(MakeVariableForArrayIndex(a, l));
                     }
                 }
             }
         }
 
-        internal GlobalVariable MakeVariableForArrayIndex(Variable Array, string Literal)
+        internal GlobalVariable MakeVariableForArrayIndex(Variable array, string literal)
         {
-            var arrayName = Array.Name + "$" + Literal;
+            var arrayName = array.Name + "$" + literal;
             if (!arrayCache.ContainsKey(arrayName))
             {
                 arrayCache[arrayName] = new GlobalVariable(
-                            Array.tok, new TypedIdent(Array.tok, arrayName,
-                              (Array.TypedIdent.Type as MapType).Result));
+                            array.tok, new TypedIdent(array.tok, arrayName,
+                              (array.TypedIdent.Type as MapType).Result));
             }
 
             return arrayCache[arrayName];
         }
 
-        private Dictionary<string, HashSet<string>> CollectRelevantArrays(Program Program)
+        private Dictionary<string, HashSet<string>> CollectRelevantArrays(Program program)
         {
-            var Collector = new LiteralIndexVisitor(Verifier);
-            Collector.VisitProgram(Program);
-            return Collector.LiteralIndexedArrays;
+            var collector = new LiteralIndexVisitor(verifier);
+            collector.VisitProgram(program);
+            return collector.LiteralIndexedArrays;
         }
     }
 
@@ -88,10 +88,10 @@ namespace GPUVerify
         // Maps an array to a set of strings, each of which denotes a literal with which the array can be indexed.
         internal readonly Dictionary<string, HashSet<string>> LiteralIndexedArrays;
 
-        internal LiteralIndexVisitor(GPUVerifier Verifier)
+        internal LiteralIndexVisitor(GPUVerifier verifier)
         {
             this.LiteralIndexedArrays = new Dictionary<string, HashSet<string>>();
-            foreach (var v in Verifier.KernelArrayInfo.GetPrivateArrays())
+            foreach (var v in verifier.KernelArrayInfo.GetPrivateArrays())
             {
                 this.LiteralIndexedArrays[v.Name] = new HashSet<string>();
             }
@@ -138,29 +138,29 @@ namespace GPUVerify
             return base.VisitAssignCmd(node);
         }
 
-        private void UpdateIndexingInfo(Expr MaybeLiteral, string MapName)
+        private void UpdateIndexingInfo(Expr maybeLiteral, string mapName)
         {
-            if (MaybeLiteral is LiteralExpr)
+            if (maybeLiteral is LiteralExpr)
             {
-                LiteralIndexedArrays[MapName].Add(MaybeLiteral.ToString());
+                LiteralIndexedArrays[mapName].Add(maybeLiteral.ToString());
             }
             else
             {
                 // The array is not always indexed by a literal
-                LiteralIndexedArrays.Remove(MapName);
+                LiteralIndexedArrays.Remove(mapName);
             }
         }
     }
 
     internal class EliminatorVisitor : Duplicator
     {
-        private Dictionary<string, HashSet<string>> Arrays;
-        private LiteralIndexedArrayEliminator Eliminator;
+        private Dictionary<string, HashSet<string>> arrays;
+        private LiteralIndexedArrayEliminator aliminator;
 
-        public EliminatorVisitor(Dictionary<string, HashSet<string>> Arrays, LiteralIndexedArrayEliminator Eliminator)
+        public EliminatorVisitor(Dictionary<string, HashSet<string>> arrays, LiteralIndexedArrayEliminator aliminator)
         {
-            this.Arrays = Arrays;
-            this.Eliminator = Eliminator;
+            this.arrays = arrays;
+            this.aliminator = aliminator;
         }
 
         public override Expr VisitNAryExpr(NAryExpr node)
@@ -170,11 +170,11 @@ namespace GPUVerify
                 var map = node.Args[0] as IdentifierExpr;
                 if (map != null)
                 {
-                    if (Arrays.ContainsKey(map.Name))
+                    if (arrays.ContainsKey(map.Name))
                     {
                         Debug.Assert(node.Args[1] is LiteralExpr);
                         return new IdentifierExpr(Token.NoToken,
-                          Eliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
+                          aliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
                     }
                 }
             }
@@ -194,7 +194,7 @@ namespace GPUVerify
 
             var map = (mapLhs.Map as SimpleAssignLhs).AssignedVariable;
 
-            if (!Arrays.ContainsKey(map.Name))
+            if (!arrays.ContainsKey(map.Name))
             {
                 return (AssignLhs)Visit(lhs);
             }
@@ -203,14 +203,14 @@ namespace GPUVerify
 
             return new SimpleAssignLhs(
               lhs.tok, new IdentifierExpr(Token.NoToken,
-                Eliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString())));
+                aliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString())));
         }
 
         public override Cmd VisitAssignCmd(AssignCmd node)
         {
             return new AssignCmd(node.tok,
-              node.Lhss.Select(Item => TransformLhs(Item)).ToList(),
-              node.Rhss.Select(Item => VisitExpr(Item)).ToList());
+              node.Lhss.Select(item => TransformLhs(item)).ToList(),
+              node.Rhss.Select(item => VisitExpr(item)).ToList());
         }
     }
 }

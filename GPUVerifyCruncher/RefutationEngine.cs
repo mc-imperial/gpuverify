@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-using GPUVerify;
-
 namespace Microsoft.Boogie
 {
     using System;
@@ -19,6 +17,7 @@ namespace Microsoft.Boogie
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using GPUVerify;
 
     // This class allows us to parameterise each engine with specific values
     public abstract class EngineParameter
@@ -30,18 +29,18 @@ namespace Microsoft.Boogie
     {
         public T DefaultValue { get; set; }
 
-        private List<T> AllowedValues;
+        private List<T> allowedValues;
 
         public EngineParameter(string name, T defaultValue, List<T> allowedValues = null)
         {
             this.Name = name;
             this.DefaultValue = defaultValue;
-            this.AllowedValues = allowedValues;
+            this.allowedValues = allowedValues;
         }
 
         public bool IsValidValue(T value)
         {
-            return AllowedValues.Contains(value);
+            return allowedValues.Contains(value);
         }
     }
 
@@ -53,10 +52,10 @@ namespace Microsoft.Boogie
 
         public bool UnderApproximating { get; set; }
 
-        public Engine(int ID, bool underApproximating)
+        public Engine(int id, bool underApproximating)
         {
-            this.ID = ID;
-            this.UnderApproximating = underApproximating;
+            ID = id;
+            UnderApproximating = underApproximating;
         }
 
         public static List<EngineParameter> GetAllowedParameters()
@@ -79,69 +78,69 @@ namespace Microsoft.Boogie
     public abstract class SMTEngine : Engine
     {
         // SMT solvers
-        private static string CVC4 = "cvc4";
-        private static string Z3 = "z3";
+        private const string CVC4 = "cvc4";
+        private const string Z3 = "z3";
 
-        private static EngineParameter<string> SolverParameter;
+        private static EngineParameter<string> solverParameter;
 
         public static EngineParameter<string> GetSolverParameter()
         {
-            if (SolverParameter == null)
-                SolverParameter = new EngineParameter<string>("solver", CVC4, new List<string> { Z3, CVC4 });
-            return SolverParameter;
+            if (solverParameter == null)
+                solverParameter = new EngineParameter<string>("solver", CVC4, new List<string> { Z3, CVC4 });
+            return solverParameter;
         }
 
-        private static EngineParameter<int> ErrorLimitParameter;
+        private static EngineParameter<int> errorLimitParameter;
 
         public static EngineParameter<int> GetErrorLimitParameter()
         {
-            if (ErrorLimitParameter == null)
-                ErrorLimitParameter = new EngineParameter<int>("errorlimit", 20);
-            return ErrorLimitParameter;
+            if (errorLimitParameter == null)
+                errorLimitParameter = new EngineParameter<int>("errorlimit", 20);
+            return errorLimitParameter;
         }
 
-        public new static List<EngineParameter> GetAllowedParameters()
+        public static new List<EngineParameter> GetAllowedParameters()
         {
             return new List<EngineParameter> { GetSolverParameter(), GetErrorLimitParameter() };
         }
 
-        public Houdini.ConcurrentHoudini houdini = null;
+        private Houdini.ConcurrentHoudini houdini = null;
 
         public string Solver { get; set; }
 
         public int ErrorLimit { get; set; }
 
-        public SMTEngine(int ID, bool underApproximating, string solver, int errorLimit)
-            : base(ID, underApproximating)
+        public SMTEngine(int id, bool underApproximating, string solver, int errorLimit)
+            : base(id, underApproximating)
         {
-            this.Solver = solver;
-            this.ErrorLimit = errorLimit;
+            Solver = solver;
+            ErrorLimit = errorLimit;
             CommandLineOptions.Clo.Cho.Add(new CommandLineOptions.ConcurrentHoudiniOptions());
-            CommandLineOptions.Clo.Cho[this.ID].ProverCCLimit = this.ErrorLimit;
+            CommandLineOptions.Clo.Cho[ID].ProverCCLimit = ErrorLimit;
 
             foreach (string opt in CommandLineOptions.Clo.ProverOptions)
             {
-                if ((this.Solver.Equals(Z3) && !opt.Contains("LOGIC=")) ||
-                    (this.Solver.Equals(CVC4) && !opt.Contains("OPTIMIZE_FOR_BV=")))
+                if ((Solver.Equals(Z3) && !opt.Contains("LOGIC=")) ||
+                    (Solver.Equals(CVC4) && !opt.Contains("OPTIMIZE_FOR_BV=")))
                 {
-                    CommandLineOptions.Clo.Cho[this.ID].ProverOptions.Add(opt);
+                    CommandLineOptions.Clo.Cho[ID].ProverOptions.Add(opt);
                 }
             }
         }
 
         public void Start(Program program, ref Houdini.HoudiniOutcome outcome)
         {
-            if (this.Solver.Equals(CVC4))
+            if (Solver.Equals(CVC4))
             {
-                if (CommandLineOptions.Clo.Cho[this.ID].ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
+                if (CommandLineOptions.Clo.Cho[ID].ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
                     CheckForQuantifiers.Found(program))
                 {
-                    CommandLineOptions.Clo.Cho[this.ID].ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
-                    CommandLineOptions.Clo.Cho[this.ID].ProverOptions.Add("LOGIC=ALL_SUPPORTED");
+                    CommandLineOptions.Clo.Cho[ID].ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
+                    CommandLineOptions.Clo.Cho[ID].ProverOptions.Add("LOGIC=ALL_SUPPORTED");
                 }
             }
 
-            Print.VerboseMessage("[CRUNCHER] Engine " + this.GetType().Name + " started");
+            Print.VerboseMessage("[CRUNCHER] Engine " + GetType().Name + " started");
 
             ModifyProgramBeforeCrunch(program);
 
@@ -155,7 +154,7 @@ namespace Microsoft.Boogie
                 // Staged Houdini is not integrated with ConcurrentHoudini.
 
                 CommandLineOptions.Clo.ConcurrentHoudini = false; // HACK - requires proper integration
-                CommandLineOptions.Clo.ProverCCLimit = this.ErrorLimit; // HACK - requires proper integration
+                CommandLineOptions.Clo.ProverCCLimit = ErrorLimit; // HACK - requires proper integration
                 Debug.Assert(outcome == null);
                 Debug.Assert(this is VanillaHoudini);
 
@@ -165,8 +164,8 @@ namespace Microsoft.Boogie
             }
             else
             {
-                string filename = "houdiniCexTrace_" + this.ID + ".bpl";
-                houdini = new Houdini.ConcurrentHoudini(this.ID, program, houdiniStats, filename);
+                string filename = "houdiniCexTrace_" + ID + ".bpl";
+                houdini = new Houdini.ConcurrentHoudini(ID, program, houdiniStats, filename);
 
                 if (outcome != null)
                 {
@@ -178,7 +177,7 @@ namespace Microsoft.Boogie
                 }
             }
 
-            Print.VerboseMessage("[CRUNCHER] Engine " + this.GetType().Name + " finished");
+            Print.VerboseMessage("[CRUNCHER] Engine " + GetType().Name + " finished");
 
             if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).DebugConcurrentHoudini)
                 OutputResults(outcome, houdiniStats);
@@ -205,33 +204,36 @@ namespace Microsoft.Boogie
     // Engine representing vanilla Houdini
     public class VanillaHoudini : SMTEngine
     {
-        public static string Name = "HOUDINI";
+        public const string Name = "HOUDINI";
 
-        private static EngineParameter<int> DelayParameter;
+        private static EngineParameter<int> delayParameter;
 
         public static EngineParameter<int> GetDelayParameter()
         {
-            if (DelayParameter == null)
-                DelayParameter = new EngineParameter<int>("delay", 0);
-            return DelayParameter;
+            if (delayParameter == null)
+                delayParameter = new EngineParameter<int>("delay", 0);
+
+            return delayParameter;
         }
 
-        private static EngineParameter<int> SlidingSecondsParameter;
+        private static EngineParameter<int> slidingSecondsParameter;
 
         public static EngineParameter<int> GetSlidingSecondsParameter()
         {
-            if (SlidingSecondsParameter == null)
-                SlidingSecondsParameter = new EngineParameter<int>("slidingseconds", 0);
-            return SlidingSecondsParameter;
+            if (slidingSecondsParameter == null)
+                slidingSecondsParameter = new EngineParameter<int>("slidingseconds", 0);
+
+            return slidingSecondsParameter;
         }
 
-        private static EngineParameter<int> SlidingLimitParameter;
+        private static EngineParameter<int> slidingLimitParameter;
 
         public static EngineParameter<int> GetSlidingLimitParameter()
         {
-            if (SlidingLimitParameter == null)
-                SlidingLimitParameter = new EngineParameter<int>("slidinglimit", 1);
-            return SlidingLimitParameter;
+            if (slidingLimitParameter == null)
+                slidingLimitParameter = new EngineParameter<int>("slidinglimit", 1);
+
+            return slidingLimitParameter;
         }
 
         // Override static method from base class
@@ -260,12 +262,12 @@ namespace Microsoft.Boogie
 
         public int SlidingLimit { get; set; }
 
-        public VanillaHoudini(int ID, string solver, int errorLimit)
-            : base(ID, false, solver, errorLimit)
+        public VanillaHoudini(int id, string solver, int errorLimit)
+            : base(id, false, solver, errorLimit)
         {
-            this.Delay = GetDelayParameter().DefaultValue;
-            this.SlidingSeconds = GetSlidingSecondsParameter().DefaultValue;
-            this.SlidingLimit = GetSlidingLimitParameter().DefaultValue;
+            Delay = GetDelayParameter().DefaultValue;
+            SlidingSeconds = GetSlidingSecondsParameter().DefaultValue;
+            SlidingLimit = GetSlidingLimitParameter().DefaultValue;
         }
 
         public override string ToString()
@@ -277,12 +279,12 @@ namespace Microsoft.Boogie
     // Engine where asserts are NOT maintained in the base step
     public class SSTEP : SMTEngine
     {
-        public static string Name = "SSTEP";
+        public const string Name = "SSTEP";
 
-        public SSTEP(int ID, string solver, int errorLimit)
-            : base(ID, true, solver, errorLimit)
+        public SSTEP(int id, string solver, int errorLimit)
+            : base(id, true, solver, errorLimit)
         {
-            CommandLineOptions.Clo.Cho[this.ID].DisableLoopInvEntryAssert = true;
+            CommandLineOptions.Clo.Cho[ID].DisableLoopInvEntryAssert = true;
         }
 
         public override string ToString()
@@ -294,12 +296,12 @@ namespace Microsoft.Boogie
     // Engine where asserts are NOT maintained in the induction step
     public class SBASE : SMTEngine
     {
-        public static string Name = "SBASE";
+        public const string Name = "SBASE";
 
-        public SBASE(int ID, string solver, int errorLimit)
-            : base(ID, true, solver, errorLimit)
+        public SBASE(int id, string solver, int errorLimit)
+            : base(id, true, solver, errorLimit)
         {
-            CommandLineOptions.Clo.Cho[this.ID].DisableLoopInvMaintainedAssert = true;
+            CommandLineOptions.Clo.Cho[ID].DisableLoopInvMaintainedAssert = true;
         }
 
         public override string ToString()
@@ -311,7 +313,7 @@ namespace Microsoft.Boogie
     // Engine based on loop unrolling to a specific depth
     public class LU : SMTEngine
     {
-        public static string Name = "LU";
+        public const string Name = "LU";
 
         private static EngineParameter<int> UnrollParameter;
 
@@ -340,15 +342,15 @@ namespace Microsoft.Boogie
 
         public int UnrollFactor { get; set; }
 
-        public LU(int ID, string solver, int errorLimit, int unrollFactor)
-            : base(ID, true, solver, errorLimit)
+        public LU(int id, string solver, int errorLimit, int unrollFactor)
+            : base(id, true, solver, errorLimit)
         {
-            this.UnrollFactor = unrollFactor;
+            UnrollFactor = unrollFactor;
         }
 
         public override void ModifyProgramBeforeCrunch(Program program)
         {
-            program.UnrollLoops(this.UnrollFactor, CommandLineOptions.Clo.SoundLoopUnrolling);
+            program.UnrollLoops(UnrollFactor, CommandLineOptions.Clo.SoundLoopUnrolling);
         }
 
         public override string ToString()
@@ -360,36 +362,39 @@ namespace Microsoft.Boogie
     // Engines based on dynamic analysis
     public class DynamicAnalysis : Engine
     {
-        public static string Name = "DYNAMIC";
+        public const string Name = "DYNAMIC";
 
-        private static EngineParameter<int> LoopHeaderLimitParameter;
+        private static EngineParameter<int> loopHeaderLimitParameter;
 
         public static EngineParameter<int> GetLoopHeaderLimitParameter()
         {
-            if (LoopHeaderLimitParameter == null)
-                LoopHeaderLimitParameter = new EngineParameter<int>("headerlimit", 1000);
-            return LoopHeaderLimitParameter;
+            if (loopHeaderLimitParameter == null)
+                loopHeaderLimitParameter = new EngineParameter<int>("headerlimit", 1000);
+
+            return loopHeaderLimitParameter;
         }
 
-        private static EngineParameter<int> LoopEscapingParameter;
+        private static EngineParameter<int> loopEscapingParameter;
 
         public static EngineParameter<int> GetLoopEscapingParameter()
         {
-            if (LoopEscapingParameter == null)
-                LoopEscapingParameter = new EngineParameter<int>("loopescaping", 0);
-            return LoopEscapingParameter;
+            if (loopEscapingParameter == null)
+                loopEscapingParameter = new EngineParameter<int>("loopescaping", 0);
+
+            return loopEscapingParameter;
         }
 
-        private static EngineParameter<int> TimeLimitParameter;
+        private static EngineParameter<int> timeLimitParameter;
 
         public static EngineParameter<int> GetTimeLimitParameter()
         {
-            if (TimeLimitParameter == null)
-                TimeLimitParameter = new EngineParameter<int>("timelimit", int.MaxValue);
-            return TimeLimitParameter;
+            if (timeLimitParameter == null)
+                timeLimitParameter = new EngineParameter<int>("timelimit", int.MaxValue);
+
+            return timeLimitParameter;
         }
 
-        public new static List<EngineParameter> GetAllowedParameters()
+        public static new List<EngineParameter> GetAllowedParameters()
         {
             return new List<EngineParameter> { GetLoopHeaderLimitParameter(), GetLoopEscapingParameter(), GetTimeLimitParameter() };
         }
@@ -421,22 +426,22 @@ namespace Microsoft.Boogie
     {
         public bool Sequential { get; set; }
 
-        public bool runHoudini { get; set; }
+        public bool RunHoudini { get; set; }
 
-        private List<Engine> Engines = new List<Engine>();
-        private int NextSMTEngineID = 0;
+        private List<Engine> engines = new List<Engine>();
+        private int nextSMTEngineID = 0;
         private VanillaHoudini houdiniEngine = null;
 
         public Pipeline(bool sequential)
         {
-            this.Sequential = sequential;
-            this.runHoudini = true;
+            Sequential = sequential;
+            RunHoudini = true;
         }
 
         // Adds Houdini to the pipeline if the user has not done so
         public void AddHoudiniEngine()
         {
-            foreach (Engine engine in Engines)
+            foreach (Engine engine in engines)
             {
                 if (engine is VanillaHoudini)
                     houdiniEngine = (VanillaHoudini)engine;
@@ -444,10 +449,11 @@ namespace Microsoft.Boogie
 
             if (houdiniEngine == null)
             {
-                houdiniEngine = new VanillaHoudini(GetNextSMTEngineID(),
-                                                   SMTEngine.GetSolverParameter().DefaultValue,
-                                                   SMTEngine.GetErrorLimitParameter().DefaultValue);
-                Engines.Add(houdiniEngine);
+                houdiniEngine = new VanillaHoudini(
+                    GetNextSMTEngineID(),
+                    SMTEngine.GetSolverParameter().DefaultValue,
+                    SMTEngine.GetErrorLimitParameter().DefaultValue);
+                engines.Add(houdiniEngine);
             }
         }
 
@@ -458,35 +464,34 @@ namespace Microsoft.Boogie
 
         public void AddEngine(Engine engine)
         {
-            this.Engines.Add(engine);
+            engines.Add(engine);
         }
 
         public int GetNextSMTEngineID()
         {
-            return NextSMTEngineID++;
+            return nextSMTEngineID++;
         }
 
         public int NumberOfSMTEngines()
         {
-            return NextSMTEngineID;
+            return nextSMTEngineID;
         }
 
         public IEnumerable<Engine> GetEngines()
         {
-            return Engines;
+            return engines;
         }
 
         public override string ToString()
         {
             StringBuilder sb = new System.Text.StringBuilder();
-            if (this.Sequential)
+            if (Sequential)
                 sb.Append("sequential");
             else
                 sb.Append("parallel");
-            foreach (Engine engine in Engines)
-            {
+
+            foreach (Engine engine in engines)
                 sb.Append("-" + engine.ToString());
-            }
 
             return sb.ToString();
         }
@@ -503,29 +508,23 @@ namespace Microsoft.Boogie
             this.FileNames = fileNames;
 
             Pipeline pipeline = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).Pipeline;
-            if (pipeline.runHoudini)
-            {
+            if (pipeline.RunHoudini)
                 pipeline.AddHoudiniEngine();
-            }
 
             Houdini.HoudiniOutcome outcome;
 
             // Execute the engine pipeline in sequence or in parallel
             if (pipeline.Sequential)
-            {
                 outcome = ScheduleEnginesInSequence(pipeline);
-            }
             else
-            {
                 outcome = ScheduleEnginesInParallel(pipeline);
-            }
 
             // If Houdini has been invoked then apply the invariants to the program.
             // Otherwise report success
-            if (pipeline.runHoudini)
+            if (pipeline.RunHoudini)
             {
                 var counters = new KernelAnalyser.ResultCounter();
-                Program prog = getFreshProgram(true, true);
+                Program prog = GetFreshProgram(true, true);
                 foreach (var implOutcome in outcome.implementationOutcomes)
                 {
                     KernelAnalyser.ProcessOutcome(prog, implOutcome.Key, implOutcome.Value.outcome,
@@ -536,7 +535,6 @@ namespace Microsoft.Boogie
                     GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(outcome), GetFileNameBase(), "cbpl");
 
                 ErrorCode = KernelAnalyser.GetExitCode(counters);
-
             }
             else
             {
@@ -570,12 +568,12 @@ namespace Microsoft.Boogie
                 if (engine is SMTEngine)
                 {
                     SMTEngine smtEngine = (SMTEngine)engine;
-                    smtEngine.Start(getFreshProgram(true, true), ref outcome);
+                    smtEngine.Start(GetFreshProgram(true, true), ref outcome);
                 }
                 else
                 {
                     DynamicAnalysis dynamicEngine = (DynamicAnalysis)engine;
-                    Program program = getFreshProgram(true, false);
+                    Program program = GetFreshProgram(true, false);
                     dynamicEngine.Start(program);
                 }
             }
@@ -601,7 +599,7 @@ namespace Microsoft.Boogie
                         underApproximatingTasks.Add(Task.Factory.StartNew(
                           () =>
                           {
-                              dynamicEngine.Start(getFreshProgram(true, false));
+                              dynamicEngine.Start(GetFreshProgram(true, false));
                           },
                           tokenSource.Token));
                     }
@@ -611,14 +609,14 @@ namespace Microsoft.Boogie
                         underApproximatingTasks.Add(Task.Factory.StartNew(
                           () =>
                           {
-                              smtEngine.Start(getFreshProgram(true, true), ref outcome);
+                              smtEngine.Start(GetFreshProgram(true, true), ref outcome);
                           },
                           tokenSource.Token));
                     }
                 }
             }
 
-            if (pipeline.runHoudini)
+            if (pipeline.RunHoudini)
             {
                 // We set a barrier on the under-approximating engines if a Houdini delay
                 // is specified or no sliding is selected
@@ -637,7 +635,7 @@ namespace Microsoft.Boogie
                 overApproximatingTasks.Add(Task.Factory.StartNew(
                   () =>
                   {
-                      pipeline.GetHoudiniEngine().Start(getFreshProgram(true, true), ref outcome);
+                      pipeline.GetHoudiniEngine().Start(GetFreshProgram(true, true), ref outcome);
                   },
                   tokenSource.Token));
 
@@ -658,9 +656,10 @@ namespace Microsoft.Boogie
                         {
                             numOfRefuted = Houdini.ConcurrentHoudini.RefutedSharedAnnotations.Count;
 
-                            VanillaHoudini newHoudiniEngine = new VanillaHoudini(pipeline.GetNextSMTEngineID(),
-                                                                pipeline.GetHoudiniEngine().Solver,
-                                                                pipeline.GetHoudiniEngine().ErrorLimit);
+                            VanillaHoudini newHoudiniEngine = new VanillaHoudini(
+                                pipeline.GetNextSMTEngineID(),
+                                pipeline.GetHoudiniEngine().Solver,
+                                pipeline.GetHoudiniEngine().ErrorLimit);
                             pipeline.AddEngine(newHoudiniEngine);
 
                             Print.VerboseMessage("Scheduling another Houdini instance");
@@ -668,7 +667,7 @@ namespace Microsoft.Boogie
                             overApproximatingTasks.Add(Task.Factory.StartNew(
                               () =>
                               {
-                                  newHoudiniEngine.Start(getFreshProgram(true, true), ref outcome);
+                                  newHoudiniEngine.Start(GetFreshProgram(true, true), ref outcome);
                                   tokenSource.Cancel(false);
                               },
                               tokenSource.Token));
@@ -682,7 +681,8 @@ namespace Microsoft.Boogie
                             if (task.Status.Equals(TaskStatus.Running))
                                 runningHoudinis = true;
                         }
-                    } while (newHoudinis < pipeline.GetHoudiniEngine().SlidingLimit && runningHoudinis);
+                    }
+                    while (newHoudinis < pipeline.GetHoudiniEngine().SlidingLimit && runningHoudinis);
                 }
 
                 try
@@ -704,14 +704,14 @@ namespace Microsoft.Boogie
             return outcome;
         }
 
-        private Program getFreshProgram(bool disableChecks, bool inline)
+        private Program GetFreshProgram(bool disableChecks, bool inline)
         {
             return GVUtil.GetFreshProgram(this.FileNames, disableChecks, inline);
         }
 
         private Program ApplyInvariants(Houdini.HoudiniOutcome outcome)
         {
-            Program program = getFreshProgram(false, false);
+            Program program = GetFreshProgram(false, false);
             CommandLineOptions.Clo.PrintUnstructured = 2;
             Houdini.Houdini.ApplyAssignment(program, outcome);
             if (((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ReplaceLoopInvariantAssertions)

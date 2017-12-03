@@ -21,10 +21,8 @@ namespace GPUVerify
         public string ArrayToCheck = null;
         public bool OnlyIntraGroupRaceChecking = false;
         public bool DebugGPUVerify = false;
-        // Dimensionality of block = BlockHighestDim + 1
-        public int BlockHighestDim = 2;
-        // Dimensionality of grid = GridHighestDim + 1
-        public int GridHighestDim = 2;
+        public int BlockHighestDim = 2; // Dimensionality of block = BlockHighestDim + 1
+        public int GridHighestDim = 2; // Dimensionality of grid = GridHighestDim + 1
         public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
         public bool DisplayLoopAbstractions = false;
 

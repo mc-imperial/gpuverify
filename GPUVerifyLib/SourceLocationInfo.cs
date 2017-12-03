@@ -59,16 +59,13 @@ namespace GPUVerify
 
             public override bool Equals(object obj)
             {
-                if (!(obj is Record))
-                {
-                    return false;
-                }
+                Record other = obj as Record;
 
-                Record ThatRecord = obj as Record;
-                return line == ThatRecord.line &&
-                       column == ThatRecord.column &&
-                       file == ThatRecord.file &&
-                       directory == ThatRecord.directory;
+                if (other == null)
+                    return false;
+
+                return line == other.line && column == other.column &&
+                    file == other.file && directory == other.directory;
             }
 
             public override int GetHashCode()
@@ -86,35 +83,23 @@ namespace GPUVerify
             {
                 int directories = s1.GetDirectory().CompareTo(s2.GetDirectory());
                 if (directories != 0)
-                {
                     return directories;
-                }
 
                 int files = s1.GetFile().CompareTo(s2.GetFile());
                 if (files != 0)
-                {
                     return files;
-                }
 
                 if (s1.GetLine() < s2.GetLine())
-                {
                     return -1;
-                }
 
                 if (s1.GetLine() > s2.GetLine())
-                {
                     return 1;
-                }
 
                 if (s1.GetColumn() < s2.GetColumn())
-                {
                     return -1;
-                }
 
                 if (s1.GetColumn() > s2.GetColumn())
-                {
                     return 1;
-                }
 
                 return 0;
             }
@@ -213,12 +198,10 @@ namespace GPUVerify
             {
                 TextReader tr = new StreamReader(path);
                 string line = null;
-                for (int currLineNo = 1; ((line = tr.ReadLine()) != null); currLineNo++)
+                for (int currLineNo = 1; (line = tr.ReadLine()) != null; currLineNo++)
                 {
                     if (currLineNo == lineNo)
-                    {
                         return line;
-                    }
                 }
 
                 throw new Exception();
@@ -248,11 +231,13 @@ namespace GPUVerify
         public void PrintStackTrace()
         {
             GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(0), 2));
+
             for (int i = 1; i < Count(); i++)
             {
                 Console.Error.WriteLine("invoked from " + records[i] + ":");
                 GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(i), 2));
             }
+
             Console.Error.WriteLine();
         }
 
@@ -263,33 +248,30 @@ namespace GPUVerify
                 return s1;
             }
 
-            int index;
-            for (index = 0; (index + 1) < s1.Length && char.IsWhiteSpace(s1[index]); ++index) ;
+            int index = 0;
+            while ((index + 1) < s1.Length && char.IsWhiteSpace(s1[index]))
+                ++index;
+
             string returnString = s1.Substring(index);
             for (int i = noOfSpaces; i > 0; --i)
-            {
                 returnString = " " + returnString;
-            }
 
             return returnString;
         }
 
         public override bool Equals(object obj)
         {
-            if (!(obj is SourceLocationInfo))
-            {
-                return false;
-            }
+            SourceLocationInfo other = obj as SourceLocationInfo;
 
-            SourceLocationInfo ThatSourceLocationInfo = obj as SourceLocationInfo;
-            if (this.records.Count() != ThatSourceLocationInfo.records.Count())
-            {
+            if (other == null)
                 return false;
-            }
 
-            foreach (var Pair in this.records.Zip(ThatSourceLocationInfo.records))
+            if (records.Count() != other.records.Count())
+                return false;
+
+            foreach (var pair in records.Zip(other.records))
             {
-                if (!Pair.Item1.Equals(Pair.Item2))
+                if (!pair.Item1.Equals(pair.Item2))
                 {
                     return false;
                 }

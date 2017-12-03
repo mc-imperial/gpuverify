@@ -17,15 +17,18 @@ namespace GPUVerify
 
     class VariableDefinitionAnalysisRegion
     {
-        GPUVerifier verifier;
-        HashSet<string> possibleInductionVars
+        private GPUVerifier verifier;
+
+        private HashSet<string> possibleInductionVars
             = new HashSet<string>();
-        Dictionary<object, Dictionary<string, Expr>> possibleInductionVarDefs
+
+        private Dictionary<object, Dictionary<string, Expr>> possibleInductionVarDefs
             = new Dictionary<object, Dictionary<string, Expr>>();
-        Dictionary<string, Expr> rootSubstitution
+
+        private Dictionary<string, Expr> rootSubstitution
             = new Dictionary<string, Expr>();
 
-        VariableDefinitionAnalysisRegion(GPUVerifier v)
+        private VariableDefinitionAnalysisRegion(GPUVerifier v)
         {
             verifier = v;
         }
@@ -61,8 +64,9 @@ namespace GPUVerify
                         {
                             var v = new MapSelectOrFloatVisitor();
                             v.Visit(a.Item2);
-                            yield return new Tuple<Variable, Expr>(sLhs.DeepAssignedVariable,
-                                                                   v.hasMapSelectOrFloat ? null : a.Item2);
+                            yield return new Tuple<Variable, Expr>(
+                                sLhs.DeepAssignedVariable,
+                                v.hasMapSelectOrFloat ? null : a.Item2);
                         }
                     }
                 }
@@ -78,11 +82,11 @@ namespace GPUVerify
 
         private class VarDefs
         {
-            Block block;
-            List<Tuple<Variable, Expr>> cmds = new List<Tuple<Variable, Expr>>();
-            IEnumerable<Block> predecessors;
-            IEnumerable<Variable> modSet;
-            Dictionary<Variable, Expr> varDefs = new Dictionary<Variable, Expr>();
+            private Block block;
+            private List<Tuple<Variable, Expr>> cmds = new List<Tuple<Variable, Expr>>();
+            private IEnumerable<Block> predecessors;
+            private IEnumerable<Variable> modSet;
+            private Dictionary<Variable, Expr> varDefs = new Dictionary<Variable, Expr>();
 
             public VarDefs(Block b, IEnumerable<Block> p, IEnumerable<Variable> m)
             {
@@ -94,7 +98,7 @@ namespace GPUVerify
 
             private class SubstitutionDuplicator : Duplicator
             {
-                Dictionary<Variable, Expr> defs;
+                private Dictionary<Variable, Expr> defs;
                 public bool isSubstitutable = true;
 
                 public SubstitutionDuplicator(Dictionary<Variable, Expr> d)
@@ -125,6 +129,7 @@ namespace GPUVerify
             {
                 foreach (var v in modSet)
                     varDefs[v] = Expr.Ident(v);
+
                 foreach (var cmd in cmds)
                 {
                     if (cmd.Item2 == null)
@@ -140,8 +145,8 @@ namespace GPUVerify
                 }
             }
 
-            Dictionary<Variable, Expr> MergePredecessors(Dictionary<Block, VarDefs> blockVarDefs,
-                                                         IEnumerable<Block> preds)
+            private Dictionary<Variable, Expr> MergePredecessors(
+                Dictionary<Block, VarDefs> blockVarDefs, IEnumerable<Block> preds)
             {
                 var predVarDefs = new Dictionary<Variable, Expr>();
                 foreach (var p in preds)
@@ -165,7 +170,7 @@ namespace GPUVerify
                 return predVarDefs;
             }
 
-            void UpdateAssignment(Variable variable, Expr rhs, Dictionary<Variable, Expr> newVarDefs)
+            private void UpdateAssignment(Variable variable, Expr rhs, Dictionary<Variable, Expr> newVarDefs)
             {
                 if ((varDefs.ContainsKey(variable) && varDefs[variable] == null) ||
                     rhs == null)
@@ -182,7 +187,7 @@ namespace GPUVerify
                     newVarDefs[variable] = null;
             }
 
-            bool HasChanged(Dictionary<Variable, Expr> newVarDefs)
+            private bool HasChanged(Dictionary<Variable, Expr> newVarDefs)
             {
                 if (!varDefs.Any())
                     return true;
@@ -202,8 +207,10 @@ namespace GPUVerify
                 var newVarDefs = MergePredecessors(blockVarDefs, predecessors);
                 if (!newVarDefs.Any())
                     return false;
+
                 foreach (var cmd in cmds)
                     UpdateAssignment(cmd.Item1, cmd.Item2, newVarDefs);
+
                 var changed = HasChanged(newVarDefs);
                 varDefs = newVarDefs;
                 return changed;
@@ -226,12 +233,12 @@ namespace GPUVerify
             }
         }
 
-        void AnalyseRegion(IRegion region, Graph<Block> cfg)
+        private void AnalyseRegion(IRegion region, Graph<Block> cfg)
         {
             var header = region.Header();
             var blockVarDefs = new Dictionary<Block, VarDefs>();
             var blocks = region.SubBlocks().Where(i => i != header);
-            var modSet = LoopInvariantGenerator.GetModifiedVariables(region);
+            var modSet = region.GetModifiedVariables();
 
             blockVarDefs[header] = new VarDefs(header, cfg.BackEdgeNodes(header), modSet);
             blockVarDefs[header].Initialize();
@@ -254,7 +261,7 @@ namespace GPUVerify
                                       .ToDictionary(i => i.Item1.Name, i => i.Item2);
         }
 
-        void AnalyseRootRegion(IRegion rootRegion)
+        private void AnalyseRootRegion(IRegion rootRegion)
         {
             // We do not track the blocks, as the substitution should still
             // be usable after transformation of the CFG.
@@ -267,7 +274,7 @@ namespace GPUVerify
             }
         }
 
-        void Analyse(IRegion rootRegion, Graph<Block> cfg)
+        private void Analyse(IRegion rootRegion, Graph<Block> cfg)
         {
             foreach (var r in rootRegion.SubRegions())
                 AnalyseRegion(r, cfg);
@@ -291,7 +298,7 @@ namespace GPUVerify
 
         private class SubstitutionPrimitiveDuplicator : Duplicator
         {
-            Dictionary<string, Expr> defs;
+            private Dictionary<string, Expr> defs;
 
             public SubstitutionPrimitiveDuplicator(Dictionary<string, Expr> d)
             {
@@ -322,9 +329,9 @@ namespace GPUVerify
 
         private class SubstitutionDuplicator : Duplicator
         {
-            Dictionary<string, Expr> defs;
-            GPUVerifier verifier;
-            string procName;
+            private Dictionary<string, Expr> defs;
+            private GPUVerifier verifier;
+            private string procName;
             public HashSet<string> freeVars = new HashSet<string>();
 
             public SubstitutionDuplicator(Dictionary<string, Expr> d, GPUVerifier v, string p)

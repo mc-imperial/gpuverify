@@ -23,11 +23,14 @@ namespace GPUVerify
         }
     }
 
-    enum MemorySpace { GLOBAL, GROUP_SHARED }
+    enum MemorySpace
+    {
+        GLOBAL, GROUP_SHARED
+    }
 
     class Memory
     {
-        private static Random Random = new Random();
+        private static Random random = new Random();
         private Dictionary<string, BitVector> scalars = new Dictionary<string, BitVector>();
         private Dictionary<string, Dictionary<SubscriptExpr, BitVector>> arrays = new Dictionary<string, Dictionary<SubscriptExpr, BitVector>>();
         private Dictionary<string, HashSet<BitVector>> raceArrayOffsets = new Dictionary<string, HashSet<BitVector>>();
@@ -140,21 +143,23 @@ namespace GPUVerify
         public BitVector GetValue(string name, SubscriptExpr subscript)
         {
             Print.ConditionalExitMessage(arrays.ContainsKey(name), string.Format("Unable to find array '{0}' in memory", name));
+
             Dictionary<SubscriptExpr, BitVector> arrayLocations = arrays[name];
             foreach (KeyValuePair<SubscriptExpr, BitVector> item in arrayLocations)
             {
                 if (SubscriptExpr.Matches(item.Key, subscript))
                     return arrays[name][item.Key];
             }
+
             Print.WarningMessage(string.Format("Location '{0}' in array '{1}' has not been initialised", subscript.ToString(), name));
 
             // Assign a random value
-            BitVector val = new BitVector(Random.Next(int.MinValue, int.MaxValue));
+            BitVector val = new BitVector(random.Next(int.MinValue, int.MaxValue));
             arrays[name][subscript] = val;
             return val;
         }
 
-        private string getEmptySpaces(int maxLength, int length)
+        private string GetEmptySpaces(int maxLength, int length)
         {
             int size = maxLength - length;
             StringBuilder sb = new StringBuilder(size);
@@ -168,15 +173,18 @@ namespace GPUVerify
             int maxLength = scalars.Keys.Aggregate(0, (curMax, name) => Math.Max(curMax, name.Length));
 
             Console.WriteLine("===== Scalar memory contents =====");
+
             foreach (KeyValuePair<string, BitVector> item in scalars)
             {
                 Console.WriteLine(
-                    item.Key + getEmptySpaces(maxLength, item.Key.Length) +
+                    item.Key + GetEmptySpaces(maxLength, item.Key.Length) +
                     " = " + item.Value.ToString());
             }
+
             Console.WriteLine("==================================");
 
             Console.WriteLine("===== Array memory contents ======");
+
             foreach (KeyValuePair<string, Dictionary<SubscriptExpr, BitVector>> item in arrays)
             {
                 foreach (KeyValuePair<SubscriptExpr, BitVector> item2 in item.Value)
@@ -186,14 +194,17 @@ namespace GPUVerify
                         item2.Value.ToString());
                 }
             }
+
             Console.WriteLine("==================================");
 
             maxLength = raceArrayOffsets.Keys.Aggregate(0, (curMax, name) => Math.Max(curMax, name.Length));
             Console.WriteLine("=========== Race-checking sets ===========");
+
             foreach (KeyValuePair<string, HashSet<BitVector>> item in raceArrayOffsets)
             {
-                Console.Write(item.Key + getEmptySpaces(maxLength, item.Key.Length));
+                Console.Write(item.Key + GetEmptySpaces(maxLength, item.Key.Length));
                 Console.Write(" = {");
+
                 int i = 0;
                 foreach (BitVector offset in item.Value)
                 {
@@ -201,8 +212,10 @@ namespace GPUVerify
                     if (++i < item.Value.Count)
                         Console.Write(", ");
                 }
+
                 Console.WriteLine("}");
             }
+
             Console.WriteLine("==================================");
         }
     }

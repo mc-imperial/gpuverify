@@ -16,7 +16,7 @@ namespace GPUVerify
 
     class VariableDualiser : Duplicator
     {
-        static internal HashSet<string> otherFunctionNames =
+        public static readonly HashSet<string> OtherFunctionNames =
           new HashSet<string>(new string[] { "__other_bool", "__other_bv32", "__other_bv64", "__other_arrayId" });
 
         private int id;
@@ -26,9 +26,9 @@ namespace GPUVerify
 
         private bool SkipDualiseVariable(Variable node)
         {
-            var AEF = new AsymmetricExpressionFinder();
-            AEF.Visit(node);
-            if (AEF.foundAsymmetricExpr())
+            var aef = new AsymmetricExpressionFinder();
+            aef.Visit(node);
+            if (aef.FoundAsymmetricExpr())
             {
                 return true;
             }
@@ -144,14 +144,13 @@ namespace GPUVerify
                 FunctionCall call = node.Fun as FunctionCall;
 
                 // Alternate dualisation for "other thread" functions
-                if (otherFunctionNames.Contains(call.Func.Name))
+                if (OtherFunctionNames.Contains(call.Func.Name))
                 {
                     Debug.Assert(id == 1 || id == 2);
                     int otherId = id == 1 ? 2 : 1;
                     return new VariableDualiser(otherId, uniformityAnalyser, procName).VisitExpr(
                         node.Args[0]);
                 }
-
             }
 
             return base.VisitNAryExpr(node);
@@ -177,14 +176,12 @@ namespace GPUVerify
 
         public override AssignLhs VisitMapAssignLhs(MapAssignLhs node)
         {
-
             var v = node.DeepAssignedVariable;
             if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
             {
                 return new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, node.Map,
                   new List<Expr>(new Expr[] { GPUVerifier.GroupSharedIndexingExpr(id) })),
                   node.Indexes.Select(idx => this.VisitExpr(idx)).ToList());
-
             }
 
             return base.VisitMapAssignLhs(node);

@@ -28,7 +28,7 @@ namespace GPUVerify
         /// Returns a Microsoft.Boogie.Houdini.ConcurrentHoudini.RefutedAnnotation object by iterating the
         /// TopLevelDeclarations of a Program using the specified strings.
         /// </summary>
-        public static ConcurrentHoudini.RefutedAnnotation getRefutedAnnotation(Program program, string constant, string implementation)
+        public static ConcurrentHoudini.RefutedAnnotation GetRefutedAnnotation(Program program, string constant, string implementation)
         {
             Variable variable = null;
             Implementation refutationSite = null;
@@ -189,24 +189,27 @@ namespace GPUVerify
 
             public static void WriteTrailer(KernelAnalyser.ResultCounter result)
             {
-                Contract.Requires(0 <= result.VerificationErrors && 0 <= result.Inconclusives && 0 <= result.TimeOuts && 0 <= result.OutOfMemories);
+                Contract.Requires(result.VerificationErrors >= 0 && result.Inconclusives >= 0 &&
+                    result.TimeOuts >= 0 && result.OutOfMemories >= 0);
 
                 //Console.WriteLine();
                 if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed)
                 {
-                    Console.Write("{0} finished with {1} credible, {2} doomed{3}",
-                      CommandLineOptions.Clo.DescriptiveToolName,
-                      result.Verified,
-                      result.VerificationErrors,
-                      result.VerificationErrors == 1 ? "" : "s");
+                    Console.Write(
+                        "{0} finished with {1} credible, {2} doomed{3}",
+                        CommandLineOptions.Clo.DescriptiveToolName,
+                        result.Verified,
+                        result.VerificationErrors,
+                        result.VerificationErrors == 1 ? "" : "s");
                 }
                 else
                 {
-                    Console.Write("{0} finished with {1} verified, {2} error{3}",
-                      CommandLineOptions.Clo.DescriptiveToolName,
-                      result.Verified,
-                      result.VerificationErrors,
-                      result.VerificationErrors == 1 ? "" : "s");
+                    Console.Write(
+                        "{0} finished with {1} verified, {2} error{3}",
+                        CommandLineOptions.Clo.DescriptiveToolName,
+                        result.Verified,
+                        result.VerificationErrors,
+                        result.VerificationErrors == 1 ? "" : "s");
                 }
 
                 if (result.Inconclusives != 0)
@@ -318,62 +321,6 @@ namespace GPUVerify
                     writer.Write(e.ToString());
                     writer.Close();
                 }
-            }
-        }
-
-        // TODO: Not working really yet ...
-        // Performs deep copy of an object using reflection
-        public static object DeepCopy(object obj)
-        {
-            if (obj == null) return null;
-
-            System.Type type = obj.GetType();
-            Console.WriteLine("***TYPE 0: {0}***", type.FullName);
-
-            if (type.IsPrimitive || type.IsEnum || type == typeof(string))
-            {
-                Console.WriteLine("***TYPE 1: {0}***", type.FullName);
-
-                return obj;
-            }
-            else if (type.IsArray)
-            {
-                Console.WriteLine("***TYPE 2: {0}***", type.FullName);
-                Console.WriteLine("***TYPE 2: {0}***", type.FullName.Replace("[]", string.Empty));
-
-                System.Type elementType = System.Type.GetType(type.FullName.Replace("[]", string.Empty) + ", Core");
-                Console.WriteLine("ELEMENTTYPE: " + elementType.FullName);
-                var array = obj as Array;
-                Array copied = Array.CreateInstance(elementType, array.Length);
-
-                for (int i = 0; i < array.Length; i++)
-                {
-                    copied.SetValue(DeepCopy(array.GetValue(i)), i);
-                }
-
-                return Convert.ChangeType(copied, obj.GetType());
-            }
-            else if (type.IsClass || type.IsValueType)
-            {
-                Console.WriteLine("***TYPE 3: {0}***", type.FullName);
-                object copiedObject = Activator.CreateInstance(obj.GetType());
-                FieldInfo[] fields = type.GetFields(BindingFlags.Public |
-                                                    BindingFlags.NonPublic |
-                                                    BindingFlags.Instance);
-
-                foreach (FieldInfo field in fields)
-                {
-                    object fieldValue = field.GetValue(obj);
-
-                    if (fieldValue != null)
-                        field.SetValue(copiedObject, DeepCopy(fieldValue));
-                }
-
-                return copiedObject;
-            }
-            else
-            {
-                throw new ArgumentException("Unknown type");
             }
         }
 

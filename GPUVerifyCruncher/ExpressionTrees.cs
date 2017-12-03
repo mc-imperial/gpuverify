@@ -10,8 +10,8 @@
 namespace GPUVerify
 {
     using System;
-    using System.Text;
     using System.Collections.Generic;
+    using System.Text;
     using Microsoft.Basetypes;
     using Microsoft.Boogie;
 
@@ -117,14 +117,17 @@ namespace GPUVerify
             for (int i = 0; i < height; ++i)
             {
                 builder.Append(string.Format("Level {0}", i)).Append(Environment.NewLine);
+
                 foreach (Node node in levels[i])
                 {
                     builder.Append(node.ID);
                     if (i > 0)
                         builder.Append(string.Format(" (parent = {0})  ", node.GetParent().ID));
                 }
+
                 builder.Append(Environment.NewLine);
             }
+
             for (int i = 0; i < height; ++i)
             {
                 foreach (Node node in levels[i])
@@ -133,6 +136,7 @@ namespace GPUVerify
                     builder.Append(Environment.NewLine);
                 }
             }
+
             return builder.ToString();
         }
     }
@@ -247,7 +251,9 @@ namespace GPUVerify
                     return parent;
                 }
                 else
+                {
                     Print.ExitMessage("Unhandled Nary expression: " + nary.Fun.GetType().ToString());
+                }
             }
             else if (expr is IdentifierExpr)
             {
@@ -276,7 +282,9 @@ namespace GPUVerify
                         return new LiteralNode(BitVector.False);
                 }
                 else
+                {
                     Print.ExitMessage("Unhandled literal expression: " + literal.ToString());
+                }
             }
             else if (expr is BvExtractExpr)
             {
@@ -304,6 +312,7 @@ namespace GPUVerify
                 one.parent = parent;
                 return parent;
             }
+
             Print.ExitMessage("Unhandled expression tree: " + expr.ToString() + " " + expr.Type.ToString());
             return null;
         }

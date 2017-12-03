@@ -10,9 +10,10 @@
 namespace GPUVerify
 {
     using System.Collections.Generic;
+    using System.Diagnostics;
     using Microsoft.Boogie;
 
-    internal interface IRegion
+    public interface IRegion
     {
         object Identifier();
 
@@ -39,5 +40,26 @@ namespace GPUVerify
         HashSet<Variable> PartitionVariablesOfHeader();
 
         HashSet<Variable> PartitionVariablesOfRegion();
+    }
+
+    public static class RegionExtensions
+    {
+        public static HashSet<Variable> GetModifiedVariables(this IRegion region)
+        {
+            HashSet<Variable> result = new HashSet<Variable>();
+
+            foreach (Cmd c in region.Cmds())
+            {
+                List<Variable> vars = new List<Variable>();
+                c.AddAssignedVariables(vars);
+                foreach (Variable v in vars)
+                {
+                    Debug.Assert(v != null);
+                    result.Add(v);
+                }
+            }
+
+            return result;
+        }
     }
 }

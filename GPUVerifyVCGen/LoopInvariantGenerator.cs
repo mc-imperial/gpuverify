@@ -7,27 +7,25 @@
 //
 //===----------------------------------------------------------------------===//
 
-using GPUVerify.InvariantGenerationRules;
-
 namespace GPUVerify
 {
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.Linq;
     using System.Text.RegularExpressions;
+    using InvariantGenerationRules;
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
     internal class LoopInvariantGenerator
     {
         private GPUVerifier verifier;
-        private Implementation Impl;
+        private Implementation impl;
         private List<InvariantGenerationRule> invariantGenerationRules;
 
-        LoopInvariantGenerator(GPUVerifier verifier, Implementation Impl)
+        private LoopInvariantGenerator(GPUVerifier verifier, Implementation impl)
         {
             this.verifier = verifier;
-            this.Impl = Impl;
+            this.impl = impl;
 
             invariantGenerationRules = new List<InvariantGenerationRule>();
             invariantGenerationRules.Add(new PowerOfTwoInvariantGenerator(verifier));
@@ -38,9 +36,7 @@ namespace GPUVerify
             foreach (var region in verifier.RootRegion(impl).SubRegions())
             {
                 if (!AccessesGlobalArrayOrUnsafeBarrier(region, verifier))
-                {
                     verifier.AddRegionWithLoopInvariantsDisabled(region);
-                }
             }
         }
 
@@ -64,150 +60,155 @@ namespace GPUVerify
         {
             Block header = region.Header();
             if (verifier.uniformityAnalyser.IsUniform(impl.Name, header))
-            {
                 return;
-            }
 
-            var CFG = Program.GraphFromImpl(impl);
-            Dictionary<Block, HashSet<Block>> ControlDependence = CFG.ControlDependence();
-            ControlDependence.TransitiveClosure();
-            CFG.ComputeLoops();
+            var cfg = Program.GraphFromImpl(impl);
+            Dictionary<Block, HashSet<Block>> controlDependence = cfg.ControlDependence();
+            controlDependence.TransitiveClosure();
+            cfg.ComputeLoops();
 
-            List<Expr> Guards = new List<Expr>();
-            foreach (var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header())))
+            List<Expr> guards = new List<Expr>();
+            foreach (var b in controlDependence.Keys.Where(item => controlDependence[item].Contains(region.Header())))
             {
-                foreach (var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item)))
+                foreach (var succ in cfg.Successors(b).Where(item => cfg.DominatorMap.DominatedBy(header, item)))
                 {
-                    var Guard = MaybeExtractGuard(verifier, impl, succ);
-                    if (Guard != null)
+                    var guard = MaybeExtractGuard(verifier, impl, succ);
+                    if (guard != null)
                     {
-                        Guards.Add(Guard);
+                        guards.Add(guard);
                         break;
                     }
                 }
             }
 
-            if (Guards.Count == 0)
+            if (guards.Count == 0)
             {
                 return;
             }
 
-            IEnumerable<Variable> ReadVariables;
-            IEnumerable<Variable> WrittenVariables;
-            GetReadAndWrittenVariables(region, out ReadVariables, out WrittenVariables);
+            IEnumerable<Variable> readVariables;
+            IEnumerable<Variable> writtenVariables;
+            GetReadAndWrittenVariables(region, out readVariables, out writtenVariables);
 
-            foreach (var v in ReadVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(Item)
-              && !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(Item)))
+            foreach (var v in readVariables.Where(item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(item)
+              && !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(item)))
             {
-                foreach (var g in Guards)
+                foreach (var g in guards)
                 {
-                    verifier.AddCandidateInvariant(region,
-                      Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.READ)),
-                                g), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
+                    verifier.AddCandidateInvariant(
+                        region,
+                        Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.READ)), g),
+                        "accessOnlyIfEnabledInEnclosingScopes",
+                        "do_not_predicate");
                 }
             }
 
-            foreach (var v in WrittenVariables.Where(Item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(Item)))
+            foreach (var v in writtenVariables.Where(item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(item)))
             {
-                foreach (var g in Guards)
+                foreach (var g in guards)
                 {
-                    verifier.AddCandidateInvariant(region,
-                      Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
-                                g), "accessOnlyIfEnabledInEnclosingScopes", "do_not_predicate");
+                    verifier.AddCandidateInvariant(
+                        region,
+                        Expr.Imp(Expr.Ident(verifier.FindOrCreateAccessHasOccurredVariable(v.Name, AccessType.WRITE)), g),
+                        "accessOnlyIfEnabledInEnclosingScopes",
+                        "do_not_predicate");
                 }
             }
         }
 
-        private static void GetReadAndWrittenVariables(IRegion region, out IEnumerable<Variable> ReadVariables, out IEnumerable<Variable> WrittenVariables)
+        private static void GetReadAndWrittenVariables(IRegion region, out IEnumerable<Variable> readVariables, out IEnumerable<Variable> writtenVariables)
         {
             var readVisitor = new VariablesOccurringInExpressionVisitor();
             var writeVisitor = new VariablesOccurringInExpressionVisitor();
             foreach (AssignCmd assignment in region.Cmds().OfType<AssignCmd>())
             {
                 var mapLhss = assignment.Lhss.OfType<MapAssignLhs>();
-                foreach (var LhsRhs in mapLhss.Zip(assignment.Rhss))
+                foreach (var lhsRhs in mapLhss.Zip(assignment.Rhss))
                 {
-                    writeVisitor.Visit(LhsRhs.Item1);
-                    readVisitor.Visit(LhsRhs.Item2);
+                    writeVisitor.Visit(lhsRhs.Item1);
+                    readVisitor.Visit(lhsRhs.Item2);
                 }
+
                 var simpleLhss = assignment.Lhss.OfType<SimpleAssignLhs>();
-                foreach (var LhsRhs in simpleLhss.Zip(assignment.Rhss))
+                foreach (var lhsRhs in simpleLhss.Zip(assignment.Rhss))
                 {
-                    readVisitor.Visit(LhsRhs.Item2);
+                    readVisitor.Visit(lhsRhs.Item2);
                 }
             }
-            ReadVariables = readVisitor.GetVariables();
-            WrittenVariables = writeVisitor.GetVariables();
+
+            readVariables = readVisitor.GetVariables();
+            writtenVariables = writeVisitor.GetVariables();
         }
 
         private static void GenerateCandidateForEnabledness(GPUVerifier verifier, Implementation impl, IRegion region)
         {
             Block header = region.Header();
             if (verifier.uniformityAnalyser.IsUniform(impl.Name, header))
-            {
                 return;
-            }
 
-            var CFG = Program.GraphFromImpl(impl);
-            Dictionary<Block, HashSet<Block>> ControlDependence = CFG.ControlDependence();
-            ControlDependence.TransitiveClosure();
-            CFG.ComputeLoops();
-            var LoopNodes = CFG.BackEdgeNodes(header).Select(Item => CFG.NaturalLoops(header, Item)).SelectMany(Item => Item);
+            var cfg = Program.GraphFromImpl(impl);
+            Dictionary<Block, HashSet<Block>> controlDependence = cfg.ControlDependence();
+            controlDependence.TransitiveClosure();
+            cfg.ComputeLoops();
+            var loopNodes = cfg.BackEdgeNodes(header).Select(item => cfg.NaturalLoops(header, item)).SelectMany(item => item);
 
-            Expr GuardEnclosingLoop = null;
-            foreach (var b in ControlDependence.Keys.Where(Item => ControlDependence[Item].Contains(region.Header())))
+            Expr guardEnclosingLoop = null;
+            foreach (var b in controlDependence.Keys.Where(item => controlDependence[item].Contains(region.Header())))
             {
-                foreach (var succ in CFG.Successors(b).Where(Item => CFG.DominatorMap.DominatedBy(header, Item)))
+                foreach (var succ in cfg.Successors(b).Where(item => cfg.DominatorMap.DominatedBy(header, item)))
                 {
-                    var Guard = MaybeExtractGuard(verifier, impl, succ);
-                    if (Guard != null)
+                    var guard = MaybeExtractGuard(verifier, impl, succ);
+                    if (guard != null)
                     {
-                        GuardEnclosingLoop = GuardEnclosingLoop == null ? Guard : Expr.And(GuardEnclosingLoop, Guard);
+                        guardEnclosingLoop = guardEnclosingLoop == null ? guard : Expr.And(guardEnclosingLoop, guard);
                         break;
                     }
                 }
             }
 
-            if (GuardEnclosingLoop != null)
+            if (guardEnclosingLoop != null)
             {
-                verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Ident(verifier.FindOrCreateEnabledVariable()), GuardEnclosingLoop), "conditionsImpliedByEnabledness");
+                verifier.AddCandidateInvariant(
+                    region,
+                    Expr.Imp(Expr.Ident(verifier.FindOrCreateEnabledVariable()), guardEnclosingLoop),
+                    "conditionsImpliedByEnabledness");
             }
 
-            var DualCFG = CFG.Dual(new Block());
-            Block LoopConditionDominator = header;
+            var cfgDual = cfg.Dual(new Block());
+            Block loopConditionDominator = header;
 
             // The dominator might have multiple successors
-            while (CFG.Successors(LoopConditionDominator).Count(Item => LoopNodes.Contains(Item)) > 1)
+            while (cfg.Successors(loopConditionDominator).Count(item => loopNodes.Contains(item)) > 1)
             {
                 // Find the immediate post-dominator of the successors
                 Block block = null;
-                foreach (var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item)))
+                foreach (var succ in cfg.Successors(loopConditionDominator).Where(item => loopNodes.Contains(item)))
                 {
                     if (block == null)
                         block = succ;
                     else
-                        block = DualCFG.DominatorMap.LeastCommonAncestor(block, succ);
+                        block = cfgDual.DominatorMap.LeastCommonAncestor(block, succ);
                 }
 
                 // Use the immediate post-dominator
-                LoopConditionDominator = block;
+                loopConditionDominator = block;
             }
 
-            Expr GuardIncludingLoopCondition = null;
-            foreach (var succ in CFG.Successors(LoopConditionDominator).Where(Item => LoopNodes.Contains(Item)))
+            Expr guardIncludingLoopCondition = null;
+            foreach (var succ in cfg.Successors(loopConditionDominator).Where(item => loopNodes.Contains(item)))
             {
-                var Guard = MaybeExtractGuard(verifier, impl, succ);
-                if (Guard != null)
+                var guard = MaybeExtractGuard(verifier, impl, succ);
+                if (guard != null)
                 {
                     // There is at most one successor, so it's safe not use GuardIncludingLoopCondition on the rhs
-                    GuardIncludingLoopCondition = GuardEnclosingLoop == null ? Guard : Expr.And(GuardEnclosingLoop, Guard);
+                    guardIncludingLoopCondition = guardEnclosingLoop == null ? guard : Expr.And(guardEnclosingLoop, guard);
                     break;
                 }
             }
 
-            if (GuardIncludingLoopCondition != null)
+            if (guardIncludingLoopCondition != null)
             {
-                verifier.AddCandidateInvariant(region, Expr.Imp(GuardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", "do_not_predicate");
+                verifier.AddCandidateInvariant(region, Expr.Imp(guardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", "do_not_predicate");
             }
         }
 
@@ -251,7 +252,7 @@ namespace GPUVerify
             HashSet<Variable> guardVars = new HashSet<Variable>();
 
             var formals = impl.InParams.Select(x => x.Name);
-            var modset = GetModifiedVariables(region).Select(x => x.Name);
+            var modset = region.GetModifiedVariables().Select(x => x.Name);
             foreach (var v in partitionVars)
             {
                 Expr expr = verifier.varDefAnalysesRegion[impl].DefOfVariableName(v.Name);
@@ -260,15 +261,12 @@ namespace GPUVerify
                 var visitor = new VariablesOccurringInExpressionVisitor();
                 visitor.Visit(expr);
                 guardVars.UnionWith(
-                 visitor.GetVariables().Where(
-                  x => x.Name.StartsWith("$") &&
-                  !formals.Contains(x.Name) &&
-                  modset.Contains(x.Name) &&
-                  !verifier.uniformityAnalyser.IsUniform(impl.Name, x.Name) &&
-                  x.TypedIdent.Type.IsBv &&
-                  (x.TypedIdent.Type.BvBits % 8 == 0)
-                 )
-                );
+                    visitor.GetVariables().Where(x =>
+                        x.Name.StartsWith("$") && !formals.Contains(x.Name) &&
+                        modset.Contains(x.Name) &&
+                        !verifier.uniformityAnalyser.IsUniform(impl.Name, x.Name) &&
+                        x.TypedIdent.Type.IsBv &&
+                        (x.TypedIdent.Type.BvBits % 8 == 0)));
             }
 
             List<AssignCmd> assignments = new List<AssignCmd>();
@@ -314,7 +312,7 @@ namespace GPUVerify
             HashSet<Variable> nonnegVars = new HashSet<Variable>();
 
             var formals = impl.InParams.Select(x => x.Name);
-            var modset = GetModifiedVariables(region).Select(x => x.Name);
+            var modset = region.GetModifiedVariables().Select(x => x.Name);
             Regex pattern = new Regex(@"\bBV\d*_((SLE)|(SLT)|(SGE)|(SGT))\b");
             foreach (var v in partitionVars)
             {
@@ -327,22 +325,20 @@ namespace GPUVerify
                 var visitor = new VariablesOccurringInExpressionVisitor();
                 visitor.Visit(nary);
                 nonnegVars.UnionWith(
-                 visitor.GetVariables().Where(
-                  x => x.Name.StartsWith("$") &&
-                  !formals.Contains(x.Name) &&
-                  modset.Contains(x.Name) &&
-                  x.TypedIdent.Type.IsBv
-                 )
-                );
+                 visitor.GetVariables()
+                 .Where(x => x.Name.StartsWith("$") &&
+                    !formals.Contains(x.Name) &&
+                    modset.Contains(x.Name) &&
+                    x.TypedIdent.Type.IsBv));
             }
 
             foreach (var v in nonnegVars)
             {
-                int BVWidth = v.TypedIdent.Type.BvBits;
                 // REVISIT: really we only want to guess for /integer/ variables.
-                if (BVWidth >= 8)
+                int bvWidth = v.TypedIdent.Type.BvBits;
+                if (bvWidth >= 8)
                 {
-                    var inv = verifier.IntRep.MakeSle(verifier.Zero(BVWidth), new IdentifierExpr(v.tok, v));
+                    var inv = verifier.IntRep.MakeSle(verifier.Zero(bvWidth), new IdentifierExpr(v.tok, v));
                     verifier.AddCandidateInvariant(region, inv, "guardNonNeg");
                 }
             }
@@ -355,7 +351,7 @@ namespace GPUVerify
             foreach (string iv in rsa.StridedInductionVariables(regionId))
             {
                 var sc = rsa.GetStrideConstraint(iv, regionId);
-                Variable ivVariable = impl.LocVars.Where(Item => Item.Name == iv).First();
+                Variable ivVariable = impl.LocVars.Where(item => item.Name == iv).First();
                 var ivExpr = new IdentifierExpr(Token.NoToken, ivVariable);
                 var ivPred = sc.MaybeBuildPredicate(verifier, ivExpr);
 
@@ -369,7 +365,8 @@ namespace GPUVerify
         private static void GenerateCandidateForLoopBounds(GPUVerifier verifier, Implementation impl, IRegion region)
         {
             HashSet<Variable> loopCounters = new HashSet<Variable>();
-            HashSet<Variable> modifiedVariables = GetModifiedVariables(region);
+            HashSet<Variable> modifiedVariables = region.GetModifiedVariables();
+
             // Get the partition variables associated with the header
             HashSet<Variable> partitionVars = region.PartitionVariablesOfRegion();
             foreach (Variable v in partitionVars)
@@ -398,14 +395,14 @@ namespace GPUVerify
                     foreach (AssignCmd cmd in preheader.Cmds.Where(x => x is AssignCmd).Reverse<Cmd>())
                     {
                         var lhss = cmd.Lhss.Where(x => x is SimpleAssignLhs);
-                        foreach (var LhsRhs in lhss.Zip(cmd.Rhss))
+                        foreach (var lhsRhs in lhss.Zip(cmd.Rhss))
                         {
-                            if (LhsRhs.Item1.DeepAssignedVariable.Name == loopCounter.Name)
+                            if (lhsRhs.Item1.DeepAssignedVariable.Name == loopCounter.Name)
                             {
-                                verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound");
-                                verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound");
-                                verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUle(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound");
-                                verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUge(new IdentifierExpr(loopCounter.tok, loopCounter), LhsRhs.Item2), "loopBound");
+                                verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSle(new IdentifierExpr(loopCounter.tok, loopCounter), lhsRhs.Item2), "loopBound");
+                                verifier.AddCandidateInvariant(region, verifier.IntRep.MakeSge(new IdentifierExpr(loopCounter.tok, loopCounter), lhsRhs.Item2), "loopBound");
+                                verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUle(new IdentifierExpr(loopCounter.tok, loopCounter), lhsRhs.Item2), "loopBound");
+                                verifier.AddCandidateInvariant(region, verifier.IntRep.MakeUge(new IdentifierExpr(loopCounter.tok, loopCounter), lhsRhs.Item2), "loopBound");
                             }
                         }
                     }
@@ -413,41 +410,35 @@ namespace GPUVerify
             }
         }
 
-        public static void PostInstrument(GPUVerifier verifier, Implementation Impl)
+        public static void PostInstrument(GPUVerifier verifier, Implementation impl)
         {
-            new LoopInvariantGenerator(verifier, Impl).PostInstrument();
+            new LoopInvariantGenerator(verifier, impl).PostInstrument();
         }
 
-        internal void PostInstrument()
+        private void PostInstrument()
         {
-            HashSet<Variable> LocalVars = new HashSet<Variable>();
-            foreach (Variable v in Impl.LocVars)
-            {
-                LocalVars.Add(v);
-            }
+            HashSet<Variable> localVars = new HashSet<Variable>();
+            foreach (Variable v in impl.LocVars)
+                localVars.Add(v);
 
-            foreach (Variable v in Impl.InParams)
-            {
-                LocalVars.Add(v);
-            }
+            foreach (Variable v in impl.InParams)
+                localVars.Add(v);
 
-            foreach (Variable v in Impl.OutParams)
-            {
-                LocalVars.Add(v);
-            }
+            foreach (Variable v in impl.OutParams)
+                localVars.Add(v);
 
-            AddCandidateInvariants(LocalVars, Impl);
+            AddCandidateInvariants(localVars, impl);
         }
 
-        private void AddPredicatedEqualityCandidateInvariant(IRegion region, string LoopPredicate, Variable v)
+        private void AddPredicatedEqualityCandidateInvariant(IRegion region, string loopPredicate, Variable v)
         {
             var inv = Expr.Imp(
              Expr.And(
-              new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$1", Microsoft.Boogie.Type.Int))),
-              new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$2", Microsoft.Boogie.Type.Int)))),
+              new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, loopPredicate + "$1", Microsoft.Boogie.Type.Int))),
+              new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, loopPredicate + "$2", Microsoft.Boogie.Type.Int)))),
              Expr.Eq(
-              new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable)),
-              new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, Impl.Name).VisitVariable(v.Clone() as Variable))));
+              new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, impl.Name).VisitVariable(v.Clone() as Variable)),
+              new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, impl.Name).VisitVariable(v.Clone() as Variable))));
 
             verifier.AddCandidateInvariant(region, inv, "predicatedEquality");
         }
@@ -489,103 +480,70 @@ namespace GPUVerify
             return result;
         }
 
-        private void AddBarrierDivergenceCandidates(HashSet<Variable> LocalVars, Implementation Impl, IRegion region)
+        private void AddBarrierDivergenceCandidates(HashSet<Variable> localVars, Implementation impl, IRegion region)
         {
-
             if (!verifier.ContainsBarrierCall(region) && !GPUVerifyVCGenCommandLineOptions.WarpSync)
-            {
                 return;
-            }
 
             Expr guard = region.Guard();
-            if (guard != null && verifier.uniformityAnalyser.IsUniform(Impl.Name, guard))
-            {
+            if (guard != null && verifier.uniformityAnalyser.IsUniform(impl.Name, guard))
                 return;
-            }
 
             if (IsDisjunctionOfPredicates(guard))
             {
-                string LoopPredicate = ((guard as NAryExpr).Args[0] as IdentifierExpr).Name;
-                LoopPredicate = LoopPredicate.Substring(0, LoopPredicate.IndexOf('$'));
+                string loopPredicate = ((guard as NAryExpr).Args[0] as IdentifierExpr).Name;
+                loopPredicate = loopPredicate.Substring(0, loopPredicate.IndexOf('$'));
 
+                // Int type used here, but it doesn't matter as we will print and then re-parse the program
                 var uniformEnabledPredicate = Expr.Eq(
-                                               // Int type used here, but it doesn't matter as we will print and then re-parse the program
-                                               new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$1", Microsoft.Boogie.Type.Int))),
-                                               new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, LoopPredicate + "$2", Microsoft.Boogie.Type.Int))));
+                    new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, loopPredicate + "$1", Type.Int))),
+                    new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, loopPredicate + "$2", Type.Int))));
 
                 verifier.AddCandidateInvariant(region, uniformEnabledPredicate, "loopPredicateEquality");
 
                 verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), uniformEnabledPredicate), "loopPredicateEquality");
 
-                Dictionary<string, int> assignmentCounts = GetAssignmentCounts(Impl);
+                Dictionary<string, int> assignmentCounts = GetAssignmentCounts(impl);
 
                 HashSet<string> alreadyConsidered = new HashSet<string>();
 
-                foreach (var v in LocalVars)
+                foreach (var v in localVars)
                 {
                     string lv = GVUtil.StripThreadIdentifier(v.Name);
                     if (alreadyConsidered.Contains(lv))
-                    {
                         continue;
-                    }
 
                     alreadyConsidered.Add(lv);
 
-                    if (verifier.uniformityAnalyser.IsUniform(Impl.Name, v.Name))
-                    {
+                    if (verifier.uniformityAnalyser.IsUniform(impl.Name, v.Name))
                         continue;
-                    }
 
                     if (GPUVerifier.IsPredicate(lv))
-                    {
                         continue;
-                    }
 
                     if (!assignmentCounts.ContainsKey(lv) || assignmentCounts[lv] <= 1)
-                    {
                         continue;
-                    }
 
-                    if (!verifier.ContainsNamedVariable(
-                         GetModifiedVariables(region), lv))
-                    {
+                    if (!verifier.ContainsNamedVariable(region.GetModifiedVariables(), lv))
                         continue;
-                    }
 
-                    AddPredicatedEqualityCandidateInvariant(region, LoopPredicate, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lv, Type.Int)));
+                    AddPredicatedEqualityCandidateInvariant(region, loopPredicate, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, lv, Type.Int)));
                 }
-
             }
         }
 
         private static bool IsDisjunctionOfPredicates(Expr guard)
         {
-            if (!(guard is NAryExpr))
-            {
+            NAryExpr nary = guard as NAryExpr;
+            if (nary == null || nary.Args.Count() != 2)
                 return false;
-            }
 
-            NAryExpr nary = (NAryExpr)guard;
-            if (nary.Args.Count() != 2)
-            {
+            BinaryOperator binOp = nary.Fun as BinaryOperator;
+            if (binOp == null || binOp.Op != BinaryOperator.Opcode.Or)
                 return false;
-            }
-
-            if (!(nary.Fun is BinaryOperator))
-            {
-                return false;
-            }
-
-            BinaryOperator binOp = (BinaryOperator)nary.Fun;
-            if (binOp.Op != BinaryOperator.Opcode.Or)
-            {
-                return false;
-            }
 
             if (!(nary.Args[0] is IdentifierExpr && nary.Args[1] is IdentifierExpr))
-            {
                 return false;
-            }
 
             return GPUVerifier.IsPredicate(GVUtil.StripThreadIdentifier(
              ((IdentifierExpr)nary.Args[0]).Name)) &&
@@ -593,43 +551,25 @@ namespace GPUVerify
              ((IdentifierExpr)nary.Args[1]).Name));
         }
 
-        private void AddCandidateInvariants(HashSet<Variable> LocalVars, Implementation Impl)
+        private void AddCandidateInvariants(HashSet<Variable> localVars, Implementation impl)
         {
-            foreach (IRegion region in verifier.RootRegion(Impl).SubRegions())
+            foreach (IRegion region in verifier.RootRegion(impl).SubRegions())
             {
                 if (verifier.RegionHasLoopInvariantsDisabled(region))
                     continue;
 
                 foreach (InvariantGenerationRule r in invariantGenerationRules)
-                    r.GenerateCandidates(Impl, region);
+                    r.GenerateCandidates(impl, region);
 
-                AddBarrierDivergenceCandidates(LocalVars, Impl, region);
+                AddBarrierDivergenceCandidates(localVars, impl, region);
 
-                verifier.RaceInstrumenter.AddRaceCheckingCandidateInvariants(Impl, region);
+                verifier.RaceInstrumenter.AddRaceCheckingCandidateInvariants(impl, region);
             }
         }
 
-        internal static HashSet<Variable> GetModifiedVariables(IRegion region)
+        private static bool AccessesGlobalArrayOrUnsafeBarrier(Cmd c, GPUVerifier verifier)
         {
-            HashSet<Variable> result = new HashSet<Variable>();
-
-            foreach (Cmd c in region.Cmds())
-            {
-                List<Variable> vars = new List<Variable>();
-                c.AddAssignedVariables(vars);
-                foreach (Variable v in vars)
-                {
-                    Debug.Assert(v != null);
-                    result.Add(v);
-                }
-            }
-
-            return result;
-        }
-
-        internal static bool AccessesGlobalArrayOrUnsafeBarrier(Cmd c, GPUVerifier verifier)
-        {
-            var StateToCheck = verifier.KernelArrayInfo;
+            var stateToCheck = verifier.KernelArrayInfo;
 
             if (c is CallCmd)
             {
@@ -657,9 +597,10 @@ namespace GPUVerify
                 call.AddAssignedVariables(vars);
                 foreach (Variable v in vars)
                 {
-                    if (StateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(v))
+                    if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(v))
                         return true;
-                    if (StateToCheck.GetConstantArrays().Contains(v))
+
+                    if (stateToCheck.GetConstantArrays().Contains(v))
                         return true;
                 }
             }
@@ -670,40 +611,40 @@ namespace GPUVerify
             {
                 AssignCmd assign = c as AssignCmd;
 
-                ReadCollector rc = new ReadCollector(StateToCheck);
+                ReadCollector rc = new ReadCollector(stateToCheck);
                 foreach (var rhs in assign.Rhss)
                     rc.Visit(rhs);
                 foreach (var access in rc.nonPrivateAccesses)
                 {
                     // Ignore disabled arrays
-                    if (StateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(access.v))
+                    if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(access.v))
                     {
                         // Ignore read-only arrays (whether or not they are disabled)
-                        if (!StateToCheck.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(access.v))
+                        if (!stateToCheck.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(access.v))
                             return true;
                     }
                 }
 
-                foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
+                foreach (var lhsRhs in assign.Lhss.Zip(assign.Rhss))
                 {
-                    WriteCollector wc = new WriteCollector(StateToCheck);
-                    wc.Visit(LhsRhs.Item1);
+                    WriteCollector wc = new WriteCollector(stateToCheck);
+                    wc.Visit(lhsRhs.Item1);
                     if (wc.FoundNonPrivateWrite())
                     {
                         // Ignore disabled arrays
-                        if (StateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().v))
+                        if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().v))
                             return true;
                     }
                 }
 
-                foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
+                foreach (var lhsRhs in assign.Lhss.Zip(assign.Rhss))
                 {
-                    ConstantWriteCollector cwc = new ConstantWriteCollector(StateToCheck);
-                    cwc.Visit(LhsRhs.Item1);
+                    ConstantWriteCollector cwc = new ConstantWriteCollector(stateToCheck);
+                    cwc.Visit(lhsRhs.Item1);
                     if (cwc.FoundWrite())
                     {
                         // Ignore disabled arrays
-                        if (StateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(cwc.GetAccess().v))
+                        if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(cwc.GetAccess().v))
                             return true;
                     }
                 }
@@ -732,7 +673,7 @@ namespace GPUVerify
             return false;
         }
 
-        internal static bool AccessesGlobalArrayOrUnsafeBarrier(IRegion region, GPUVerifier verifier)
+        private static bool AccessesGlobalArrayOrUnsafeBarrier(IRegion region, GPUVerifier verifier)
         {
             // Heuristic to establish whether to speculate loop invariants for a specific loop
             // based on the commands that occur int the loop.

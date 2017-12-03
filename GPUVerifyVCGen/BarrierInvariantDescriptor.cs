@@ -25,17 +25,17 @@ namespace GPUVerify
         protected List<Expr> AccessExprs;
         protected GPUVerifier Verifier;
 
-        public BarrierInvariantDescriptor(Expr Predicate, Expr BarrierInvariant,
-              QKeyValue SourceLocationInfo,
-              KernelDualiser Dualiser, string ProcName, GPUVerifier Verifier)
+        public BarrierInvariantDescriptor(Expr predicate, Expr barrierInvariant,
+              QKeyValue sourceLocationInfo,
+              KernelDualiser dualiser, string procName, GPUVerifier verifier)
         {
-            this.Predicate = Predicate;
-            this.BarrierInvariant = BarrierInvariant;
-            this.SourceLocationInfo = SourceLocationInfo;
-            this.Dualiser = Dualiser;
-            this.ProcName = ProcName;
+            this.Predicate = predicate;
+            this.BarrierInvariant = barrierInvariant;
+            this.SourceLocationInfo = sourceLocationInfo;
+            this.Dualiser = dualiser;
+            this.ProcName = procName;
             this.AccessExprs = new List<Expr>();
-            this.Verifier = Verifier;
+            this.Verifier = verifier;
 
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
             {
@@ -46,8 +46,8 @@ namespace GPUVerify
                     var cond = pair.Item1;
                     var v = pair.Item2;
                     var index = pair.Item3;
-                    this.AccessExprs.Add(Expr.Imp(Predicate,
-                      Expr.Imp(cond, BuildAccessedExpr(v.Name, index))));
+                    this.AccessExprs.Add(
+                        Expr.Imp(predicate, Expr.Imp(cond, BuildAccessedExpr(v.Name, index))));
                 }
             }
         }
@@ -74,8 +74,7 @@ namespace GPUVerify
         protected Expr NotTooLarge(Expr e)
         {
             return Dualiser.verifier.IntRep.MakeSlt(e,
-              new IdentifierExpr(Token.NoToken,
-                Dualiser.verifier.GetGroupSize("X")));
+              new IdentifierExpr(Token.NoToken, Dualiser.verifier.GetGroupSize("X")));
         }
 
         private Expr BuildAccessedExpr(string name, Expr e)
@@ -116,7 +115,7 @@ namespace GPUVerify
 
             internal Expr BuildPathCondition()
             {
-                return Path.Aggregate((Expr.True as Expr), (e1, e2) => Expr.And(e1, e2));
+                return Path.Aggregate(Expr.True as Expr, (e1, e2) => Expr.And(e1, e2));
             }
 
             public override Expr VisitNAryExpr(NAryExpr node)
@@ -139,7 +138,9 @@ namespace GPUVerify
                 {
                     var p = node.Args[0];
                     var q = node.Args[1];
-                    PushPath(p); VisitExpr(q); PopPath();
+                    PushPath(p);
+                    VisitExpr(q);
+                    PopPath();
                     return node; // stop recursing
                 }
                 else if (node.Fun is IfThenElse)
@@ -148,8 +149,12 @@ namespace GPUVerify
                     var e1 = node.Args[1];
                     var e2 = node.Args[2];
                     VisitExpr(p);
-                    PushPath(p); VisitExpr(e1); PopPath();
-                    PushPath(Expr.Not(p)); VisitExpr(e2); PopPath();
+                    PushPath(p);
+                    VisitExpr(e1);
+                    PopPath();
+                    PushPath(Expr.Not(p));
+                    VisitExpr(e2);
+                    PopPath();
                     return node; // stop recursing
                 }
 

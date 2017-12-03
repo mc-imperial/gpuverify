@@ -7,21 +7,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System.Collections.Generic;
-using Microsoft.Boogie;
-using System.Diagnostics;
-
 namespace GPUVerify
 {
+    using System.Collections.Generic;
+    using System.Diagnostics;
+    using Microsoft.Boogie;
 
-    class ReadCollector : AccessCollector
+    internal class ReadCollector : AccessCollector
     {
-
         public List<AccessRecord> nonPrivateAccesses = new List<AccessRecord>();
         public List<AccessRecord> privateAccesses = new List<AccessRecord>();
 
-        public ReadCollector(IKernelArrayInfo State)
-            : base(State)
+        public ReadCollector(IKernelArrayInfo state)
+            : base(state)
         {
         }
 
@@ -41,27 +39,23 @@ namespace GPUVerify
 
                 if (!(node.Args[0] is IdentifierExpr)) {
                   // This should only happen if the map is one of the special _USED maps for atomics
-                  var NodeArgs0 = node.Args[0] as NAryExpr;
-                  Debug.Assert(NodeArgs0 != null);
-                  Debug.Assert(NodeArgs0.Fun is MapSelect);
-                  Debug.Assert(NodeArgs0.Args[0] is IdentifierExpr);
-                  Debug.Assert(((IdentifierExpr)NodeArgs0.Args[0]).Name.StartsWith("_USED"));
+                  var nodeArgs0 = node.Args[0] as NAryExpr;
+                  Debug.Assert(nodeArgs0 != null);
+                  Debug.Assert(nodeArgs0.Fun is MapSelect);
+                  Debug.Assert(nodeArgs0.Args[0] is IdentifierExpr);
+                  Debug.Assert(((IdentifierExpr)nodeArgs0.Args[0]).Name.StartsWith("_USED"));
                   return base.VisitNAryExpr(node);
                 }
 
                 Debug.Assert(node.Args[0] is IdentifierExpr);
-                var ReadVariable = (node.Args[0] as IdentifierExpr).Decl;
-                var Index = node.Args[1];
+                var readVariable = (node.Args[0] as IdentifierExpr).Decl;
+                var index = node.Args[1];
                 this.VisitExpr(node.Args[1]);
 
-                if (State.ContainsGlobalOrGroupSharedArray(ReadVariable, true))
-                {
-                  nonPrivateAccesses.Add(new AccessRecord(ReadVariable, Index));
-                }
-                else if (State.ContainsPrivateArray(ReadVariable))
-                {
-                  privateAccesses.Add(new AccessRecord(ReadVariable, Index));
-                }
+                if (State.ContainsGlobalOrGroupSharedArray(readVariable, true))
+                  nonPrivateAccesses.Add(new AccessRecord(readVariable, index));
+                else if (State.ContainsPrivateArray(readVariable))
+                  privateAccesses.Add(new AccessRecord(readVariable, index));
 
                 return node;
             }
@@ -70,6 +64,5 @@ namespace GPUVerify
                 return base.VisitNAryExpr(node);
             }
         }
-
     }
 }

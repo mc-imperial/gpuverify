@@ -87,23 +87,29 @@ namespace GPUVerify
             }
         }
 
+        private Function CreateExistentialFunction(List<TypedIdent> idents)
+        {
+            List<Variable> args = idents.Select(item => (Variable)new LocalVariable(Token.NoToken, item)).ToList();
+            Variable result = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Type.Bool));
+
+            Function existentialFunction = new Function(Token.NoToken, "_existential_func" + counter, args, result);
+            existentialFunction.AddAttribute("existential", new object[] { Expr.True });
+
+            counter++;
+
+            return existentialFunction;
+        }
+
         private void TransformRemainingCandidates(IRegion region, List<PredicateCmd> oldCandidateInvariants)
         {
             if (oldCandidateInvariants.Count() > 0)
             {
-
-                List<Variable> args = new List<Variable>();
+                List<TypedIdent> args = new List<TypedIdent>();
                 for (int i = 0; i < oldCandidateInvariants.Count(); i++)
-                {
-                    args.Add(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x" + i, Microsoft.Boogie.Type.Bool)));
-                }
+                    args.Add(new TypedIdent(Token.NoToken, "x" + i, Type.Bool));
 
-                Function existentialFunction = new Function(Token.NoToken, "_existential_func" + counter, args,
-                  new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.Bool)));
-
+                Function existentialFunction = CreateExistentialFunction(args);
                 existentialFunctions.Add(existentialFunction);
-
-                existentialFunction.AddAttribute("existential", new object[] { Expr.True });
 
                 List<Expr> oldCandidateInvariantExprs = new List<Expr>();
                 foreach (var p in oldCandidateInvariants)
@@ -115,10 +121,9 @@ namespace GPUVerify
                     oldCandidateInvariantExprs.Add(e);
                 }
 
-                region.AddInvariant(new AssertCmd(Token.NoToken, new NAryExpr(Token.NoToken, new FunctionCall(existentialFunction),
-                  oldCandidateInvariantExprs)));
-
-                counter++;
+                region.AddInvariant(new AssertCmd(
+                    Token.NoToken,
+                    new NAryExpr(Token.NoToken, new FunctionCall(existentialFunction), oldCandidateInvariantExprs)));
             }
         }
 
@@ -160,22 +165,14 @@ namespace GPUVerify
                             toRemove.Add(current);
                             toRemove.Add(p);
 
-                            Function implicationExistentialFunction = new Function(Token.NoToken, "_existential_func" + counter,
-                              new List<Variable>
-                                { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x", Microsoft.Boogie.Type.Bool)),
-                                  new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "y", Microsoft.Boogie.Type.Bool))
-                                },
-                              new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.Bool)));
-
+                            Function implicationExistentialFunction = CreateExistentialFunction(new List<TypedIdent>
+                                { new TypedIdent(Token.NoToken, "x", Type.Bool), new TypedIdent(Token.NoToken, "y", Type.Bool) });
+                            implicationExistentialFunction.AddAttribute("absdomain", new object[] { "ImplicationDomain" });
                             existentialFunctions.Add(implicationExistentialFunction);
 
-                            implicationExistentialFunction.AddAttribute("existential", new object[] { Expr.True });
-                            implicationExistentialFunction.AddAttribute("absdomain", new object[] { "ImplicationDomain" });
-
-                            region.AddInvariant(new AssertCmd(Token.NoToken, new NAryExpr(Token.NoToken, new FunctionCall(implicationExistentialFunction),
-                              new List<Expr> { antecedent, consequent })));
-
-                            counter++;
+                            region.AddInvariant(new AssertCmd(
+                                Token.NoToken,
+                                new NAryExpr(Token.NoToken, new FunctionCall(implicationExistentialFunction), new List<Expr> { antecedent, consequent })));
                         }
                     }
 
@@ -203,19 +200,15 @@ namespace GPUVerify
                 {
                     oldCandidateInvariants.RemoveAll(item => TryGetPow2VariableFromCandidate(item)
                       != null && TryGetPow2VariableFromCandidate(item).Name.Equals(v.Name));
-                    Function pow2ExistentialFunction = new Function(Token.NoToken, "_existential_func" + counter,
-                      new List<Variable> { new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "x", v.Type)) },
-                      new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Microsoft.Boogie.Type.Bool)));
 
+                    Function pow2ExistentialFunction = CreateExistentialFunction(new List<TypedIdent>
+                        { new TypedIdent(Token.NoToken, "x", v.Type) });
+                    pow2ExistentialFunction.AddAttribute("absdomain", new object[] { "PowDomain" });
                     existentialFunctions.Add(pow2ExistentialFunction);
 
-                    pow2ExistentialFunction.AddAttribute("existential", new object[] { Expr.True });
-                    pow2ExistentialFunction.AddAttribute("absdomain", new object[] { "PowDomain" });
-
-                    region.AddInvariant(new AssertCmd(Token.NoToken, new NAryExpr(Token.NoToken, new FunctionCall(pow2ExistentialFunction),
-                      new List<Expr> { v })));
-
-                    counter++;
+                    region.AddInvariant(new AssertCmd(
+                        Token.NoToken,
+                        new NAryExpr(Token.NoToken, new FunctionCall(pow2ExistentialFunction), new List<Expr> { v })));
                 }
             }
             while (v != null);

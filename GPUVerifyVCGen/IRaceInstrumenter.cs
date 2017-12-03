@@ -11,7 +11,7 @@ namespace GPUVerify
 {
     using Microsoft.Boogie;
 
-    internal interface IRaceInstrumenter
+    public interface IRaceInstrumenter
     {
         void AddRaceCheckingCandidateInvariants(Implementation impl, IRegion region);
 
@@ -21,11 +21,11 @@ namespace GPUVerify
 
         void AddRaceCheckingDeclarations();
 
-        BigBlock MakeResetReadWriteSetStatements(Variable v, Expr ResetCondition);
+        BigBlock MakeResetReadWriteSetStatements(Variable v, Expr resetCondition);
 
-        void AddRaceCheckingCandidateRequires(Procedure Proc);
+        void AddRaceCheckingCandidateRequires(Procedure proc);
 
-        void AddRaceCheckingCandidateEnsures(Procedure Proc);
+        void AddRaceCheckingCandidateEnsures(Procedure proc);
 
         void AddDefaultLoopInvariants();
 

@@ -14,17 +14,51 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    class UnstructuredRegion : IRegion
+    public class UnstructuredRegion : IRegion
     {
-        Graph<Block> blockGraph;
-        Block header;
-        Dictionary<Block, HashSet<Block>> loopNodes = new Dictionary<Block, HashSet<Block>>();
-        Dictionary<Block, Block> innermostHeader = new Dictionary<Block, Block>();
-        Expr guard;
+        private Graph<Block> blockGraph;
+        private Block header;
+        private Dictionary<Block, HashSet<Block>> loopNodes = new Dictionary<Block, HashSet<Block>>();
+        private Dictionary<Block, Block> innermostHeader = new Dictionary<Block, Block>();
+        private Expr guard;
+
+        public UnstructuredRegion(Program p, Implementation impl)
+        {
+            blockGraph = p.ProcessLoops(impl);
+            header = null;
+            foreach (var h in blockGraph.SortHeadersByDominance())
+            {
+                var loopNodes = new HashSet<Block>();
+                foreach (var b in blockGraph.BackEdgeNodes(h))
+                    loopNodes.UnionWith(blockGraph.NaturalLoops(h, b));
+                this.loopNodes[h] = loopNodes;
+                foreach (var n in loopNodes)
+                {
+                    if (n != h)
+                    {
+                        if (!innermostHeader.ContainsKey(n))
+                            innermostHeader[n] = h;
+                    }
+                }
+            }
+
+            guard = null;
+        }
+
+        private UnstructuredRegion(UnstructuredRegion r, Block h)
+        {
+            blockGraph = r.blockGraph;
+            header = h;
+            loopNodes = r.loopNodes;
+            innermostHeader = r.innermostHeader;
+            guard = null;
+        }
 
         public HashSet<Variable> PartitionVariablesOfRegion()
         {
-            if (header == null) return new HashSet<Variable>();
+            if (header == null)
+                return new HashSet<Variable>();
+
             HashSet<Variable> partitionVars = new HashSet<Variable>();
             foreach (Block loopNode in loopNodes[header])
             {
@@ -44,17 +78,18 @@ namespace GPUVerify
 
         public HashSet<Variable> PartitionVariablesOfHeader()
         {
-            if (header == null) return new HashSet<Variable>();
+            if (header == null)
+                return new HashSet<Variable>();
 
             HashSet<Variable> partitionVars = new HashSet<Variable>();
             var visitor = new VariablesOccurringInExpressionVisitor();
             var dualBlockGraph = blockGraph.Dual(new Block());
-            Block LoopConditionDominator = header;
+            Block loopConditionDominator = header;
 
             // The dominator might have multiple successors, traverse these
-            while (blockGraph.Successors(LoopConditionDominator).Count(Item => loopNodes[header].Contains(Item)) > 1)
+            while (blockGraph.Successors(loopConditionDominator).Count(item => loopNodes[header].Contains(item)) > 1)
             {
-                foreach (Block b in blockGraph.Successors(LoopConditionDominator))
+                foreach (Block b in blockGraph.Successors(loopConditionDominator))
                 {
                     foreach (var assume in b.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")))
                     {
@@ -65,7 +100,7 @@ namespace GPUVerify
 
                 // Find the immediate post-dominator of the successors
                 Block block = null;
-                foreach (var succ in blockGraph.Successors(LoopConditionDominator).Where(Item => loopNodes[header].Contains(Item)))
+                foreach (var succ in blockGraph.Successors(loopConditionDominator).Where(item => loopNodes[header].Contains(item)))
                 {
                     if (block == null)
                         block = succ;
@@ -74,10 +109,10 @@ namespace GPUVerify
                 }
 
                 // Use the immediate post-dominator
-                LoopConditionDominator = block;
+                loopConditionDominator = block;
             }
 
-            foreach (Block b in blockGraph.Successors(LoopConditionDominator))
+            foreach (Block b in blockGraph.Successors(loopConditionDominator))
             {
                 foreach (var assume in b.Cmds.OfType<AssumeCmd>().Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")))
                 {
@@ -91,7 +126,9 @@ namespace GPUVerify
 
         public IEnumerable<Block> PreHeaders()
         {
-            if (header == null) return Enumerable.Empty<Block>();
+            if (header == null)
+                return Enumerable.Empty<Block>();
+
             var preds = blockGraph.Predecessors(header);
             var backedges = blockGraph.BackEdgeNodes(header);
             return preds.Except(backedges);
@@ -105,46 +142,9 @@ namespace GPUVerify
         public IEnumerable<Block> SubBlocks()
         {
             if (header != null)
-            {
                 return loopNodes[header];
-            }
             else
-            {
                 return blockGraph.Nodes;
-            }
-        }
-
-        public UnstructuredRegion(Program p, Implementation impl)
-        {
-            blockGraph = p.ProcessLoops(impl);
-            header = null;
-            foreach (var h in blockGraph.SortHeadersByDominance())
-            {
-                var loopNodes = new HashSet<Block>();
-                foreach (var b in blockGraph.BackEdgeNodes(h))
-                    loopNodes.UnionWith(blockGraph.NaturalLoops(h, b));
-                this.loopNodes[h] = loopNodes;
-                foreach (var n in loopNodes)
-                {
-                    if (n != h)
-                    {
-                        if (!innermostHeader.ContainsKey(n))
-                        {
-                            innermostHeader[n] = h;
-                        }
-                    }
-                }
-            }
-            guard = null;
-        }
-
-        private UnstructuredRegion(UnstructuredRegion r, Block h)
-        {
-            blockGraph = r.blockGraph;
-            header = h;
-            loopNodes = r.loopNodes;
-            innermostHeader = r.innermostHeader;
-            guard = null;
         }
 
         public object Identifier()
@@ -204,8 +204,7 @@ namespace GPUVerify
                     return null;
                 var assumes = backedges.Single().Cmds.Cast<Cmd>().OfType<AssumeCmd>().Where(x =>
                       QKeyValue.FindBoolAttribute(x.Attributes, "partition") ||
-                      QKeyValue.FindBoolAttribute(x.Attributes, "backedge")
-                );
+                      QKeyValue.FindBoolAttribute(x.Attributes, "backedge"));
                 if (assumes.Count() != 1)
                     return null;
                 guard = assumes.Single().Expr;
@@ -231,15 +230,15 @@ namespace GPUVerify
         {
             List<PredicateCmd> result = new List<PredicateCmd>();
             List<Cmd> newCmds = new List<Cmd>();
-            bool RemovedAllInvariants = false;
+            bool removedAllInvariants = false;
             foreach (Cmd c in header.Cmds)
             {
                 if (!(c is PredicateCmd))
                 {
-                    RemovedAllInvariants = true;
+                    removedAllInvariants = true;
                 }
 
-                if (c is PredicateCmd && !RemovedAllInvariants)
+                if (c is PredicateCmd && !removedAllInvariants)
                 {
                     result.Add((PredicateCmd)c);
                 }

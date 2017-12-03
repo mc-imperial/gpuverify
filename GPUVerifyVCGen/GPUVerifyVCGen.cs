@@ -14,7 +14,7 @@ namespace GPUVerify
     using System.IO;
     using Microsoft.Boogie;
 
-    class GPUVerify
+    public class GPUVerifyVCGen
     {
         public static void Main(string[] args)
         {
@@ -45,7 +45,7 @@ namespace GPUVerify
                     }
                 }
 
-                parseProcessOutput();
+                ParseProcessOutput();
             }
             catch (Exception e)
             {
@@ -61,13 +61,11 @@ namespace GPUVerify
             }
         }
 
-        public static Program parse(out ResolutionContext rc)
+        public static Program Parse(out ResolutionContext rc)
         {
             Program program = ParseBoogieProgram(GPUVerifyVCGenCommandLineOptions.inputFiles, false);
             if (program == null)
-            {
                 Environment.Exit(1);
-            }
 
             CommandLineOptions.Clo.DoModSetAnalysis = true;
             CommandLineOptions.Clo.PruneInfeasibleEdges = GPUVerifyVCGenCommandLineOptions.PruneInfeasibleEdges;
@@ -90,20 +88,7 @@ namespace GPUVerify
             return program;
         }
 
-        private static Variable findClonedVar(Variable v1, ICollection<Variable> vars)
-        {
-            foreach (Variable v2 in vars)
-            {
-                if (v1.Name.Equals(v2.Name))
-                {
-                    return v2;
-                }
-            }
-
-            return null;
-        }
-
-        public static void parseProcessOutput()
+        public static void ParseProcessOutput()
         {
             string fn = "temp";
             if (GPUVerifyVCGenCommandLineOptions.outputFile != null)
@@ -118,8 +103,8 @@ namespace GPUVerify
             }
 
             ResolutionContext rc;
-            Program program = parse(out rc);
-            new GPUVerifier(fn, program, rc).doit();
+            Program program = Parse(out rc);
+            new GPUVerifier(fn, program, rc).DoIt();
         }
 
         public static Program ParseBoogieProgram(List<string> fileNames, bool suppressTraceOutput)
@@ -163,17 +148,11 @@ namespace GPUVerify
             }
 
             if (!okay)
-            {
                 return null;
-            }
             else if (program == null)
-            {
                 return new Program();
-            }
             else
-            {
                 return program;
-            }
         }
     }
 }

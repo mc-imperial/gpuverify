@@ -14,24 +14,20 @@ namespace GPUVerify
     using Microsoft.Basetypes;
     using Microsoft.Boogie;
 
-    internal class ExpressionSimplifier
+    public class ExpressionSimplifier
     {
+        public static void Simplify(Program program)
+        {
+            var exprSimplify = new Simplifier();
+            exprSimplify.Visit(program);
+        }
+
         private class Simplifier : StandardVisitor
         {
-            private static Regex AndPattern = new Regex(@"^BV\d*_AND$");
-            private static Regex OrPattern = new Regex(@"^BV\d*_OR$");
-            private static Regex XorPattern = new Regex(@"^BV\d*_XOR$");
-            private static Regex ZextPattern = new Regex(@"^BV\d*_ZEXT\d*$");
-
-            private static int GetBvBits(Expr node)
-            {
-                return ((BvType)node.Type).Bits;
-            }
-
-            private static BigInteger GetBigInt(Expr node)
-            {
-                return ((BvConst)((LiteralExpr)node).Val).Value.ToBigInteger;
-            }
+            private static readonly Regex AndPattern = new Regex(@"^BV\d*_AND$");
+            private static readonly Regex OrPattern = new Regex(@"^BV\d*_OR$");
+            private static readonly Regex XorPattern = new Regex(@"^BV\d*_XOR$");
+            private static readonly Regex ZextPattern = new Regex(@"^BV\d*_ZEXT\d*$");
 
             public override Expr VisitNAryExpr(NAryExpr node)
             {
@@ -75,32 +71,32 @@ namespace GPUVerify
                 {
                     if (node.Args[0] is LiteralExpr && node.Type is BvType)
                     {
-                        var NewVal = BigNum.FromBigInt(GetBigInt(node.Args[0]));
-                        return new LiteralExpr(Token.NoToken, NewVal, GetBvBits(node));
+                        var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]));
+                        return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
                     }
                 }
                 else if (XorPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
                 {
                     if (node.Args[0] is LiteralExpr && node.Args[1] is LiteralExpr)
                     {
-                        var NewVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) ^ GetBigInt(node.Args[1]));
-                        return new LiteralExpr(Token.NoToken, NewVal, GetBvBits(node));
+                        var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) ^ GetBigInt(node.Args[1]));
+                        return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
                     }
                 }
                 else if (AndPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
                 {
                     if (node.Args[0] is LiteralExpr && node.Args[1] is LiteralExpr)
                     {
-                        var NewVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) & GetBigInt(node.Args[1]));
-                        return new LiteralExpr(Token.NoToken, NewVal, GetBvBits(node));
+                        var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) & GetBigInt(node.Args[1]));
+                        return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
                     }
                 }
                 else if (OrPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
                 {
                     if (node.Args[0] is LiteralExpr && node.Args[1] is LiteralExpr)
                     {
-                        var NewVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) | GetBigInt(node.Args[1]));
-                        return new LiteralExpr(Token.NoToken, NewVal, GetBvBits(node));
+                        var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) | GetBigInt(node.Args[1]));
+                        return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
                     }
                 }
                 else if (node.Fun is IfThenElse)
@@ -113,12 +109,16 @@ namespace GPUVerify
 
                 return node;
             }
-        }
 
-        public static void Simplify(Program program)
-        {
-            var exprSimplify = new Simplifier();
-            exprSimplify.Visit(program);
+            private static int GetBvBits(Expr node)
+            {
+                return ((BvType)node.Type).Bits;
+            }
+
+            private static BigInteger GetBigInt(Expr node)
+            {
+                return ((BvConst)((LiteralExpr)node).Val).Value.ToBigInteger;
+            }
         }
     }
 }

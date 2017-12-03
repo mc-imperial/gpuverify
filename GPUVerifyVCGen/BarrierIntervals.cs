@@ -43,60 +43,55 @@ namespace GPUVerify
             }
         }
 
+        private static bool NoExitFromCFG(Graph<Block> cfg)
+        {
+            return cfg.Nodes.All(block => cfg.Successors(block).Count() != 0);
+        }
+
         private HashSet<BarrierInterval> ComputeBarrierIntervals(Implementation impl)
         {
             HashSet<BarrierInterval> result = new HashSet<BarrierInterval>();
 
-            ExtractCommandsIntoBlocks(impl, Item => (Item is CallCmd && GPUVerifier.IsBarrier(((CallCmd)Item).Proc)));
+            ExtractCommandsIntoBlocks(impl, item => (item is CallCmd && GPUVerifier.IsBarrier(((CallCmd)item).Proc)));
             Graph<Block> cfg = Program.GraphFromImpl(impl);
 
             // If the CFG has no exit nodes, i.e. it cannot terminate,
             // we bail out; we need a single-entry single-exit CFG
             // and we cannot get one under such circumstances
             if (NoExitFromCFG(cfg))
-            {
                 return result;
-            }
 
             // To make the CFG single-exit, we add a special exit block
-            Block SpecialExitBlock = new Block();
-            cfg.Nodes.Add(SpecialExitBlock);
+            Block specialExitBlock = new Block();
+            cfg.Nodes.Add(specialExitBlock);
 
             // Now link any existing CFG node that has no successors to the
             // special exit node.
             foreach (var b in cfg.Nodes)
             {
-                if (b == SpecialExitBlock)
-                {
+                if (b == specialExitBlock)
                     continue;
-                }
 
                 if (cfg.Successors(b).Count() == 0)
-                {
-                    cfg.AddEdge(b, SpecialExitBlock);
-                }
+                    cfg.AddEdge(b, specialExitBlock);
             }
 
             Graph<Block> dual = cfg.Dual(new Block());
             DomRelation<Block> dom = cfg.DominatorMap;
             DomRelation<Block> pdom = dual.DominatorMap;
 
-            foreach (var dominator in cfg.Nodes.Where(Item => StartsWithUnconditionalBarrier(Item, impl, SpecialExitBlock)))
+            foreach (var dominator in cfg.Nodes.Where(item => StartsWithUnconditionalBarrier(item, impl, specialExitBlock)))
             {
                 Block smallestBarrierIntervalEnd = null;
-                foreach (var postdominator in cfg.Nodes.Where(Item => Item != dominator &&
-                    StartsWithUnconditionalBarrier(Item, impl, SpecialExitBlock) &&
-                    dom.DominatedBy(Item, dominator) &&
-                    pdom.DominatedBy(dominator, Item)))
+                foreach (var postdominator in cfg.Nodes.Where(item => item != dominator &&
+                    StartsWithUnconditionalBarrier(item, impl, specialExitBlock) &&
+                    dom.DominatedBy(item, dominator) &&
+                    pdom.DominatedBy(dominator, item)))
                 {
                     if (smallestBarrierIntervalEnd == null || dom.DominatedBy(smallestBarrierIntervalEnd, postdominator))
-                    {
                         smallestBarrierIntervalEnd = postdominator;
-                    }
                     else
-                    {
                         Debug.Assert(dom.DominatedBy(postdominator, smallestBarrierIntervalEnd));
-                    }
                 }
 
                 if (smallestBarrierIntervalEnd != null)
@@ -113,30 +108,17 @@ namespace GPUVerify
             return result;
         }
 
-        private static bool NoExitFromCFG(Graph<Block> cfg)
+        private bool StartsWithUnconditionalBarrier(Block b, Implementation impl, Block specialExitBlock)
         {
-            foreach (var b in cfg.Nodes)
+            if (verifier.IsKernelProcedure(impl.Proc))
             {
-                if (cfg.Successors(b).Count() == 0)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private bool StartsWithUnconditionalBarrier(Block b, Implementation Impl, Block SpecialExitBlock)
-        {
-            if (verifier.IsKernelProcedure(Impl.Proc))
-            {
-                if (b == Impl.Blocks[0])
+                if (b == impl.Blocks[0])
                 {
                     // There is a barrier at the very start of the kernel
                     return true;
                 }
 
-                if (b == SpecialExitBlock)
+                if (b == specialExitBlock)
                 {
                     // There is a barrier at the very end of the kernel
                     return true;
@@ -144,25 +126,21 @@ namespace GPUVerify
             }
 
             if (b.Cmds.Count == 0)
-            {
                 return false;
-            }
 
             CallCmd c = b.Cmds[0] as CallCmd;
             if (c == null || !GPUVerifier.IsBarrier(c.Proc))
-            {
                 return false;
-            }
 
-            var BarrierProcedure = c.Proc;
+            var barrierProcedure = c.Proc;
 
-            if (!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name))
+            if (!verifier.uniformityAnalyser.IsUniform(barrierProcedure.Name))
             {
                 // We may be able to do better in this case, but for now we conservatively say no
                 return false;
             }
 
-            if (BarrierHasNonUniformArgument(BarrierProcedure))
+            if (BarrierHasNonUniformArgument(barrierProcedure))
             {
                 // Also we may be able to do better in this case, but for now we conservatively say no
                 return false;
@@ -172,16 +150,12 @@ namespace GPUVerify
             if (strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL)
             {
                 if (!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1)))
-                {
                     return false;
-                }
             }
             else if (strength == BarrierStrength.GLOBAL || strength == BarrierStrength.ALL)
             {
                 if (!c.Ins[1].Equals(verifier.IntRep.GetLiteral(1, 1)))
-                {
                     return false;
-                }
             }
             else
             {
@@ -192,27 +166,20 @@ namespace GPUVerify
             return true;
         }
 
-        private bool BarrierHasNonUniformArgument(Procedure BarrierProcedure)
+        private bool BarrierHasNonUniformArgument(Procedure barrierProcedure)
         {
-            foreach (var v in BarrierProcedure.InParams)
-            {
-                if (!verifier.uniformityAnalyser.IsUniform(BarrierProcedure.Name, GVUtil.StripThreadIdentifier(v.Name)))
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return barrierProcedure.InParams
+                .Any(v => !verifier.uniformityAnalyser.IsUniform(barrierProcedure.Name, GVUtil.StripThreadIdentifier(v.Name)));
         }
 
-        private static List<List<Cmd>> PartitionCmdsAccordingToPredicate(List<Cmd> Cmds, Func<Cmd, bool> Predicate)
+        private static List<List<Cmd>> PartitionCmdsAccordingToPredicate(List<Cmd> cmds, Func<Cmd, bool> predicate)
         {
             List<List<Cmd>> result = new List<List<Cmd>>();
             List<Cmd> current = new List<Cmd>();
             result.Add(current);
-            foreach (Cmd cmd in Cmds)
+            foreach (Cmd cmd in cmds)
             {
-                if (Predicate(cmd) && current.Count > 0)
+                if (predicate(cmd) && current.Count > 0)
                 {
                     current = new List<Cmd>();
                     result.Add(current);
@@ -224,7 +191,7 @@ namespace GPUVerify
             return result;
         }
 
-        void ExtractCommandsIntoBlocks(Implementation impl, Func<Cmd, bool> Predicate)
+        private void ExtractCommandsIntoBlocks(Implementation impl, Func<Cmd, bool> predicate)
         {
             Dictionary<Block, Block> oldToNew = new Dictionary<Block, Block>();
             HashSet<Block> newBlocks = new HashSet<Block>();
@@ -233,7 +200,7 @@ namespace GPUVerify
 
             foreach (Block b in impl.Blocks)
             {
-                List<List<Cmd>> partition = PartitionCmdsAccordingToPredicate(b.Cmds, Predicate);
+                List<List<Cmd>> partition = PartitionCmdsAccordingToPredicate(b.Cmds, predicate);
                 if (partition.Count == 1)
                 {
                     // Nothing to do: either no command in this block matches the predicate, or there
@@ -267,7 +234,7 @@ namespace GPUVerify
                 }
             }
 
-            impl.Blocks.RemoveAll(Item => removedBlocks.Contains(Item));
+            impl.Blocks.RemoveAll(item => removedBlocks.Contains(item));
 
             if (newEntryBlock != null)
             {
@@ -279,7 +246,7 @@ namespace GPUVerify
             // Add all new block that do not replace the entry block
             impl.Blocks.AddRange(newBlocks);
 
-            foreach (var gc in impl.Blocks.Select(Item => Item.TransferCmd).OfType<GotoCmd>())
+            foreach (var gc in impl.Blocks.Select(item => item.TransferCmd).OfType<GotoCmd>())
             {
                 Debug.Assert(gc.labelNames.Count == gc.labelTargets.Count);
                 for (int i = 0; i < gc.labelTargets.Count; i++)
@@ -290,6 +257,7 @@ namespace GPUVerify
                         gc.labelTargets[i] = newBlock;
                         gc.labelNames[i] = newBlock.Label;
                     }
+
                     Debug.Assert(impl.Blocks.Contains(gc.labelTargets[i]));
                 }
             }
@@ -298,16 +266,15 @@ namespace GPUVerify
         public void RemoveRedundantReads()
         {
             if (strength == BarrierStrength.GLOBAL)
-            {
                 return;
-            }
 
-            foreach (BarrierInterval interval in intervals.Values.SelectMany(Item => Item))
+            foreach (BarrierInterval interval in intervals.Values.SelectMany(item => item))
             {
-                var WrittenGroupSharedArrays = interval.FindWrittenGroupSharedArrays(verifier);
-                RemoveReads(interval.Blocks,
-                  verifier.KernelArrayInfo.GetGroupSharedArrays(true).Where(Item =>
-                     !WrittenGroupSharedArrays.Contains(Item)));
+                var writtenGroupSharedArrays = interval.FindWrittenGroupSharedArrays(verifier);
+                RemoveReads(
+                    interval.Blocks,
+                    verifier.KernelArrayInfo.GetGroupSharedArrays(true)
+                        .Where(item => !writtenGroupSharedArrays.Contains(item)));
             }
         }
 
@@ -324,14 +291,10 @@ namespace GPUVerify
                         Variable v;
                         verifier.TryGetArrayFromLogProcedure(callCmd.callee, AccessType.READ, out v);
                         if (v == null)
-                        {
                             verifier.TryGetArrayFromCheckProcedure(callCmd.callee, AccessType.READ, out v);
-                        }
 
                         if (v != null && arrays.Contains(v))
-                        {
                             continue;
-                        }
                     }
 
                     newCmds.Add(c);
@@ -344,20 +307,14 @@ namespace GPUVerify
 
     internal class BarrierInterval
     {
-        private IEnumerable<Block> blocks;
-
-        public IEnumerable<Block> Blocks
-        {
-            get { return blocks; }
-        }
-
         public BarrierInterval(Block start, Block end, DomRelation<Block> dom, DomRelation<Block> pdom, Implementation impl)
         {
-            blocks = impl.Blocks.Where(Item =>
-              Item != end &&
-              dom.DominatedBy(Item, start) &&
-              pdom.DominatedBy(Item, end)).ToList();
+            Blocks = impl.Blocks
+                .Where(item => item != end && dom.DominatedBy(item, start) && pdom.DominatedBy(item, end))
+                .ToList();
         }
+
+        public IEnumerable<Block> Blocks { get; }
 
         public HashSet<Variable> FindWrittenGroupSharedArrays(GPUVerifier verifier)
         {
@@ -378,8 +335,8 @@ namespace GPUVerify
                 }
             }
 
-            foreach (var m in Blocks.Select(Item => Item.Cmds).SelectMany(Item => Item).OfType<CallCmd>()
-                .Select(Item => Item.Proc.Modifies).SelectMany(Item => Item))
+            foreach (var m in Blocks.Select(item => item.Cmds).SelectMany(item => item).OfType<CallCmd>()
+                .Select(item => item.Proc.Modifies).SelectMany(item => item))
             {
                 // m is a variable modified by a call in the barrier interval
                 Variable v;
@@ -387,9 +344,7 @@ namespace GPUVerify
                    verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.ATOMIC, out v))
                 {
                     if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v))
-                    {
                         result.Add(v);
-                    }
                 }
             }
 

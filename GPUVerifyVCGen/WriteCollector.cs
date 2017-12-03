@@ -17,8 +17,8 @@ namespace GPUVerify
         private AccessRecord access = null;
         private bool isPrivate;
 
-        public WriteCollector(IKernelArrayInfo State)
-            : base(State)
+        public WriteCollector(IKernelArrayInfo state)
+            : base(state)
         {
         }
 
@@ -37,14 +37,14 @@ namespace GPUVerify
                 return node;
             }
 
-            Variable WrittenVariable = node.DeepAssignedVariable;
+            Variable writtenVariable = node.DeepAssignedVariable;
 
             CheckMapIndex(node);
             Debug.Assert(!(node.Map is MapAssignLhs));
 
-            access = new AccessRecord(WrittenVariable, node.Indexes[0]);
+            access = new AccessRecord(writtenVariable, node.Indexes[0]);
 
-            isPrivate = (State.ContainsPrivateArray(WrittenVariable));
+            isPrivate = State.ContainsPrivateArray(writtenVariable);
 
             return node;
         }
@@ -71,6 +71,5 @@ namespace GPUVerify
         {
             return access != null && !isPrivate;
         }
-
     }
 }

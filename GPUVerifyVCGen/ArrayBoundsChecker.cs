@@ -16,13 +16,14 @@ namespace GPUVerify
 
     internal class ArrayBoundsChecker
     {
+        private static int arraySourceID = 0;
+
         private GPUVerifier verifier;
-        private Dictionary<string, Tuple<string, int>> ArraySizes;
+        private Dictionary<string, Tuple<string, int>> arraySizes;
 
-        private int CurrSourceLocNum = 0;
-        private static int ArraySourceID = 0;
+        private int currSourceLocNum = 0;
 
-        enum BOUND_TYPE
+        private enum BOUND_TYPE
         {
             LOWER,
             UPPER
@@ -31,7 +32,7 @@ namespace GPUVerify
         public ArrayBoundsChecker(GPUVerifier verifier, Program program)
         {
             this.verifier = verifier;
-            this.ArraySizes = GetBounds(program);
+            this.arraySizes = GetBounds(program);
         }
 
         public Dictionary<string, Tuple<string, int>> GetBounds(Program program)
@@ -39,7 +40,7 @@ namespace GPUVerify
             Dictionary<string, Tuple<string, int>> arraySizes = new Dictionary<string, Tuple<string, int>>();
 
             // Get Axioms with array_info attribute, save dictionary of array_info value to (source_name, source_dimensions, ?elem_width, source_elem_width?)
-            foreach (Axiom a in program.Axioms.Where(Item => QKeyValue.FindStringAttribute((Item as Axiom).Attributes, "array_info") != null))
+            foreach (Axiom a in program.Axioms.Where(item => QKeyValue.FindStringAttribute((item as Axiom).Attributes, "array_info") != null))
             {
                 string arrayName = QKeyValue.FindStringAttribute(a.Attributes, "array_info");
 
@@ -60,7 +61,7 @@ namespace GPUVerify
 
         public void CheckBounds(Program program)
         {
-            foreach (Implementation i in program.TopLevelDeclarations.ToList().Where(Item => Item.GetType() == typeof(Implementation)))
+            foreach (Implementation i in program.TopLevelDeclarations.ToList().Where(item => item.GetType() == typeof(Implementation)))
             {
                 foreach (Block b in i.Blocks)
                 {
@@ -69,15 +70,15 @@ namespace GPUVerify
                     {
                         if (c is AssertCmd && QKeyValue.FindBoolAttribute((c as AssertCmd).Attributes, "sourceloc"))
                         {
-                            CurrSourceLocNum = QKeyValue.FindIntAttribute((c as AssertCmd).Attributes, "sourceloc_num", -1);
+                            currSourceLocNum = QKeyValue.FindIntAttribute((c as AssertCmd).Attributes, "sourceloc_num", -1);
                         }
                         else if (c is AssignCmd)
                         {
                             List<AccessRecord> accesses = GetArrayAccesses(c as AssignCmd);
                             foreach (AccessRecord ar in accesses)
                             {
-                                bool recordedArray = !ArraySizes.ContainsKey(ar.v.Name); /* only gen lower bound check */
-                                int arrSize = recordedArray ? 0 : ArraySizes[ar.v.Name].Item2;
+                                bool recordedArray = !arraySizes.ContainsKey(ar.v.Name); /* only gen lower bound check */
+                                int arrSize = recordedArray ? 0 : arraySizes[ar.v.Name].Item2;
                                 newCmds.AddRange(GenArrayBoundChecks(recordedArray, ar, arrSize));
                             }
                         }
@@ -130,23 +131,24 @@ namespace GPUVerify
         {
             List<Cmd> boundChecks = new List<Cmd>();
 
-            var ArrayOffset = verifier.FindOrCreateArrayOffsetVariable(ar.v.Name);
+            var arrayOffset = verifier.FindOrCreateArrayOffsetVariable(ar.v.Name);
 
-            boundChecks.Add(new AssignCmd(Token.NoToken,
-              new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, Expr.Ident(ArrayOffset)) },
-              new List<Expr> { ar.Index }));
+            boundChecks.Add(new AssignCmd(
+                Token.NoToken,
+                new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, Expr.Ident(arrayOffset)) },
+                new List<Expr> { ar.Index }));
 
             boundChecks.Add(new AssumeCmd(Token.NoToken, Expr.True,
               new QKeyValue(Token.NoToken, "do_not_predicate", new List<object> { },
-              new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + ArraySourceID },
-              new QKeyValue(Token.NoToken, "captureState", new List<object> { "bounds_check_state_" + ArraySourceID },
+              new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID },
+              new QKeyValue(Token.NoToken, "captureState", new List<object> { "bounds_check_state_" + arraySourceID },
               null)))));
-            boundChecks.Add(GenBoundCheck(BOUND_TYPE.LOWER, ar, arrDim, ArrayOffset));
+            boundChecks.Add(GenBoundCheck(BOUND_TYPE.LOWER, ar, arrDim, arrayOffset));
 
             if (!onlyLower)
-                boundChecks.Add(GenBoundCheck(BOUND_TYPE.UPPER, ar, arrDim, ArrayOffset));
+                boundChecks.Add(GenBoundCheck(BOUND_TYPE.UPPER, ar, arrDim, arrayOffset));
 
-            ArraySourceID++;
+            arraySourceID++;
             return boundChecks;
         }
 
@@ -164,8 +166,8 @@ namespace GPUVerify
 
             return new AssertCmd(Token.NoToken, boundExpr,
               new QKeyValue(Token.NoToken, "array_bounds", new List<object> { },
-              new QKeyValue(Token.NoToken, "sourceloc_num", new List<object> { new LiteralExpr(Token.NoToken, Microsoft.Basetypes.BigNum.FromInt(CurrSourceLocNum)) },
-              new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + ArraySourceID },
+              new QKeyValue(Token.NoToken, "sourceloc_num", new List<object> { new LiteralExpr(Token.NoToken, Microsoft.Basetypes.BigNum.FromInt(currSourceLocNum)) },
+              new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID },
               new QKeyValue(Token.NoToken, "array_name", new List<object> { ar.v.Name },
               null)))));
         }

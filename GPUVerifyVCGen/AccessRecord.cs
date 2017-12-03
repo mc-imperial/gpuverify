@@ -16,12 +16,10 @@ namespace GPUVerify
         public Variable v;
         public Expr Index;
 
-        public AccessRecord(Variable v, Expr Index)
+        public AccessRecord(Variable v, Expr index)
         {
             this.v = v;
-            this.Index = Index;
+            this.Index = index;
         }
-
     }
-
 }

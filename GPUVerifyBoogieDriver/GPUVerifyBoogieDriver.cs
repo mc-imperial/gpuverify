@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-using GPUVerify;
-
 namespace Microsoft.Boogie
 {
     using System;
@@ -17,8 +15,10 @@ namespace Microsoft.Boogie
     using System.Diagnostics.Contracts;
     using System.IO;
     using System.Linq;
+    using GPUVerify;
     using VC;
-    using ResultCounter = KernelAnalyser.ResultCounter;
+
+    using ResultCounter = GPUVerify.KernelAnalyser.ResultCounter;
 
     public class GPUVerifyBoogieDriver
     {
@@ -144,7 +144,7 @@ namespace Microsoft.Boogie
                 Implementation impl = decl as Implementation;
                 if (impl != null && CommandLineOptions.Clo.UserWantsToCheckRoutine(cce.NonNull(impl.Name)) && !impl.SkipVerification)
                 {
-                    List<Counterexample/*!*/>/*?*/ errors;
+                    List<Counterexample> errors;
 
                     DateTime start = new DateTime();  // to please compiler's definite assignment rules
                     if (CommandLineOptions.Clo.Trace)

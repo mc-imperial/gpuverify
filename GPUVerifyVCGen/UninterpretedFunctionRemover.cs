@@ -13,34 +13,32 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    class UninterpretedFunctionRemover
+    public class UninterpretedFunctionRemover
     {
-        internal void Eliminate(Program Program)
+        internal void Eliminate(Program program)
         {
-            foreach (var impl in Program.Implementations)
+            foreach (var impl in program.Implementations)
             {
-                var CFG = Program.GraphFromImpl(impl);
-                var visitor = new UFRemoverVisitor(Program);
+                var cfg = Program.GraphFromImpl(impl);
+                var visitor = new UFRemoverVisitor(program);
                 foreach (var b in impl.Blocks)
                 {
                     visitor.NewBlock();
                     b.Cmds = visitor.VisitCmdSeq(b.Cmds);
                     if (visitor.UFTemps.Last().Count() > 0)
                     {
-                        foreach (var p in CFG.Predecessors(b))
-                        {
-                            p.Cmds.Add(new HavocCmd(Token.NoToken, visitor.UFTemps.Last().Select(Item => new IdentifierExpr(Token.NoToken, Item)).ToList()));
-                        }
+                        foreach (var p in cfg.Predecessors(b))
+                            p.Cmds.Add(new HavocCmd(Token.NoToken, visitor.UFTemps.Last().Select(item => new IdentifierExpr(Token.NoToken, item)).ToList()));
                     }
                 }
 
-                impl.LocVars.AddRange(visitor.UFTemps.SelectMany(Item => Item));
+                impl.LocVars.AddRange(visitor.UFTemps.SelectMany(item => item));
             }
 
-            var newDecls = Program.TopLevelDeclarations.Where(
-              item => !(item is Function) || IsInterpreted(item as Function, Program)).ToList();
-            Program.ClearTopLevelDeclarations();
-            Program.AddTopLevelDeclarations(newDecls);
+            var newDecls = program.TopLevelDeclarations.Where(
+              item => !(item is Function) || IsInterpreted(item as Function, program)).ToList();
+            program.ClearTopLevelDeclarations();
+            program.AddTopLevelDeclarations(newDecls);
         }
 
         internal static bool IsInterpreted(Function fun, Program prog)
@@ -57,7 +55,7 @@ namespace GPUVerify
                 return true;
             }
 
-            return prog.TopLevelDeclarations.OfType<Axiom>().Any(Item => UsesFun(Item, fun));
+            return prog.TopLevelDeclarations.OfType<Axiom>().Any(item => UsesFun(item, fun));
         }
 
         private static bool UsesFun(Axiom axiom, Function fun)
@@ -66,12 +64,10 @@ namespace GPUVerify
             visitor.VisitAxiom(axiom);
             return visitor.Found();
         }
-
     }
 
-    class UFRemoverVisitor : Duplicator
+    internal class UFRemoverVisitor : Duplicator
     {
-
         private Program prog;
 
         public UFRemoverVisitor(Program prog)
@@ -91,22 +87,21 @@ namespace GPUVerify
 
         public override Expr VisitNAryExpr(NAryExpr node)
         {
-            var FunCall = node.Fun as FunctionCall;
-            if (FunCall == null || UninterpretedFunctionRemover.IsInterpreted(FunCall.Func, prog))
+            var funCall = node.Fun as FunctionCall;
+            if (funCall == null || UninterpretedFunctionRemover.IsInterpreted(funCall.Func, prog))
             {
                 return base.VisitNAryExpr(node);
             }
 
-            LocalVariable UFTemp = new LocalVariable(Token.NoToken,
+            LocalVariable ufTemp = new LocalVariable(Token.NoToken,
               new TypedIdent(Token.NoToken, "_UF_temp_" + counter, node.Type));
             counter++;
-            UFTemps.Last().Add(UFTemp);
-            return new IdentifierExpr(Token.NoToken, UFTemp);
+            UFTemps.Last().Add(ufTemp);
+            return new IdentifierExpr(Token.NoToken, ufTemp);
         }
-
     }
 
-    class FunctionIsReferencedVisitor : StandardVisitor
+    internal class FunctionIsReferencedVisitor : StandardVisitor
     {
         private Function fun;
         private bool found;
@@ -124,13 +119,8 @@ namespace GPUVerify
 
         public override Expr VisitNAryExpr(NAryExpr node)
         {
-            if (node.Fun is FunctionCall)
-            {
-                if (((FunctionCall)node.Fun).Func.Name.Equals(fun.Name))
-                {
-                    found = true;
-                }
-            }
+            if (node.Fun is FunctionCall && ((FunctionCall)node.Fun).Func.Name.Equals(fun.Name))
+                found = true;
 
             return base.VisitNAryExpr(node);
         }

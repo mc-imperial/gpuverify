@@ -16,14 +16,9 @@ namespace GPUVerify
     {
         private AccessRecord access = null;
 
-        public ConstantWriteCollector(IKernelArrayInfo State)
-            : base(State)
+        public ConstantWriteCollector(IKernelArrayInfo state)
+            : base(state)
         {
-        }
-
-        private bool NoWrittenVariable()
-        {
-            return access == null;
         }
 
         public override AssignLhs VisitMapAssignLhs(MapAssignLhs node)
@@ -31,36 +26,37 @@ namespace GPUVerify
             Debug.Assert(NoWrittenVariable());
 
             if (!State.ContainsConstantArray(node.DeepAssignedVariable))
-            {
                 return node;
-            }
 
-            Variable WrittenVariable = node.DeepAssignedVariable;
+            Variable writtenVariable = node.DeepAssignedVariable;
 
             CheckMapIndex(node);
             Debug.Assert(!(node.Map is MapAssignLhs));
 
-            access = new AccessRecord(WrittenVariable, node.Indexes[0]);
+            access = new AccessRecord(writtenVariable, node.Indexes[0]);
 
             return node;
+        }
+
+        public bool FoundWrite()
+        {
+            return access != null;
+        }
+
+        public AccessRecord GetAccess()
+        {
+            return access;
+        }
+
+        private bool NoWrittenVariable()
+        {
+            return access == null;
         }
 
         private void CheckMapIndex(MapAssignLhs node)
         {
             if (node.Indexes.Count > 1)
-            {
                 MultiDimensionalMapError();
-            }
-        }
-
-        internal bool FoundWrite()
-        {
-            return access != null;
-        }
-
-        internal AccessRecord GetAccess()
-        {
-            return access;
         }
     }
 }

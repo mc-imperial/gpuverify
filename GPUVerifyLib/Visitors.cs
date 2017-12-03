@@ -13,9 +13,11 @@ namespace GPUVerify
 
     public class CheckForQuantifiers : StandardVisitor
     {
-        bool quantifiersExist = false;
+        private bool quantifiersExist = false;
 
-        private CheckForQuantifiers() { }
+        private CheckForQuantifiers()
+        {
+        }
 
         public override QuantifierExpr VisitQuantifierExpr(QuantifierExpr node)
         {
@@ -34,27 +36,25 @@ namespace GPUVerify
 
     internal class VariableFinderVisitor : StandardVisitor
     {
-        private string VarName;
-        private Variable Variable = null;
+        private string varName;
+        private Variable variable = null;
 
-        internal VariableFinderVisitor(string VarName)
+        internal VariableFinderVisitor(string varName)
         {
-            this.VarName = VarName;
+            this.varName = varName;
         }
 
         public override Variable VisitVariable(Variable node)
         {
-            if (node.Name.Equals(VarName))
-            {
-                Variable = node;
-            }
+            if (node.Name.Equals(varName))
+                variable = node;
 
             return base.VisitVariable(node);
         }
 
         internal Variable GetVariable()
         {
-            return Variable;
+            return variable;
         }
     }
 }

@@ -14,18 +14,17 @@ namespace GPUVerify
 
     internal abstract class AccessCollector : StandardVisitor
     {
-        protected IKernelArrayInfo State;
-
-        public AccessCollector(IKernelArrayInfo State)
+        public AccessCollector(IKernelArrayInfo state)
         {
-            this.State = State;
+            State = state;
         }
+
+        protected IKernelArrayInfo State { get; private set; }
 
         protected void MultiDimensionalMapError()
         {
             Console.WriteLine("*** Error - multidimensional maps not supported in kernels, use nested maps instead");
             Environment.Exit(1);
         }
-
     }
 }

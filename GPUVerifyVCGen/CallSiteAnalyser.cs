@@ -16,12 +16,12 @@ namespace GPUVerify
     internal class CallSiteAnalyser
     {
         private GPUVerifier verifier;
-        private Dictionary<Procedure, List<CallCmd>> CallSites;
+        private Dictionary<Procedure, List<CallCmd>> callSites;
 
         public CallSiteAnalyser(GPUVerifier verifier)
         {
             this.verifier = verifier;
-            CallSites = new Dictionary<Procedure, List<CallCmd>>();
+            callSites = new Dictionary<Procedure, List<CallCmd>>();
         }
 
         public void Analyse()
@@ -32,10 +32,10 @@ namespace GPUVerify
 
         private void FindAllCallSites()
         {
-            foreach (Declaration D in verifier.Program.TopLevelDeclarations)
+            foreach (Declaration decl in verifier.Program.TopLevelDeclarations)
             {
-                if (D is Implementation)
-                    FindCallSites(D as Implementation);
+                if (decl is Implementation)
+                    FindCallSites(decl as Implementation);
             }
         }
 
@@ -63,19 +63,19 @@ namespace GPUVerify
                 {
                     CallCmd callCmd = c as CallCmd;
 
-                    if (!CallSites.ContainsKey(callCmd.Proc))
+                    if (!callSites.ContainsKey(callCmd.Proc))
                     {
-                        CallSites[callCmd.Proc] = new List<CallCmd>();
+                        callSites[callCmd.Proc] = new List<CallCmd>();
                     }
 
-                    CallSites[callCmd.Proc].Add(callCmd);
+                    callSites[callCmd.Proc].Add(callCmd);
                 }
             }
         }
 
         private void LiteralArgumentAnalyser()
         {
-            foreach (Procedure p in CallSites.Keys)
+            foreach (Procedure p in callSites.Keys)
             {
                 for (int i = 0; i < p.InParams.Count(); i++)
                     LiteralArgumentAnalyser(p, i);
@@ -86,7 +86,7 @@ namespace GPUVerify
         {
             LiteralExpr literal = null;
 
-            foreach (CallCmd callCmd in CallSites[p])
+            foreach (CallCmd callCmd in callSites[p])
             {
                 if (callCmd.Ins[arg] == null || !(callCmd.Ins[arg] is LiteralExpr))
                     return;

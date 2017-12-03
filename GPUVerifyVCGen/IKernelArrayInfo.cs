@@ -14,7 +14,6 @@ namespace GPUVerify
 
     internal interface IKernelArrayInfo
     {
-
         IEnumerable<Variable> GetGlobalArrays(bool includeDisabled);
 
         IEnumerable<Variable> GetGroupSharedArrays(bool includeDisabled);

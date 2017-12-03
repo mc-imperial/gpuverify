@@ -9,7 +9,7 @@
 
 namespace GPUVerify
 {
-    internal interface INoAccessInstrumenter
+    public interface INoAccessInstrumenter
     {
         void AddNoAccessInstrumentation();
     }

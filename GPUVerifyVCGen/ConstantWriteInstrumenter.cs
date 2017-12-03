@@ -17,14 +17,14 @@ namespace GPUVerify
     {
         protected GPUVerifier verifier;
 
-        private QKeyValue SourceLocationAttributes = null;
+        private QKeyValue sourceLocationAttributes = null;
 
-        public IKernelArrayInfo StateToCheck;
+        private IKernelArrayInfo stateToCheck;
 
         public ConstantWriteInstrumenter(GPUVerifier verifier)
         {
             this.verifier = verifier;
-            StateToCheck = verifier.KernelArrayInfo;
+            stateToCheck = verifier.KernelArrayInfo;
         }
 
         public void AddConstantWriteInstrumentation()
@@ -61,7 +61,7 @@ namespace GPUVerify
                     AssertCmd assertion = c as AssertCmd;
                     if (QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc"))
                     {
-                        SourceLocationAttributes = assertion.Attributes;
+                        sourceLocationAttributes = assertion.Attributes;
                         // Do not remove source location assertions
                         // This is done by the race instrumenter
                     }
@@ -71,16 +71,16 @@ namespace GPUVerify
                 {
                     AssignCmd assign = c as AssignCmd;
 
-                    foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
+                    foreach (var lhsRhs in assign.Lhss.Zip(assign.Rhss))
                     {
-                        ConstantWriteCollector cwc = new ConstantWriteCollector(StateToCheck);
-                        cwc.Visit(LhsRhs.Item1);
+                        ConstantWriteCollector cwc = new ConstantWriteCollector(stateToCheck);
+                        cwc.Visit(lhsRhs.Item1);
                         if (cwc.FoundWrite())
                         {
                             AssertCmd constantAssert = new AssertCmd(Token.NoToken, Expr.False);
                             constantAssert.Attributes
                                 = new QKeyValue(Token.NoToken, "constant_write", new List<object>(), null);
-                            for (QKeyValue attr = SourceLocationAttributes; attr != null; attr = attr.Next)
+                            for (QKeyValue attr = sourceLocationAttributes; attr != null; attr = attr.Next)
                             {
                                 if (attr.Key != "sourceloc")
                                 {

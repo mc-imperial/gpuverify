@@ -15,37 +15,31 @@ namespace GPUVerify
 
     public sealed class AccessType
     {
-        private readonly string name;
-
         public static readonly AccessType READ = new AccessType("READ");
         public static readonly AccessType WRITE = new AccessType("WRITE");
         public static readonly AccessType ATOMIC = new AccessType("ATOMIC");
 
         public static readonly IEnumerable<AccessType> Types = new List<AccessType> { READ, WRITE, ATOMIC };
 
-        public static AccessType Create(string access)
-        {
-            if (access.ToUpper() == "READ")
-            {
-                return READ;
-            }
-
-            if (access.ToUpper() == "WRITE")
-            {
-                return WRITE;
-            }
-
-            if (access.ToUpper() == "ATOMIC")
-            {
-                return ATOMIC;
-            }
-
-            throw new NotSupportedException("Unknown access type: " + access);
-        }
+        private readonly string name;
 
         private AccessType(string name)
         {
             this.name = name;
+        }
+
+        public static AccessType Create(string access)
+        {
+            if (access.ToUpper() == "READ")
+                return READ;
+
+            if (access.ToUpper() == "WRITE")
+                return WRITE;
+
+            if (access.ToUpper() == "ATOMIC")
+                return ATOMIC;
+
+            throw new NotSupportedException("Unknown access type: " + access);
         }
 
         public override string ToString()
@@ -53,7 +47,7 @@ namespace GPUVerify
             return name;
         }
 
-        public bool isReadOrWrite()
+        public bool IsReadOrWrite()
         {
             return this == READ || this == WRITE;
         }
@@ -61,14 +55,10 @@ namespace GPUVerify
         public string Direction()
         {
             if (this == READ)
-            {
                 return "from";
-            }
 
             if (this == WRITE)
-            {
                 return "to";
-            }
 
             Debug.Assert(this == ATOMIC);
             return "on";

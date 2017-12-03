@@ -50,12 +50,13 @@ namespace GPUVerify
                     Debug.Assert(PipelineString == null);
                     PipelineString = ps.args[ps.i];
                 }
+
                 return true;
             }
 
             if (name == "noHoudini")
             {
-                Pipeline.runHoudini = false;
+                Pipeline.RunHoudini = false;
                 return true;
             }
 
@@ -83,9 +84,7 @@ namespace GPUVerify
         internal void ParsePipelineString()
         {
             if (PipelineString == null)
-            {
                 return;
-            }
 
             const char lhsDelimiter = '[';
             const char rhsDelimiter = ']';
@@ -105,70 +104,82 @@ namespace GPUVerify
                     engine = engineStr;
                 }
 
+                // The user wants to override Houdini settings used in the cruncher
                 if (engine.ToUpper().Equals(VanillaHoudini.Name))
                 {
-                    // The user wants to override Houdini settings used in the cruncher
-
                     string parameterStr = engineStr.Substring(VanillaHoudini.Name.Length);
-                    Dictionary<string, string> parameters = GetParameters(VanillaHoudini.Name,
-                                                                          VanillaHoudini.GetAllowedParameters(),
-                                                                          VanillaHoudini.GetRequiredParameters(),
-                                                                          parameterStr);
-                    CheckForMutuallyExclusiveParameters(VanillaHoudini.Name,
-                                                        VanillaHoudini.GetMutuallyExclusiveParameters(),
-                                                        parameters);
+                    Dictionary<string, string> parameters = GetParameters(
+                        VanillaHoudini.Name,
+                        VanillaHoudini.GetAllowedParameters(),
+                        VanillaHoudini.GetRequiredParameters(),
+                        parameterStr);
+                    CheckForMutuallyExclusiveParameters(
+                        VanillaHoudini.Name,
+                        VanillaHoudini.GetMutuallyExclusiveParameters(),
+                        parameters);
 
-                    int errorLimit = ParseIntParameter(parameters,
-                                                       SMTEngine.GetErrorLimitParameter().Name,
-                                                       SMTEngine.GetErrorLimitParameter().DefaultValue);
-                    VanillaHoudini houdiniEngine = new VanillaHoudini(Pipeline.GetNextSMTEngineID(),
-                                                                      GetSolverValue(parameters),
-                                                                      errorLimit);
+                    int errorLimit = ParseIntParameter(
+                        parameters,
+                        SMTEngine.GetErrorLimitParameter().Name,
+                        SMTEngine.GetErrorLimitParameter().DefaultValue);
+                    VanillaHoudini houdiniEngine = new VanillaHoudini(
+                        Pipeline.GetNextSMTEngineID(),
+                        GetSolverValue(parameters),
+                        errorLimit);
                     Pipeline.AddEngine(houdiniEngine);
-                    houdiniEngine.Delay = ParseIntParameter(parameters,
-                                                            VanillaHoudini.GetDelayParameter().Name,
-                                                            VanillaHoudini.GetDelayParameter().DefaultValue);
-                    houdiniEngine.SlidingSeconds = ParseIntParameter(parameters,
-                                                                     VanillaHoudini.GetSlidingSecondsParameter().Name,
-                                                                     VanillaHoudini.GetSlidingSecondsParameter().DefaultValue);
-                    houdiniEngine.SlidingLimit = ParseIntParameter(parameters,
-                                                                   VanillaHoudini.GetSlidingLimitParameter().Name,
-                                                                   VanillaHoudini.GetSlidingLimitParameter().DefaultValue);
+                    houdiniEngine.Delay = ParseIntParameter(
+                        parameters,
+                        VanillaHoudini.GetDelayParameter().Name,
+                        VanillaHoudini.GetDelayParameter().DefaultValue);
+                    houdiniEngine.SlidingSeconds = ParseIntParameter(
+                        parameters,
+                        VanillaHoudini.GetSlidingSecondsParameter().Name,
+                        VanillaHoudini.GetSlidingSecondsParameter().DefaultValue);
+                    houdiniEngine.SlidingLimit = ParseIntParameter(
+                        parameters,
+                        VanillaHoudini.GetSlidingLimitParameter().Name,
+                        VanillaHoudini.GetSlidingLimitParameter().DefaultValue);
                 }
                 else if (engine.ToUpper().Equals(SBASE.Name))
                 {
                     string parameterStr = engineStr.Substring(SBASE.Name.Length);
-                    Dictionary<string, string> parameters = GetParameters(SBASE.Name,
-                                                                          SBASE.GetAllowedParameters(),
-                                                                          SBASE.GetRequiredParameters(),
-                                                                          parameterStr);
-                    int errorLimit = ParseIntParameter(parameters,
-                                                       SMTEngine.GetErrorLimitParameter().Name,
-                                                       SMTEngine.GetErrorLimitParameter().DefaultValue);
+                    Dictionary<string, string> parameters = GetParameters(
+                        SBASE.Name,
+                        SBASE.GetAllowedParameters(),
+                        SBASE.GetRequiredParameters(),
+                        parameterStr);
+                    int errorLimit = ParseIntParameter(
+                        parameters,
+                        SMTEngine.GetErrorLimitParameter().Name,
+                        SMTEngine.GetErrorLimitParameter().DefaultValue);
                     Pipeline.AddEngine(new SBASE(Pipeline.GetNextSMTEngineID(), GetSolverValue(parameters), errorLimit));
                 }
                 else if (engine.ToUpper().Equals(SSTEP.Name))
                 {
                     string parameterStr = engineStr.Substring(SSTEP.Name.Length);
-                    Dictionary<string, string> parameters = GetParameters(SSTEP.Name,
-                                                                          SSTEP.GetAllowedParameters(),
-                                                                          SSTEP.GetRequiredParameters(),
-                                                                          parameterStr);
-                    int errorLimit = ParseIntParameter(parameters,
-                                                       SMTEngine.GetErrorLimitParameter().Name,
-                                                       SMTEngine.GetErrorLimitParameter().DefaultValue);
+                    Dictionary<string, string> parameters = GetParameters(
+                        SSTEP.Name,
+                        SSTEP.GetAllowedParameters(),
+                        SSTEP.GetRequiredParameters(),
+                        parameterStr);
+                    int errorLimit = ParseIntParameter(
+                        parameters,
+                        SMTEngine.GetErrorLimitParameter().Name,
+                        SMTEngine.GetErrorLimitParameter().DefaultValue);
                     Pipeline.AddEngine(new SSTEP(Pipeline.GetNextSMTEngineID(), GetSolverValue(parameters), errorLimit));
                 }
                 else if (engine.ToUpper().Equals(LU.Name))
                 {
                     string parameterStr = engineStr.Substring(LU.Name.Length);
-                    Dictionary<string, string> parameters = GetParameters(LU.Name,
-                                                                          LU.GetAllowedParameters(),
-                                                                          LU.GetRequiredParameters(),
-                                                                          parameterStr);
-                    int errorLimit = ParseIntParameter(parameters,
-                                                       SMTEngine.GetErrorLimitParameter().Name,
-                                                       SMTEngine.GetErrorLimitParameter().DefaultValue);
+                    Dictionary<string, string> parameters = GetParameters(
+                        LU.Name,
+                        LU.GetAllowedParameters(),
+                        LU.GetRequiredParameters(),
+                        parameterStr);
+                    int errorLimit = ParseIntParameter(
+                        parameters,
+                        SMTEngine.GetErrorLimitParameter().Name,
+                        SMTEngine.GetErrorLimitParameter().DefaultValue);
                     Pipeline.AddEngine(new LU(Pipeline.GetNextSMTEngineID(),
                                               GetSolverValue(parameters),
                                               errorLimit,
@@ -177,19 +188,24 @@ namespace GPUVerify
                 else if (engine.ToUpper().Equals(DynamicAnalysis.Name))
                 {
                     string parameterStr = engineStr.Substring(DynamicAnalysis.Name.Length);
-                    Dictionary<string, string> parameters = GetParameters(DynamicAnalysis.Name,
-                                                                          DynamicAnalysis.GetAllowedParameters(),
-                                                                          DynamicAnalysis.GetRequiredParameters(), parameterStr);
+                    Dictionary<string, string> parameters = GetParameters(
+                        DynamicAnalysis.Name,
+                        DynamicAnalysis.GetAllowedParameters(),
+                        DynamicAnalysis.GetRequiredParameters(),
+                        parameterStr);
                     DynamicAnalysis dynamicEngine = new DynamicAnalysis();
-                    dynamicEngine.LoopHeaderLimit = ParseIntParameter(parameters,
-                                                                      DynamicAnalysis.GetLoopHeaderLimitParameter().Name,
-                                                                      DynamicAnalysis.GetLoopHeaderLimitParameter().DefaultValue);
-                    dynamicEngine.LoopEscape = ParseIntParameter(parameters,
-                                                                 DynamicAnalysis.GetLoopEscapingParameter().Name,
-                                                                 DynamicAnalysis.GetLoopEscapingParameter().DefaultValue);
-                    dynamicEngine.TimeLimit = ParseIntParameter(parameters,
-                                                                DynamicAnalysis.GetTimeLimitParameter().Name,
-                                                                DynamicAnalysis.GetTimeLimitParameter().DefaultValue);
+                    dynamicEngine.LoopHeaderLimit = ParseIntParameter(
+                        parameters,
+                        DynamicAnalysis.GetLoopHeaderLimitParameter().Name,
+                        DynamicAnalysis.GetLoopHeaderLimitParameter().DefaultValue);
+                    dynamicEngine.LoopEscape = ParseIntParameter(
+                        parameters,
+                        DynamicAnalysis.GetLoopEscapingParameter().Name,
+                        DynamicAnalysis.GetLoopEscapingParameter().DefaultValue);
+                    dynamicEngine.TimeLimit = ParseIntParameter(
+                        parameters,
+                        DynamicAnalysis.GetTimeLimitParameter().Name,
+                        DynamicAnalysis.GetTimeLimitParameter().DefaultValue);
                     Pipeline.AddEngine(dynamicEngine);
                 }
                 else
@@ -200,10 +216,8 @@ namespace GPUVerify
             }
         }
 
-        private Dictionary<string, string> GetParameters(string engine,
-                                                         List<EngineParameter> allowedParams,
-                                                         List<EngineParameter> requiredParams,
-                                                         string parameterStr)
+        private Dictionary<string, string> GetParameters(
+            string engine, List<EngineParameter> allowedParams, List<EngineParameter> requiredParams, string parameterStr)
         {
             Dictionary<string, string> map = new Dictionary<string, string>();
             if (parameterStr.Length > 0)
@@ -237,9 +251,10 @@ namespace GPUVerify
             return map;
         }
 
-        private void CheckForMutuallyExclusiveParameters(string engine,
-                                                         List<Tuple<EngineParameter, EngineParameter>> mutuallyExclusivePairs,
-                                                         Dictionary<string, string> parameters)
+        private void CheckForMutuallyExclusiveParameters(
+            string engine,
+            List<Tuple<EngineParameter, EngineParameter>> mutuallyExclusivePairs,
+            Dictionary<string, string> parameters)
         {
             foreach (var tuple in mutuallyExclusivePairs)
             {

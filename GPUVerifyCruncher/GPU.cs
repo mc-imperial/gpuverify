@@ -14,7 +14,10 @@ namespace GPUVerify
     using System.Text;
     using System.Text.RegularExpressions;
 
-    public enum DIMENSION { X, Y, Z }
+    public enum DIMENSION
+    {
+        X, Y, Z
+    }
 
     public class GPU
     {

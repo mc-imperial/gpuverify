@@ -7,20 +7,20 @@
 //
 //===----------------------------------------------------------------------===//
 
-using System;
-using System.Collections.Generic;
-using Microsoft.Boogie;
-
 namespace GPUVerify
 {
+    using System;
+    using System.Collections.Generic;
+    using Microsoft.Boogie;
+
     public class BitVector
     {
-        private static Dictionary<int, BitVector> ZeroBVs = new Dictionary<int, BitVector>();
-        private static Dictionary<int, BitVector> MaxBVs = new Dictionary<int, BitVector>();
-
-        public static BitVector False = new BitVector(0, 1);
-        public static BitVector True = new BitVector(1, 1);
+        public static readonly BitVector False = new BitVector(0, 1);
+        public static readonly BitVector True = new BitVector(1, 1);
         public string Bits;
+
+        private static Dictionary<int, BitVector> zeroBVs = new Dictionary<int, BitVector>();
+        private static Dictionary<int, BitVector> maxBVs = new Dictionary<int, BitVector>();
 
         public BitVector(int val, int width = 32)
         {
@@ -161,27 +161,28 @@ namespace GPUVerify
 
         public static BitVector Zero(int width)
         {
-            if (!ZeroBVs.ContainsKey(width))
+            if (!zeroBVs.ContainsKey(width))
             {
                 if (width <= 32)
-                    ZeroBVs[width] = new BitVector(0, width);
+                    zeroBVs[width] = new BitVector(0, width);
                 else
-                    ZeroBVs[width] = new BitVector((long)0, width);
+                    zeroBVs[width] = new BitVector((long)0, width);
             }
 
-            return ZeroBVs[width];
+            return zeroBVs[width];
         }
 
         public static BitVector Max(int width)
         {
-            if (!MaxBVs.ContainsKey(width))
+            if (!maxBVs.ContainsKey(width))
             {
                 if (width <= 32)
-                    MaxBVs[width] = new BitVector((int)Math.Pow(2, width) - 1, width);
+                    maxBVs[width] = new BitVector((int)Math.Pow(2, width) - 1, width);
                 else
-                    MaxBVs[width] = new BitVector((long)Math.Pow(2, width) - 1, width);
+                    maxBVs[width] = new BitVector((long)Math.Pow(2, width) - 1, width);
             }
-            return MaxBVs[width];
+
+            return maxBVs[width];
         }
 
         public static BitVector operator +(BitVector a, BitVector b)

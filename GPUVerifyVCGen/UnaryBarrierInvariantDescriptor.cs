@@ -10,48 +10,48 @@
 namespace GPUVerify
 {
     using System.Collections.Generic;
+    using System.Linq;
     using Microsoft.Boogie;
 
-    class UnaryBarrierInvariantDescriptor : BarrierInvariantDescriptor
+    internal class UnaryBarrierInvariantDescriptor : BarrierInvariantDescriptor
     {
-        private List<Expr> InstantiationExprs;
+        private List<Expr> instantiationExprs;
 
-        public UnaryBarrierInvariantDescriptor(Expr Predicate, Expr BarrierInvariant,
-                QKeyValue SourceLocationInfo, KernelDualiser Dualiser, string ProcName,
-                GPUVerifier Verifier)
-            : base(Predicate, BarrierInvariant, SourceLocationInfo, Dualiser, ProcName, Verifier)
+        public UnaryBarrierInvariantDescriptor(Expr predicate, Expr barrierInvariant,
+                QKeyValue sourceLocationInfo, KernelDualiser dualiser, string procName,
+                GPUVerifier verifier)
+            : base(predicate, barrierInvariant, sourceLocationInfo, dualiser, procName, verifier)
         {
-            InstantiationExprs = new List<Expr>();
+            instantiationExprs = new List<Expr>();
         }
 
-        public void AddInstantiationExpr(Expr InstantiationExpr)
+        public void AddInstantiationExpr(Expr instantiationExpr)
         {
-            InstantiationExprs.Add(InstantiationExpr);
+            instantiationExprs.Add(instantiationExpr);
         }
 
         public override List<AssumeCmd> GetInstantiationCmds()
         {
             var result = new List<AssumeCmd>();
-            foreach (var Instantiation in InstantiationExprs)
+            foreach (var instantiation in instantiationExprs)
             {
-                foreach (var Thread in new int[] { 1, 2 })
+                foreach (var thread in Enumerable.Range(1, 2))
                 {
-                    var vd = new VariableDualiser(Thread, Dualiser.verifier.uniformityAnalyser, ProcName);
-                    var ti = new ThreadInstantiator(Instantiation, Thread,
+                    var vd = new VariableDualiser(thread, Dualiser.verifier.uniformityAnalyser, ProcName);
+                    var ti = new ThreadInstantiator(instantiation, thread,
                       Dualiser.verifier.uniformityAnalyser, ProcName);
 
-                    var Assume = new AssumeCmd(Token.NoToken,
+                    var assume = new AssumeCmd(Token.NoToken,
                       Expr.Imp(vd.VisitExpr(Predicate),
                         Expr.Imp(Expr.And(
-                          NonNegative(Instantiation),
-                          NotTooLarge(Instantiation)),
+                          NonNegative(instantiation),
+                          NotTooLarge(instantiation)),
                         ti.VisitExpr(BarrierInvariant))));
-                    result.Add(vd.VisitAssumeCmd(Assume) as AssumeCmd);
+                    result.Add(vd.VisitAssumeCmd(assume) as AssumeCmd);
                 }
             }
 
             return result;
         }
-
     }
 }

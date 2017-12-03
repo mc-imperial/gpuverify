@@ -95,14 +95,14 @@ namespace GPUVerify
                             Environment.Exit(1);
                         }
 
-                        List<string> KernelArgs = new List<string>(afterColon.Split(','));
-                        if (KernelArgs.Count == 0 || KernelArgs.Any(x => x.Length == 0))
+                        List<string> kernelArgs = new List<string>(afterColon.Split(','));
+                        if (kernelArgs.Count == 0 || kernelArgs.Any(x => x.Length == 0))
                         {
                             Console.WriteLine("Error: Cannot have empty parameters");
                             Environment.Exit(1);
                         }
 
-                        KernelInterceptorParams.Add(KernelArgs);
+                        KernelInterceptorParams.Add(kernelArgs);
                         break;
 
                     case "-help":
@@ -358,8 +358,8 @@ namespace GPUVerify
                         inputFiles.Add(args[i]);
                         break;
                 }
-
             }
+
             return 0;
         }
 
