@@ -25,9 +25,8 @@ namespace GPUVerify
         protected List<Expr> AccessExprs;
         protected GPUVerifier Verifier;
 
-        public BarrierInvariantDescriptor(Expr predicate, Expr barrierInvariant,
-              QKeyValue sourceLocationInfo,
-              KernelDualiser dualiser, string procName, GPUVerifier verifier)
+        public BarrierInvariantDescriptor(
+            Expr predicate, Expr barrierInvariant, QKeyValue sourceLocationInfo, KernelDualiser dualiser, string procName, GPUVerifier verifier)
         {
             this.Predicate = predicate;
             this.BarrierInvariant = barrierInvariant;
@@ -73,13 +72,14 @@ namespace GPUVerify
 
         protected Expr NotTooLarge(Expr e)
         {
-            return Dualiser.verifier.IntRep.MakeSlt(e,
-              new IdentifierExpr(Token.NoToken, Dualiser.verifier.GetGroupSize("X")));
+            return Dualiser.verifier.IntRep.MakeSlt(
+                e, new IdentifierExpr(Token.NoToken, Dualiser.verifier.GetGroupSize("X")));
         }
 
         private Expr BuildAccessedExpr(string name, Expr e)
         {
-            return Expr.Neq(new IdentifierExpr(Token.NoToken, Dualiser.verifier.FindOrCreateNotAccessedVariable(name, e.Type)), e);
+            return Expr.Neq(
+                new IdentifierExpr(Token.NoToken, Dualiser.verifier.FindOrCreateNotAccessedVariable(name, e.Type)), e);
         }
 
         public QKeyValue GetSourceLocationInfo()

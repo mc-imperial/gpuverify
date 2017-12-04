@@ -77,8 +77,9 @@ namespace GPUVerify
 
         private class StrideForm
         {
-            public Kind kind;
-            public Expr op;
+            public Kind kind { get; private set; }
+
+            public Expr op { get; private set; }
 
             public StrideForm(Kind kind)
             {
@@ -226,8 +227,9 @@ namespace GPUVerify
                 ModStrideConstraint msc;
                 if (strideConstraintMap[regionId].TryGetValue(strippedVariable, out msc))
                 {
-                    return new ModStrideConstraint(verifier.MaybeDualise(msc.mod, id, impl.Name),
-                                                   verifier.MaybeDualise(msc.modEq, id, impl.Name));
+                    return new ModStrideConstraint(
+                        verifier.MaybeDualise(msc.Mod, id, impl.Name),
+                        verifier.MaybeDualise(msc.ModEq, id, impl.Name));
                 }
                 else
                 {

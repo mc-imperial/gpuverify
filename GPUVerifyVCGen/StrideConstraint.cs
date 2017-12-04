@@ -26,7 +26,7 @@ namespace GPUVerify
             if (msc == null)
                 return false;
 
-            var le = msc.mod as LiteralExpr;
+            var le = msc.Mod as LiteralExpr;
             if (le == null)
                 return false;
 
@@ -42,7 +42,7 @@ namespace GPUVerify
             var msc = this as ModStrideConstraint;
             if (msc != null && !msc.IsBottom())
             {
-                Expr modEqExpr = Expr.Eq(verifier.IntRep.MakeModPow2(e, msc.mod), verifier.IntRep.MakeModPow2(msc.modEq, msc.mod));
+                Expr modEqExpr = Expr.Eq(verifier.IntRep.MakeModPow2(e, msc.Mod), verifier.IntRep.MakeModPow2(msc.ModEq, msc.Mod));
                 return modEqExpr;
             }
 
@@ -62,7 +62,7 @@ namespace GPUVerify
                 var lhsmc = (ModStrideConstraint)lhsc;
                 var rhsec = (EqStrideConstraint)rhsc;
 
-                return new ModStrideConstraint(lhsmc.mod, verifier.IntRep.MakeAdd(lhsmc.modEq, rhsec.eq));
+                return new ModStrideConstraint(lhsmc.Mod, verifier.IntRep.MakeAdd(lhsmc.ModEq, rhsec.Eq));
             }
 
             if (lhsc is ModStrideConstraint && rhsc is ModStrideConstraint)
@@ -70,8 +70,8 @@ namespace GPUVerify
                 var lhsmc = (ModStrideConstraint)lhsc;
                 var rhsmc = (ModStrideConstraint)rhsc;
 
-                if (lhsmc.mod == rhsmc.mod)
-                    return new ModStrideConstraint(lhsmc.mod, verifier.IntRep.MakeAdd(lhsmc.modEq, rhsmc.modEq));
+                if (lhsmc.Mod == rhsmc.Mod)
+                    return new ModStrideConstraint(lhsmc.Mod, verifier.IntRep.MakeAdd(lhsmc.ModEq, rhsmc.ModEq));
             }
 
             return Bottom(verifier, e);
@@ -91,8 +91,8 @@ namespace GPUVerify
                 var rhsec = (EqStrideConstraint)rhsc;
 
                 return new ModStrideConstraint(
-                    verifier.IntRep.MakeMul(lhsmc.mod, rhsec.eq),
-                    verifier.IntRep.MakeMul(lhsmc.modEq, rhsec.eq));
+                    verifier.IntRep.MakeMul(lhsmc.Mod, rhsec.Eq),
+                    verifier.IntRep.MakeMul(lhsmc.ModEq, rhsec.Eq));
             }
 
             return Bottom(verifier, e);
@@ -110,10 +110,11 @@ namespace GPUVerify
                 var modsc = sc as ModStrideConstraint;
                 if (modsc != null)
                 {
-                    modsc.mod = new BvExtractExpr(Token.NoToken, modsc.mod, ee.End, ee.Start);
-                    modsc.mod.Type = e.Type;
-                    modsc.modEq = new BvExtractExpr(Token.NoToken, modsc.modEq, ee.End, ee.Start);
-                    modsc.modEq.Type = e.Type;
+                    modsc = new ModStrideConstraint(
+                        new BvExtractExpr(Token.NoToken, modsc.Mod, ee.End, ee.Start),
+                        new BvExtractExpr(Token.NoToken, modsc.ModEq, ee.End, ee.Start));
+                    modsc.Mod.Type = e.Type;
+                    modsc.ModEq.Type = e.Type;
                     return modsc;
                 }
                 else
@@ -159,20 +160,22 @@ namespace GPUVerify
     {
         public EqStrideConstraint(Expr eq)
         {
-            this.eq = eq;
+            Eq = eq;
         }
 
-        public Expr eq;
+        public Expr Eq { get; private set; }
     }
 
     internal class ModStrideConstraint : StrideConstraint
     {
         public ModStrideConstraint(Expr mod, Expr modEq)
         {
-            this.mod = mod;
-            this.modEq = modEq;
+            this.Mod = mod;
+            this.ModEq = modEq;
         }
 
-        public Expr mod, modEq;
+        public Expr Mod { get; private set; }
+
+        public Expr ModEq { get; private set; }
     }
 }

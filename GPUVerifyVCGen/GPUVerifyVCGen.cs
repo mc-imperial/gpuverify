@@ -28,13 +28,13 @@ namespace GPUVerify
                     System.Environment.Exit(0);
                 }
 
-                if (GPUVerifyVCGenCommandLineOptions.inputFiles.Count < 1)
+                if (GPUVerifyVCGenCommandLineOptions.InputFiles.Count < 1)
                 {
                     Console.WriteLine("*** Error: No input files were specified.");
                     Environment.Exit(1);
                 }
 
-                foreach (string file in GPUVerifyVCGenCommandLineOptions.inputFiles)
+                foreach (string file in GPUVerifyVCGenCommandLineOptions.InputFiles)
                 {
                     string extension = Path.GetExtension(file)?.ToLower();
 
@@ -63,7 +63,7 @@ namespace GPUVerify
 
         public static Program Parse(out ResolutionContext rc)
         {
-            Program program = ParseBoogieProgram(GPUVerifyVCGenCommandLineOptions.inputFiles, false);
+            Program program = ParseBoogieProgram(GPUVerifyVCGenCommandLineOptions.InputFiles, false);
             if (program == null)
                 Environment.Exit(1);
 
@@ -74,14 +74,14 @@ namespace GPUVerify
             program.Resolve(rc);
             if (rc.ErrorCount != 0)
             {
-                Console.WriteLine("{0} name resolution errors detected in {1}", rc.ErrorCount, GPUVerifyVCGenCommandLineOptions.inputFiles[GPUVerifyVCGenCommandLineOptions.inputFiles.Count - 1]);
+                Console.WriteLine("{0} name resolution errors detected in {1}", rc.ErrorCount, GPUVerifyVCGenCommandLineOptions.InputFiles[GPUVerifyVCGenCommandLineOptions.InputFiles.Count - 1]);
                 Environment.Exit(1);
             }
 
             int errorCount = program.Typecheck();
             if (errorCount != 0)
             {
-                Console.WriteLine("{0} type checking errors detected in {1}", errorCount, GPUVerifyVCGenCommandLineOptions.inputFiles[GPUVerifyVCGenCommandLineOptions.inputFiles.Count - 1]);
+                Console.WriteLine("{0} type checking errors detected in {1}", errorCount, GPUVerifyVCGenCommandLineOptions.InputFiles[GPUVerifyVCGenCommandLineOptions.InputFiles.Count - 1]);
                 Environment.Exit(1);
             }
 
@@ -91,13 +91,13 @@ namespace GPUVerify
         public static void ParseProcessOutput()
         {
             string fn = "temp";
-            if (GPUVerifyVCGenCommandLineOptions.outputFile != null)
+            if (GPUVerifyVCGenCommandLineOptions.OutputFile != null)
             {
-                fn = GPUVerifyVCGenCommandLineOptions.outputFile;
+                fn = GPUVerifyVCGenCommandLineOptions.OutputFile;
             }
-            else if (GPUVerifyVCGenCommandLineOptions.inputFiles.Count == 1)
+            else if (GPUVerifyVCGenCommandLineOptions.InputFiles.Count == 1)
             {
-                var inputFile = GPUVerifyVCGenCommandLineOptions.inputFiles[0];
+                var inputFile = GPUVerifyVCGenCommandLineOptions.InputFiles[0];
                 if (Path.GetExtension(inputFile).ToLower() != ".bpl")
                     fn = Path.GetFileNameWithoutExtension(inputFile);
             }

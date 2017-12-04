@@ -41,15 +41,15 @@ namespace GPUVerify
                 node.ID = nodeID++;
                 if (node is ScalarSymbolNode)
                 {
-                    ScalarSymbolNode _node = node as ScalarSymbolNode;
-                    if (RegularExpressions.OFFSET_VARIABLE.IsMatch(_node.symbol))
-                        offsetVariables.Add(_node.symbol);
+                    ScalarSymbolNode scalarNode = node as ScalarSymbolNode;
+                    if (RegularExpressions.OFFSET_VARIABLE.IsMatch(scalarNode.Symbol))
+                        offsetVariables.Add(scalarNode.Symbol);
 
-                    if (RegularExpressions.WATCHDOG_VARIABLE.IsMatch(_node.symbol))
+                    if (RegularExpressions.WATCHDOG_VARIABLE.IsMatch(scalarNode.Symbol))
                     {
                         var visitor = new VariablesOccurringInExpressionVisitor();
                         visitor.Visit(this.expr);
-                        string offsetVariable = "";
+                        string offsetVariable = string.Empty;
                         foreach (Variable variable in visitor.GetVariables())
                         {
                             if (RegularExpressions.TRACKING_VARIABLE.IsMatch(variable.Name))
@@ -377,20 +377,22 @@ namespace GPUVerify
 
     public class ScalarSymbolNode : ExprNode
     {
-        public string symbol;
-        public Microsoft.Boogie.Type type;
-        public bool isOffsetVariable;
+        public string Symbol { get; private set; }
+
+        public Microsoft.Boogie.Type Type { get; private set; }
+
+        public bool IsOffsetVariable { get; private set; }
 
         public ScalarSymbolNode(string symbol, Microsoft.Boogie.Type type)
         {
-            this.symbol = symbol;
-            this.type = type;
-            this.isOffsetVariable = RegularExpressions.OFFSET_VARIABLE.IsMatch(symbol);
+            Symbol = symbol;
+            Type = type;
+            IsOffsetVariable = RegularExpressions.OFFSET_VARIABLE.IsMatch(symbol);
         }
 
         public override string ToString()
         {
-            return symbol;
+            return Symbol;
         }
     }
 

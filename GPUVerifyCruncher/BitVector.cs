@@ -17,7 +17,8 @@ namespace GPUVerify
     {
         public static readonly BitVector False = new BitVector(0, 1);
         public static readonly BitVector True = new BitVector(1, 1);
-        public string Bits;
+
+        public string Bits { get; private set; }
 
         private static Dictionary<int, BitVector> zeroBVs = new Dictionary<int, BitVector>();
         private static Dictionary<int, BitVector> maxBVs = new Dictionary<int, BitVector>();
@@ -46,7 +47,7 @@ namespace GPUVerify
             string bareStr = str.Substring(0, str.IndexOf("bv"));
             if (bareStr.StartsWith("0x"))
             {
-                bareStr = bareStr.Replace("0x", "").Replace(".", "");
+                bareStr = bareStr.Replace("0x", string.Empty).Replace(".", string.Empty);
                 for (int i = 0; i < bareStr.Length; ++i)
                 {
                     Bits += HexToBinary(bareStr[i]);
@@ -111,7 +112,7 @@ namespace GPUVerify
                     return "1111";
                 default:
                     Print.ExitMessage("Unhandled hex character " + hex);
-                    return "";
+                    return string.Empty;
             }
         }
 
@@ -486,7 +487,8 @@ namespace GPUVerify
 
         public static BitVector Slice(BitVector a, int high, int low)
         {
-            Print.ConditionalExitMessage(high > low,
+            Print.ConditionalExitMessage(
+                high > low,
                 "Slicing " + a.ToString() + " is not defined because the slice [" + high.ToString() + ":" + low.ToString() + "] is not valid");
             int startIndex = a.Bits.Length - high;
             int length = high - low;

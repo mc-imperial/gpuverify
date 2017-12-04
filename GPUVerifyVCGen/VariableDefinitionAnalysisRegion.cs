@@ -35,17 +35,17 @@ namespace GPUVerify
 
         private class MapSelectOrFloatVisitor : StandardVisitor
         {
-            public bool hasMapSelectOrFloat = false;
-
-            private static string[] floatFunctions = new string[]
+            private static readonly string[] FloatFunctions = new string[]
               { "FADD", "FSUB", "FMUL", "FDIV", "FPOW", "FEQ", "FLT", "FUNO" };
+
+            public bool HasMapSelectOrFloat { get; private set; } = false;
 
             public override Expr VisitNAryExpr(NAryExpr expr)
             {
                 if (expr.Fun is MapSelect)
-                    hasMapSelectOrFloat = true;
-                else if (floatFunctions.Any(i => expr.Fun.FunctionName.StartsWith(i)))
-                    hasMapSelectOrFloat = true;
+                    HasMapSelectOrFloat = true;
+                else if (FloatFunctions.Any(i => expr.Fun.FunctionName.StartsWith(i)))
+                    HasMapSelectOrFloat = true;
                 return base.VisitNAryExpr(expr);
             }
         }
@@ -66,7 +66,7 @@ namespace GPUVerify
                             v.Visit(a.Item2);
                             yield return new Tuple<Variable, Expr>(
                                 sLhs.DeepAssignedVariable,
-                                v.hasMapSelectOrFloat ? null : a.Item2);
+                                v.HasMapSelectOrFloat ? null : a.Item2);
                         }
                     }
                 }
@@ -99,7 +99,8 @@ namespace GPUVerify
             private class SubstitutionDuplicator : Duplicator
             {
                 private Dictionary<Variable, Expr> defs;
-                public bool isSubstitutable = true;
+
+                public bool IsSubstitutable { get; private set; } = true;
 
                 public SubstitutionDuplicator(Dictionary<Variable, Expr> d)
                 {
@@ -114,7 +115,7 @@ namespace GPUVerify
                     }
                     else if (defs[expr.Decl] == null)
                     {
-                        isSubstitutable = false;
+                        IsSubstitutable = false;
                         return null;
                     }
                     else
@@ -140,7 +141,7 @@ namespace GPUVerify
                     {
                         var s = new SubstitutionDuplicator(varDefs);
                         var r = (Expr)s.Visit(cmd.Item2);
-                        varDefs[cmd.Item1] = s.isSubstitutable ? r : null;
+                        varDefs[cmd.Item1] = s.IsSubstitutable ? r : null;
                     }
                 }
             }
@@ -181,7 +182,7 @@ namespace GPUVerify
 
                 var s = new SubstitutionDuplicator(newVarDefs);
                 var r = (Expr)s.Visit(rhs);
-                if (s.isSubstitutable)
+                if (s.IsSubstitutable)
                     newVarDefs[variable] = r;
                 else
                     newVarDefs[variable] = null;
@@ -332,7 +333,8 @@ namespace GPUVerify
             private Dictionary<string, Expr> defs;
             private GPUVerifier verifier;
             private string procName;
-            public HashSet<string> freeVars = new HashSet<string>();
+
+            public HashSet<string> FreeVars { get; private set; } = new HashSet<string>();
 
             public SubstitutionDuplicator(Dictionary<string, Expr> d, GPUVerifier v, string p)
             {
@@ -353,7 +355,7 @@ namespace GPUVerify
                 else if (defs[varName] == null)
                 {
                     // The variable has been assigned to, but we do not know what was assigned.
-                    freeVars.Add(varName);
+                    FreeVars.Add(varName);
                     return base.VisitIdentifierExpr(expr);
                 }
                 else
@@ -367,7 +369,7 @@ namespace GPUVerify
         {
             var v = new SubstitutionDuplicator(rootSubstitution, verifier, procName);
             var r = v.VisitExpr(expr);
-            freeVars = v.freeVars;
+            freeVars = v.FreeVars;
             return r;
         }
 

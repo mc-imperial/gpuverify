@@ -240,7 +240,7 @@ namespace GPUVerify
                         (mayBePowerOfTwoInfo[p][v] == Kind.No ? "likely not power of two" :
                          mayBePowerOfTwoInfo[p][v] == Kind.Inc ? "maybe incrementing power of two" :
                          mayBePowerOfTwoInfo[p][v] == Kind.Dec ? "maybe decrementing power of two" :
-                         ""));
+                         string.Empty));
                 }
             }
         }

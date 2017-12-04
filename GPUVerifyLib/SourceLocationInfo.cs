@@ -177,8 +177,8 @@ namespace GPUVerify
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine("warning: getting source loc info failed with: " + e.Message);
-                records.Add(new Record(fallBackToken.line, fallBackToken.col, fallBackToken.filename, ""));
+                Console.Error.WriteLine("warning: getting source location info failed with: {0}", e.Message);
+                records.Add(new Record(fallBackToken.line, fallBackToken.col, fallBackToken.filename, string.Empty));
             }
         }
 
@@ -192,7 +192,7 @@ namespace GPUVerify
             return FetchCodeLine(Path.Combine(records[i].GetDirectory(), Path.GetFileName(records[i].GetFile())), records[i].GetLine());
         }
 
-        public static string FetchCodeLine(string path, int lineNo)
+        internal static string FetchCodeLine(string path, int lineNo)
         {
             try
             {

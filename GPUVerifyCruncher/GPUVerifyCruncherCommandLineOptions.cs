@@ -17,12 +17,15 @@ namespace GPUVerify
     public class GPUVerifyCruncherCommandLineOptions : GVCommandLineOptions
     {
         // Assume a sequential pipeline unless the user selects otherwise
-        public Pipeline Pipeline = new Pipeline(sequential: true);
+        public Pipeline Pipeline { get; private set; } = new Pipeline(sequential: true);
 
-        public bool WriteKilledInvariantsToFile = false;
-        public bool ReplaceLoopInvariantAssertions = false;
-        public bool EnableBarrierDivergenceChecks = false;
-        public string PipelineString = null;
+        public bool WriteKilledInvariantsToFile { get; private set; } = false;
+
+        public bool ReplaceLoopInvariantAssertions { get; private set; } = false;
+
+        public bool EnableBarrierDivergenceChecks { get; private set; } = false;
+
+        public string PipelineString { get; private set; } = null;
 
         public GPUVerifyCruncherCommandLineOptions()
             : base()
@@ -180,10 +183,11 @@ namespace GPUVerify
                         parameters,
                         SMTEngine.GetErrorLimitParameter().Name,
                         SMTEngine.GetErrorLimitParameter().DefaultValue);
-                    Pipeline.AddEngine(new LU(Pipeline.GetNextSMTEngineID(),
-                                              GetSolverValue(parameters),
-                                              errorLimit,
-                                              ParseIntParameter(parameters, LU.GetUnrollParameter().Name, 1)));
+                    Pipeline.AddEngine(new LU(
+                        Pipeline.GetNextSMTEngineID(),
+                        GetSolverValue(parameters),
+                        errorLimit,
+                        ParseIntParameter(parameters, LU.GetUnrollParameter().Name, 1)));
                 }
                 else if (engine.ToUpper().Equals(DynamicAnalysis.Name))
                 {
@@ -260,8 +264,11 @@ namespace GPUVerify
             {
                 if (parameters.ContainsKey(tuple.Item1.Name) && parameters.ContainsKey(tuple.Item2.Name))
                 {
-                    Console.WriteLine(string.Format("Parameters '{0}' and '{1}' are mutually exclusive in cruncher engine '{2}'",
-                      tuple.Item1.Name, tuple.Item2.Name, engine));
+                    Console.WriteLine(
+                        "Parameters '{0}' and '{1}' are mutually exclusive in cruncher engine '{2}'",
+                        tuple.Item1.Name,
+                        tuple.Item2.Name,
+                        engine);
                     System.Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
                 }
             }

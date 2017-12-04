@@ -75,8 +75,8 @@ namespace GPUVerify
             this.prog = prog;
         }
 
-        public readonly
-          List<HashSet<LocalVariable>> UFTemps = new List<HashSet<LocalVariable>>();
+        public List<HashSet<LocalVariable>> UFTemps { get; private set; }
+            = new List<HashSet<LocalVariable>>();
 
         private int counter = 0;
 
@@ -93,8 +93,8 @@ namespace GPUVerify
                 return base.VisitNAryExpr(node);
             }
 
-            LocalVariable ufTemp = new LocalVariable(Token.NoToken,
-              new TypedIdent(Token.NoToken, "_UF_temp_" + counter, node.Type));
+            LocalVariable ufTemp = new LocalVariable(
+                Token.NoToken, new TypedIdent(Token.NoToken, "_UF_temp_" + counter, node.Type));
             counter++;
             UFTemps.Last().Add(ufTemp);
             return new IdentifierExpr(Token.NoToken, ufTemp);

@@ -57,8 +57,8 @@ namespace GPUVerify
         {
             if (node.Decl is Formal)
             {
-                return new IdentifierExpr(node.tok, new Formal(node.tok, DualiseTypedIdent(node.Decl),
-                  (node.Decl as Formal).InComing));
+                return new IdentifierExpr(
+                    node.tok, new Formal(node.tok, DualiseTypedIdent(node.Decl), ((Formal)node.Decl).InComing));
             }
 
             if (!(node.Decl is Constant) && !SkipDualiseVariable(node.Decl as Variable))
@@ -132,10 +132,13 @@ namespace GPUVerify
                 var v = (node.Args[0] as IdentifierExpr).Decl;
                 if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
                 {
-                    return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-                      new List<Expr>(new Expr[] { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-                      new List<Expr>(new Expr[] { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) })),
-                      VisitExpr(node.Args[1]) }));
+
+                    var arg0 = new NAryExpr(
+                        Token.NoToken,
+                        new MapSelect(Token.NoToken, 1),
+                        new List<Expr> { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) });
+                    var arg1 = VisitExpr(node.Args[1]);
+                    return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { arg0, arg1 });
                 }
             }
 
@@ -179,9 +182,10 @@ namespace GPUVerify
             var v = node.DeepAssignedVariable;
             if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
             {
-                return new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, node.Map,
-                  new List<Expr>(new Expr[] { GPUVerifier.GroupSharedIndexingExpr(id) })),
-                  node.Indexes.Select(idx => this.VisitExpr(idx)).ToList());
+                return new MapAssignLhs(
+                    Token.NoToken,
+                    new MapAssignLhs(Token.NoToken, node.Map, new List<Expr> { GPUVerifier.GroupSharedIndexingExpr(id) }),
+                    node.Indexes.Select(idx => VisitExpr(idx)).ToList());
             }
 
             return base.VisitMapAssignLhs(node);

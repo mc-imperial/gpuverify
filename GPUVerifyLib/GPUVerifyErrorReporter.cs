@@ -56,15 +56,15 @@ namespace GPUVerify
             Console.Error.WriteLine(message);
         }
 
-        private Implementation impl;
-        internal const string _SIZE_T_BITS_TYPE = "_SIZE_T_TYPE";
-        private readonly int size_t_bits;
+        private const string SizeTBitsType = "_SIZE_T_TYPE";
+        private readonly int sizeTBits;
         private readonly Dictionary<string, string> globalArraySourceNames;
+        private Implementation impl;
 
         internal GPUVerifyErrorReporter(Program program, string implName)
         {
             impl = program.Implementations.Where(item => item.Name.Equals(implName)).First();
-            size_t_bits = GetSizeTBits(program);
+            sizeTBits = GetSizeTBits(program);
 
             globalArraySourceNames = new Dictionary<string, string>();
             foreach (var g in program.TopLevelDeclarations.OfType<GlobalVariable>())
@@ -80,7 +80,7 @@ namespace GPUVerify
         private int GetSizeTBits(Program program)
         {
             var candidates = program.TopLevelDeclarations.OfType<TypeSynonymDecl>()
-                .Where(item => item.Name == _SIZE_T_BITS_TYPE);
+                .Where(item => item.Name == SizeTBitsType);
             if (candidates.Count() != 1 || !candidates.First().Body.IsBv)
             {
                 Console.WriteLine("GPUVerify: error: exactly one _SIZE_T_TYPE bit-vector type must be specified");
@@ -380,11 +380,17 @@ namespace GPUVerify
             {
                 int id;
                 string stripped = CleanOriginalProgramVariable(p.Name, out id);
-                Console.Error.Write("  " + stripped + " = ");
 
-                var variableName = p.Name;
-                Console.Error.Write(ExtractVariableValueFromModel(variableName, error.Model));
-                Console.Error.WriteLine((id == 1 || id == 2) ? " (" + ThreadDetails(error.Model, id, false) + ")" : "");
+                if (id == 1 || id == 2)
+                {
+                    Console.Error.WriteLine(
+                        " {0} = {1} ({2})", stripped, ExtractVariableValueFromModel(p.Name, error.Model), ThreadDetails(error.Model, id, false));
+                }
+                else
+                {
+                    Console.Error.WriteLine(
+                        " {0} = {1}", stripped, ExtractVariableValueFromModel(p.Name, error.Model));
+                }
             }
 
             Console.Error.WriteLine();
@@ -443,9 +449,10 @@ namespace GPUVerify
             SourceLocationInfo sourceInfoForSecondAccess =
                 new SourceLocationInfo(GetAttributes(callCex.FailingCall), GetSourceFileName(), callCex.FailingCall.tok);
 
-            ErrorWriteLine("\n" + sourceInfoForSecondAccess.Top().GetFile() + ":",
-                "possible " + raceName + " race on " + ArrayOffsetString(callCex, raceyArraySourceName) +
-                ":\n", ErrorMsgType.Error);
+            ErrorWriteLine(
+                "\n" + sourceInfoForSecondAccess.Top().GetFile() + ":",
+                "possible " + raceName + " race on " + ArrayOffsetString(callCex, raceyArraySourceName) + ":\n",
+                ErrorMsgType.Error);
 
             Console.Error.WriteLine(access2 + " by " + ThreadDetails(callCex.Model, 2, true) + ", " + sourceInfoForSecondAccess.Top() + ":");
             sourceInfoForSecondAccess.PrintStackTrace();
@@ -491,10 +498,12 @@ namespace GPUVerify
               ? GetStateFromModel(stateName, model).TryGet(accessOffsetVar.Name)
               : model.TryGetFunc(accessOffsetVar.Name).GetConstant()) as Model.Number;
 
-            return GetArrayAccess(ParseOffset(offsetElement), raceyArraySourceName,
-              Convert.ToUInt32(QKeyValue.FindIntAttribute(accessHasOccurredVar.Attributes, "elem_width", -1)),
-              Convert.ToUInt32(QKeyValue.FindIntAttribute(accessHasOccurredVar.Attributes, "source_elem_width", -1)),
-              QKeyValue.FindStringAttribute(accessHasOccurredVar.Attributes, "source_dimensions").Split(','));
+            return GetArrayAccess(
+                ParseOffset(offsetElement),
+                raceyArraySourceName,
+                Convert.ToUInt32(QKeyValue.FindIntAttribute(accessHasOccurredVar.Attributes, "elem_width", -1)),
+                Convert.ToUInt32(QKeyValue.FindIntAttribute(accessHasOccurredVar.Attributes, "source_elem_width", -1)),
+                QKeyValue.FindStringAttribute(accessHasOccurredVar.Attributes, "source_dimensions").Split(','));
         }
 
         private static string GetStateName(QKeyValue attributes, Counterexample cex)
@@ -794,7 +803,7 @@ namespace GPUVerify
             }
         }
 
-        static QKeyValue GetAttributes(Absy a)
+        private static QKeyValue GetAttributes(Absy a)
         {
             if (a is PredicateCmd)
                 return (a as PredicateCmd).Attributes;
@@ -875,9 +884,10 @@ namespace GPUVerify
                 QKeyValue.FindStringAttribute(arrayInfo.Attributes, "source_dimensions").Split(','));
 
             var sli = new SourceLocationInfo(GetAttributes(err.FailingAssert), GetSourceFileName(), err.FailingAssert.tok);
-            ErrorWriteLine(sli.Top() + ":", "possible array out-of-bounds access on array " + arrayAccess +
-              " by " + ThreadDetails(err.Model, 2, false) + ":",
-              ErrorMsgType.Error);
+            ErrorWriteLine(
+                sli.Top() + ":",
+                "possible array out-of-bounds access on array " + arrayAccess + " by " + ThreadDetails(err.Model, 2, false) + ":",
+                ErrorMsgType.Error);
             sli.PrintStackTrace();
             Console.Error.WriteLine();
         }
@@ -885,9 +895,9 @@ namespace GPUVerify
         private long ParseOffset(Model.Number modelOffset)
         {
             ulong offset = Convert.ToUInt64(modelOffset.Numeral);
-            if (offset >= BigInteger.Pow(2, size_t_bits - 1))
+            if (offset >= BigInteger.Pow(2, sizeTBits - 1))
             {
-                return (long)(offset - BigInteger.Pow(2, size_t_bits));
+                return (long)(offset - BigInteger.Pow(2, sizeTBits));
             }
             else
             {
@@ -961,7 +971,8 @@ namespace GPUVerify
             requiresSLI.PrintStackTrace();
         }
 
-        private static void GetThreadsAndGroupsFromModel(Model model, int thread, out string localId, out string group, out string globalId, bool withSpaces)
+        private static void GetThreadsAndGroupsFromModel(
+            Model model, int thread, out string localId, out string group, out string globalId, bool withSpaces)
         {
             localId = GetLocalId(model, withSpaces, thread);
             group = GetGroupId(model, withSpaces, thread);
@@ -1000,25 +1011,23 @@ namespace GPUVerify
             switch (((GVCommandLineOptions)CommandLineOptions.Clo).GridHighestDim)
             {
                 case 0:
-                    return ""
-                      + GetGroupIdOneDimension(model, "x", thread);
+                    return string.Format(
+                        "{0}",
+                        GetGroupIdOneDimension(model, "x", thread));
                 case 1:
-                    return "("
-                      + GetGroupIdOneDimension(model, "x", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetGroupIdOneDimension(model, "y", thread)
-                        + ")";
+                    return string.Format(
+                        withSpaces ? "({0}, {1})" : "({0},{1})",
+                        GetGroupIdOneDimension(model, "x", thread),
+                        GetGroupIdOneDimension(model, "y", thread));
                 case 2:
-                    return "("
-                      + GetGroupIdOneDimension(model, "x", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetGroupIdOneDimension(model, "y", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetGroupIdOneDimension(model, "z", thread)
-                        + ")";
+                    return string.Format(
+                        withSpaces ? "({0}, {1}, {2})" : "({0},{1},{2})",
+                        GetGroupIdOneDimension(model, "x", thread),
+                        GetGroupIdOneDimension(model, "y", thread),
+                        GetGroupIdOneDimension(model, "z", thread));
                 default:
                     Debug.Assert(false, "GetGroupId(): Reached default case in switch over GridHighestDim.");
-                    return "";
+                    return string.Empty;
             }
         }
 
@@ -1027,25 +1036,23 @@ namespace GPUVerify
             switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim)
             {
                 case 0:
-                    return ""
-                      + GetLocalIdOneDimension(model, "x", thread);
+                    return string.Format(
+                        "{0}",
+                        GetLocalIdOneDimension(model, "x", thread));
                 case 1:
-                    return "("
-                      + GetLocalIdOneDimension(model, "x", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetLocalIdOneDimension(model, "y", thread)
-                        + ")";
+                    return string.Format(
+                        withSpaces ? "({0}, {1})" : "({0},{1})",
+                        GetLocalIdOneDimension(model, "x", thread),
+                        GetLocalIdOneDimension(model, "y", thread));
                 case 2:
-                    return "("
-                      + GetLocalIdOneDimension(model, "x", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetLocalIdOneDimension(model, "y", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetLocalIdOneDimension(model, "z", thread)
-                        + ")";
+                    return string.Format(
+                        withSpaces ? "({0}, {1}, {2})" : "({0},{1},{2})",
+                        GetLocalIdOneDimension(model, "x", thread),
+                        GetLocalIdOneDimension(model, "y", thread),
+                        GetLocalIdOneDimension(model, "z", thread));
                 default:
                     Debug.Assert(false, "GetLocalId(): Reached default case in switch over BlockHighestDim.");
-                    return "";
+                    return string.Empty;
             }
         }
 
@@ -1054,29 +1061,27 @@ namespace GPUVerify
             switch (((GVCommandLineOptions)CommandLineOptions.Clo).BlockHighestDim)
             {
                 case 0:
-                    return ""
-                      + GetGlobalIdOneDimension(model, "x", thread);
+                    return string.Format(
+                        "{0}",
+                        GetGlobalIdOneDimension(model, "x", thread));
                 case 1:
-                    return "("
-                      + GetGlobalIdOneDimension(model, "x", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetGlobalIdOneDimension(model, "y", thread)
-                        + ")";
+                    return string.Format(
+                        withSpaces ? "({0}, {1})" : "({0},{1})",
+                        GetGlobalIdOneDimension(model, "x", thread),
+                        GetGlobalIdOneDimension(model, "y", thread));
                 case 2:
-                    return "("
-                      + GetGlobalIdOneDimension(model, "x", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetGlobalIdOneDimension(model, "y", thread)
-                        + "," + (withSpaces ? " " : "")
-                        + GetGlobalIdOneDimension(model, "z", thread)
-                        + ")";
+                    return string.Format(
+                        withSpaces ? "({0}, {1}, {2})" : "({0},{1},{2})",
+                        GetGlobalIdOneDimension(model, "x", thread),
+                        GetGlobalIdOneDimension(model, "y", thread),
+                        GetGlobalIdOneDimension(model, "z", thread));
                 default:
                     Debug.Assert(false, "GetGlobalId(): Reached default case in switch over BlockHighestDim.");
-                    return "";
+                    return string.Empty;
             }
         }
 
-        private string GetArrayName(Requires requires)
+        private static string GetArrayName(Requires requires)
         {
             string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "array");
             Debug.Assert(arrName != null);
@@ -1084,7 +1089,7 @@ namespace GPUVerify
             return arrName;
         }
 
-        private string GetArraySourceName(Requires requires)
+        private static string GetArraySourceName(Requires requires)
         {
             string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "source_name");
             Debug.Assert(arrName != null);
@@ -1095,13 +1100,14 @@ namespace GPUVerify
         {
             string localId, group, globalId;
             GetThreadsAndGroupsFromModel(model, thread, out localId, out group, out globalId, withSpaces);
+
             if (((GVCommandLineOptions)CommandLineOptions.Clo).SourceLanguage == SourceLanguage.CUDA)
             {
-                return "thread " + localId + " in thread block " + group + " (global id " + globalId + ")";
+                return string.Format("thread {0} in thread block {1} (global id {2})", localId, group, globalId);
             }
             else
             {
-                return "work item " + globalId + " with local id " + localId + " in work group " + group;
+                return string.Format("work item {0} with local id {1} in work group {2}", globalId, localId, group);
             }
         }
     }

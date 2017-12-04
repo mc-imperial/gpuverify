@@ -114,16 +114,18 @@ namespace GPUVerify
 
         private AssertCmd MakeThreadSpecificAssert(AssertCmd a, int thread)
         {
-            AssertCmd result = new AssertCmd(Token.NoToken, new VariableDualiser(thread,
-              verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr),
-              MakeThreadSpecificAttributes(a.Attributes, thread));
+            AssertCmd result = new AssertCmd(
+                Token.NoToken,
+                new VariableDualiser(thread, verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr),
+                MakeThreadSpecificAttributes(a.Attributes, thread));
             return result;
         }
 
         private AssumeCmd MakeThreadSpecificAssumeFromAssert(AssertCmd a, int thread)
         {
-            AssumeCmd result = new AssumeCmd(Token.NoToken, new VariableDualiser(thread,
-              verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr));
+            AssumeCmd result = new AssumeCmd(
+                Token.NoToken,
+                new VariableDualiser(thread, verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr));
             return result;
         }
 
@@ -135,8 +137,8 @@ namespace GPUVerify
             }
 
             QKeyValue result = (QKeyValue)attributes.Clone();
-            result.AddLast(new QKeyValue(Token.NoToken, "thread",
-              new List<object>(new object[] { new LiteralExpr(Token.NoToken, BigNum.FromInt(thread)) }), null));
+            result.AddLast(new QKeyValue(
+                Token.NoToken, "thread", new List<object> { new LiteralExpr(Token.NoToken, BigNum.FromInt(thread)) }, null));
             return result;
         }
 
@@ -151,11 +153,12 @@ namespace GPUVerify
                     // There may be a predicate, and there must be an invariant expression and at least one instantiation
                     Debug.Assert(call.Ins.Count >= (2 + (verifier.uniformityAnalyser.IsUniform(call.callee) ? 0 : 1)));
                     var biDescriptor = new UnaryBarrierInvariantDescriptor(
-                      verifier.uniformityAnalyser.IsUniform(call.callee) ? Expr.True : call.Ins[0],
-                      Expr.Neq(call.Ins[verifier.uniformityAnalyser.IsUniform(call.callee) ? 0 : 1],
-                        verifier.Zero(1)),
+                        verifier.uniformityAnalyser.IsUniform(call.callee) ? Expr.True : call.Ins[0],
+                        Expr.Neq(call.Ins[verifier.uniformityAnalyser.IsUniform(call.callee) ? 0 : 1], verifier.Zero(1)),
                         call.Attributes,
-                        this, procName, verifier);
+                        this,
+                        procName,
+                        verifier);
                     for (var i = 1 + (verifier.uniformityAnalyser.IsUniform(call.callee) ? 0 : 1); i < call.Ins.Count; i++)
                         biDescriptor.AddInstantiationExpr(call.Ins[i]);
 
@@ -169,11 +172,13 @@ namespace GPUVerify
                     // instantiation expressions
                     Debug.Assert(call.Ins.Count >= (3 + (verifier.uniformityAnalyser.IsUniform(call.callee) ? 0 : 1)));
                     var biDescriptor = new BinaryBarrierInvariantDescriptor(
-                      verifier.uniformityAnalyser.IsUniform(call.callee) ? Expr.True : call.Ins[0],
-                      Expr.Neq(call.Ins[verifier.uniformityAnalyser.IsUniform(call.callee) ? 0 : 1],
-                        verifier.Zero(1)),
+                        verifier.uniformityAnalyser.IsUniform(call.callee) ? Expr.True : call.Ins[0],
+                        Expr.Neq(call.Ins[verifier.uniformityAnalyser.IsUniform(call.callee) ? 0 : 1], verifier.Zero(1)),
                         call.Attributes,
-                        this, procName, verifier);
+                        this,
+                        procName,
+                        verifier);
+
                     for (var i = 1 + (verifier.uniformityAnalyser.IsUniform(call.callee) ? 0 : 1); i < call.Ins.Count; i += 2)
                         biDescriptor.AddInstantiationExprPair(call.Ins[i], call.Ins[i + 1]);
 
@@ -194,8 +199,8 @@ namespace GPUVerify
                             foreach (Expr accessExpr in biIDescriptor.GetAccessedExprs())
                             {
                                 var assert = new AssertCmd(Token.NoToken, accessExpr, MakeThreadSpecificAttributes(sourceLocationInfo, 1));
-                                assert.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant_access_check",
-                                  new List<object> { Expr.True }, assert.Attributes);
+                                assert.Attributes = new QKeyValue(
+                                    Token.NoToken, "barrier_invariant_access_check", new List<object> { Expr.True }, assert.Attributes);
                                 cs.Add(vd.VisitAssertCmd(assert));
                             }
                         }
@@ -317,8 +322,8 @@ namespace GPUVerify
                 foreach (var pair in assign.Lhss.Zip(assign.Rhss))
                 {
                     if (pair.Item1 is SimpleAssignLhs &&
-                      verifier.uniformityAnalyser.IsUniform(procName,
-                      (pair.Item1 as SimpleAssignLhs).AssignedVariable.Name))
+                        verifier.uniformityAnalyser.IsUniform(
+                            procName, (pair.Item1 as SimpleAssignLhs).AssignedVariable.Name))
                     {
                         lhss1.Add(pair.Item1);
                         rhss1.Add(pair.Item2);
@@ -347,10 +352,12 @@ namespace GPUVerify
 
                 HavocCmd newHavoc;
 
-                newHavoc = new HavocCmd(havoc.tok, new List<IdentifierExpr>(new IdentifierExpr[] {
-                    (IdentifierExpr)(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr)),
-                    (IdentifierExpr)(new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr))
-                }));
+                var idents = new List<IdentifierExpr>
+                    {
+                        (IdentifierExpr)new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr),
+                        (IdentifierExpr)new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitIdentifierExpr(havoc.Vars[0].Clone() as IdentifierExpr)
+                    };
+                newHavoc = new HavocCmd(havoc.tok, idents);
 
                 cs.Add(newHavoc);
             }
@@ -363,8 +370,10 @@ namespace GPUVerify
                   || QKeyValue.FindBoolAttribute(a.Attributes, "array_bounds"))
                 {
                     // This is just a location marker, so we do not dualise it
-                    cs.Add(new AssertCmd(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr),
-                      (QKeyValue)a.Attributes.Clone()));
+                    cs.Add(new AssertCmd(
+                        Token.NoToken,
+                        new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(a.Expr.Clone() as Expr),
+                        (QKeyValue)a.Attributes.Clone()));
                 }
                 else
                 {
@@ -386,8 +395,11 @@ namespace GPUVerify
                 }
                 else if (QKeyValue.FindBoolAttribute(ass.Attributes, "backedge"))
                 {
-                    AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Or(new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr),
-                        new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr)));
+                    AssumeCmd newAss = new AssumeCmd(
+                        c.tok,
+                        Expr.Or(
+                            new VariableDualiser(1, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr),
+                            new VariableDualiser(2, verifier.uniformityAnalyser, procName).VisitExpr(ass.Expr.Clone() as Expr)));
                     newAss.Attributes = ass.Attributes;
                     cs.Add(newAss);
                 }
@@ -408,19 +420,19 @@ namespace GPUVerify
 
                     foreach (int i in Enumerable.Range(0, 2))
                     {
-                        AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Not(new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-                          new List<Expr> { new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1),
-                          new List<Expr> { arrayref, offsets[i] }),
-                          vars[i] })));
-
+                        var select = new NAryExpr(
+                            Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { arrayref, offsets[i] });
+                        select = new NAryExpr(
+                            Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { select, vars[i] });
+                        AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Not(select));
                         cs.Add(newAss);
 
-                        var lhs = new MapAssignLhs(Token.NoToken, new MapAssignLhs(Token.NoToken, new SimpleAssignLhs(Token.NoToken, arrayref),
-                            new List<Expr> { offsets[i] }), new List<Expr> { vars[i] });
-                        AssignCmd assign = new AssignCmd(c.tok,
-                          new List<AssignLhs> { lhs },
-                          new List<Expr> { Expr.True });
-
+                        var lhs = new MapAssignLhs(
+                            Token.NoToken, new SimpleAssignLhs(Token.NoToken, arrayref), new List<Expr> { offsets[i] });
+                        lhs = new MapAssignLhs(
+                            Token.NoToken, lhs, new List<Expr> { vars[i] });
+                        AssignCmd assign = new AssignCmd(
+                            c.tok, new List<AssignLhs> { lhs }, new List<Expr> { Expr.True });
                         cs.Add(assign);
                     }
                 }
@@ -631,10 +643,13 @@ namespace GPUVerify
                     {
                         if (!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
                         {
-                            Variable newV = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken,
-                                v.Name, new MapType(Token.NoToken, new List<TypeVariable>(),
+                            var type = new MapType(
+                                Token.NoToken,
+                                new List<TypeVariable>(),
                                 new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.GetBvType(1) },
-                                v.TypedIdent.Type)));
+                                v.TypedIdent.Type);
+                            Variable newV = new GlobalVariable(
+                                Token.NoToken, new TypedIdent(Token.NoToken, v.Name, type));
                             newV.Attributes = v.Attributes;
                             newTopLevelDeclarations.Add(newV);
                         }
@@ -669,8 +684,8 @@ namespace GPUVerify
         private UniformityAnalyser uni;
         private string procName;
 
-        internal ThreadInstantiator(Expr instantiationExpr, int thread,
-            UniformityAnalyser uni, string procName)
+        internal ThreadInstantiator(
+            Expr instantiationExpr, int thread, UniformityAnalyser uni, string procName)
         {
             this.instantiationExpr = instantiationExpr;
             this.thread = thread;

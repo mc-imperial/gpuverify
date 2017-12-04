@@ -120,7 +120,7 @@ namespace Microsoft.Boogie
 
         private static ResultCounter VerifyProgram(Program program)
         {
-            var counters = new ResultCounter();
+            var counters = default(ResultCounter);
 
             ConditionGeneration vcgen = null;
             try
@@ -146,7 +146,7 @@ namespace Microsoft.Boogie
                 {
                     List<Counterexample> errors;
 
-                    DateTime start = new DateTime();  // to please compiler's definite assignment rules
+                    DateTime start = default(DateTime);  // to please compiler's definite assignment rules
                     if (CommandLineOptions.Clo.Trace)
                     {
                         start = DateTime.UtcNow;
@@ -175,13 +175,17 @@ namespace Microsoft.Boogie
                         outcome = VCGen.Outcome.Inconclusive;
                     }
 
-                    string timeIndication = "";
+                    string timeIndication = string.Empty;
                     DateTime end = DateTime.UtcNow;
                     TimeSpan elapsed = end - start;
                     if (CommandLineOptions.Clo.Trace)
                     {
                         int poCount = vcgen.CumulativeAssertionCount - prevAssertionCount;
-                        timeIndication = string.Format("  [{0:F3} s, {1} proof obligation{2}]  ", elapsed.TotalSeconds, poCount, poCount == 1 ? "" : "s");
+                        timeIndication = string.Format(
+                            "  [{0:F3} s, {1} proof {2}]  ",
+                            elapsed.TotalSeconds,
+                            poCount,
+                            poCount == 1 ? "obligation" : "obligations");
                     }
 
                     KernelAnalyser.ProcessOutcome(program, impl.Name, outcome, errors, timeIndication, ref counters);

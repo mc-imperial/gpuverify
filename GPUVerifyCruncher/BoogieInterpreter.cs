@@ -96,13 +96,13 @@ namespace GPUVerify
     public class BoogieInterpreter
     {
         // The engine holding all the configuration options
-        private DynamicAnalysis Engine;
+        private DynamicAnalysis engine;
 
         // Local and global IDs of the 2 threads modelled in GPUverify
-        private BitVector[] LocalID1 = new BitVector[3];
-        private BitVector[] LocalID2 = new BitVector[3];
-        private BitVector[] GlobalID1 = new BitVector[3];
-        private BitVector[] GlobalID2 = new BitVector[3];
+        private BitVector[] localID1 = new BitVector[3];
+        private BitVector[] localID2 = new BitVector[3];
+        private BitVector[] globalID1 = new BitVector[3];
+        private BitVector[] globalID2 = new BitVector[3];
 
         // The GPU configuration
         private GPU gpu = new GPU();
@@ -120,7 +120,7 @@ namespace GPUVerify
         private Dictionary<string, BitVector> assertStatus = new Dictionary<string, BitVector>();
 
         // Our FP interpretations
-        private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> FPInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
+        private Dictionary<Tuple<BitVector, BitVector, string>, BitVector> fpInterpretations = new Dictionary<Tuple<BitVector, BitVector, string>, BitVector>();
 
         // Which basic blocks have been covered
         private HashSet<Block> covered = new HashSet<Block>();
@@ -146,7 +146,7 @@ namespace GPUVerify
 
         public BoogieInterpreter(DynamicAnalysis engine, Program program)
         {
-            this.Engine = engine;
+            this.engine = engine;
 
             // If there are no invariants to falsify, return
             if (program.TopLevelDeclarations.OfType<Constant>().Where(item => QKeyValue.FindBoolAttribute(item.Attributes, "existential")).Count() == 0)
@@ -226,15 +226,15 @@ namespace GPUVerify
                     // Set the local thread IDs and group IDs
                     SetLocalIDs();
                     SetGlobalIDs();
-                    Print.DebugMessage("Thread 1 local  ID = " + string.Join(", ", new List<BitVector>(LocalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
-                    Print.DebugMessage("Thread 1 global ID = " + string.Join(", ", new List<BitVector>(GlobalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
-                    Print.DebugMessage("Thread 2 local  ID = " + string.Join(", ", new List<BitVector>(LocalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
-                    Print.DebugMessage("Thread 2 global ID = " + string.Join(", ", new List<BitVector>(GlobalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 1 local  ID = " + string.Join(", ", new List<BitVector>(localID1).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 1 global ID = " + string.Join(", ", new List<BitVector>(globalID1).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 2 local  ID = " + string.Join(", ", new List<BitVector>(localID2).ConvertAll(i => i.ToString()).ToArray()), 1);
+                    Print.DebugMessage("Thread 2 global ID = " + string.Join(", ", new List<BitVector>(globalID2).ConvertAll(i => i.ToString()).ToArray()), 1);
                     EvaluateConstants(program.TopLevelDeclarations.OfType<Constant>());
                     InterpretKernel(program, impl);
                     executions++;
                 }
-                while (globalHeaderCount < Engine.LoopHeaderLimit &&
+                while (globalHeaderCount < engine.LoopHeaderLimit &&
                        !AllBlocksCovered(impl) &&
                        executions < 5);
                 // The condition states: try to kill invariants while we have not exhausted a global loop header limit
@@ -282,12 +282,12 @@ namespace GPUVerify
             Tuple<BitVector, BitVector> dimX = GetID(gpu.blockDim[DIMENSION.X] - 1);
             Tuple<BitVector, BitVector> dimY = GetID(gpu.blockDim[DIMENSION.Y] - 1);
             Tuple<BitVector, BitVector> dimZ = GetID(gpu.blockDim[DIMENSION.Z] - 1);
-            LocalID1[0] = dimX.Item1;
-            LocalID2[0] = dimX.Item2;
-            LocalID1[1] = dimY.Item1;
-            LocalID2[1] = dimY.Item2;
-            LocalID1[2] = dimZ.Item1;
-            LocalID2[2] = dimZ.Item2;
+            localID1[0] = dimX.Item1;
+            localID2[0] = dimX.Item2;
+            localID1[1] = dimY.Item1;
+            localID2[1] = dimY.Item2;
+            localID1[2] = dimZ.Item1;
+            localID2[2] = dimZ.Item2;
         }
 
         private void SetGlobalIDs()
@@ -295,12 +295,12 @@ namespace GPUVerify
             Tuple<BitVector, BitVector> dimX = GetID(gpu.gridDim[DIMENSION.X] - 1);
             Tuple<BitVector, BitVector> dimY = GetID(gpu.gridDim[DIMENSION.Y] - 1);
             Tuple<BitVector, BitVector> dimZ = GetID(gpu.gridDim[DIMENSION.Z] - 1);
-            GlobalID1[0] = dimX.Item1;
-            GlobalID2[0] = dimX.Item2;
-            GlobalID1[1] = dimY.Item1;
-            GlobalID2[1] = dimY.Item2;
-            GlobalID1[2] = dimZ.Item1;
-            GlobalID2[2] = dimZ.Item2;
+            globalID1[0] = dimX.Item1;
+            globalID2[0] = dimX.Item2;
+            globalID1[1] = dimY.Item1;
+            globalID2[1] = dimY.Item2;
+            globalID1[2] = dimZ.Item1;
+            globalID2[2] = dimZ.Item2;
         }
 
         private ExprTree GetExprTree(Expr expr)
@@ -333,54 +333,54 @@ namespace GPUVerify
                                 search = false;
                                 ScalarSymbolNode left = (ScalarSymbolNode)binary.GetChildren()[0];
                                 LiteralNode right = (LiteralNode)binary.GetChildren()[1];
-                                if (left.symbol == "group_size_x")
+                                if (left.Symbol == "group_size_x")
                                 {
                                     gpu.blockDim[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.X]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.blockDim[DIMENSION.X]));
                                 }
-                                else if (left.symbol == "group_size_y")
+                                else if (left.Symbol == "group_size_y")
                                 {
                                     gpu.blockDim[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Y]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.blockDim[DIMENSION.Y]));
                                 }
-                                else if (left.symbol == "group_size_z")
+                                else if (left.Symbol == "group_size_z")
                                 {
                                     gpu.blockDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.blockDim[DIMENSION.Z]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.blockDim[DIMENSION.Z]));
                                 }
-                                else if (left.symbol == "num_groups_x")
+                                else if (left.Symbol == "num_groups_x")
                                 {
                                     gpu.gridDim[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.X]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.gridDim[DIMENSION.X]));
                                 }
-                                else if (left.symbol == "num_groups_y")
+                                else if (left.Symbol == "num_groups_y")
                                 {
                                     gpu.gridDim[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Y]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.gridDim[DIMENSION.Y]));
                                 }
-                                else if (left.symbol == "num_groups_z")
+                                else if (left.Symbol == "num_groups_z")
                                 {
                                     gpu.gridDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.gridDim[DIMENSION.Z]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.gridDim[DIMENSION.Z]));
                                 }
-                                else if (left.symbol == "global_offset_x")
+                                else if (left.Symbol == "global_offset_x")
                                 {
                                     gpu.gridOffset[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.X]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.gridOffset[DIMENSION.X]));
                                 }
-                                else if (left.symbol == "global_offset_y")
+                                else if (left.Symbol == "global_offset_y")
                                 {
                                     gpu.gridOffset[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Y]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.gridOffset[DIMENSION.Y]));
                                 }
-                                else if (left.symbol == "global_offset_z")
+                                else if (left.Symbol == "global_offset_z")
                                 {
                                     gpu.gridOffset[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.symbol, new BitVector(gpu.gridOffset[DIMENSION.Z]));
+                                    memory.Store(left.Symbol, new BitVector(gpu.gridOffset[DIMENSION.Z]));
                                 }
                                 else
                                 {
-                                    memory.Store(left.symbol, right.evaluation);
+                                    memory.Store(left.Symbol, right.evaluation);
                                 }
                             }
                         }
@@ -423,63 +423,63 @@ namespace GPUVerify
                 }
                 else if (constant.Name.Equals("local_id_x$1"))
                 {
-                    memory.Store(constant.Name, LocalID1[0]);
+                    memory.Store(constant.Name, localID1[0]);
                 }
                 else if (constant.Name.Equals("local_id_y$1"))
                 {
-                    memory.Store(constant.Name, LocalID1[1]);
+                    memory.Store(constant.Name, localID1[1]);
                 }
                 else if (constant.Name.Equals("local_id_z$1"))
                 {
-                    memory.Store(constant.Name, LocalID1[2]);
+                    memory.Store(constant.Name, localID1[2]);
                 }
                 else if (constant.Name.Equals("local_id_x$2"))
                 {
-                    memory.Store(constant.Name, LocalID2[0]);
+                    memory.Store(constant.Name, localID2[0]);
                 }
                 else if (constant.Name.Equals("local_id_y$2"))
                 {
-                    memory.Store(constant.Name, LocalID2[1]);
+                    memory.Store(constant.Name, localID2[1]);
                 }
                 else if (constant.Name.Equals("local_id_z$2"))
                 {
-                    memory.Store(constant.Name, LocalID2[2]);
+                    memory.Store(constant.Name, localID2[2]);
                 }
                 else if (constant.Name.Equals("group_id_x$1"))
                 {
-                    memory.Store(constant.Name, GlobalID1[0]);
+                    memory.Store(constant.Name, globalID1[0]);
                 }
                 else if (constant.Name.Equals("group_id_y$1"))
                 {
-                    memory.Store(constant.Name, GlobalID1[1]);
+                    memory.Store(constant.Name, globalID1[1]);
                 }
                 else if (constant.Name.Equals("group_id_z$1"))
                 {
-                    memory.Store(constant.Name, GlobalID1[2]);
+                    memory.Store(constant.Name, globalID1[2]);
                 }
                 else if (constant.Name.Equals("group_id_x$2"))
                 {
-                    memory.Store(constant.Name, GlobalID2[0]);
+                    memory.Store(constant.Name, globalID2[0]);
                 }
                 else if (constant.Name.Equals("group_id_y$2"))
                 {
-                    memory.Store(constant.Name, GlobalID2[1]);
+                    memory.Store(constant.Name, globalID2[1]);
                 }
                 else if (constant.Name.Equals("group_id_z$2"))
                 {
-                    memory.Store(constant.Name, GlobalID2[2]);
+                    memory.Store(constant.Name, globalID2[2]);
                 }
                 else if (constant.Name.Equals("group_id_x"))
                 {
-                    memory.Store(constant.Name, GlobalID1[0]);
+                    memory.Store(constant.Name, globalID1[0]);
                 }
                 else if (constant.Name.Equals("group_id_y"))
                 {
-                    memory.Store(constant.Name, GlobalID1[1]);
+                    memory.Store(constant.Name, globalID1[1]);
                 }
                 else if (constant.Name.Equals("group_id_z"))
                 {
-                    memory.Store(constant.Name, GlobalID1[2]);
+                    memory.Store(constant.Name, globalID1[2]);
                 }
             }
         }
@@ -505,8 +505,8 @@ namespace GPUVerify
                 // we exhaust the loop header count or
                 // we exhaust the time limit
                 while (block != null &&
-                       globalHeaderCount < Engine.LoopHeaderLimit &&
-                       stopwatch.Elapsed.Seconds < Engine.TimeLimit)
+                       globalHeaderCount < engine.LoopHeaderLimit &&
+                       stopwatch.Elapsed.Seconds < engine.TimeLimit)
                 {
                     if (theLoops.Headers.Contains(block))
                     {
@@ -537,22 +537,22 @@ namespace GPUVerify
                     if (node is ScalarSymbolNode)
                     {
                         ScalarSymbolNode scalar = node as ScalarSymbolNode;
-                        if (scalar.type.IsBv)
+                        if (scalar.Type.IsBv)
                         {
-                            if (scalar.type is BvType)
+                            if (scalar.Type is BvType)
                             {
-                                BvType bv = scalar.type as BvType;
+                                BvType bv = scalar.Type as BvType;
                                 if (bv.Bits == 1)
                                 {
-                                    memory.Store(scalar.symbol, BitVector.True);
+                                    memory.Store(scalar.Symbol, BitVector.True);
                                 }
                             }
                         }
-                        else if (scalar.type is BasicType)
+                        else if (scalar.Type is BasicType)
                         {
-                            BasicType basic = scalar.type as BasicType;
+                            BasicType basic = scalar.Type as BasicType;
                             if (basic.IsBool)
-                                memory.Store(scalar.symbol, BitVector.True);
+                                memory.Store(scalar.Symbol, BitVector.True);
                         }
                     }
                     else if (node is UnaryNode)
@@ -561,18 +561,18 @@ namespace GPUVerify
                         ExprNode child = unary.GetChildren()[0] as ExprNode;
                         if (unary.op == "!" && child is ScalarSymbolNode)
                         {
-                            ScalarSymbolNode _child = child as ScalarSymbolNode;
-                            if (_child.type.IsBv)
+                            ScalarSymbolNode scalarChild = child as ScalarSymbolNode;
+                            if (scalarChild.Type.IsBv)
                             {
-                                BvType bv = _child.type as BvType;
+                                BvType bv = scalarChild.Type as BvType;
                                 if (bv.Bits == 1)
-                                    memory.Store(_child.symbol, BitVector.False);
+                                    memory.Store(scalarChild.Symbol, BitVector.False);
                             }
-                            else if (_child.type is BasicType)
+                            else if (scalarChild.Type is BasicType)
                             {
-                                BasicType basic = _child.type as BasicType;
+                                BasicType basic = scalarChild.Type as BasicType;
                                 if (basic.IsBool)
-                                    memory.Store(_child.symbol, BitVector.False);
+                                    memory.Store(scalarChild.Symbol, BitVector.False);
                             }
                         }
                     }
@@ -587,16 +587,16 @@ namespace GPUVerify
                             {
                                 if (left is ScalarSymbolNode)
                                 {
-                                    ScalarSymbolNode _left = left as ScalarSymbolNode;
-                                    memory.Store(_left.symbol, right.evaluation);
+                                    ScalarSymbolNode leftScalar = left as ScalarSymbolNode;
+                                    memory.Store(leftScalar.Symbol, right.evaluation);
                                 }
                                 else if (left is MapSymbolNode)
                                 {
-                                    MapSymbolNode _left = left as MapSymbolNode;
+                                    MapSymbolNode leftMap = left as MapSymbolNode;
                                     SubscriptExpr subscriptExpr = new SubscriptExpr();
-                                    foreach (ExprNode child in _left.GetChildren())
+                                    foreach (ExprNode child in leftMap.GetChildren())
                                         subscriptExpr.indices.Add(child.evaluation);
-                                    memory.Store(_left.basename, subscriptExpr, right.evaluation);
+                                    memory.Store(leftMap.basename, subscriptExpr, right.evaluation);
                                 }
                             }
                         }
@@ -784,6 +784,7 @@ namespace GPUVerify
                                 else
                                     randomBits[i] = '0';
                             }
+
                             memory.Store(id.Name, new BitVector(new string(randomBits)));
                         }
                     }
@@ -1198,16 +1199,16 @@ namespace GPUVerify
                                  binary.op.Equals("FUNO32") ||
                                  binary.op.Equals("FUNO64"))
                 {
-                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
-                    if (!FPInterpretations.ContainsKey(FPTriple))
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
+                    if (!fpInterpretations.ContainsKey(fpTriple))
                     {
                         if (random.Next(0, 2) == 0)
-                            FPInterpretations[FPTriple] = BitVector.False;
+                            fpInterpretations[fpTriple] = BitVector.False;
                         else
-                            FPInterpretations[FPTriple] = BitVector.True;
+                            fpInterpretations[fpTriple] = BitVector.True;
                     }
 
-                    binary.evaluation = FPInterpretations[FPTriple];
+                    binary.evaluation = fpInterpretations[fpTriple];
                 }
                 else if (binary.op.Equals("FADD32") ||
                                  binary.op.Equals("FSUB32") ||
@@ -1215,10 +1216,10 @@ namespace GPUVerify
                                  binary.op.Equals("FDIV32") ||
                                  binary.op.Equals("FPOW32"))
                 {
-                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
-                    if (!FPInterpretations.ContainsKey(FPTriple))
-                        FPInterpretations[FPTriple] = new BitVector(random.Next(), 32);
-                    binary.evaluation = FPInterpretations[FPTriple];
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
+                    if (!fpInterpretations.ContainsKey(fpTriple))
+                        fpInterpretations[fpTriple] = new BitVector(random.Next(), 32);
+                    binary.evaluation = fpInterpretations[fpTriple];
                 }
                 else if (binary.op.Equals("FADD64") ||
                                  binary.op.Equals("FSUB64") ||
@@ -1226,10 +1227,10 @@ namespace GPUVerify
                                  binary.op.Equals("FDIV64") ||
                                  binary.op.Equals("FPOW64"))
                 {
-                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
-                    if (!FPInterpretations.ContainsKey(FPTriple))
-                        FPInterpretations[FPTriple] = new BitVector(random.Next(), 64);
-                    binary.evaluation = FPInterpretations[FPTriple];
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
+                    if (!fpInterpretations.ContainsKey(fpTriple))
+                        fpInterpretations[fpTriple] = new BitVector(random.Next(), 64);
+                    binary.evaluation = fpInterpretations[fpTriple];
                 }
                 else
                 {
@@ -1260,10 +1261,10 @@ namespace GPUVerify
                                  unary.op.Equals("FSIN32") ||
                                  unary.op.Equals("FSQRT32"))
                 {
-                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
-                    if (!FPInterpretations.ContainsKey(FPTriple))
-                        FPInterpretations[FPTriple] = new BitVector(random.Next(), 32);
-                    unary.evaluation = FPInterpretations[FPTriple];
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
+                    if (!fpInterpretations.ContainsKey(fpTriple))
+                        fpInterpretations[fpTriple] = new BitVector(random.Next(), 32);
+                    unary.evaluation = fpInterpretations[fpTriple];
                 }
                 else if (unary.op.Equals("FABS64") ||
                                  unary.op.Equals("FCOS64") ||
@@ -1274,10 +1275,10 @@ namespace GPUVerify
                                  unary.op.Equals("FSIN64") ||
                                  unary.op.Equals("FSQRT64"))
                 {
-                    Tuple<BitVector, BitVector, string> FPTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
-                    if (!FPInterpretations.ContainsKey(FPTriple))
-                        FPInterpretations[FPTriple] = new BitVector(random.Next(), 64);
-                    unary.evaluation = FPInterpretations[FPTriple];
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
+                    if (!fpInterpretations.ContainsKey(fpTriple))
+                        fpInterpretations[fpTriple] = new BitVector(random.Next(), 64);
+                    unary.evaluation = fpInterpretations[fpTriple];
                 }
                 else if (RegularExpressions.BVZEXT.IsMatch(unary.op))
                 {
@@ -1345,89 +1346,89 @@ namespace GPUVerify
                 {
                     if (node is ScalarSymbolNode)
                     {
-                        ScalarSymbolNode _node = node as ScalarSymbolNode;
-                        if (memory.Contains(_node.symbol))
-                            _node.evaluation = memory.GetValue(_node.symbol);
+                        ScalarSymbolNode scalarNode = node as ScalarSymbolNode;
+                        if (memory.Contains(scalarNode.Symbol))
+                            scalarNode.evaluation = memory.GetValue(scalarNode.Symbol);
                         else
-                            _node.initialised = false;
+                            scalarNode.initialised = false;
                     }
                     else if (node is MapSymbolNode)
                     {
-                        MapSymbolNode _node = node as MapSymbolNode;
+                        MapSymbolNode mapNode = node as MapSymbolNode;
                         SubscriptExpr subscriptExpr = new SubscriptExpr();
-                        foreach (ExprNode child in _node.GetChildren())
+                        foreach (ExprNode child in mapNode.GetChildren())
                         {
                             if (child.initialised)
                                 subscriptExpr.indices.Add(child.evaluation);
                             else
-                                _node.initialised = false;
+                                mapNode.initialised = false;
                         }
 
                         if (node.initialised)
                         {
-                            if (memory.Contains(_node.basename, subscriptExpr))
-                                _node.evaluation = memory.GetValue(_node.basename, subscriptExpr);
+                            if (memory.Contains(mapNode.basename, subscriptExpr))
+                                mapNode.evaluation = memory.GetValue(mapNode.basename, subscriptExpr);
                             else
-                                _node.initialised = false;
+                                mapNode.initialised = false;
                         }
                     }
                     else if (node is BVExtractNode)
                     {
-                        BVExtractNode _node = node as BVExtractNode;
-                        ExprNode child = (ExprNode)_node.GetChildren()[0];
+                        BVExtractNode extractNode = node as BVExtractNode;
+                        ExprNode child = (ExprNode)extractNode.GetChildren()[0];
                         if (child.initialised)
-                            _node.evaluation = BitVector.Slice(child.evaluation, _node.high, _node.low);
+                            extractNode.evaluation = BitVector.Slice(child.evaluation, extractNode.high, extractNode.low);
                         else
-                            _node.initialised = false;
+                            extractNode.initialised = false;
                     }
                     else if (node is BVConcatenationNode)
                     {
-                        BVConcatenationNode _node = node as BVConcatenationNode;
-                        ExprNode one = (ExprNode)_node.GetChildren()[0];
-                        ExprNode two = (ExprNode)_node.GetChildren()[1];
+                        BVConcatenationNode concatNode = node as BVConcatenationNode;
+                        ExprNode one = (ExprNode)concatNode.GetChildren()[0];
+                        ExprNode two = (ExprNode)concatNode.GetChildren()[1];
                         if (one.initialised && two.initialised)
-                            _node.evaluation = BitVector.Concatenate(one.evaluation, two.evaluation);
+                            concatNode.evaluation = BitVector.Concatenate(one.evaluation, two.evaluation);
                         else
-                            _node.initialised = false;
+                            concatNode.initialised = false;
                     }
                     else if (node is UnaryNode)
                     {
-                        UnaryNode _node = node as UnaryNode;
-                        EvaluateUnaryNode(_node);
+                        UnaryNode unaryNode = node as UnaryNode;
+                        EvaluateUnaryNode(unaryNode);
                     }
                     else if (node is BinaryNode)
                     {
-                        BinaryNode _node = node as BinaryNode;
-                        if (IsBoolBinaryOp(_node))
-                            EvaluateBinaryBoolNode(_node);
+                        BinaryNode binaryNode = node as BinaryNode;
+                        if (IsBoolBinaryOp(binaryNode))
+                            EvaluateBinaryBoolNode(binaryNode);
                         else
-                            EvaluateBinaryNonBoolNode(_node);
+                            EvaluateBinaryNonBoolNode(binaryNode);
                     }
                     else if (node is TernaryNode)
                     {
-                        TernaryNode _node = node as TernaryNode;
-                        ExprNode one = (ExprNode)_node.GetChildren()[0];
-                        ExprNode two = (ExprNode)_node.GetChildren()[1];
-                        ExprNode three = (ExprNode)_node.GetChildren()[2];
+                        TernaryNode ternaryNode = node as TernaryNode;
+                        ExprNode one = (ExprNode)ternaryNode.GetChildren()[0];
+                        ExprNode two = (ExprNode)ternaryNode.GetChildren()[1];
+                        ExprNode three = (ExprNode)ternaryNode.GetChildren()[2];
                         if (!one.initialised)
                         {
-                            _node.initialised = false;
+                            ternaryNode.initialised = false;
                         }
                         else
                         {
                             if (one.evaluation.Equals(BitVector.True))
                             {
                                 if (two.initialised)
-                                    _node.evaluation = two.evaluation;
+                                    ternaryNode.evaluation = two.evaluation;
                                 else
-                                    _node.initialised = false;
+                                    ternaryNode.initialised = false;
                             }
                             else
                             {
                                 if (three.initialised)
-                                    _node.evaluation = three.evaluation;
+                                    ternaryNode.evaluation = three.evaluation;
                                 else
-                                    _node.initialised = false;
+                                    ternaryNode.initialised = false;
                             }
                         }
                     }

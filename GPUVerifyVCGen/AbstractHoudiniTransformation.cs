@@ -90,7 +90,7 @@ namespace GPUVerify
         private Function CreateExistentialFunction(List<TypedIdent> idents)
         {
             List<Variable> args = idents.Select(item => (Variable)new LocalVariable(Token.NoToken, item)).ToList();
-            Variable result = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "", Type.Bool));
+            Variable result = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, Type.Bool));
 
             Function existentialFunction = new Function(Token.NoToken, "_existential_func" + counter, args, result);
             existentialFunction.AddAttribute("existential", new object[] { Expr.True });

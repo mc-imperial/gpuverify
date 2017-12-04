@@ -18,13 +18,19 @@ namespace GPUVerify
 
     public class GVCommandLineOptions : CommandLineOptions
     {
-        public string ArrayToCheck = null;
-        public bool OnlyIntraGroupRaceChecking = false;
-        public bool DebugGPUVerify = false;
-        public int BlockHighestDim = 2; // Dimensionality of block = BlockHighestDim + 1
-        public int GridHighestDim = 2; // Dimensionality of grid = GridHighestDim + 1
-        public SourceLanguage SourceLanguage = SourceLanguage.OpenCL;
-        public bool DisplayLoopAbstractions = false;
+        public bool OnlyIntraGroupRaceChecking { get; private set; } = false;
+
+        public bool DebugGPUVerify { get; private set; } = false;
+
+        // Dimensionality of block = BlockHighestDim + 1
+        public int BlockHighestDim { get; private set; } = 2;
+
+        // Dimensionality of grid = GridHighestDim + 1
+        public int GridHighestDim { get; private set; } = 2;
+
+        public SourceLanguage SourceLanguage { get; private set; } = SourceLanguage.OpenCL;
+
+        public bool DisplayLoopAbstractions { get; private set; } = false;
 
         public GVCommandLineOptions()
             : base("GPUVerify", "GPUVerify kernel analyser")
@@ -52,13 +58,17 @@ namespace GPUVerify
 
             if (name == "blockHighestDim")
             {
-                ps.GetNumericArgument(ref BlockHighestDim, 3);
+                int highestDim = BlockHighestDim;
+                ps.GetNumericArgument(ref highestDim, 3);
+                BlockHighestDim = highestDim;
                 return true;
             }
 
             if (name == "gridHighestDim")
             {
-                ps.GetNumericArgument(ref GridHighestDim, 3);
+                int highestDim = GridHighestDim;
+                ps.GetNumericArgument(ref highestDim, 3);
+                GridHighestDim = highestDim;
                 return true;
             }
 

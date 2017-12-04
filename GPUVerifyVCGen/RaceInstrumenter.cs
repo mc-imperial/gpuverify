@@ -40,9 +40,10 @@ namespace GPUVerify
                 {
                     foreach (var access in AccessType.Types)
                     {
-                        region.AddInvariant(new AssertCmd(Token.NoToken,
-                          Expr.Imp(AccessHasOccurredExpr(a, access), GPUVerifier.ThreadsInSameGroup()),
-                          new QKeyValue(Token.NoToken, "tag", new List<object> { "groupSharedArraysDisjointAcrossGroups" }, null)));
+                        region.AddInvariant(new AssertCmd(
+                            Token.NoToken,
+                            Expr.Imp(AccessHasOccurredExpr(a, access), GPUVerifier.ThreadsInSameGroup()),
+                            new QKeyValue(Token.NoToken, "tag", new List<object> { "groupSharedArraysDisjointAcrossGroups" }, null)));
                     }
                 }
             }
@@ -83,7 +84,6 @@ namespace GPUVerify
             // head, so it is worth adding the loop invariant candidate.
             //
             // The same reasoning applies for WRITE
-
             if (verifier.ContainsBarrierCall(region))
             {
                 foreach (var kind in AccessType.Types)
@@ -157,9 +157,9 @@ namespace GPUVerify
             }
         }
 
-        private void AddDisabledMaintainsInstrumentation(Implementation impl, IRegion region, Variable v, AccessType Access)
+        private void AddDisabledMaintainsInstrumentation(Implementation impl, IRegion region, Variable v, AccessType access)
         {
-            if (!verifier.ContainsNamedVariable(region.GetModifiedVariables(), RaceInstrumentationUtil.MakeHasOccurredVariableName(v.Name, Access)))
+            if (!verifier.ContainsNamedVariable(region.GetModifiedVariables(), RaceInstrumentationUtil.MakeHasOccurredVariableName(v.Name, access)))
                 return;
 
             string dominatorPredicate = null;
@@ -178,32 +178,32 @@ namespace GPUVerify
                 return;
 
             var regionName = region.Header().ToString();
-            IdentifierExpr ghostAccess = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredGhostVariable(v.Name, regionName, Access, impl));
-            IdentifierExpr access = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(v.Name, Access));
-            IdentifierExpr ghostOffset = null;
-            IdentifierExpr offset = null;
+            IdentifierExpr ghostAccessId = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredGhostVariable(v.Name, regionName, access, impl));
+            IdentifierExpr accessId = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(v.Name, access));
+            IdentifierExpr ghostOffsetId = null;
+            IdentifierExpr offsetId = null;
             if (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL)
             {
-                var ghostOffsetVar = verifier.FindOrCreateOffsetGhostVariable(v.Name, regionName, Access, impl);
-                ghostOffset = new IdentifierExpr(Token.NoToken, ghostOffsetVar);
-                offset = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateOffsetVariable(v.Name, Access));
+                var ghostOffsetVar = verifier.FindOrCreateOffsetGhostVariable(v.Name, regionName, access, impl);
+                ghostOffsetId = new IdentifierExpr(Token.NoToken, ghostOffsetVar);
+                offsetId = new IdentifierExpr(Token.NoToken, verifier.FindOrCreateOffsetVariable(v.Name, access));
             }
 
             foreach (Block b in region.PreHeaders())
             {
-                b.Cmds.Add(Cmd.SimpleAssign(Token.NoToken, ghostAccess, access));
-                if (ghostOffset != null)
-                    b.Cmds.Add(Cmd.SimpleAssign(Token.NoToken, ghostOffset, offset));
+                b.Cmds.Add(Cmd.SimpleAssign(Token.NoToken, ghostAccessId, accessId));
+                if (ghostOffsetId != null)
+                    b.Cmds.Add(Cmd.SimpleAssign(Token.NoToken, ghostOffsetId, offsetId));
             }
 
-            Variable dominator = new LocalVariable(Token.NoToken,
-                                                new TypedIdent(Token.NoToken, dominatorPredicate, Microsoft.Boogie.Type.Bool));
+            Variable dominator = new LocalVariable(
+                Token.NoToken, new TypedIdent(Token.NoToken, dominatorPredicate, Microsoft.Boogie.Type.Bool));
             Expr dominatorExpr = verifier.MaybeDualise(new IdentifierExpr(Token.NoToken, dominator), 1, impl.Name);
-            Expr eqAccess = Expr.Eq(ghostAccess, access);
+            Expr eqAccess = Expr.Eq(ghostAccessId, accessId);
             verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Not(dominatorExpr), eqAccess), "disabledMaintainsInstrumentation");
-            if (ghostOffset != null)
+            if (ghostOffsetId != null)
             {
-                Expr eqOffset = Expr.Eq(ghostOffset, offset);
+                Expr eqOffset = Expr.Eq(ghostOffsetId, offsetId);
                 verifier.AddCandidateInvariant(region, Expr.Imp(Expr.Not(dominatorExpr), eqOffset), "disabledMaintainsInstrumentation");
             }
 
@@ -502,7 +502,7 @@ namespace GPUVerify
                             Expr lhs2 = visitor.VisitExpr(newLhs);
                             Expr rhs2 = visitor.VisitExpr(newRhs);
                             var rewrite = verifier.IntRep.MakeAdd(lhs2, rhs2);
-                            return base.VisitExpr(rewrite);
+                            return VisitExpr(rewrite);
                         }
                     }
                 }
@@ -874,8 +874,8 @@ namespace GPUVerify
 
             foreach (var kind in AccessType.Types)
             {
-                Expr resetAssumeGuard = Expr.Imp(resetCondition,
-                  Expr.Not(Expr.Ident(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind))));
+                Expr resetAssumeGuard = Expr.Imp(
+                    resetCondition, Expr.Not(Expr.Ident(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind))));
 
                 if (verifier.KernelArrayInfo.GetGlobalArrays(false).Contains(v))
                     resetAssumeGuard = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), resetAssumeGuard);
@@ -1090,13 +1090,17 @@ namespace GPUVerify
             List<BigBlock> bigblocks = new List<BigBlock>();
             List<Cmd> simpleCmds = new List<Cmd>();
 
-            Expr condition = Expr.And(new IdentifierExpr(v.tok, predicateParameter),
-                               Expr.And(new IdentifierExpr(v.tok, accessHasOccurredVariable),
-                                 Expr.Eq(new IdentifierExpr(v.tok, accessOffsetVariable),
-                                   new IdentifierExpr(v.tok, offsetParameter))));
+            Expr condition =
+                Expr.And(
+                    new IdentifierExpr(v.tok, predicateParameter),
+                    Expr.And(
+                        new IdentifierExpr(v.tok, accessHasOccurredVariable),
+                        Expr.Eq(
+                            new IdentifierExpr(v.tok, accessOffsetVariable),
+                            new IdentifierExpr(v.tok, offsetParameter))));
 
-            simpleCmds.Add(MakeConditionalAssignment(accessBenignFlagVariable,
-                condition, Expr.False));
+            simpleCmds.Add(MakeConditionalAssignment(
+                accessBenignFlagVariable, condition, Expr.False));
 
             bigblocks.Add(new BigBlock(v.tok, "_UPDATE_BENIGN_FLAG", simpleCmds, null, null));
 
@@ -1195,8 +1199,8 @@ namespace GPUVerify
 
             Expr accessGuard = new IdentifierExpr(Token.NoToken, predicateParameter);
             accessGuard = Expr.And(accessGuard, new IdentifierExpr(Token.NoToken, accessHasOccurredVariable));
-            accessGuard = Expr.And(accessGuard, Expr.Eq(new IdentifierExpr(Token.NoToken, accessOffsetVariable),
-                                      new IdentifierExpr(Token.NoToken, offsetParameter)));
+            accessGuard = Expr.And(accessGuard, Expr.Eq(
+                new IdentifierExpr(Token.NoToken, accessOffsetVariable), new IdentifierExpr(Token.NoToken, offsetParameter)));
 
             if (noBenignTest != null)
                 accessGuard = Expr.And(accessGuard, noBenignTest);
@@ -1262,8 +1266,7 @@ namespace GPUVerify
             MapType mt = v.TypedIdent.Type as MapType;
             Debug.Assert(mt.Arguments.Count == 1);
 
-            result = Expr.Select(result,
-                new Expr[] { offsetExpr });
+            result = Expr.Select(result, new Expr[] { offsetExpr });
             Debug.Assert(!(mt.Result is MapType));
             return result;
         }
@@ -1280,8 +1283,9 @@ namespace GPUVerify
 
         private Expr BuildAccessOccurredFalseExpr(string name, AccessType access)
         {
-            return Expr.Imp(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(name, access)),
-                                               Expr.False);
+            return Expr.Imp(
+                new IdentifierExpr(Token.NoToken, verifier.FindOrCreateAccessHasOccurredVariable(name, access)),
+                Expr.False);
         }
 
         private AssertCmd BuildAccessOccurredFalseInvariant(string name, AccessType access)
@@ -1332,17 +1336,20 @@ namespace GPUVerify
         protected void AddAccessedOffsetInRangeCTimesLocalIdToCTimesLocalIdPlusC(IRegion region, Variable v, Expr constant, AccessType access)
         {
             Expr expr = MakeCTimesLocalIdRangeExpression(v, constant, access);
-            verifier.AddCandidateInvariant(region,
-                expr, "accessedOffsetInRangeCTimesLid");
+            verifier.AddCandidateInvariant(
+                region, expr, "accessedOffsetInRangeCTimesLid");
         }
 
         private Expr MakeCTimesLocalIdRangeExpression(Variable v, Expr constant, AccessType access)
         {
-            Expr cTimesLocalId = verifier.IntRep.MakeMul(constant.Clone() as Expr,
-                new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", 1)));
+            Expr cTimesLocalId = verifier.IntRep.MakeMul(
+                constant.Clone() as Expr, new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", 1)));
 
-            Expr cTimesLocalIdPlusC = verifier.IntRep.MakeAdd(verifier.IntRep.MakeMul(constant.Clone() as Expr,
-                new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", 1))), constant.Clone() as Expr);
+            Expr cTimesLocalIdPlusC = verifier.IntRep.MakeAdd(
+                verifier.IntRep.MakeMul(
+                    constant.Clone() as Expr,
+                    new IdentifierExpr(Token.NoToken, GPUVerifier.MakeThreadId("X", 1))),
+                constant.Clone() as Expr);
 
             Expr cTimesLocalIdLeqAccessedOffset = verifier.IntRep.MakeSle(cTimesLocalId, OffsetXExpr(v, access, 1));
 
@@ -1361,17 +1368,16 @@ namespace GPUVerify
         protected void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, AccessType access)
         {
             Expr expr = MakeCTimesGlobalIdRangeExpr(v, constant, access);
-            verifier.AddCandidateInvariant(region,
-                expr, "accessedOffsetInRangeCTimesGid");
+            verifier.AddCandidateInvariant(region, expr, "accessedOffsetInRangeCTimesGid");
         }
 
         private Expr MakeCTimesGlobalIdRangeExpr(Variable v, Expr constant, AccessType access)
         {
-            Expr cTimesGlobalId = verifier.IntRep.MakeMul(constant.Clone() as Expr,
-                GlobalIdExpr("X", 1));
+            Expr cTimesGlobalId = verifier.IntRep.MakeMul(
+                constant.Clone() as Expr, GlobalIdExpr("X", 1));
 
-            Expr cTimesGlobalIdPlusC = verifier.IntRep.MakeAdd(verifier.IntRep.MakeMul(constant.Clone() as Expr,
-                GlobalIdExpr("X", 1)), constant.Clone() as Expr);
+            Expr cTimesGlobalIdPlusC = verifier.IntRep.MakeAdd(
+                verifier.IntRep.MakeMul(constant.Clone() as Expr, GlobalIdExpr("X", 1)), constant.Clone() as Expr);
 
             Expr cTimesGlobalIdLeqAccessedOffset = verifier.IntRep.MakeSle(cTimesGlobalId, OffsetXExpr(v, access, 1));
 
@@ -1467,16 +1473,19 @@ namespace GPUVerify
                     {
                         AddLogAndCheckCalls(result, new AccessRecord((call.Ins[0] as IdentifierExpr).Decl, call.Ins[1]), AccessType.ATOMIC, null);
                         Debug.Assert(call.Outs.Count() == 2); // The receiving variable and the array should be assigned to
-                        result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { call.Outs[0] })); // We havoc the receiving variable.  We do not need to havoc the array, because it *must* be the case that this array is modelled adversarially
+                        // We havoc the receiving variable.  We do not need to havoc the array, because it *must* be the case that this array is modelled adversarially
+                        result.Add(new HavocCmd(Token.NoToken, new List<IdentifierExpr> { call.Outs[0] }));
                         continue;
                     }
 
                     if (QKeyValue.FindBoolAttribute(call.Attributes, "async_work_group_copy"))
                     {
                         Procedure asyncWorkGroupCopy = FindOrCreateAsyncWorkGroupCopy(((IdentifierExpr)call.Outs[1]).Decl, ((IdentifierExpr)call.Ins[1]).Decl);
-                        CallCmd asyncWorkGroupCopyCall = new CallCmd(Token.NoToken, asyncWorkGroupCopy.Name,
-                          new List<Expr> { call.Ins[0], call.Ins[2], call.Ins[3], call.Ins[4] },
-                          new List<IdentifierExpr> { call.Outs[0] });
+                        CallCmd asyncWorkGroupCopyCall = new CallCmd(
+                            Token.NoToken,
+                            asyncWorkGroupCopy.Name,
+                            new List<Expr> { call.Ins[0], call.Ins[2], call.Ins[3], call.Ins[4] },
+                            new List<IdentifierExpr> { call.Outs[0] });
                         asyncWorkGroupCopyCall.Proc = asyncWorkGroupCopy;
                         result.Add(asyncWorkGroupCopyCall);
                         continue;
@@ -1500,13 +1509,13 @@ namespace GPUVerify
                                 // Set the handle associated with an array access to the "no handle"
                                 // value if it's current handle matches the given handle
                                 IdentifierExpr handleVariable = Expr.Ident(RaceInstrumentationUtil.MakeAsyncHandleVariable(array, access, verifier.IntRep.GetIntType(verifier.size_t_bits)));
-                                result.Add(new AssignCmd(Token.NoToken,
-                                  new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, handleVariable) },
-                                  new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
-                                  new List<Expr> {
-                                    Expr.Eq(handle, handleVariable),
-                                    verifier.FindOrCreateAsyncNoHandleConstant(),
-                                    handleVariable }) }));
+                                var lhs = new SimpleAssignLhs(Token.NoToken, handleVariable);
+                                var rhs = new NAryExpr(
+                                    Token.NoToken,
+                                    new IfThenElse(Token.NoToken),
+                                    new List<Expr> { Expr.Eq(handle, handleVariable), verifier.FindOrCreateAsyncNoHandleConstant(), handleVariable });
+                                result.Add(new AssignCmd(
+                                    Token.NoToken, new List<AssignLhs> { lhs }, new List<Expr> { rhs }));
                             }
                         }
 
@@ -1537,16 +1546,16 @@ namespace GPUVerify
                         }
                     }
 
-                    foreach (var LhsRhs in assign.Lhss.Zip(assign.Rhss))
+                    foreach (var lhsRhs in assign.Lhss.Zip(assign.Rhss))
                     {
                         WriteCollector wc = new WriteCollector(verifier.KernelArrayInfo);
-                        wc.Visit(LhsRhs.Item1);
+                        wc.Visit(lhsRhs.Item1);
                         if (wc.FoundNonPrivateWrite())
                         {
                             // Ignore disabled arrays
                             if (verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().v))
                             {
-                                AddLogAndCheckCalls(result, wc.GetAccess(), AccessType.WRITE, LhsRhs.Item2);
+                                AddLogAndCheckCalls(result, wc.GetAccess(), AccessType.WRITE, lhsRhs.Item2);
                             }
                         }
                     }
@@ -1600,23 +1609,27 @@ namespace GPUVerify
             Block exitBlock = new Block(Token.NoToken, "exit", new List<Cmd>(), null);
             List<Block> blocks = new List<Block> { entryBlock, accessBlock, exitBlock };
 
-            entryBlock.TransferCmd = new GotoCmd(Token.NoToken,
-              new List<string> { "access", "no_access" },
-              new List<Block> { accessBlock, noAccessBlock });
-            accessBlock.TransferCmd = new GotoCmd(Token.NoToken,
-              new List<string> { "exit" },
-              new List<Block> { exitBlock });
-            noAccessBlock.TransferCmd = new GotoCmd(Token.NoToken,
-              new List<string> { "exit" },
-              new List<Block> { exitBlock });
+            entryBlock.TransferCmd = new GotoCmd(
+                Token.NoToken,
+                new List<string> { "access", "no_access" },
+                new List<Block> { accessBlock, noAccessBlock });
+            accessBlock.TransferCmd = new GotoCmd(
+                Token.NoToken,
+                new List<string> { "exit" },
+                new List<Block> { exitBlock });
+            noAccessBlock.TransferCmd = new GotoCmd(
+                Token.NoToken,
+                new List<string> { "exit" },
+                new List<Block> { exitBlock });
             exitBlock.TransferCmd = new ReturnCmd(Token.NoToken);
 
             entryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Neq(resultHandle, verifier.FindOrCreateAsyncNoHandleConstant())));
-            entryBlock.Cmds.Add(new AssignCmd(Token.NoToken, new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, resultHandle) },
-                    new List<Expr> { new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken),
-                    new List<Expr> {
-                        Expr.Eq(handle, verifier.FindOrCreateAsyncNoHandleConstant()), resultHandle, handle
-                    }) }));
+            var lhs = new SimpleAssignLhs(Token.NoToken, resultHandle);
+            var rhs = new NAryExpr(
+                Token.NoToken,
+                new IfThenElse(Token.NoToken),
+                new List<Expr> { Expr.Eq(handle, verifier.FindOrCreateAsyncNoHandleConstant()), resultHandle, handle });
+            entryBlock.Cmds.Add(new AssignCmd(Token.NoToken, new List<AssignLhs> { lhs }, new List<Expr> { rhs }));
             entryBlock.Cmds.Add(new AssumeCmd(Token.NoToken, EqualBetweenThreadsInSameGroup(resultHandle)));
 
             // Choose arbitrary numbers X, Y and Z that are equal between the threads.
@@ -1626,9 +1639,12 @@ namespace GPUVerify
 
             // If X, Y and Z match the thread's local id, issue a read and write by this thread relative
             // to an arbitrarily chosen index in the range specified by the async copy
-            Expr idsMatch = Expr.And(Expr.Eq(idX, Expr.Ident(GPUVerifier._X)),
-                            Expr.And(Expr.Eq(idY, Expr.Ident(GPUVerifier._Y)),
-                                     Expr.Eq(idZ, Expr.Ident(GPUVerifier._Z))));
+            Expr idsMatch =
+                Expr.And(
+                    Expr.Eq(idX, Expr.Ident(GPUVerifier._X)),
+                    Expr.And(
+                        Expr.Eq(idY, Expr.Ident(GPUVerifier._Y)),
+                        Expr.Eq(idZ, Expr.Ident(GPUVerifier._Z))));
             Expr accessedValue = Expr.Select(Expr.Ident(srcArray), new Expr[] { verifier.IntRep.MakeAdd(srcOffset, index) });
             accessedValue.Type = (srcArray.TypedIdent.Type as MapType).Result;
             accessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, idsMatch, new QKeyValue(Token.NoToken, "partition", new List<object>(), null)));
@@ -1641,13 +1657,19 @@ namespace GPUVerify
 
             noAccessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, Expr.Not(idsMatch), new QKeyValue(Token.NoToken, "partition", new List<object>(), null)));
 
-            Procedure asyncWorkGroupCopyProcedure = new Procedure(Token.NoToken, procedureName, new List<TypeVariable>(),
-              inParams, outParams, preconditions,
-              new List<IdentifierExpr>(), new List<Ensures>());
+            Procedure asyncWorkGroupCopyProcedure = new Procedure(
+                Token.NoToken,
+                procedureName,
+                new List<TypeVariable>(),
+                inParams,
+                outParams,
+                preconditions,
+                new List<IdentifierExpr>(),
+                new List<Ensures>());
             GPUVerifier.AddInlineAttribute(asyncWorkGroupCopyProcedure);
 
-            Implementation asyncWorkGroupCopyImplementation = new Implementation(Token.NoToken,
-              procedureName, new List<TypeVariable>(), inParams, outParams, locals, blocks);
+            Implementation asyncWorkGroupCopyImplementation = new Implementation(
+                Token.NoToken, procedureName, new List<TypeVariable>(), inParams, outParams, locals, blocks);
             asyncWorkGroupCopyImplementation.Proc = asyncWorkGroupCopyProcedure;
             GPUVerifier.AddInlineAttribute(asyncWorkGroupCopyImplementation);
 
@@ -1666,8 +1688,9 @@ namespace GPUVerify
 
         private Expr EqualBetweenThreadsInSameGroup(Expr e)
         {
-            return Expr.Imp(GPUVerifier.ThreadsInSameGroup(), Expr.Eq(e,
-                    new NAryExpr(Token.NoToken, new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { e })));
+            return Expr.Imp(
+                GPUVerifier.ThreadsInSameGroup(),
+                Expr.Eq(e, new NAryExpr(Token.NoToken, new FunctionCall(verifier.FindOrCreateOther(verifier.size_t_bits)), new List<Expr> { e })));
         }
 
         private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType access, Expr value)
@@ -1700,12 +1723,12 @@ namespace GPUVerify
             ri.CheckStateCounter++;
             AssumeCmd captureStateAssume = new AssumeCmd(Token.NoToken, Expr.True);
             captureStateAssume.Attributes = sourceLocationAttributes.Clone() as QKeyValue;
-            captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
-              "captureState", new List<object>() { checkState }, captureStateAssume.Attributes);
-            captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
-              "check_id", new List<object>() { checkState }, captureStateAssume.Attributes);
-            captureStateAssume.Attributes = new QKeyValue(Token.NoToken,
-              "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
+            captureStateAssume.Attributes = new QKeyValue(
+                Token.NoToken, "captureState", new List<object>() { checkState }, captureStateAssume.Attributes);
+            captureStateAssume.Attributes = new QKeyValue(
+                Token.NoToken, "check_id", new List<object>() { checkState }, captureStateAssume.Attributes);
+            captureStateAssume.Attributes = new QKeyValue(
+                Token.NoToken, "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
 
             result.Add(captureStateAssume);
             CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
@@ -1736,7 +1759,7 @@ namespace GPUVerify
         private void ExitWithNoSourceError(Variable v, AccessType access)
         {
             Console.Error.WriteLine("No source location information available when processing " +
-              access + " operation on " + v + " at " + GPUVerifyVCGenCommandLineOptions.inputFiles[0] + ":" +
+              access + " operation on " + v + " at " + GPUVerifyVCGenCommandLineOptions.InputFiles[0] + ":" +
               v.tok.line + ":" + v.tok.col + ".  Aborting.");
             Environment.Exit(1);
         }

@@ -68,8 +68,7 @@ namespace GPUVerify
             if (!arrayCache.ContainsKey(arrayName))
             {
                 arrayCache[arrayName] = new GlobalVariable(
-                            array.tok, new TypedIdent(array.tok, arrayName,
-                              (array.TypedIdent.Type as MapType).Result));
+                    array.tok, new TypedIdent(array.tok, arrayName, (array.TypedIdent.Type as MapType).Result));
             }
 
             return arrayCache[arrayName];
@@ -155,12 +154,12 @@ namespace GPUVerify
     internal class EliminatorVisitor : Duplicator
     {
         private Dictionary<string, HashSet<string>> arrays;
-        private LiteralIndexedArrayEliminator aliminator;
+        private LiteralIndexedArrayEliminator arrayEliminator;
 
-        public EliminatorVisitor(Dictionary<string, HashSet<string>> arrays, LiteralIndexedArrayEliminator aliminator)
+        public EliminatorVisitor(Dictionary<string, HashSet<string>> arrays, LiteralIndexedArrayEliminator arrayEliminator)
         {
             this.arrays = arrays;
-            this.aliminator = aliminator;
+            this.arrayEliminator = arrayEliminator;
         }
 
         public override Expr VisitNAryExpr(NAryExpr node)
@@ -173,8 +172,9 @@ namespace GPUVerify
                     if (arrays.ContainsKey(map.Name))
                     {
                         Debug.Assert(node.Args[1] is LiteralExpr);
-                        return new IdentifierExpr(Token.NoToken,
-                          aliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
+                        return new IdentifierExpr(
+                            Token.NoToken,
+                            arrayEliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
                     }
                 }
             }
@@ -201,16 +201,18 @@ namespace GPUVerify
 
             Debug.Assert(mapLhs.Indexes[0] is LiteralExpr);
 
-            return new SimpleAssignLhs(
-              lhs.tok, new IdentifierExpr(Token.NoToken,
-                aliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString())));
+            var lhsId = new IdentifierExpr(
+                Token.NoToken,
+                arrayEliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString()));
+            return new SimpleAssignLhs(lhs.tok, lhsId);
         }
 
         public override Cmd VisitAssignCmd(AssignCmd node)
         {
-            return new AssignCmd(node.tok,
-              node.Lhss.Select(item => TransformLhs(item)).ToList(),
-              node.Rhss.Select(item => VisitExpr(item)).ToList());
+            return new AssignCmd(
+                node.tok,
+                node.Lhss.Select(item => TransformLhs(item)).ToList(),
+                node.Rhss.Select(item => VisitExpr(item)).ToList());
         }
     }
 }

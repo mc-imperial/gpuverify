@@ -49,8 +49,12 @@ namespace GPUVerify
 
             Block loggingCommands = new Block(Token.NoToken, "log_access_entry", new List<Cmd>(), new ReturnCmd(Token.NoToken));
 
-            Expr condition = Expr.And(new IdentifierExpr(Token.NoToken, MakeTrackingVariable()), Expr.Eq(new IdentifierExpr(Token.NoToken, accessOffsetVariable),
-                                               new IdentifierExpr(Token.NoToken, offsetParameter)));
+            Expr condition = Expr.And(
+                new IdentifierExpr(Token.NoToken, MakeTrackingVariable()),
+                Expr.Eq(
+                    new IdentifierExpr(Token.NoToken, accessOffsetVariable),
+                    new IdentifierExpr(Token.NoToken, offsetParameter)));
+
             if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v))
             {
                 condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), condition);
@@ -67,24 +71,29 @@ namespace GPUVerify
 
             if (!GPUVerifyVCGenCommandLineOptions.NoBenign && access == AccessType.WRITE)
             {
-                loggingCommands.Cmds.Add(MakeConditionalAssignment(accessBenignFlagVariable,
-                  condition,
-                  Expr.Neq(new IdentifierExpr(Token.NoToken, valueParameter),
-                    new IdentifierExpr(Token.NoToken, valueOldParameter))));
+                loggingCommands.Cmds.Add(MakeConditionalAssignment(
+                    accessBenignFlagVariable,
+                    condition,
+                    Expr.Neq(
+                        new IdentifierExpr(Token.NoToken, valueParameter),
+                        new IdentifierExpr(Token.NoToken, valueOldParameter))));
             }
 
             if ((access == AccessType.READ || access == AccessType.WRITE) && verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
             {
-                loggingCommands.Cmds.Add(MakeConditionalAssignment(accessAsyncHandleVariable,
-                  condition,
-                  Expr.Ident(asyncHandleParameter)));
+                loggingCommands.Cmds.Add(MakeConditionalAssignment(
+                    accessAsyncHandleVariable, condition, Expr.Ident(asyncHandleParameter)));
             }
 
             Implementation logAccessImplementation =
-              new Implementation(Token.NoToken, "_LOG_" + access + "_" + v.Name,
-                new List<TypeVariable>(),
-                logAccessProcedure.InParams, new List<Variable>(), new List<Variable>(),
-                new List<Block> { loggingCommands });
+              new Implementation(
+                  Token.NoToken,
+                  "_LOG_" + access + "_" + v.Name,
+                  new List<TypeVariable>(),
+                  logAccessProcedure.InParams,
+                  new List<Variable>(),
+                  new List<Variable>(),
+                  new List<Block> { loggingCommands });
             GPUVerifier.AddInlineAttribute(logAccessImplementation);
 
             logAccessImplementation.Proc = logAccessProcedure;

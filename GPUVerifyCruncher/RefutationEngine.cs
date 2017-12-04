@@ -315,13 +315,13 @@ namespace Microsoft.Boogie
     {
         public const string Name = "LU";
 
-        private static EngineParameter<int> UnrollParameter;
+        private static EngineParameter<int> unrollParameter;
 
         public static EngineParameter<int> GetUnrollParameter()
         {
-            if (UnrollParameter == null)
-                UnrollParameter = new EngineParameter<int>("unroll", 1);
-            return UnrollParameter;
+            if (unrollParameter == null)
+                unrollParameter = new EngineParameter<int>("unroll", 1);
+            return unrollParameter;
         }
 
         // Override static method from base class
@@ -500,12 +500,12 @@ namespace Microsoft.Boogie
     // The pipeline scheduler
     public class Scheduler
     {
-        private List<string> FileNames;
+        private List<string> fileNames;
         public int ErrorCode;
 
         public Scheduler(List<string> fileNames)
         {
-            this.FileNames = fileNames;
+            this.fileNames = fileNames;
 
             Pipeline pipeline = ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).Pipeline;
             if (pipeline.RunHoudini)
@@ -523,12 +523,12 @@ namespace Microsoft.Boogie
             // Otherwise report success
             if (pipeline.RunHoudini)
             {
-                var counters = new KernelAnalyser.ResultCounter();
+                var counters = default(KernelAnalyser.ResultCounter);
                 Program prog = GetFreshProgram(true, true);
                 foreach (var implOutcome in outcome.implementationOutcomes)
                 {
-                    KernelAnalyser.ProcessOutcome(prog, implOutcome.Key, implOutcome.Value.outcome,
-                      implOutcome.Value.errors, "", ref counters);
+                    KernelAnalyser.ProcessOutcome(
+                        prog, implOutcome.Key, implOutcome.Value.outcome, implOutcome.Value.errors, string.Empty, ref counters);
                 }
 
                 if (counters.AllVerified())
@@ -549,7 +549,7 @@ namespace Microsoft.Boogie
 
         private string GetFileNameBase()
         {
-            string currentDir = Path.GetDirectoryName(FileNames[FileNames.Count - 1]);
+            string currentDir = Path.GetDirectoryName(fileNames[fileNames.Count - 1]);
             if (string.IsNullOrEmpty(currentDir))
             {
                 currentDir = Directory.GetCurrentDirectory();
@@ -557,7 +557,7 @@ namespace Microsoft.Boogie
 
             return currentDir +
                    Path.DirectorySeparatorChar +
-                   Path.GetFileNameWithoutExtension(FileNames[FileNames.Count - 1]);
+                   Path.GetFileNameWithoutExtension(fileNames[fileNames.Count - 1]);
         }
 
         private Houdini.HoudiniOutcome ScheduleEnginesInSequence(Pipeline pipeline)
@@ -706,7 +706,7 @@ namespace Microsoft.Boogie
 
         private Program GetFreshProgram(bool disableChecks, bool inline)
         {
-            return GVUtil.GetFreshProgram(this.FileNames, disableChecks, inline);
+            return GVUtil.GetFreshProgram(this.fileNames, disableChecks, inline);
         }
 
         private Program ApplyInvariants(Houdini.HoudiniOutcome outcome)

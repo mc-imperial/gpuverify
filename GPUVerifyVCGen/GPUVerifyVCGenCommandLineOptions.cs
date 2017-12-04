@@ -16,44 +16,84 @@ namespace GPUVerify
 
     public class GPUVerifyVCGenCommandLineOptions
     {
-        public static List<string> inputFiles = new List<string>();
-        public static string outputFile = null;
-        public static bool DebugGPUVerify = false;
-        public static bool OnlyDivergence = false;
-        public static bool AdversarialAbstraction = false;
-        public static bool EqualityAbstraction = false;
-        public static bool Inference = true;
-        public static bool BarrierAccessChecks = true;
-        public static bool ShowStages = false;
-        public static bool ShowUniformityAnalysis = false;
-        public static bool DoUniformityAnalysis = true;
-        public static bool ShowAccessBreaking = false;
-        public static bool ShowMayBePowerOfTwoAnalysis = false;
-        public static bool ShowArrayControlFlowAnalysis = false;
-        public static bool OnlyIntraGroupRaceChecking = false;
-        public static bool NoBenign = false;
-        public static bool AsymmetricAsserts = false;
-        public static bool OnlyLog = false;
-        public static bool MathInt = false;
-        public static bool AbstractHoudini = false;
-        public static bool WarpSync = false;
-        public static int WarpSize = 32;
-        public static bool AtomicVsRead = true;
-        public static bool AtomicVsWrite = true;
-        public static bool RefinedAtomics = true;
-        public static bool OptimiseBarrierIntervals = true;
-        public static bool EliminateRedundantReadInstrumentation = true;
-        public static bool RemovePrivateArrayAccesses = true;
-        public static bool NonDeterminiseUninterpretedFunctions = false;
-        public static bool IdentifySafeBarriers = true;
-        public static bool CheckSingleNonInlinedImpl = false;
-        public static bool PruneInfeasibleEdges = true;
-        public static bool PrintLoopStatistics = false;
-        public static List<string> DoNotGenerateCandidates = new List<string>();
-        public static List<List<string>> KernelInterceptorParams = new List<List<string>>();
-        public static bool DisableInessentialLoopDetection = false;
-        public static bool ArrayBoundsChecking = false;
-        public static HashSet<string> ArraysToCheck = null;
+        private static bool printedHelp = false;
+
+        public static List<string> InputFiles { get; private set; } = new List<string>();
+
+        public static string OutputFile { get; private set; } = null;
+
+        public static bool DebugGPUVerify { get; private set; } = false;
+
+        public static bool OnlyDivergence { get; private set; } = false;
+
+        public static bool AdversarialAbstraction { get; private set; } = false;
+
+        public static bool EqualityAbstraction { get; private set; } = false;
+
+        public static bool Inference { get; private set; } = true;
+
+        // Assigned in GPUVerifier when no barrier invariants occur
+        public static bool BarrierAccessChecks { get; set; } = true;
+
+        public static bool ShowStages { get; private set; } = false;
+
+        public static bool ShowUniformityAnalysis { get; private set; } = false;
+
+        public static bool DoUniformityAnalysis { get; private set; } = true;
+
+        public static bool ShowAccessBreaking { get; private set; } = false;
+
+        public static bool ShowMayBePowerOfTwoAnalysis { get; private set; } = false;
+
+        public static bool ShowArrayControlFlowAnalysis { get; private set; } = false;
+
+        public static bool OnlyIntraGroupRaceChecking { get; private set; } = false;
+
+        public static bool NoBenign { get; private set; } = false;
+
+        public static bool AsymmetricAsserts { get; private set; } = false;
+
+        public static bool OnlyLog { get; private set; } = false;
+
+        public static bool MathInt { get; private set; } = false;
+
+        public static bool AbstractHoudini { get; private set; } = false;
+
+        public static bool WarpSync { get; private set; } = false;
+
+        public static int WarpSize { get; private set; } = 32;
+
+        public static bool AtomicVsRead { get; private set; } = true;
+
+        public static bool AtomicVsWrite { get; private set; } = true;
+
+        public static bool RefinedAtomics { get; private set; } = true;
+
+        public static bool OptimiseBarrierIntervals { get; private set; } = true;
+
+        public static bool EliminateRedundantReadInstrumentation { get; private set; } = true;
+
+        public static bool RemovePrivateArrayAccesses { get; private set; } = true;
+
+        public static bool NonDeterminiseUninterpretedFunctions { get; private set; } = false;
+
+        public static bool IdentifySafeBarriers { get; private set; } = true;
+
+        public static bool CheckSingleNonInlinedImpl { get; private set; } = false;
+
+        public static bool PruneInfeasibleEdges { get; private set; } = true;
+
+        public static bool PrintLoopStatistics { get; private set; } = false;
+
+        public static List<string> DoNotGenerateCandidates { get; private set; } = new List<string>();
+
+        public static List<List<string>> KernelInterceptorParams { get; private set; } = new List<List<string>>();
+
+        public static bool DisableInessentialLoopDetection { get; private set; } = false;
+
+        public static bool ArrayBoundsChecking { get; private set; } = false;
+
+        public static HashSet<string> ArraysToCheck { get; private set; } = null;
 
         public static int Parse(string[] args)
         {
@@ -120,7 +160,7 @@ namespace GPUVerify
                         }
 
                         Debug.Assert(afterColon != null);
-                        outputFile = afterColon;
+                        OutputFile = afterColon;
                         break;
 
                     case "-debugGPUVerify":
@@ -355,15 +395,13 @@ namespace GPUVerify
                         break;
 
                     default:
-                        inputFiles.Add(args[i]);
+                        InputFiles.Add(args[i]);
                         break;
                 }
             }
 
             return 0;
         }
-
-        private static bool printedHelp = false;
 
         public static void Usage()
         {

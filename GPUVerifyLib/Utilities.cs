@@ -192,34 +192,35 @@ namespace GPUVerify
                 Contract.Requires(result.VerificationErrors >= 0 && result.Inconclusives >= 0 &&
                     result.TimeOuts >= 0 && result.OutOfMemories >= 0);
 
-                //Console.WriteLine();
                 if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed)
                 {
                     Console.Write(
-                        "{0} finished with {1} credible, {2} doomed{3}",
+                        "{0} finished with {1} credible, {2} doomed",
                         CommandLineOptions.Clo.DescriptiveToolName,
                         result.Verified,
-                        result.VerificationErrors,
-                        result.VerificationErrors == 1 ? "" : "s");
+                        result.VerificationErrors);
                 }
                 else
                 {
                     Console.Write(
-                        "{0} finished with {1} verified, {2} error{3}",
+                        "{0} finished with {1} verified, {2} {3}",
                         CommandLineOptions.Clo.DescriptiveToolName,
                         result.Verified,
                         result.VerificationErrors,
-                        result.VerificationErrors == 1 ? "" : "s");
+                        result.VerificationErrors == 1 ? "error" : "errors");
                 }
 
                 if (result.Inconclusives != 0)
                 {
-                    Console.Write(", {0} inconclusive{1}", result.Inconclusives, result.Inconclusives == 1 ? "" : "s");
+                    Console.Write(
+                        ", {0} {1}",
+                        result.Inconclusives,
+                        result.Inconclusives == 1 ? "inconclusive" : "inconclusives");
                 }
 
                 if (result.TimeOuts != 0)
                 {
-                    Console.Write(", {0} time out{1}", result.TimeOuts, result.TimeOuts == 1 ? "" : "s");
+                    Console.Write(", {0} time {1}", result.TimeOuts, result.TimeOuts == 1 ? "out" : "outs");
                 }
 
                 if (result.OutOfMemories != 0)
@@ -231,11 +232,11 @@ namespace GPUVerify
                 Console.Out.Flush();
             }
 
-            public static void Inform(string s)
+            public static void Inform(string s, params object[] args)
             {
                 if (CommandLineOptions.Clo.Trace || CommandLineOptions.Clo.TraceProofObligations)
                 {
-                    Console.WriteLine(s);
+                    Console.WriteLine(s, args);
                 }
             }
 

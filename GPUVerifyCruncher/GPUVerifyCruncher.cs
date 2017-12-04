@@ -31,7 +31,7 @@ namespace GPUVerify
                     Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
                 }
 
-              ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParsePipelineString();
+                ((GPUVerifyCruncherCommandLineOptions)CommandLineOptions.Clo).ParsePipelineString();
 
                 if (CommandLineOptions.Clo.Files.Count == 0)
                 {

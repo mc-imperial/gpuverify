@@ -138,11 +138,10 @@ namespace GPUVerify
                 new List<AssignLhs> { new SimpleAssignLhs(Token.NoToken, Expr.Ident(arrayOffset)) },
                 new List<Expr> { ar.Index }));
 
-            boundChecks.Add(new AssumeCmd(Token.NoToken, Expr.True,
-              new QKeyValue(Token.NoToken, "do_not_predicate", new List<object> { },
-              new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID },
-              new QKeyValue(Token.NoToken, "captureState", new List<object> { "bounds_check_state_" + arraySourceID },
-              null)))));
+            var key = new QKeyValue(Token.NoToken, "captureState", new List<object> { "bounds_check_state_" + arraySourceID }, null);
+            key = new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID }, key);
+            key = new QKeyValue(Token.NoToken, "do_not_predicate", new List<object> { }, key);
+            boundChecks.Add(new AssumeCmd(Token.NoToken, Expr.True, key));
             boundChecks.Add(GenBoundCheck(BOUND_TYPE.LOWER, ar, arrDim, arrayOffset));
 
             if (!onlyLower)
@@ -164,12 +163,11 @@ namespace GPUVerify
                     boundExpr = verifier.IntRep.MakeSlt(offsetVarExpr, verifier.IntRep.GetLiteral(arrDim, verifier.size_t_bits)); break;
             }
 
-            return new AssertCmd(Token.NoToken, boundExpr,
-              new QKeyValue(Token.NoToken, "array_bounds", new List<object> { },
-              new QKeyValue(Token.NoToken, "sourceloc_num", new List<object> { new LiteralExpr(Token.NoToken, Microsoft.Basetypes.BigNum.FromInt(currSourceLocNum)) },
-              new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID },
-              new QKeyValue(Token.NoToken, "array_name", new List<object> { ar.v.Name },
-              null)))));
+            var key = new QKeyValue(Token.NoToken, "array_name", new List<object> { ar.v.Name }, null);
+            key = new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID }, key);
+            key = new QKeyValue(Token.NoToken, "sourceloc_num", new List<object> { new LiteralExpr(Token.NoToken, Microsoft.Basetypes.BigNum.FromInt(currSourceLocNum)) }, key);
+            key = new QKeyValue(Token.NoToken, "array_bounds", new List<object> { }, key);
+            return new AssertCmd(Token.NoToken, boundExpr, key);
         }
     }
 }

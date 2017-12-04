@@ -18,7 +18,8 @@ namespace GPUVerify
 
     public class RaceInstrumentationUtil
     {
-        public static RaceCheckingMethod RaceCheckingMethod = RaceCheckingMethod.WATCHDOG_SINGLE;
+        // Assigned by GVCommandLineOptions
+        public static RaceCheckingMethod RaceCheckingMethod { get; set; } = RaceCheckingMethod.WATCHDOG_SINGLE;
 
         public static string MakeOffsetVariableName(string name, AccessType access)
         {

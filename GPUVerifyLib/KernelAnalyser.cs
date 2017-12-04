@@ -198,7 +198,7 @@ namespace GPUVerify
             return QKeyValue.FindStringAttribute(c.Attributes, "tag") != null;
         }
 
-        public static void DisableAssertions(Program program)
+        internal static void DisableAssertions(Program program)
         {
             // We want to disable all assertions, with the exception
             // of assertions at loop heads (these are invariants)
@@ -327,37 +327,37 @@ namespace GPUVerify
             public int InputErrors;
             public int InternalErrors; // Should only be used for caught exceptions
 
-            public override string ToString()
-            {
-                var sb = new StringBuilder();
-                sb.AppendFormat("Errors: {0}", VerificationErrors);
-                sb.AppendLine();
-                sb.AppendFormat("Verified: {0}", Verified);
-                sb.AppendLine();
-                sb.AppendFormat("Inconclusives: {0}", Inconclusives);
-                sb.AppendLine();
-                sb.AppendFormat("TimeOuts: {0}", Inconclusives);
-                sb.AppendLine();
-                sb.AppendFormat("OutOfMemories: {0}", OutOfMemories);
-                sb.AppendLine();
-                sb.AppendFormat("InputErrors: {0}", InputErrors);
-                sb.AppendLine();
-                sb.AppendFormat("InternalErrors: {0}", InternalErrors);
-                sb.AppendLine();
-                return sb.ToString();
-            }
-
-            public void Reset()
-            {
-                VerificationErrors = Verified = Inconclusives = TimeOuts = OutOfMemories = InputErrors = InternalErrors = 0;
-            }
-
             public int TotalErrors
             {
                 get
                 {
                     return VerificationErrors + Inconclusives + TimeOuts + OutOfMemories + InputErrors + InternalErrors;
                 }
+            }
+
+            public override string ToString()
+            {
+                var builder = new StringBuilder();
+                builder.AppendFormat("Errors: {0}", VerificationErrors);
+                builder.AppendLine();
+                builder.AppendFormat("Verified: {0}", Verified);
+                builder.AppendLine();
+                builder.AppendFormat("Inconclusives: {0}", Inconclusives);
+                builder.AppendLine();
+                builder.AppendFormat("TimeOuts: {0}", Inconclusives);
+                builder.AppendLine();
+                builder.AppendFormat("OutOfMemories: {0}", OutOfMemories);
+                builder.AppendLine();
+                builder.AppendFormat("InputErrors: {0}", InputErrors);
+                builder.AppendLine();
+                builder.AppendFormat("InternalErrors: {0}", InternalErrors);
+                builder.AppendLine();
+                return builder.ToString();
+            }
+
+            public void Reset()
+            {
+                VerificationErrors = Verified = Inconclusives = TimeOuts = OutOfMemories = InputErrors = InternalErrors = 0;
             }
 
             public bool AllVerified()
@@ -385,21 +385,21 @@ namespace GPUVerify
 
             public static ResultCounter GetNewCounterWithInternalError()
             {
-                var temp = new ResultCounter();
+                var temp = default(ResultCounter);
                 temp.InternalErrors = 1;
                 return temp;
             }
 
             public static ResultCounter GetNewCounterWithInputError()
             {
-                var temp = new ResultCounter();
+                var temp = default(ResultCounter);
                 temp.InputErrors = 1;
                 return temp;
             }
         }
 
-        public static void ProcessOutcome(Program program, string implName, VC.VCGen.Outcome outcome, List<Counterexample> errors, string timeIndication,
-          ref ResultCounter counters)
+        public static void ProcessOutcome(
+            Program program, string implName, VC.VCGen.Outcome outcome, List<Counterexample> errors, string timeIndication, ref ResultCounter counters)
         {
             switch (outcome)
             {
@@ -407,38 +407,39 @@ namespace GPUVerify
                     Contract.Assert(false);  // unexpected outcome
                     throw new cce.UnreachableException();
                 case ConditionGeneration.Outcome.ReachedBound:
-                    GVUtil.IO.Inform(string.Format("{0}verified", timeIndication));
-                    Console.WriteLine(string.Format("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound));
+                    GVUtil.IO.Inform("{0}verified", timeIndication);
+                    Console.WriteLine("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound);
                     counters.Verified++;
                     break;
                 case ConditionGeneration.Outcome.Correct:
                     if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed)
                     {
-                        GVUtil.IO.Inform(string.Format("{0}credible", timeIndication));
+                        GVUtil.IO.Inform("{0}credible", timeIndication);
                         counters.Verified++;
                     }
                     else
                     {
-                        GVUtil.IO.Inform(string.Format("{0}verified", timeIndication));
+                        GVUtil.IO.Inform("{0}verified", timeIndication);
                         counters.Verified++;
                     }
+
                     break;
                 case ConditionGeneration.Outcome.TimedOut:
                     counters.TimeOuts++;
-                    GVUtil.IO.Inform(string.Format("{0}timed out", timeIndication));
+                    GVUtil.IO.Inform("{0}timed out", timeIndication);
                     break;
                 case ConditionGeneration.Outcome.OutOfMemory:
                     counters.OutOfMemories++;
-                    GVUtil.IO.Inform(string.Format("{0}out of memory", timeIndication));
+                    GVUtil.IO.Inform("{0}out of memory", timeIndication);
                     break;
                 case ConditionGeneration.Outcome.Inconclusive:
                     counters.Inconclusives++;
-                    GVUtil.IO.Inform(string.Format("{0}inconclusive", timeIndication));
+                    GVUtil.IO.Inform("{0}inconclusive", timeIndication);
                     break;
                 case ConditionGeneration.Outcome.Errors:
                     if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed)
                     {
-                        GVUtil.IO.Inform(string.Format("{0}doomed", timeIndication));
+                        GVUtil.IO.Inform("{0}doomed", timeIndication);
                         counters.VerificationErrors++;
                     }
 
@@ -458,7 +459,7 @@ namespace GPUVerify
                         counters.VerificationErrors++;
                     }
 
-                    GVUtil.IO.Inform(string.Format("{0}error{1}", timeIndication, errors.Count == 1 ? "" : "s"));
+                    GVUtil.IO.Inform("{0}{1}", timeIndication, errors.Count == 1 ? "error" : "errors");
                     break;
             }
         }
