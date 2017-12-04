@@ -147,7 +147,10 @@ Replace as appropriate or setup an environment variable.::
      $ git clone https://github.com/mc-imperial/gpuverify.git
      $ cd ${BUILD_ROOT}/gpuverify
      $ nuget restore GPUVerify.sln
-     $ msbuild /m /p:Configuration=Release GPUVerify.sln
+     $ msbuild /m \
+               /p:Configuration=Release \
+               /p:CodeAnalysisRuleSet=$PWD/StyleCop.ruleset
+               GPUVerify.sln
 
 #. Configure GPUVerify front end.
    GPUVerify uses a front end python script (GPUVerify.py). This script needs
