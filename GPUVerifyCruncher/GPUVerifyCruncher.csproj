@@ -39,7 +39,7 @@
     <Compile Include="RefutationEngine.cs" />
     <Compile Include="BitVector.cs" />
     <Compile Include="BoogieInterpreter.cs" />
-    <Compile Include="ExpressionTrees.cs" />
+    <Compile Include="ExprTree.cs" />
     <Compile Include="GPU.cs" />
     <Compile Include="Memory.cs" />
     <Compile Include="Print.cs" />

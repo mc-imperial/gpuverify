@@ -14,7 +14,7 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal class KernelArrayInfoLists : IKernelArrayInfo
+    public class KernelArrayInfoLists : IKernelArrayInfo
     {
         private List<Variable> globalArrays;
         private List<Variable> groupSharedArrays;

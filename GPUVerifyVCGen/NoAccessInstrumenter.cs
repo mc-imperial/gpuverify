@@ -13,7 +13,7 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal class NoAccessInstrumenter : INoAccessInstrumenter
+    public class NoAccessInstrumenter : INoAccessInstrumenter
     {
         private GPUVerifier verifier;
         private IKernelArrayInfo stateToCheck;
@@ -56,9 +56,9 @@ namespace GPUVerify
                     ReadCollector rc = new ReadCollector(stateToCheck);
                     foreach (var rhs in assign.Rhss)
                         rc.Visit(rhs);
-                    if (rc.nonPrivateAccesses.Count > 0)
+                    if (rc.NonPrivateAccesses.Count > 0)
                     {
-                        foreach (AccessRecord ar in rc.nonPrivateAccesses)
+                        foreach (AccessRecord ar in rc.NonPrivateAccesses)
                         {
                             AddNoAccessAssumes(result, ar);
                         }
@@ -81,7 +81,7 @@ namespace GPUVerify
 
         private void AddNoAccessAssumes(List<Cmd> result, AccessRecord ar)
         {
-            result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateNotAccessedVariable(ar.v.Name, ar.Index.Type)), ar.Index)));
+            result.Add(new AssumeCmd(Token.NoToken, Expr.Neq(new IdentifierExpr(Token.NoToken, verifier.FindOrCreateNotAccessedVariable(ar.V.Name, ar.Index.Type)), ar.Index)));
         }
     }
 }

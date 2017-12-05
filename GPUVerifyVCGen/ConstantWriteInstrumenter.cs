@@ -13,9 +13,9 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal class ConstantWriteInstrumenter : IConstantWriteInstrumenter
+    public class ConstantWriteInstrumenter : IConstantWriteInstrumenter
     {
-        protected GPUVerifier verifier;
+        private GPUVerifier verifier;
 
         private QKeyValue sourceLocationAttributes = null;
 
@@ -62,6 +62,7 @@ namespace GPUVerify
                     if (QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc"))
                     {
                         sourceLocationAttributes = assertion.Attributes;
+
                         // Do not remove source location assertions
                         // This is done by the race instrumenter
                     }

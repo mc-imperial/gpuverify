@@ -13,10 +13,11 @@ namespace GPUVerify
     using System.Diagnostics;
     using Microsoft.Boogie;
 
-    internal class ReadCollector : AccessCollector
+    public class ReadCollector : AccessCollector
     {
-        public List<AccessRecord> nonPrivateAccesses = new List<AccessRecord>();
-        public List<AccessRecord> privateAccesses = new List<AccessRecord>();
+        public List<AccessRecord> NonPrivateAccesses { get; } = new List<AccessRecord>();
+
+        public List<AccessRecord> PrivateAccesses { get; } = new List<AccessRecord>();
 
         public ReadCollector(IKernelArrayInfo state)
             : base(state)
@@ -37,7 +38,8 @@ namespace GPUVerify
                     MultiDimensionalMapError();
                 }
 
-                if (!(node.Args[0] is IdentifierExpr)) {
+                if (!(node.Args[0] is IdentifierExpr))
+                {
                   // This should only happen if the map is one of the special _USED maps for atomics
                   var nodeArgs0 = node.Args[0] as NAryExpr;
                   Debug.Assert(nodeArgs0 != null);
@@ -53,9 +55,9 @@ namespace GPUVerify
                 this.VisitExpr(node.Args[1]);
 
                 if (State.ContainsGlobalOrGroupSharedArray(readVariable, true))
-                  nonPrivateAccesses.Add(new AccessRecord(readVariable, index));
+                  NonPrivateAccesses.Add(new AccessRecord(readVariable, index));
                 else if (State.ContainsPrivateArray(readVariable))
-                  privateAccesses.Add(new AccessRecord(readVariable, index));
+                  PrivateAccesses.Add(new AccessRecord(readVariable, index));
 
                 return node;
             }

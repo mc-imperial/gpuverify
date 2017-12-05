@@ -45,7 +45,7 @@ namespace GPUVerify
                     }
                 }
 
-                ParseProcessOutput();
+                ParseAndProcessOutput();
             }
             catch (Exception e)
             {
@@ -56,7 +56,7 @@ namespace GPUVerify
                     throw e;
                 }
 
-                GVUtil.IO.DumpExceptionInformation(e);
+                Utilities.IO.DumpExceptionInformation(e);
                 Environment.Exit(1);
             }
         }
@@ -88,7 +88,7 @@ namespace GPUVerify
             return program;
         }
 
-        public static void ParseProcessOutput()
+        public static void ParseAndProcessOutput()
         {
             string fn = "temp";
             if (GPUVerifyVCGenCommandLineOptions.OutputFile != null)

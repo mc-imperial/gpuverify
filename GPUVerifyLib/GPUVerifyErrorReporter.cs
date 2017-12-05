@@ -19,7 +19,7 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    public class GPUVerifyErrorReporter
+    internal class GPUVerifyErrorReporter
     {
         private enum ErrorMsgType
         {
@@ -61,7 +61,7 @@ namespace GPUVerify
         private readonly Dictionary<string, string> globalArraySourceNames;
         private Implementation impl;
 
-        internal GPUVerifyErrorReporter(Program program, string implName)
+        public GPUVerifyErrorReporter(Program program, string implName)
         {
             impl = program.Implementations.Where(item => item.Name.Equals(implName)).First();
             sizeTBits = GetSizeTBits(program);
@@ -90,7 +90,7 @@ namespace GPUVerify
             return candidates.First().Body.BvBits;
         }
 
-        internal void ReportCounterexample(Counterexample error)
+        public void ReportCounterexample(Counterexample error)
         {
             int windowWidth;
             try
@@ -295,7 +295,7 @@ namespace GPUVerify
 
         private void GetArrayNameAndAccessTypeFromAccessHasOccurredVariable(Variable v, out string arrayName, out AccessType accessType)
         {
-            Debug.Assert(GVUtil.IsAccessHasOccurredVariable(v));
+            Debug.Assert(Utilities.IsAccessHasOccurredVariable(v));
             foreach (var currentAccessType in AccessType.Types)
             {
                 var prefix = "_" + currentAccessType + "_HAS_OCCURRED_";
@@ -398,7 +398,7 @@ namespace GPUVerify
 
         private string CleanOriginalProgramVariable(string name, out int id)
         {
-            string strippedName = GVUtil.StripThreadIdentifier(name, out id);
+            string strippedName = Utilities.StripThreadIdentifier(name, out id);
             if (globalArraySourceNames.ContainsKey(strippedName))
                 return globalArraySourceNames[strippedName];
             else
@@ -658,7 +658,7 @@ namespace GPUVerify
 
         private static Program GetOriginalProgram()
         {
-            return GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
+            return Utilities.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
         }
 
         private static AssumeCmd DetermineConflictingAction(CallCounterexample callCex, string raceyState, string accessHasOccurred, string accessOffset)
@@ -720,7 +720,7 @@ namespace GPUVerify
 
         private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromCall(string checkProcedureName, string calleeName)
         {
-            Program originalProgram = GVUtil.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
+            Program originalProgram = Utilities.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
             var bodies = originalProgram.Implementations.Where(item => item.Name.Equals(calleeName)).ToList();
             if (bodies.Count == 0)
             {
@@ -1108,6 +1108,30 @@ namespace GPUVerify
             else
             {
                 return string.Format("work item {0} with local id {1} in work group {2}", globalId, localId, group);
+            }
+        }
+
+        private class VariableFinderVisitor : StandardVisitor
+        {
+            private string varName;
+            private Variable variable = null;
+
+            public VariableFinderVisitor(string varName)
+            {
+                this.varName = varName;
+            }
+
+            public override Variable VisitVariable(Variable node)
+            {
+                if (node.Name.Equals(varName))
+                    variable = node;
+
+                return base.VisitVariable(node);
+            }
+
+            internal Variable GetVariable()
+            {
+                return variable;
             }
         }
     }

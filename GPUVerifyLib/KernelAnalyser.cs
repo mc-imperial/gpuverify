@@ -71,7 +71,7 @@ namespace GPUVerify
             if (CommandLineOptions.Clo.PrintFile != null && CommandLineOptions.Clo.PrintDesugarings)
             {
                 // if PrintDesugaring option is engaged, print the file here, after resolution and type checking
-                GVUtil.IO.PrintBplFile(CommandLineOptions.Clo.PrintFile, program, true);
+                Utilities.IO.PrintBplFile(CommandLineOptions.Clo.PrintFile, program, true);
             }
 
             return PipelineOutcome.ResolvedAndTypeChecked;
@@ -296,7 +296,7 @@ namespace GPUVerify
             return (proverOptions.Contains("SOLVER=cvc4") ||
                         proverOptions.Contains("SOLVER=CVC4")) &&
                         proverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
-                        CheckForQuantifiers.Found(program);
+                        CheckForQuantifiersVisitor.Find(program);
         }
 
         public static int GetExitCode(ResultCounter counter)
@@ -407,39 +407,39 @@ namespace GPUVerify
                     Contract.Assert(false);  // unexpected outcome
                     throw new cce.UnreachableException();
                 case ConditionGeneration.Outcome.ReachedBound:
-                    GVUtil.IO.Inform("{0}verified", timeIndication);
+                    Utilities.IO.Inform("{0}verified", timeIndication);
                     Console.WriteLine("Stratified Inlining: Reached recursion bound of {0}", CommandLineOptions.Clo.RecursionBound);
                     counters.Verified++;
                     break;
                 case ConditionGeneration.Outcome.Correct:
                     if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed)
                     {
-                        GVUtil.IO.Inform("{0}credible", timeIndication);
+                        Utilities.IO.Inform("{0}credible", timeIndication);
                         counters.Verified++;
                     }
                     else
                     {
-                        GVUtil.IO.Inform("{0}verified", timeIndication);
+                        Utilities.IO.Inform("{0}verified", timeIndication);
                         counters.Verified++;
                     }
 
                     break;
                 case ConditionGeneration.Outcome.TimedOut:
                     counters.TimeOuts++;
-                    GVUtil.IO.Inform("{0}timed out", timeIndication);
+                    Utilities.IO.Inform("{0}timed out", timeIndication);
                     break;
                 case ConditionGeneration.Outcome.OutOfMemory:
                     counters.OutOfMemories++;
-                    GVUtil.IO.Inform("{0}out of memory", timeIndication);
+                    Utilities.IO.Inform("{0}out of memory", timeIndication);
                     break;
                 case ConditionGeneration.Outcome.Inconclusive:
                     counters.Inconclusives++;
-                    GVUtil.IO.Inform("{0}inconclusive", timeIndication);
+                    Utilities.IO.Inform("{0}inconclusive", timeIndication);
                     break;
                 case ConditionGeneration.Outcome.Errors:
                     if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed)
                     {
-                        GVUtil.IO.Inform("{0}doomed", timeIndication);
+                        Utilities.IO.Inform("{0}doomed", timeIndication);
                         counters.VerificationErrors++;
                     }
 
@@ -450,7 +450,6 @@ namespace GPUVerify
                     // BP3xxx: Typechecking errors
                     // BP4xxx: Abstract interpretation errors (Is there such a thing?)
                     // BP5xxx: Verification errors
-
                     errors.Sort(new CounterexampleComparer());
 
                     foreach (Counterexample error in errors)
@@ -459,7 +458,7 @@ namespace GPUVerify
                         counters.VerificationErrors++;
                     }
 
-                    GVUtil.IO.Inform("{0}{1}", timeIndication, errors.Count == 1 ? "error" : "errors");
+                    Utilities.IO.Inform("{0}{1}", timeIndication, errors.Count == 1 ? "error" : "errors");
                     break;
             }
         }

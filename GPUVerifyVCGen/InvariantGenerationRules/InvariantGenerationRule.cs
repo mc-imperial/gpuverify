@@ -11,13 +11,13 @@ namespace GPUVerify.InvariantGenerationRules
 {
     using Microsoft.Boogie;
 
-    internal abstract class InvariantGenerationRule
+    public abstract class InvariantGenerationRule
     {
-        protected GPUVerifier verifier;
+        protected GPUVerifier Verifier { get; }
 
         public InvariantGenerationRule(GPUVerifier verifier)
         {
-            this.verifier = verifier;
+            this.Verifier = verifier;
         }
 
         public abstract void GenerateCandidates(Implementation impl, IRegion region);

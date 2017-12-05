@@ -11,17 +11,17 @@ namespace GPUVerify
 {
     using System;
     using System.Collections.Generic;
-    using System.Linq;
     using System.Diagnostics;
+    using System.Linq;
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    internal enum BarrierStrength
+    public enum BarrierStrength
     {
         GROUP_SHARED, GLOBAL, ALL
     }
 
-    internal class BarrierIntervalsAnalysis
+    public class BarrierIntervalsAnalysis
     {
         private GPUVerifier verifier;
         private Dictionary<Implementation, HashSet<BarrierInterval>> intervals;
@@ -134,7 +134,7 @@ namespace GPUVerify
 
             var barrierProcedure = c.Proc;
 
-            if (!verifier.uniformityAnalyser.IsUniform(barrierProcedure.Name))
+            if (!verifier.UniformityAnalyser.IsUniform(barrierProcedure.Name))
             {
                 // We may be able to do better in this case, but for now we conservatively say no
                 return false;
@@ -169,7 +169,7 @@ namespace GPUVerify
         private bool BarrierHasNonUniformArgument(Procedure barrierProcedure)
         {
             return barrierProcedure.InParams
-                .Any(v => !verifier.uniformityAnalyser.IsUniform(barrierProcedure.Name, GVUtil.StripThreadIdentifier(v.Name)));
+                .Any(v => !verifier.UniformityAnalyser.IsUniform(barrierProcedure.Name, Utilities.StripThreadIdentifier(v.Name)));
         }
 
         private static List<List<Cmd>> PartitionCmdsAccordingToPredicate(List<Cmd> cmds, Func<Cmd, bool> predicate)
@@ -217,7 +217,8 @@ namespace GPUVerify
                     newBlocks.Add(newBlocksForPartitionEntry[i]);
                     if (i > 0)
                     {
-                        newBlocksForPartitionEntry[i - 1].TransferCmd = new GotoCmd(b.tok, new List<string> { newBlocksForPartitionEntry[i].Label }, new List<Block> { newBlocksForPartitionEntry[i] });
+                        newBlocksForPartitionEntry[i - 1].TransferCmd =
+                            new GotoCmd(b.tok, new List<string> { newBlocksForPartitionEntry[i].Label }, new List<Block> { newBlocksForPartitionEntry[i] });
                     }
 
                     if (i == partition.Count - 1)
@@ -303,52 +304,51 @@ namespace GPUVerify
                 b.Cmds = newCmds;
             }
         }
-    }
 
-    internal class BarrierInterval
-    {
-        public BarrierInterval(Block start, Block end, DomRelation<Block> dom, DomRelation<Block> pdom, Implementation impl)
+        private class BarrierInterval
         {
-            Blocks = impl.Blocks
-                .Where(item => item != end && dom.DominatedBy(item, start) && pdom.DominatedBy(item, end))
-                .ToList();
-        }
-
-        public IEnumerable<Block> Blocks { get; }
-
-        public HashSet<Variable> FindWrittenGroupSharedArrays(GPUVerifier verifier)
-        {
-            // We add any group-shared array that may be written to or accessed atomically
-            // in the region.
-            //
-            // We also add any group-shared array that may be written to by an asynchronous
-            // memory copy somewhere in the kernel.  This is because asynchronous copies can
-            // cross barriers.  Currently we are very conservative about this.
-
-            HashSet<Variable> result = new HashSet<Variable>();
-
-            foreach (var v in verifier.KernelArrayInfo.GetGroupSharedArrays(false))
+            public BarrierInterval(Block start, Block end, DomRelation<Block> dom, DomRelation<Block> pdom, Implementation impl)
             {
-                if (verifier.ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Contains(v.Name))
-                {
-                    result.Add(v);
-                }
+                Blocks = impl.Blocks
+                    .Where(item => item != end && dom.DominatedBy(item, start) && pdom.DominatedBy(item, end))
+                    .ToList();
             }
 
-            foreach (var m in Blocks.Select(item => item.Cmds).SelectMany(item => item).OfType<CallCmd>()
-                .Select(item => item.Proc.Modifies).SelectMany(item => item))
+            public IEnumerable<Block> Blocks { get; }
+
+            public HashSet<Variable> FindWrittenGroupSharedArrays(GPUVerifier verifier)
             {
-                // m is a variable modified by a call in the barrier interval
-                Variable v;
-                if (verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.WRITE, out v) ||
-                   verifier.TryGetArrayFromAccessHasOccurred(GVUtil.StripThreadIdentifier(m.Name), AccessType.ATOMIC, out v))
+                // We add any group-shared array that may be written to or accessed atomically
+                // in the region.
+                //
+                // We also add any group-shared array that may be written to by an asynchronous
+                // memory copy somewhere in the kernel.  This is because asynchronous copies can
+                // cross barriers.  Currently we are very conservative about this.
+                HashSet<Variable> result = new HashSet<Variable>();
+
+                foreach (var v in verifier.KernelArrayInfo.GetGroupSharedArrays(false))
                 {
-                    if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v))
+                    if (verifier.ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE].Contains(v.Name))
+                    {
                         result.Add(v);
+                    }
                 }
-            }
 
-            return result;
+                foreach (var m in Blocks.Select(item => item.Cmds).SelectMany(item => item).OfType<CallCmd>()
+                    .Select(item => item.Proc.Modifies).SelectMany(item => item))
+                {
+                    // m is a variable modified by a call in the barrier interval
+                    Variable v;
+                    if (verifier.TryGetArrayFromAccessHasOccurred(Utilities.StripThreadIdentifier(m.Name), AccessType.WRITE, out v)
+                        || verifier.TryGetArrayFromAccessHasOccurred(Utilities.StripThreadIdentifier(m.Name), AccessType.ATOMIC, out v))
+                    {
+                        if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v))
+                            result.Add(v);
+                    }
+                }
+
+                return result;
+            }
         }
     }
 }

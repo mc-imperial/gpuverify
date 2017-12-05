@@ -17,14 +17,17 @@ namespace GPUVerify
 
     public class ExprTree : System.Collections.IEnumerable
     {
-        protected Dictionary<int, HashSet<Node>> levels = new Dictionary<int, HashSet<Node>>();
-        protected List<Node> nodes = new List<Node>();
-        protected Node root = null;
-        protected int height = 0;
-        public BitVector evaluation;
-        public bool initialised = true;
-        public Expr expr;
-        public HashSet<string> offsetVariables = new HashSet<string>();
+        private Dictionary<int, HashSet<Node>> levels = new Dictionary<int, HashSet<Node>>();
+        private List<Node> nodes = new List<Node>();
+        private Node root = null;
+        private int height = 0;
+        private Expr expr;
+
+        public BitVector Evaluation { get; set; }
+
+        public bool Initialised { get; set; } = true;
+
+        public HashSet<string> OffsetVariables { get; private set; } = new HashSet<string>();
 
         public ExprTree(Expr expr)
         {
@@ -42,17 +45,17 @@ namespace GPUVerify
                 if (node is ScalarSymbolNode)
                 {
                     ScalarSymbolNode scalarNode = node as ScalarSymbolNode;
-                    if (RegularExpressions.OFFSET_VARIABLE.IsMatch(scalarNode.Symbol))
-                        offsetVariables.Add(scalarNode.Symbol);
+                    if (BoogieInterpreter.RegularExpressions.OffsetVariable.IsMatch(scalarNode.Symbol))
+                        OffsetVariables.Add(scalarNode.Symbol);
 
-                    if (RegularExpressions.WATCHDOG_VARIABLE.IsMatch(scalarNode.Symbol))
+                    if (BoogieInterpreter.RegularExpressions.WatchdoVariable.IsMatch(scalarNode.Symbol))
                     {
                         var visitor = new VariablesOccurringInExpressionVisitor();
                         visitor.Visit(this.expr);
                         string offsetVariable = string.Empty;
                         foreach (Variable variable in visitor.GetVariables())
                         {
-                            if (RegularExpressions.TRACKING_VARIABLE.IsMatch(variable.Name))
+                            if (BoogieInterpreter.RegularExpressions.TrackingVariable.IsMatch(variable.Name))
                             {
                                 int index = variable.Name.IndexOf('$');
                                 string arrayName = variable.Name.Substring(index);
@@ -67,7 +70,7 @@ namespace GPUVerify
                             }
                         }
 
-                        offsetVariables.Add(offsetVariable);
+                        OffsetVariables.Add(offsetVariable);
                     }
                 }
             }
@@ -95,7 +98,7 @@ namespace GPUVerify
                     node.ClearState();
             }
 
-            initialised = true;
+            Initialised = true;
         }
 
         public Node Root()
@@ -143,10 +146,13 @@ namespace GPUVerify
 
     public abstract class Node
     {
-        protected List<Node> children = new List<Node>();
-        protected Node parent = null;
-        public bool initialised = true;
-        public int ID = -1;
+        public int ID { get; set; } = -1;
+
+        public bool Initialised { get; set; } = true;
+
+        private Node parent = null;
+
+        protected List<Node> Children { get; private set; } = new List<Node>();
 
         public Node()
         {
@@ -154,12 +160,12 @@ namespace GPUVerify
 
         public bool IsLeaf()
         {
-            return children.Count == 0;
+            return Children.Count == 0;
         }
 
         public List<Node> GetChildren()
         {
-            return children;
+            return Children;
         }
 
         public Node GetParent()
@@ -244,7 +250,7 @@ namespace GPUVerify
                     foreach (Expr index in indices)
                     {
                         Node child = CreateFromExpr(index);
-                        parent.children.Add(child);
+                        parent.Children.Add(child);
                         child.parent = parent;
                     }
 
@@ -320,28 +326,28 @@ namespace GPUVerify
 
     public class ExprNode : Node
     {
-        public BitVector evaluation = null;
+        public BitVector Evaluation { get; set; } = null;
 
         public override void ClearState()
         {
-            evaluation = null;
-            initialised = true;
+            Evaluation = null;
+            Initialised = true;
         }
     }
 
     public class OpNode : ExprNode
     {
-        public string op;
+        public string Op { get; private set; }
 
         public OpNode(string op)
             : base()
         {
-            this.op = op;
+            this.Op = op;
         }
 
         public override string ToString()
         {
-            return op;
+            return Op;
         }
     }
 
@@ -350,9 +356,9 @@ namespace GPUVerify
         public TernaryNode(string op, Node one, Node two, Node three)
             : base(op)
         {
-            children.Add(one);
-            children.Add(two);
-            children.Add(three);
+            Children.Add(one);
+            Children.Add(two);
+            Children.Add(three);
         }
     }
 
@@ -361,8 +367,8 @@ namespace GPUVerify
         public BinaryNode(string op, Node one, Node two)
             : base(op)
         {
-            children.Add(one);
-            children.Add(two);
+            Children.Add(one);
+            Children.Add(two);
         }
     }
 
@@ -371,7 +377,7 @@ namespace GPUVerify
         public UnaryNode(string op, Node one)
             : base(op)
         {
-            children.Add(one);
+            Children.Add(one);
         }
     }
 
@@ -387,7 +393,7 @@ namespace GPUVerify
         {
             Symbol = symbol;
             Type = type;
-            IsOffsetVariable = RegularExpressions.OFFSET_VARIABLE.IsMatch(symbol);
+            IsOffsetVariable = BoogieInterpreter.RegularExpressions.OffsetVariable.IsMatch(symbol);
         }
 
         public override string ToString()
@@ -398,34 +404,35 @@ namespace GPUVerify
 
     public class MapSymbolNode : ExprNode
     {
-        public string basename;
+        public string Basename { get; private set; }
 
         public MapSymbolNode(string basename)
         {
-            this.basename = basename;
+            this.Basename = basename;
         }
 
         public override string ToString()
         {
-            return basename;
+            return Basename;
         }
     }
 
     public class BVExtractNode : ExprNode
     {
-        public int low;
-        public int high;
+        public int High { get; private set; }
+
+        public int Low { get; private set; }
 
         public BVExtractNode(Node one, int high, int low)
         {
-            children.Add(one);
-            this.high = high;
-            this.low = low;
+            Children.Add(one);
+            High = high;
+            Low = low;
         }
 
         public override string ToString()
         {
-            return "[" + high.ToString() + ":" + low.ToString() + "]";
+            return "[" + High.ToString() + ":" + Low.ToString() + "]";
         }
     }
 
@@ -433,8 +440,8 @@ namespace GPUVerify
     {
         public BVConcatenationNode(Node one, Node two)
         {
-            children.Add(one);
-            children.Add(two);
+            Children.Add(one);
+            Children.Add(two);
         }
     }
 
@@ -442,7 +449,7 @@ namespace GPUVerify
     {
         public ForAllNode(Node one)
         {
-            children.Add(one);
+            Children.Add(one);
         }
     }
 
@@ -450,12 +457,12 @@ namespace GPUVerify
     {
         public LiteralNode(BitVector val)
         {
-            evaluation = val;
+            Evaluation = val;
         }
 
         public override string ToString()
         {
-            return evaluation.ToString();
+            return Evaluation.ToString();
         }
     }
 }

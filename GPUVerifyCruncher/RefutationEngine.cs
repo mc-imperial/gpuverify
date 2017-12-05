@@ -20,88 +20,93 @@ namespace Microsoft.Boogie
     using GPUVerify;
 
     // This class allows us to parameterise each engine with specific values
-    public abstract class EngineParameter
-    {
-        public string Name { get; set; }
-    }
-
-    public class EngineParameter<T> : EngineParameter
-    {
-        public T DefaultValue { get; set; }
-
-        private List<T> allowedValues;
-
-        public EngineParameter(string name, T defaultValue, List<T> allowedValues = null)
-        {
-            this.Name = name;
-            this.DefaultValue = defaultValue;
-            this.allowedValues = allowedValues;
-        }
-
-        public bool IsValidValue(T value)
-        {
-            return allowedValues.Contains(value);
-        }
-    }
-
     // Abstract class from which all engines inherit.
     // Every engine maintains its own set of additional command-line parameters
-    public abstract class Engine
+    public abstract class RefutationEngine
     {
         public int ID { get; set; }
 
         public bool UnderApproximating { get; set; }
 
-        public Engine(int id, bool underApproximating)
+        public RefutationEngine(int id, bool underApproximating)
         {
             ID = id;
             UnderApproximating = underApproximating;
         }
 
-        public static List<EngineParameter> GetAllowedParameters()
+        public static List<Parameter> GetAllowedParameters()
         {
-            return new List<EngineParameter>();
+            return new List<Parameter>();
         }
 
-        public static List<EngineParameter> GetRequiredParameters()
+        public static List<Parameter> GetRequiredParameters()
         {
-            return new List<EngineParameter>();
+            return new List<Parameter>();
         }
 
-        public static List<Tuple<EngineParameter, EngineParameter>> GetMutuallyExclusiveParameters()
+        public static List<Tuple<Parameter, Parameter>> GetMutuallyExclusiveParameters()
         {
-            return new List<Tuple<EngineParameter, EngineParameter>>();
+            return new List<Tuple<Parameter, Parameter>>();
+        }
+
+        public abstract class Parameter
+        {
+            public string Name { get; }
+
+            protected Parameter(string name)
+            {
+                Name = name;
+            }
+        }
+
+        public class Parameter<T> : Parameter
+        {
+            public T DefaultValue { get; }
+
+            private List<T> allowedValues;
+
+            public Parameter(string name, T defaultValue, List<T> allowedValues = null)
+                : base(name)
+            {
+                this.DefaultValue = defaultValue;
+                this.allowedValues = allowedValues;
+            }
+
+            public bool IsValidValue(T value)
+            {
+                return allowedValues.Contains(value);
+            }
         }
     }
 
     // Engines based on SMT solving
-    public abstract class SMTEngine : Engine
+    public abstract class SMTEngine : RefutationEngine
     {
         // SMT solvers
         private const string CVC4 = "cvc4";
         private const string Z3 = "z3";
 
-        private static EngineParameter<string> solverParameter;
+        private static Parameter<string> solverParameter;
 
-        public static EngineParameter<string> GetSolverParameter()
+        public static Parameter<string> GetSolverParameter()
         {
             if (solverParameter == null)
-                solverParameter = new EngineParameter<string>("solver", CVC4, new List<string> { Z3, CVC4 });
+                solverParameter = new Parameter<string>("solver", CVC4, new List<string> { Z3, CVC4 });
             return solverParameter;
         }
 
-        private static EngineParameter<int> errorLimitParameter;
+        private static Parameter<int> errorLimitParameter;
 
-        public static EngineParameter<int> GetErrorLimitParameter()
+        public static Parameter<int> GetErrorLimitParameter()
         {
             if (errorLimitParameter == null)
-                errorLimitParameter = new EngineParameter<int>("errorlimit", 20);
+                errorLimitParameter = new Parameter<int>("errorlimit", 20);
             return errorLimitParameter;
         }
 
-        public static new List<EngineParameter> GetAllowedParameters()
+        public static new List<Parameter> GetAllowedParameters()
         {
-            return new List<EngineParameter> { GetSolverParameter(), GetErrorLimitParameter() };
+            return new List<Parameter> { GetSolverParameter(), GetErrorLimitParameter() };
         }
 
         private Houdini.ConcurrentHoudini houdini = null;
@@ -133,7 +138,7 @@ namespace Microsoft.Boogie
             if (Solver.Equals(CVC4))
             {
                 if (CommandLineOptions.Clo.Cho[ID].ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
-                    CheckForQuantifiers.Found(program))
+                    CheckForQuantifiersVisitor.Find(program))
                 {
                     CommandLineOptions.Clo.Cho[ID].ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
                     CommandLineOptions.Clo.Cho[ID].ProverOptions.Add("LOGIC=ALL_SUPPORTED");
@@ -152,7 +157,6 @@ namespace Microsoft.Boogie
                 // More work is required to make this compatible with other cruncher options,
                 // and we start with a couple of crude hacks to work around the fact that
                 // Staged Houdini is not integrated with ConcurrentHoudini.
-
                 CommandLineOptions.Clo.ConcurrentHoudini = false; // HACK - requires proper integration
                 CommandLineOptions.Clo.ProverCCLimit = ErrorLimit; // HACK - requires proper integration
                 Debug.Assert(outcome == null);
@@ -206,40 +210,40 @@ namespace Microsoft.Boogie
     {
         public const string Name = "HOUDINI";
 
-        private static EngineParameter<int> delayParameter;
+        private static Parameter<int> delayParameter;
 
-        public static EngineParameter<int> GetDelayParameter()
+        public static Parameter<int> GetDelayParameter()
         {
             if (delayParameter == null)
-                delayParameter = new EngineParameter<int>("delay", 0);
+                delayParameter = new Parameter<int>("delay", 0);
 
             return delayParameter;
         }
 
-        private static EngineParameter<int> slidingSecondsParameter;
+        private static Parameter<int> slidingSecondsParameter;
 
-        public static EngineParameter<int> GetSlidingSecondsParameter()
+        public static Parameter<int> GetSlidingSecondsParameter()
         {
             if (slidingSecondsParameter == null)
-                slidingSecondsParameter = new EngineParameter<int>("slidingseconds", 0);
+                slidingSecondsParameter = new Parameter<int>("slidingseconds", 0);
 
             return slidingSecondsParameter;
         }
 
-        private static EngineParameter<int> slidingLimitParameter;
+        private static Parameter<int> slidingLimitParameter;
 
-        public static EngineParameter<int> GetSlidingLimitParameter()
+        public static Parameter<int> GetSlidingLimitParameter()
         {
             if (slidingLimitParameter == null)
-                slidingLimitParameter = new EngineParameter<int>("slidinglimit", 1);
+                slidingLimitParameter = new Parameter<int>("slidinglimit", 1);
 
             return slidingLimitParameter;
         }
 
         // Override static method from base class
-        public static new List<EngineParameter> GetAllowedParameters()
+        public static new List<Parameter> GetAllowedParameters()
         {
-            List<EngineParameter> allowedParams = SMTEngine.GetAllowedParameters();
+            List<Parameter> allowedParams = SMTEngine.GetAllowedParameters();
             allowedParams.Add(GetDelayParameter());
             allowedParams.Add(GetSlidingSecondsParameter());
             allowedParams.Add(GetSlidingLimitParameter());
@@ -247,12 +251,12 @@ namespace Microsoft.Boogie
         }
 
         // Override static method from base class
-        public static new List<Tuple<EngineParameter, EngineParameter>> GetMutuallyExclusiveParameters()
+        public static new List<Tuple<Parameter, Parameter>> GetMutuallyExclusiveParameters()
         {
-            return new List<Tuple<EngineParameter, EngineParameter>>
+            return new List<Tuple<Parameter, Parameter>>
             {
-                Tuple.Create<EngineParameter, EngineParameter>(GetDelayParameter(), GetSlidingSecondsParameter()),
-                Tuple.Create<EngineParameter, EngineParameter>(GetDelayParameter(), GetSlidingLimitParameter())
+                Tuple.Create<Parameter, Parameter>(GetDelayParameter(), GetSlidingSecondsParameter()),
+                Tuple.Create<Parameter, Parameter>(GetDelayParameter(), GetSlidingLimitParameter())
             };
         }
 
@@ -315,27 +319,27 @@ namespace Microsoft.Boogie
     {
         public const string Name = "LU";
 
-        private static EngineParameter<int> unrollParameter;
+        private static Parameter<int> unrollParameter;
 
-        public static EngineParameter<int> GetUnrollParameter()
+        public static Parameter<int> GetUnrollParameter()
         {
             if (unrollParameter == null)
-                unrollParameter = new EngineParameter<int>("unroll", 1);
+                unrollParameter = new Parameter<int>("unroll", 1);
             return unrollParameter;
         }
 
         // Override static method from base class
-        public static new List<EngineParameter> GetAllowedParameters()
+        public static new List<Parameter> GetAllowedParameters()
         {
-            List<EngineParameter> allowedParams = SMTEngine.GetAllowedParameters();
+            List<Parameter> allowedParams = SMTEngine.GetAllowedParameters();
             allowedParams.Add(GetUnrollParameter());
             return allowedParams;
         }
 
         // Override static method from base class
-        public static new List<EngineParameter> GetRequiredParameters()
+        public static new List<Parameter> GetRequiredParameters()
         {
-            List<EngineParameter> requiredParams = SMTEngine.GetRequiredParameters();
+            List<Parameter> requiredParams = SMTEngine.GetRequiredParameters();
             requiredParams.Add(GetUnrollParameter());
             return requiredParams;
         }
@@ -360,43 +364,43 @@ namespace Microsoft.Boogie
     }
 
     // Engines based on dynamic analysis
-    public class DynamicAnalysis : Engine
+    public class DynamicAnalysis : RefutationEngine
     {
         public const string Name = "DYNAMIC";
 
-        private static EngineParameter<int> loopHeaderLimitParameter;
+        private static Parameter<int> loopHeaderLimitParameter;
 
-        public static EngineParameter<int> GetLoopHeaderLimitParameter()
+        public static Parameter<int> GetLoopHeaderLimitParameter()
         {
             if (loopHeaderLimitParameter == null)
-                loopHeaderLimitParameter = new EngineParameter<int>("headerlimit", 1000);
+                loopHeaderLimitParameter = new Parameter<int>("headerlimit", 1000);
 
             return loopHeaderLimitParameter;
         }
 
-        private static EngineParameter<int> loopEscapingParameter;
+        private static Parameter<int> loopEscapingParameter;
 
-        public static EngineParameter<int> GetLoopEscapingParameter()
+        public static Parameter<int> GetLoopEscapingParameter()
         {
             if (loopEscapingParameter == null)
-                loopEscapingParameter = new EngineParameter<int>("loopescaping", 0);
+                loopEscapingParameter = new Parameter<int>("loopescaping", 0);
 
             return loopEscapingParameter;
         }
 
-        private static EngineParameter<int> timeLimitParameter;
+        private static Parameter<int> timeLimitParameter;
 
-        public static EngineParameter<int> GetTimeLimitParameter()
+        public static Parameter<int> GetTimeLimitParameter()
         {
             if (timeLimitParameter == null)
-                timeLimitParameter = new EngineParameter<int>("timelimit", int.MaxValue);
+                timeLimitParameter = new Parameter<int>("timelimit", int.MaxValue);
 
             return timeLimitParameter;
         }
 
-        public static new List<EngineParameter> GetAllowedParameters()
+        public static new List<Parameter> GetAllowedParameters()
         {
-            return new List<EngineParameter> { GetLoopHeaderLimitParameter(), GetLoopEscapingParameter(), GetTimeLimitParameter() };
+            return new List<Parameter> { GetLoopHeaderLimitParameter(), GetLoopEscapingParameter(), GetTimeLimitParameter() };
         }
 
         public int LoopHeaderLimit { get; set; }
@@ -428,7 +432,7 @@ namespace Microsoft.Boogie
 
         public bool RunHoudini { get; set; }
 
-        private List<Engine> engines = new List<Engine>();
+        private List<RefutationEngine> engines = new List<RefutationEngine>();
         private int nextSMTEngineID = 0;
         private VanillaHoudini houdiniEngine = null;
 
@@ -441,7 +445,7 @@ namespace Microsoft.Boogie
         // Adds Houdini to the pipeline if the user has not done so
         public void AddHoudiniEngine()
         {
-            foreach (Engine engine in engines)
+            foreach (RefutationEngine engine in engines)
             {
                 if (engine is VanillaHoudini)
                     houdiniEngine = (VanillaHoudini)engine;
@@ -462,7 +466,7 @@ namespace Microsoft.Boogie
             return houdiniEngine;
         }
 
-        public void AddEngine(Engine engine)
+        public void AddEngine(RefutationEngine engine)
         {
             engines.Add(engine);
         }
@@ -477,7 +481,7 @@ namespace Microsoft.Boogie
             return nextSMTEngineID;
         }
 
-        public IEnumerable<Engine> GetEngines()
+        public IEnumerable<RefutationEngine> GetEngines()
         {
             return engines;
         }
@@ -490,7 +494,7 @@ namespace Microsoft.Boogie
             else
                 sb.Append("parallel");
 
-            foreach (Engine engine in engines)
+            foreach (RefutationEngine engine in engines)
                 sb.Append("-" + engine.ToString());
 
             return sb.ToString();
@@ -501,7 +505,8 @@ namespace Microsoft.Boogie
     public class Scheduler
     {
         private List<string> fileNames;
-        public int ErrorCode;
+
+        public int ErrorCode { get; private set; }
 
         public Scheduler(List<string> fileNames)
         {
@@ -532,7 +537,7 @@ namespace Microsoft.Boogie
                 }
 
                 if (counters.AllVerified())
-                    GPUVerify.GVUtil.IO.EmitProgram(ApplyInvariants(outcome), GetFileNameBase(), "cbpl");
+                    GPUVerify.Utilities.IO.EmitProgram(ApplyInvariants(outcome), GetFileNameBase(), "cbpl");
 
                 ErrorCode = KernelAnalyser.GetExitCode(counters);
             }
@@ -563,7 +568,7 @@ namespace Microsoft.Boogie
         private Houdini.HoudiniOutcome ScheduleEnginesInSequence(Pipeline pipeline)
         {
             Houdini.HoudiniOutcome outcome = null;
-            foreach (Engine engine in pipeline.GetEngines())
+            foreach (RefutationEngine engine in pipeline.GetEngines())
             {
                 if (engine is SMTEngine)
                 {
@@ -589,7 +594,7 @@ namespace Microsoft.Boogie
             List<Task> overApproximatingTasks = new List<Task>();
 
             // Schedule the under-approximating engines first
-            foreach (Engine engine in pipeline.GetEngines())
+            foreach (RefutationEngine engine in pipeline.GetEngines())
             {
                 if (!(engine is VanillaHoudini))
                 {
@@ -706,7 +711,7 @@ namespace Microsoft.Boogie
 
         private Program GetFreshProgram(bool disableChecks, bool inline)
         {
-            return GVUtil.GetFreshProgram(this.fileNames, disableChecks, inline);
+            return Utilities.GetFreshProgram(this.fileNames, disableChecks, inline);
         }
 
         private Program ApplyInvariants(Houdini.HoudiniOutcome outcome)

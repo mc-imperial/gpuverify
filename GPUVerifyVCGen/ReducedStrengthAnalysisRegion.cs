@@ -20,7 +20,7 @@ namespace GPUVerify
             Microsoft.Boogie.Variable,
             System.Collections.Generic.List<System.Tuple<IRegion, Microsoft.Boogie.Expr>>>;
 
-    internal class ReducedStrengthAnalysisRegion
+    public class ReducedStrengthAnalysisRegion
     {
         private Implementation impl;
         private GPUVerifier verifier;
@@ -77,23 +77,23 @@ namespace GPUVerify
 
         private class StrideForm
         {
-            public Kind kind { get; private set; }
+            public StrideFormKind Kind { get; private set; }
 
-            public Expr op { get; private set; }
+            public Expr Op { get; private set; }
 
-            public StrideForm(Kind kind)
+            public StrideForm(StrideFormKind kind)
             {
-                this.kind = kind;
-                this.op = null;
+                this.Kind = kind;
+                this.Op = null;
             }
 
-            public StrideForm(Kind kind, Expr op)
+            public StrideForm(StrideFormKind kind, Expr op)
             {
-                this.kind = kind;
-                this.op = op;
+                this.Kind = kind;
+                this.Op = op;
             }
 
-            public enum Kind
+            public enum StrideFormKind
             {
                 Bottom,
                 Identity,
@@ -106,35 +106,35 @@ namespace GPUVerify
                 Expr lhs, rhs;
 
                 if (e is LiteralExpr)
-                    return new StrideForm(Kind.Constant, e);
+                    return new StrideForm(StrideFormKind.Constant, e);
 
                 var ie = e as IdentifierExpr;
                 if (ie != null)
                 {
                     if (ie.Decl is Constant)
-                        return new StrideForm(Kind.Constant, e);
+                        return new StrideForm(StrideFormKind.Constant, e);
                     else if (ie.Decl == v)
-                        return new StrideForm(Kind.Identity, e);
+                        return new StrideForm(StrideFormKind.Identity, e);
                     else if (!modSet.Contains(ie.Decl))
-                        return new StrideForm(Kind.Constant, e);
+                        return new StrideForm(StrideFormKind.Constant, e);
                 }
 
                 if (verifier.IntRep.IsAdd(e, out lhs, out rhs))
                 {
                     var lhssf = ComputeStrideForm(v, lhs, verifier, modSet);
                     var rhssf = ComputeStrideForm(v, rhs, verifier, modSet);
-                    if (lhssf.kind == Kind.Constant && rhssf.kind == Kind.Constant)
-                        return new StrideForm(Kind.Constant, e);
-                    else if (lhssf.kind == Kind.Constant && rhssf.kind == Kind.Identity)
-                        return new StrideForm(Kind.Product, lhs);
-                    else if (lhssf.kind == Kind.Identity && rhssf.kind == Kind.Constant)
-                        return new StrideForm(Kind.Product, rhs);
-                    else if (lhssf.kind == Kind.Constant && rhssf.kind == Kind.Product)
-                        return new StrideForm(Kind.Product, verifier.IntRep.MakeAdd(lhs, rhssf.op));
-                    else if (lhssf.kind == Kind.Product && rhssf.kind == Kind.Constant)
-                        return new StrideForm(Kind.Product, verifier.IntRep.MakeAdd(lhssf.op, rhs));
+                    if (lhssf.Kind == StrideFormKind.Constant && rhssf.Kind == StrideFormKind.Constant)
+                        return new StrideForm(StrideFormKind.Constant, e);
+                    else if (lhssf.Kind == StrideFormKind.Constant && rhssf.Kind == StrideFormKind.Identity)
+                        return new StrideForm(StrideFormKind.Product, lhs);
+                    else if (lhssf.Kind == StrideFormKind.Identity && rhssf.Kind == StrideFormKind.Constant)
+                        return new StrideForm(StrideFormKind.Product, rhs);
+                    else if (lhssf.Kind == StrideFormKind.Constant && rhssf.Kind == StrideFormKind.Product)
+                        return new StrideForm(StrideFormKind.Product, verifier.IntRep.MakeAdd(lhs, rhssf.Op));
+                    else if (lhssf.Kind == StrideFormKind.Product && rhssf.Kind == StrideFormKind.Constant)
+                        return new StrideForm(StrideFormKind.Product, verifier.IntRep.MakeAdd(lhssf.Op, rhs));
                     else
-                        return new StrideForm(Kind.Bottom);
+                        return new StrideForm(StrideFormKind.Bottom);
                 }
 
                 var ne = e as NAryExpr;
@@ -142,24 +142,24 @@ namespace GPUVerify
                 {
                     foreach (Expr op in ne.Args)
                     {
-                        if (ComputeStrideForm(v, op, verifier, modSet).kind != Kind.Constant)
-                            return new StrideForm(Kind.Bottom);
+                        if (ComputeStrideForm(v, op, verifier, modSet).Kind != StrideFormKind.Constant)
+                            return new StrideForm(StrideFormKind.Bottom);
                     }
 
-                    return new StrideForm(Kind.Constant, e);
+                    return new StrideForm(StrideFormKind.Constant, e);
                 }
 
-                return new StrideForm(Kind.Bottom);
+                return new StrideForm(StrideFormKind.Bottom);
             }
         }
 
         private void AddDefinitionPair(Variable v, Expr defInd, Expr defInit, object regionId, HashSet<Variable> modSet)
         {
             var sf = StrideForm.ComputeStrideForm(v, defInd, verifier, modSet);
-            if (sf.kind != StrideForm.Kind.Product)
+            if (sf.Kind != StrideForm.StrideFormKind.Product)
                 return;
 
-            var sc = new ModStrideConstraint(sf.op, defInit);
+            var sc = new ModStrideConstraint(sf.Op, defInit);
             if (sc.IsBottom())
                 return;
 
@@ -177,7 +177,7 @@ namespace GPUVerify
                 return;
 
             var regionId = defs[1].Item1.Identifier();
-            var varDefAnalysis = verifier.varDefAnalysesRegion[impl];
+            var varDefAnalysis = verifier.VarDefAnalysesRegion[impl];
             var varDef = varDefAnalysis.GetPossibleInductionVariableDefintion(variable.Name, regionId);
             if (varDef == null)
                 return;
@@ -223,7 +223,7 @@ namespace GPUVerify
             else
             {
                 int id;
-                var strippedVariable = GVUtil.StripThreadIdentifier(variable, out id);
+                var strippedVariable = Utilities.StripThreadIdentifier(variable, out id);
                 ModStrideConstraint msc;
                 if (strideConstraintMap[regionId].TryGetValue(strippedVariable, out msc))
                 {

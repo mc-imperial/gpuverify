@@ -16,7 +16,7 @@ namespace GPUVerify
     using Microsoft.Basetypes;
     using Microsoft.Boogie;
 
-    internal interface IntegerRepresentation
+    public interface IntegerRepresentation
     {
         Type GetIntType(int width);
 
@@ -59,9 +59,9 @@ namespace GPUVerify
         bool IsMul(Expr e, out Expr lhs, out Expr rhs);
     }
 
-    internal class IntegerRepresentationHelper
+    public class IntegerRepresentationHelper
     {
-        internal static bool IsFun(Expr e, string mneumonic, out Expr lhs, out Expr rhs)
+        public static bool IsFun(Expr e, string mneumonic, out Expr lhs, out Expr rhs)
         {
             lhs = rhs = null;
 
@@ -88,7 +88,7 @@ namespace GPUVerify
         }
     }
 
-    internal class BVIntegerRepresentation : IntegerRepresentation
+    public class BVIntegerRepresentation : IntegerRepresentation
     {
         private GPUVerifier verifier;
 
@@ -228,7 +228,7 @@ namespace GPUVerify
         }
     }
 
-    internal class MathIntegerRepresentation : IntegerRepresentation
+    public class MathIntegerRepresentation : IntegerRepresentation
     {
         private GPUVerifier verifier;
 

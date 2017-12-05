@@ -14,7 +14,7 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal class ArrayBoundsChecker
+    public class ArrayBoundsChecker
     {
         private static int arraySourceID = 0;
 
@@ -77,8 +77,8 @@ namespace GPUVerify
                             List<AccessRecord> accesses = GetArrayAccesses(c as AssignCmd);
                             foreach (AccessRecord ar in accesses)
                             {
-                                bool recordedArray = !arraySizes.ContainsKey(ar.v.Name); /* only gen lower bound check */
-                                int arrSize = recordedArray ? 0 : arraySizes[ar.v.Name].Item2;
+                                bool recordedArray = !arraySizes.ContainsKey(ar.V.Name); /* only gen lower bound check */
+                                int arrSize = recordedArray ? 0 : arraySizes[ar.V.Name].Item2;
                                 newCmds.AddRange(GenArrayBoundChecks(recordedArray, ar, arrSize));
                             }
                         }
@@ -111,7 +111,7 @@ namespace GPUVerify
                 rc.Visit(rhs);
             }
 
-            foreach (AccessRecord ar in rc.nonPrivateAccesses.Union(rc.privateAccesses))
+            foreach (AccessRecord ar in rc.NonPrivateAccesses.Union(rc.PrivateAccesses))
             {
                 accesses.Add(ar);
             }
@@ -131,7 +131,7 @@ namespace GPUVerify
         {
             List<Cmd> boundChecks = new List<Cmd>();
 
-            var arrayOffset = verifier.FindOrCreateArrayOffsetVariable(ar.v.Name);
+            var arrayOffset = verifier.FindOrCreateArrayOffsetVariable(ar.V.Name);
 
             boundChecks.Add(new AssignCmd(
                 Token.NoToken,
@@ -158,12 +158,12 @@ namespace GPUVerify
             switch (btype)
             {
                 case BOUND_TYPE.LOWER:
-                    boundExpr = verifier.IntRep.MakeSge(offsetVarExpr, verifier.IntRep.GetLiteral(0, verifier.size_t_bits)); break;
+                    boundExpr = verifier.IntRep.MakeSge(offsetVarExpr, verifier.IntRep.GetLiteral(0, verifier.SizeTBits)); break;
                 case BOUND_TYPE.UPPER:
-                    boundExpr = verifier.IntRep.MakeSlt(offsetVarExpr, verifier.IntRep.GetLiteral(arrDim, verifier.size_t_bits)); break;
+                    boundExpr = verifier.IntRep.MakeSlt(offsetVarExpr, verifier.IntRep.GetLiteral(arrDim, verifier.SizeTBits)); break;
             }
 
-            var key = new QKeyValue(Token.NoToken, "array_name", new List<object> { ar.v.Name }, null);
+            var key = new QKeyValue(Token.NoToken, "array_name", new List<object> { ar.V.Name }, null);
             key = new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID }, key);
             key = new QKeyValue(Token.NoToken, "sourceloc_num", new List<object> { new LiteralExpr(Token.NoToken, Microsoft.Basetypes.BigNum.FromInt(currSourceLocNum)) }, key);
             key = new QKeyValue(Token.NoToken, "array_bounds", new List<object> { }, key);

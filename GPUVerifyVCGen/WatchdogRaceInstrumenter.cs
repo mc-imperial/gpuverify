@@ -14,9 +14,9 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    class WatchdogRaceInstrumenter : RaceInstrumenter
+    public class WatchdogRaceInstrumenter : RaceInstrumenter
     {
-        internal WatchdogRaceInstrumenter(GPUVerifier verifier)
+        public WatchdogRaceInstrumenter(GPUVerifier verifier)
             : base(verifier)
         {
         }
@@ -25,7 +25,7 @@ namespace GPUVerify
         {
             // This array should be included in the set of global or group shared arrays that
             // are *not* disabled
-            Debug.Assert(verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(v, false));
+            Debug.Assert(Verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray(v, false));
 
             Procedure logAccessProcedure = MakeLogAccessProcedureHeader(v, access);
 
@@ -34,16 +34,16 @@ namespace GPUVerify
             Debug.Assert(mt.Arguments.Count == 1);
 
             Variable accessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, access);
-            Variable accessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, verifier.IntRep.GetIntType(verifier.size_t_bits));
+            Variable accessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
             Variable accessValueVariable = RaceInstrumentationUtil.MakeValueVariable(v.Name, access, mt.Result);
             Variable accessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
-            Variable accessAsyncHandleVariable = RaceInstrumentationUtil.MakeAsyncHandleVariable(v.Name, access, verifier.IntRep.GetIntType(verifier.size_t_bits));
+            Variable accessAsyncHandleVariable = RaceInstrumentationUtil.MakeAsyncHandleVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
 
             Variable predicateParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_P", Type.Bool));
             Variable offsetParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_offset", mt.Arguments[0]));
             Variable valueParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value", mt.Result));
             Variable valueOldParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value_old", mt.Result));
-            Variable asyncHandleParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", verifier.IntRep.GetIntType(verifier.size_t_bits)));
+            Variable asyncHandleParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", Verifier.IntRep.GetIntType(Verifier.SizeTBits)));
 
             Debug.Assert(!(mt.Result is MapType));
 
@@ -55,9 +55,9 @@ namespace GPUVerify
                     new IdentifierExpr(Token.NoToken, accessOffsetVariable),
                     new IdentifierExpr(Token.NoToken, offsetParameter)));
 
-            if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v))
+            if (Verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v))
             {
-                condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), condition);
+                condition = Expr.And(Verifier.ThreadsInSameGroup(), condition);
             }
 
             if (!GPUVerifyVCGenCommandLineOptions.NoBenign && access.IsReadOrWrite())
@@ -79,7 +79,7 @@ namespace GPUVerify
                         new IdentifierExpr(Token.NoToken, valueOldParameter))));
             }
 
-            if ((access == AccessType.READ || access == AccessType.WRITE) && verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
+            if ((access == AccessType.READ || access == AccessType.WRITE) && Verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
             {
                 loggingCommands.Cmds.Add(MakeConditionalAssignment(
                     accessAsyncHandleVariable, condition, Expr.Ident(asyncHandleParameter)));
@@ -98,14 +98,14 @@ namespace GPUVerify
 
             logAccessImplementation.Proc = logAccessProcedure;
 
-            verifier.Program.AddTopLevelDeclaration(logAccessProcedure);
-            verifier.Program.AddTopLevelDeclaration(logAccessImplementation);
+            Verifier.Program.AddTopLevelDeclaration(logAccessProcedure);
+            Verifier.Program.AddTopLevelDeclaration(logAccessImplementation);
         }
 
         public override void AddRaceCheckingDeclarations()
         {
             base.AddRaceCheckingDeclarations();
-            verifier.Program.AddTopLevelDeclaration(MakeTrackingVariable());
+            Verifier.Program.AddTopLevelDeclaration(MakeTrackingVariable());
         }
 
         private static GlobalVariable MakeTrackingVariable()

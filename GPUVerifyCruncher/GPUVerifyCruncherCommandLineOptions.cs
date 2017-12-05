@@ -84,7 +84,7 @@ namespace GPUVerify
             return base.ParseOption(name, ps);
         }
 
-        internal void ParsePipelineString()
+        public void ParsePipelineString()
         {
             if (PipelineString == null)
                 return;
@@ -221,7 +221,7 @@ namespace GPUVerify
         }
 
         private Dictionary<string, string> GetParameters(
-            string engine, List<EngineParameter> allowedParams, List<EngineParameter> requiredParams, string parameterStr)
+            string engine, List<RefutationEngine.Parameter> allowedParams, List<RefutationEngine.Parameter> requiredParams, string parameterStr)
         {
             Dictionary<string, string> map = new Dictionary<string, string>();
             if (parameterStr.Length > 0)
@@ -243,7 +243,7 @@ namespace GPUVerify
                 }
             }
 
-            foreach (EngineParameter param in requiredParams)
+            foreach (RefutationEngine.Parameter param in requiredParams)
             {
                 if (!map.ContainsKey(param.Name))
                 {
@@ -257,7 +257,7 @@ namespace GPUVerify
 
         private void CheckForMutuallyExclusiveParameters(
             string engine,
-            List<Tuple<EngineParameter, EngineParameter>> mutuallyExclusivePairs,
+            List<Tuple<RefutationEngine.Parameter, RefutationEngine.Parameter>> mutuallyExclusivePairs,
             Dictionary<string, string> parameters)
         {
             foreach (var tuple in mutuallyExclusivePairs)

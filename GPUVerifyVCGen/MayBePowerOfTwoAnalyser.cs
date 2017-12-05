@@ -13,7 +13,7 @@ namespace GPUVerify
     using System.Collections.Generic;
     using Microsoft.Boogie;
 
-    internal class MayBePowerOfTwoAnalyser
+    public class MayBePowerOfTwoAnalyser
     {
         private GPUVerifier verifier;
 
@@ -35,9 +35,9 @@ namespace GPUVerify
                     Implementation impl = decl as Implementation;
                     mayBePowerOfTwoInfo.Add(impl.Name, new Dictionary<string, bool>());
 
-                    SetNotPowerOfTwo(impl.Name, GPUVerifier._X.Name);
-                    SetNotPowerOfTwo(impl.Name, GPUVerifier._Y.Name);
-                    SetNotPowerOfTwo(impl.Name, GPUVerifier._Z.Name);
+                    SetNotPowerOfTwo(impl.Name, verifier.IdX.Name);
+                    SetNotPowerOfTwo(impl.Name, verifier.IdY.Name);
+                    SetNotPowerOfTwo(impl.Name, verifier.IdZ.Name);
 
                     foreach (Variable v in impl.LocVars)
                     {

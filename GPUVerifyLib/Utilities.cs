@@ -14,7 +14,6 @@ namespace GPUVerify
     using System.Diagnostics.Contracts;
     using System.IO;
     using System.Linq;
-    using System.Reflection;
     using Microsoft.Boogie;
 
     using ConcurrentHoudini = Microsoft.Boogie.Houdini.ConcurrentHoudini;
@@ -22,7 +21,7 @@ namespace GPUVerify
     /// <summary>
     /// Utility class for GPUVerify.
     /// </summary>
-    public static class GVUtil
+    public static class Utilities
     {
         /// <summary>
         /// Returns a Microsoft.Boogie.Houdini.ConcurrentHoudini.RefutedAnnotation object by iterating the

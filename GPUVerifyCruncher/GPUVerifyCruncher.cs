@@ -35,7 +35,7 @@ namespace GPUVerify
 
                 if (CommandLineOptions.Clo.Files.Count == 0)
                 {
-                    GVUtil.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
+                    Utilities.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
                     Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
                 }
 
@@ -60,7 +60,7 @@ namespace GPUVerify
 
                     if (extension != ".bpl")
                     {
-                        GVUtil.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
+                        Utilities.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .bpl file", file);
                         Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
                     }
                 }
@@ -77,7 +77,7 @@ namespace GPUVerify
                     throw e;
                 }
 
-                GVUtil.IO.DumpExceptionInformation(e);
+                Utilities.IO.DumpExceptionInformation(e);
 
                 Environment.Exit((int)ToolExitCodes.INTERNAL_ERROR);
             }

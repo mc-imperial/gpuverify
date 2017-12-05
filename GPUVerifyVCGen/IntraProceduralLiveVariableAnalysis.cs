@@ -16,7 +16,7 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    internal class IntraProceduralLiveVariableAnalysis
+    public class IntraProceduralLiveVariableAnalysis
     {
         private Implementation impl;
         private Dictionary<string, LocalDescriptor> locals;

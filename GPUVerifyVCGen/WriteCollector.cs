@@ -12,7 +12,7 @@ namespace GPUVerify
     using System.Diagnostics;
     using Microsoft.Boogie;
 
-    class WriteCollector : AccessCollector
+    public class WriteCollector : AccessCollector
     {
         private AccessRecord access = null;
         private bool isPrivate;
@@ -57,17 +57,17 @@ namespace GPUVerify
             }
         }
 
-        internal AccessRecord GetAccess()
+        public AccessRecord GetAccess()
         {
             return access;
         }
 
-        internal bool FoundPrivateWrite()
+        public bool FoundPrivateWrite()
         {
             return access != null && isPrivate;
         }
 
-        internal bool FoundNonPrivateWrite()
+        public bool FoundNonPrivateWrite()
         {
             return access != null && !isPrivate;
         }

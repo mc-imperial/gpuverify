@@ -14,7 +14,7 @@ namespace GPUVerify
 
     public class Print
     {
-        public static int debug = 0;
+        private static int debug = 0;
 
         public static void DebugMessage(string arg, int level)
         {

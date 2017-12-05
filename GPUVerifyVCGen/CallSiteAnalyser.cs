@@ -13,7 +13,7 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal class CallSiteAnalyser
+    public class CallSiteAnalyser
     {
         private GPUVerifier verifier;
         private Dictionary<Procedure, List<CallCmd>> callSites;

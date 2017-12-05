@@ -12,7 +12,7 @@ namespace GPUVerify
     using System.Diagnostics;
     using Microsoft.Boogie;
 
-    internal class ConstantWriteCollector : AccessCollector
+    public class ConstantWriteCollector : AccessCollector
     {
         private AccessRecord access = null;
 

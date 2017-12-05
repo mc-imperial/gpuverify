@@ -15,7 +15,7 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    class VariableDefinitionAnalysisRegion
+    public class VariableDefinitionAnalysisRegion
     {
         private GPUVerifier verifier;
 
@@ -346,7 +346,7 @@ namespace GPUVerify
             public override Expr VisitIdentifierExpr(IdentifierExpr expr)
             {
                 int id;
-                var varName = GVUtil.StripThreadIdentifier(expr.Name, out id);
+                var varName = Utilities.StripThreadIdentifier(expr.Name, out id);
                 if (!defs.ContainsKey(varName))
                 {
                     // The variable never assigned to in the procedure

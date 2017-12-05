@@ -11,9 +11,11 @@ namespace GPUVerify
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics;
+    using System.Linq;
     using Microsoft.Boogie;
 
-    internal class BinaryBarrierInvariantDescriptor : BarrierInvariantDescriptor
+    public class BinaryBarrierInvariantDescriptor : BarrierInvariantDescriptor
     {
         private List<Tuple<Expr, Expr>> instantiationExprPairs;
 
@@ -32,7 +34,7 @@ namespace GPUVerify
         public override AssertCmd GetAssertCmd()
         {
             AssertCmd result = base.GetAssertCmd();
-            result.Expr = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), result.Expr);
+            result.Expr = Expr.Imp(Verifier.ThreadsInSameGroup(), result.Expr);
             return result;
         }
 
@@ -43,8 +45,8 @@ namespace GPUVerify
             {
                 foreach (var thread in new int[] { 1, 2 })
                 {
-                    var vd = new VariableDualiser(thread, Dualiser.verifier.uniformityAnalyser, ProcName);
-                    var ti = new ThreadPairInstantiator(Dualiser.verifier, instantiation.Item1, instantiation.Item2, thread);
+                    var vd = new VariableDualiser(thread, Dualiser.Verifier, ProcName);
+                    var ti = new ThreadPairInstantiator(Dualiser.Verifier, instantiation.Item1, instantiation.Item2, thread);
 
                     var assume = new AssumeCmd(
                         Token.NoToken,
@@ -66,6 +68,64 @@ namespace GPUVerify
             }
 
             return result;
+        }
+
+        private class ThreadPairInstantiator : Duplicator
+        {
+            private GPUVerifier verifier;
+            private Tuple<Expr, Expr> instantiationExprs;
+            private int thread;
+
+            public ThreadPairInstantiator(GPUVerifier verifier, Expr instantiationExpr1, Expr instantiationExpr2, int thread)
+            {
+                this.verifier = verifier;
+                this.instantiationExprs = new Tuple<Expr, Expr>(instantiationExpr1, instantiationExpr2);
+                this.thread = thread;
+            }
+
+            public override Expr VisitIdentifierExpr(IdentifierExpr node)
+            {
+                Debug.Assert(!(node.Decl is Formal));
+
+                if (verifier.IsThreadLocalIdConstant(node.Decl))
+                {
+                    Debug.Assert(node.Decl.Name.Equals(verifier.IdX.Name));
+                    return instantiationExprs.Item1.Clone() as Expr;
+                }
+
+                if (node.Decl is Constant
+                    || verifier.KernelArrayInfo.GetGroupSharedArrays(true).Contains(node.Decl)
+                    || verifier.KernelArrayInfo.GetGlobalArrays(true).Contains(node.Decl))
+                {
+                    return base.VisitIdentifierExpr(node);
+                }
+
+                Console.WriteLine("Expression " + node + " is not valid as part of a barrier invariant: it cannot be instantiated by arbitrary threads.");
+                Console.WriteLine("Check that it is not a thread local variable, or a thread local (rather than __local or __global) array.");
+                Console.WriteLine("In particular, if you have a local variable called tid, which you initialise to e.g. get_local_id(0), this will not work:");
+                Console.WriteLine("  you need to use get_local_id(0) directly.");
+                Environment.Exit(1);
+                return null;
+            }
+
+            public override Expr VisitNAryExpr(NAryExpr node)
+            {
+                if (node.Fun is FunctionCall)
+                {
+                    FunctionCall call = node.Fun as FunctionCall;
+
+                    // Alternate instantiation order for "other thread" functions.
+                    // Note that we do not alternate the "Thread" field, as we are not switching the
+                    // thread for which instantiation is being performed
+                    if (VariableDualiser.OtherFunctionNames.Contains(call.Func.Name))
+                    {
+                        return new ThreadPairInstantiator(verifier, instantiationExprs.Item2, instantiationExprs.Item1, thread)
+                          .VisitExpr(node.Args[0]);
+                    }
+                }
+
+                return base.VisitNAryExpr(node);
+            }
         }
     }
 }

@@ -15,7 +15,7 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal class ArrayControlFlowAnalyser
+    public class ArrayControlFlowAnalyser
     {
         private GPUVerifier verifier;
 
@@ -43,9 +43,9 @@ namespace GPUVerify
                     if (!mayBeDerivedFrom.ContainsKey(impl.Name))
                         mayBeDerivedFrom.Add(impl.Name, new Dictionary<string, HashSet<string>>());
 
-                    SetNotDerivedFromSharedState(impl.Name, GPUVerifier._X.Name);
-                    SetNotDerivedFromSharedState(impl.Name, GPUVerifier._Y.Name);
-                    SetNotDerivedFromSharedState(impl.Name, GPUVerifier._Z.Name);
+                    SetNotDerivedFromSharedState(impl.Name, verifier.IdX.Name);
+                    SetNotDerivedFromSharedState(impl.Name, verifier.IdY.Name);
+                    SetNotDerivedFromSharedState(impl.Name, verifier.IdZ.Name);
 
                     foreach (Variable v in impl.LocVars)
                         SetNotDerivedFromSharedState(impl.Name, v.Name);

@@ -15,20 +15,12 @@ namespace GPUVerify
     using System.Text;
     using Microsoft.Boogie;
 
-    class UnitialisedException : Exception
-    {
-        public UnitialisedException(string message)
-            : base(message)
-        {
-        }
-    }
-
-    enum MemorySpace
+    public enum MemorySpace
     {
         GLOBAL, GROUP_SHARED
     }
 
-    class Memory
+    public class Memory
     {
         private static Random random = new Random();
         private Dictionary<string, BitVector> scalars = new Dictionary<string, BitVector>();
@@ -218,53 +210,61 @@ namespace GPUVerify
 
             Console.WriteLine("==================================");
         }
-    }
 
-    class SubscriptExpr
-    {
-        public List<BitVector> indices = new List<BitVector>();
-
-        public SubscriptExpr()
+        public class SubscriptExpr
         {
-        }
+            public List<BitVector> Indices { get; private set; } = new List<BitVector>();
 
-        public static bool Matches(SubscriptExpr expr1, SubscriptExpr expr2)
-        {
-            if (expr1.indices.Count != expr2.indices.Count)
-                return false;
-
-            foreach (var pair in expr1.indices.Zip(expr2.indices))
+            public SubscriptExpr()
             {
-                if (!pair.Item1.Equals(pair.Item2))
+            }
+
+            public static bool Matches(SubscriptExpr expr1, SubscriptExpr expr2)
+            {
+                if (expr1.Indices.Count != expr2.Indices.Count)
                     return false;
+
+                foreach (var pair in expr1.Indices.Zip(expr2.Indices))
+                {
+                    if (!pair.Item1.Equals(pair.Item2))
+                        return false;
+                }
+
+                return true;
             }
 
-            return true;
+            public static SubscriptExpr Matches(SubscriptExpr expr, List<SubscriptExpr> exprs)
+            {
+                foreach (SubscriptExpr expr2 in exprs)
+                {
+                    if (Matches(expr, expr2))
+                        return expr2;
+                }
+
+                return null;
+            }
+
+            public override string ToString()
+            {
+                StringBuilder builder = new StringBuilder();
+                int i = 1;
+                foreach (BitVector idx in Indices)
+                {
+                    builder.Append(idx);
+                    if (++i < Indices.Count)
+                        builder.Append(", ");
+                }
+
+                return builder.ToString();
+            }
         }
 
-        public static SubscriptExpr Matches(SubscriptExpr expr, List<SubscriptExpr> exprs)
+        public class UnitialisedException : Exception
         {
-            foreach (SubscriptExpr expr2 in exprs)
+            public UnitialisedException(string message)
+                : base(message)
             {
-                if (Matches(expr, expr2))
-                    return expr2;
             }
-
-            return null;
-        }
-
-        public override string ToString()
-        {
-            StringBuilder builder = new StringBuilder();
-            int i = 1;
-            foreach (BitVector idx in indices)
-            {
-                builder.Append(idx);
-                if (++i < indices.Count)
-                    builder.Append(", ");
-            }
-
-            return builder.ToString();
         }
     }
 }

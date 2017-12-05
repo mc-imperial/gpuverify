@@ -11,13 +11,13 @@ namespace GPUVerify
 {
     using Microsoft.Boogie;
 
-    internal class StrideConstraint
+    public class StrideConstraint
     {
         public static StrideConstraint Bottom(GPUVerifier verifier, Expr e)
         {
             return new ModStrideConstraint(
-                verifier.IntRep.GetLiteral(1, e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits),
-                verifier.Zero(e.Type is BvType ? e.Type.BvBits : verifier.size_t_bits));
+                verifier.IntRep.GetLiteral(1, e.Type is BvType ? e.Type.BvBits : verifier.SizeTBits),
+                verifier.Zero(e.Type is BvType ? e.Type.BvBits : verifier.SizeTBits));
         }
 
         public bool IsBottom()
@@ -129,7 +129,7 @@ namespace GPUVerify
                 if (GPUVerifier.IsConstantInCurrentRegion(ie))
                     return new EqStrideConstraint(e);
 
-                var rsa = verifier.reducedStrengthAnalysesRegion[impl];
+                var rsa = verifier.ReducedStrengthAnalysesRegion[impl];
                 var sc = rsa.GetStrideConstraint(ie.Decl.Name);
                 if (sc == null)
                     return Bottom(verifier, e);
@@ -156,7 +156,7 @@ namespace GPUVerify
         }
     }
 
-    internal class EqStrideConstraint : StrideConstraint
+    public class EqStrideConstraint : StrideConstraint
     {
         public EqStrideConstraint(Expr eq)
         {
@@ -166,7 +166,7 @@ namespace GPUVerify
         public Expr Eq { get; private set; }
     }
 
-    internal class ModStrideConstraint : StrideConstraint
+    public class ModStrideConstraint : StrideConstraint
     {
         public ModStrideConstraint(Expr mod, Expr modEq)
         {

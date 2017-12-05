@@ -20,98 +20,117 @@ namespace GPUVerify
     using Microsoft.Basetypes;
     using Microsoft.Boogie;
 
-    internal class GPUVerifier : CheckingContext
+    public class GPUVerifier : CheckingContext
     {
-        public string outputFilename;
-        public Program Program;
-        public IntegerRepresentation IntRep;
-        public ResolutionContext ResContext;
+        private string outputFilename;
+        private ResolutionContext resContext;
 
-        public Dictionary<Procedure, Implementation> KernelProcedures;
-        public Dictionary<string, string> GlobalArraySourceNames;
+        public Program Program { get; private set; }
+
+        public IntegerRepresentation IntRep { get; private set; }
+
+        public Dictionary<Procedure, Implementation> KernelProcedures { get; private set; }
+
+        public Dictionary<string, string> GlobalArraySourceNames { get; private set; }
 
         private HashSet<Procedure> barrierProcedures = new HashSet<Procedure>();
         private Dictionary<Tuple<Variable, AccessType, bool>, Procedure> warpSyncs = new Dictionary<Tuple<Variable, AccessType, bool>, Procedure>();
-        public string BarrierProcedureLocalFenceArgName;
-        public string BarrierProcedureGlobalFenceArgName;
+        private string barrierProcedureLocalFenceArgName;
+        private string barrierProcedureGlobalFenceArgName;
 
         private HashSet<object> regionsWithLoopInvariantsDisabled = new HashSet<object>();
 
-        public IKernelArrayInfo KernelArrayInfo = new KernelArrayInfoLists();
+        public IKernelArrayInfo KernelArrayInfo { get; } = new KernelArrayInfoLists();
 
         private HashSet<string> reservedNames = new HashSet<string>();
 
-        public const string _SIZE_T_BITS_TYPE = "_SIZE_T_TYPE";
-        public readonly int size_t_bits;
-        public readonly int id_size_bits;
+        public const string SizeTBitsType = "_SIZE_T_TYPE";
 
-        public HashSet<string> OnlyThread1 = new HashSet<string>();
-        public HashSet<string> OnlyThread2 = new HashSet<string>();
+        public int SizeTBits { get; }
 
-        public const string LOCAL_ID_X_STRING = "local_id_x";
-        public const string LOCAL_ID_Y_STRING = "local_id_y";
-        public const string LOCAL_ID_Z_STRING = "local_id_z";
+        public int IdSizeBits { get; }
 
-        public static Constant _X = null;
-        public static Constant _Y = null;
-        public static Constant _Z = null;
+        public HashSet<string> OnlyThread1 { get; } = new HashSet<string>();
 
-        public const string GROUP_SIZE_X_STRING = "group_size_x";
-        public const string GROUP_SIZE_Y_STRING = "group_size_y";
-        public const string GROUP_SIZE_Z_STRING = "group_size_z";
+        public HashSet<string> OnlyThread2 { get; } = new HashSet<string>();
 
-        public static Constant _GROUP_SIZE_X = null;
-        public static Constant _GROUP_SIZE_Y = null;
-        public static Constant _GROUP_SIZE_Z = null;
+        private const string LocalIdXString = "local_id_x";
+        private const string LocalIdYString = "local_id_y";
+        private const string LocalIdZString = "local_id_z";
 
-        public const string GROUP_ID_X_STRING = "group_id_x";
-        public const string GROUP_ID_Y_STRING = "group_id_y";
-        public const string GROUP_ID_Z_STRING = "group_id_z";
+        private Constant idX = null;
+        private Constant idY = null;
+        private Constant idZ = null;
 
-        public static Constant _GROUP_X = null;
-        public static Constant _GROUP_Y = null;
-        public static Constant _GROUP_Z = null;
+        public Constant IdX => idX;
 
-        public const string NUM_GROUPS_X_STRING = "num_groups_x";
-        public const string NUM_GROUPS_Y_STRING = "num_groups_y";
-        public const string NUM_GROUPS_Z_STRING = "num_groups_z";
+        public Constant IdY => idY;
 
-        public static Constant _NUM_GROUPS_X = null;
-        public static Constant _NUM_GROUPS_Y = null;
-        public static Constant _NUM_GROUPS_Z = null;
+        public Constant IdZ => idZ;
 
-        public IRaceInstrumenter RaceInstrumenter;
-        public INoAccessInstrumenter NoAccessInstrumenter;
-        public IConstantWriteInstrumenter ConstantWriteInstrumenter;
+        private const string GroupSizeXString = "group_size_x";
+        private const string GroupSizeYString = "group_size_y";
+        private const string GroupSizeZString = "group_size_z";
 
-        public UniformityAnalyser uniformityAnalyser;
-        public MayBePowerOfTwoAnalyser mayBePowerOfTwoAnalyser;
-        public RelationalPowerOfTwoAnalyser relationalPowerOfTwoAnalyser;
-        public ArrayControlFlowAnalyser arrayControlFlowAnalyser;
-        public CallSiteAnalyser callSiteAnalyser;
-        public Dictionary<Implementation, VariableDefinitionAnalysisRegion> varDefAnalysesRegion;
-        public Dictionary<Implementation, ReducedStrengthAnalysisRegion> reducedStrengthAnalysesRegion;
+        private Constant groupSizeX = null;
+        private Constant groupSizeY = null;
+        private Constant groupSizeZ = null;
 
-        public Dictionary<AccessType, HashSet<string>> ArraysAccessedByAsyncWorkGroupCopy;
+        private const string GroupIdXString = "group_id_x";
+        private const string GroupIdYString = "group_id_y";
+        private const string GroupIdZString = "group_id_z";
+
+        private Constant groupIdX = null;
+        private Constant groupIdY = null;
+        private Constant groupIdZ = null;
+
+        private const string NumGroupsXString = "num_groups_x";
+        private const string NumGroupsYString = "num_groups_y";
+        private const string NumGroupsZString = "num_groups_z";
+
+        private Constant numGroupsX = null;
+        private Constant numGroupsY = null;
+        private Constant numGroupsZ = null;
+
+        public IRaceInstrumenter RaceInstrumenter { get; }
+
+        public INoAccessInstrumenter NoAccessInstrumenter { get; }
+
+        public IConstantWriteInstrumenter ConstantWriteInstrumenter { get; }
+
+        public UniformityAnalyser UniformityAnalyser { get; private set; }
+
+        public MayBePowerOfTwoAnalyser MayBePowerOfTwoAnalyser { get; private set; }
+
+        public RelationalPowerOfTwoAnalyser RelationalPowerOfTwoAnalyser { get; private set; }
+
+        private ArrayControlFlowAnalyser arrayControlFlowAnalyser;
+        private CallSiteAnalyser callSiteAnalyser;
+
+        public Dictionary<Implementation, VariableDefinitionAnalysisRegion> VarDefAnalysesRegion { get; private set; }
+
+        public Dictionary<Implementation, ReducedStrengthAnalysisRegion> ReducedStrengthAnalysesRegion { get; private set; }
+
+        public Dictionary<AccessType, HashSet<string>> ArraysAccessedByAsyncWorkGroupCopy { get; }
 
         public GPUVerifier(string filename, Program program, ResolutionContext rc)
             : base(null)
         {
             this.outputFilename = filename;
             this.Program = program;
-            this.ResContext = rc;
+            this.resContext = rc;
             this.IntRep = GPUVerifyVCGenCommandLineOptions.MathInt ?
                 (IntegerRepresentation)new MathIntegerRepresentation(this) :
                 (IntegerRepresentation)new BVIntegerRepresentation(this);
 
-            this.size_t_bits = GetSizeTBits();
-            this.id_size_bits = GetIdSizeBits();
+            this.SizeTBits = GetSizeTBits();
+            this.IdSizeBits = GetIdSizeBits();
 
             this.ArraysAccessedByAsyncWorkGroupCopy = new Dictionary<AccessType, HashSet<string>>();
             this.ArraysAccessedByAsyncWorkGroupCopy[AccessType.READ] = new HashSet<string>();
             this.ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE] = new HashSet<string>();
 
-            if (this.size_t_bits < this.id_size_bits)
+            if (this.SizeTBits < this.IdSizeBits)
             {
                 Console.WriteLine("GPUVerify: error: _SIZE_T_TYPE size cannot be smaller than group_size_x size");
                 Environment.Exit(1);
@@ -204,7 +223,7 @@ namespace GPUVerify
         private int GetSizeTBits()
         {
             var candidates = Program.TopLevelDeclarations.OfType<TypeSynonymDecl>()
-                .Where(item => item.Name == _SIZE_T_BITS_TYPE);
+                .Where(item => item.Name == SizeTBitsType);
             if (candidates.Count() != 1 || !candidates.First().Body.IsBv)
             {
                 Console.WriteLine("GPUVerify: error: exactly one _SIZE_T_TYPE bit-vector type must be specified");
@@ -217,7 +236,7 @@ namespace GPUVerify
         private int GetIdSizeBits()
         {
             var candidates = Program.TopLevelDeclarations.OfType<Constant>()
-                .Where(item => item.Name == GROUP_SIZE_X_STRING);
+                .Where(item => item.Name == GroupSizeXString);
             if (candidates.Count() != 1)
             {
                 Console.WriteLine("GPUVerify: error: exactly one group_size_x must be specified");
@@ -225,7 +244,7 @@ namespace GPUVerify
             }
 
             if (candidates.First().TypedIdent.Type.IsInt)
-                return this.size_t_bits; // Number of bits is irrelevant
+                return this.SizeTBits; // Number of bits is irrelevant
 
             if (!candidates.First().TypedIdent.Type.IsBv)
             {
@@ -272,10 +291,10 @@ namespace GPUVerify
             if (p == null)
             {
                 var inParams = new List<Variable>
-                    {
-                        new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", IntRep.GetIntType(1)), true),
-                        new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__global_fence", IntRep.GetIntType(1)), true)
-                    };
+                {
+                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", IntRep.GetIntType(1)), true),
+                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__global_fence", IntRep.GetIntType(1)), true)
+                };
                 p = new Procedure(
                     Token.NoToken,
                     "barrier",
@@ -287,7 +306,7 @@ namespace GPUVerify
                     new List<Ensures>(),
                     new QKeyValue(Token.NoToken, "barrier", new List<object>(), null));
                 Program.AddTopLevelDeclaration(p);
-                ResContext.AddProcedure(p);
+                resContext.AddProcedure(p);
             }
 
             return p;
@@ -299,9 +318,9 @@ namespace GPUVerify
             if (p == null)
             {
                 var inParams = new List<Variable>
-                    {
-                        new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__cond", Microsoft.Boogie.Type.Bool), true)
-                    };
+                {
+                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__cond", Microsoft.Boogie.Type.Bool), true)
+                };
                 p = new Procedure(
                     Token.NoToken,
                     "barrier_invariant",
@@ -313,7 +332,7 @@ namespace GPUVerify
                     new List<Ensures>(),
                     new QKeyValue(Token.NoToken, "barrier_invariant", new List<object>(), null));
                 Program.AddTopLevelDeclaration(p);
-                ResContext.AddProcedure(p);
+                resContext.AddProcedure(p);
             }
 
             return p;
@@ -325,10 +344,10 @@ namespace GPUVerify
             if (p == null)
             {
                 var inParams = new List<Variable>
-                    {
-                        new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1", IntRep.GetIntType(size_t_bits)), true),
-                        new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", IntRep.GetIntType(size_t_bits)), true)
-                    };
+                {
+                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1", IntRep.GetIntType(SizeTBits)), true),
+                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", IntRep.GetIntType(SizeTBits)), true)
+                };
                 p = new Procedure(
                     Token.NoToken,
                     "barrier_invariant_instantiation",
@@ -340,7 +359,7 @@ namespace GPUVerify
                     new List<Ensures>(),
                     new QKeyValue(Token.NoToken, "barrier_invariant_instantiation", new List<object>(), null));
                 Program.AddTopLevelDeclaration(p);
-                ResContext.AddProcedure(p);
+                resContext.AddProcedure(p);
             }
 
             return p;
@@ -406,7 +425,7 @@ namespace GPUVerify
             if (constFieldRef == null)
             {
                 constFieldRef = new Constant(
-                    Token.NoToken, new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(id_size_bits)), /*unique=*/false);
+                    Token.NoToken, new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(IdSizeBits)), /*unique=*/false);
                 constFieldRef.AddAttribute(attr);
                 Program.AddTopLevelDeclaration(constFieldRef);
             }
@@ -456,21 +475,21 @@ namespace GPUVerify
                 {
                     Constant c = decl as Constant;
 
-                    success &= SetConstAttributeField(c, LOCAL_ID_X_STRING, ref _X);
-                    success &= SetConstAttributeField(c, LOCAL_ID_Y_STRING, ref _Y);
-                    success &= SetConstAttributeField(c, LOCAL_ID_Z_STRING, ref _Z);
+                    success &= SetConstAttributeField(c, LocalIdXString, ref idX);
+                    success &= SetConstAttributeField(c, LocalIdYString, ref idY);
+                    success &= SetConstAttributeField(c, LocalIdZString, ref idZ);
 
-                    success &= SetConstAttributeField(c, GROUP_SIZE_X_STRING, ref _GROUP_SIZE_X);
-                    success &= SetConstAttributeField(c, GROUP_SIZE_Y_STRING, ref _GROUP_SIZE_Y);
-                    success &= SetConstAttributeField(c, GROUP_SIZE_Z_STRING, ref _GROUP_SIZE_Z);
+                    success &= SetConstAttributeField(c, GroupSizeXString, ref groupSizeX);
+                    success &= SetConstAttributeField(c, GroupSizeYString, ref groupSizeY);
+                    success &= SetConstAttributeField(c, GroupSizeZString, ref groupSizeZ);
 
-                    success &= SetConstAttributeField(c, GROUP_ID_X_STRING, ref _GROUP_X);
-                    success &= SetConstAttributeField(c, GROUP_ID_Y_STRING, ref _GROUP_Y);
-                    success &= SetConstAttributeField(c, GROUP_ID_Z_STRING, ref _GROUP_Z);
+                    success &= SetConstAttributeField(c, GroupIdXString, ref groupIdX);
+                    success &= SetConstAttributeField(c, GroupIdYString, ref groupIdY);
+                    success &= SetConstAttributeField(c, GroupIdZString, ref groupIdZ);
 
-                    success &= SetConstAttributeField(c, NUM_GROUPS_X_STRING, ref _NUM_GROUPS_X);
-                    success &= SetConstAttributeField(c, NUM_GROUPS_Y_STRING, ref _NUM_GROUPS_Y);
-                    success &= SetConstAttributeField(c, NUM_GROUPS_Z_STRING, ref _NUM_GROUPS_Z);
+                    success &= SetConstAttributeField(c, NumGroupsXString, ref numGroupsX);
+                    success &= SetConstAttributeField(c, NumGroupsYString, ref numGroupsY);
+                    success &= SetConstAttributeField(c, NumGroupsZString, ref numGroupsZ);
                 }
             }
 
@@ -487,21 +506,21 @@ namespace GPUVerify
                 }
             }
 
-            MaybeCreateAttributedConst(LOCAL_ID_X_STRING, ref _X);
-            MaybeCreateAttributedConst(LOCAL_ID_Y_STRING, ref _Y);
-            MaybeCreateAttributedConst(LOCAL_ID_Z_STRING, ref _Z);
+            MaybeCreateAttributedConst(LocalIdXString, ref idX);
+            MaybeCreateAttributedConst(LocalIdYString, ref idY);
+            MaybeCreateAttributedConst(LocalIdZString, ref idZ);
 
-            MaybeCreateAttributedConst(GROUP_SIZE_X_STRING, ref _GROUP_SIZE_X);
-            MaybeCreateAttributedConst(GROUP_SIZE_Y_STRING, ref _GROUP_SIZE_Y);
-            MaybeCreateAttributedConst(GROUP_SIZE_Z_STRING, ref _GROUP_SIZE_Z);
+            MaybeCreateAttributedConst(GroupSizeXString, ref groupSizeX);
+            MaybeCreateAttributedConst(GroupSizeYString, ref groupSizeY);
+            MaybeCreateAttributedConst(GroupSizeZString, ref groupSizeZ);
 
-            MaybeCreateAttributedConst(GROUP_ID_X_STRING, ref _GROUP_X);
-            MaybeCreateAttributedConst(GROUP_ID_Y_STRING, ref _GROUP_Y);
-            MaybeCreateAttributedConst(GROUP_ID_Z_STRING, ref _GROUP_Z);
+            MaybeCreateAttributedConst(GroupIdXString, ref groupIdX);
+            MaybeCreateAttributedConst(GroupIdYString, ref groupIdY);
+            MaybeCreateAttributedConst(GroupIdZString, ref groupIdZ);
 
-            MaybeCreateAttributedConst(NUM_GROUPS_X_STRING, ref _NUM_GROUPS_X);
-            MaybeCreateAttributedConst(NUM_GROUPS_Y_STRING, ref _NUM_GROUPS_Y);
-            MaybeCreateAttributedConst(NUM_GROUPS_Z_STRING, ref _NUM_GROUPS_Z);
+            MaybeCreateAttributedConst(NumGroupsXString, ref numGroupsX);
+            MaybeCreateAttributedConst(NumGroupsYString, ref numGroupsY);
+            MaybeCreateAttributedConst(NumGroupsZString, ref numGroupsZ);
 
             if (GPUVerifyVCGenCommandLineOptions.EliminateRedundantReadInstrumentation)
                 ComputeReadOnlyArrays();
@@ -535,7 +554,7 @@ namespace GPUVerify
             foreach (var impl in Program.Implementations)
             {
                 UniformityAnalyser.MergeBlocksIntoPredecessors(
-                    Program, impl, uniformityMatters ? uniformityAnalyser : null);
+                    Program, impl, uniformityMatters ? UniformityAnalyser : null);
             }
         }
 
@@ -571,14 +590,14 @@ namespace GPUVerify
             if (GPUVerifyVCGenCommandLineOptions.RefinedAtomics)
                 RefineAtomicAbstraction();
 
-            var nonUniformVars = new List<Variable> { _X, _Y, _Z };
+            var nonUniformVars = new List<Variable> { IdX, IdY, IdZ };
             if (!GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
-                nonUniformVars.AddRange(new Variable[] { _GROUP_X, _GROUP_Y, _GROUP_Z });
+                nonUniformVars.AddRange(new Variable[] { groupIdX, groupIdY, groupIdZ });
 
-            uniformityAnalyser = DoUniformityAnalysis(nonUniformVars);
+            UniformityAnalyser = DoUniformityAnalysis(nonUniformVars);
 
             if (GPUVerifyVCGenCommandLineOptions.ShowUniformityAnalysis)
-                uniformityAnalyser.dump();
+                UniformityAnalyser.dump();
 
             // We now do modset analysis here because the previous passes add new
             // global variables, and the following two passes depend on the modset
@@ -855,7 +874,7 @@ namespace GPUVerify
 
         private void IdentifySafeBarriers()
         {
-            var uni = DoUniformityAnalysis(new List<Variable> { _X, _Y, _Z });
+            var uni = DoUniformityAnalysis(new List<Variable> { IdX, IdY, IdZ });
             foreach (var b in barrierProcedures)
             {
                 if (uni.IsUniform(b.Name))
@@ -901,7 +920,7 @@ namespace GPUVerify
                     newCmds.Add(newCall);
                     Program.AddTopLevelDeclaration(newBarrier);
                     barrierProcedures.Add(newBarrier);
-                    ResContext.AddProcedure(newBarrier);
+                    resContext.AddProcedure(newBarrier);
                 }
 
                 b.Cmds = newCmds;
@@ -1039,10 +1058,10 @@ namespace GPUVerify
 
         private void DoMayBePowerOfTwoAnalysis()
         {
-            mayBePowerOfTwoAnalyser = new MayBePowerOfTwoAnalyser(this);
-            mayBePowerOfTwoAnalyser.Analyse();
-            relationalPowerOfTwoAnalyser = new RelationalPowerOfTwoAnalyser(this);
-            relationalPowerOfTwoAnalyser.Analyse();
+            MayBePowerOfTwoAnalyser = new MayBePowerOfTwoAnalyser(this);
+            MayBePowerOfTwoAnalyser.Analyse();
+            RelationalPowerOfTwoAnalyser = new RelationalPowerOfTwoAnalyser(this);
+            RelationalPowerOfTwoAnalyser.Analyse();
         }
 
         private void DoCallSiteAnalysis()
@@ -1077,19 +1096,19 @@ namespace GPUVerify
 
         private void DoVariableDefinitionAnalysis()
         {
-            varDefAnalysesRegion = Program.Implementations
+            VarDefAnalysesRegion = Program.Implementations
                 .ToDictionary(i => i, i => VariableDefinitionAnalysisRegion.Analyse(i, this));
         }
 
         private void DoReducedStrengthAnalysis()
         {
-            reducedStrengthAnalysesRegion = Program.Implementations
+            ReducedStrengthAnalysesRegion = Program.Implementations
                 .ToDictionary(i => i, i => ReducedStrengthAnalysisRegion.Analyse(i, this));
         }
 
         private void EmitProgram(string filename)
         {
-            GVUtil.IO.EmitProgram(Program, filename);
+            Utilities.IO.EmitProgram(Program, filename);
         }
 
         private void ComputeInvariant()
@@ -1111,11 +1130,11 @@ namespace GPUVerify
         {
             HashSet<string> names = new HashSet<string>();
             foreach (Variable v in proc.OutParams)
-                names.Add(GVUtil.StripThreadIdentifier(v.Name));
+                names.Add(Utilities.StripThreadIdentifier(v.Name));
 
             foreach (string name in names)
             {
-                if (!uniformityAnalyser.IsUniform(proc.Name, name))
+                if (!UniformityAnalyser.IsUniform(proc.Name, name))
                     AddEqualityCandidateEnsures(proc, new LocalVariable(proc.tok, new TypedIdent(proc.tok, name, Microsoft.Boogie.Type.Int)));
             }
         }
@@ -1125,7 +1144,7 @@ namespace GPUVerify
             HashSet<string> names = new HashSet<string>();
             foreach (Variable v in proc.InParams)
             {
-                names.Add(GVUtil.StripThreadIdentifier(v.Name));
+                names.Add(Utilities.StripThreadIdentifier(v.Name));
             }
 
             foreach (string name in names)
@@ -1133,16 +1152,16 @@ namespace GPUVerify
                 if (IsPredicateOrTemp(name))
                 {
                     Debug.Assert(name.Equals("_P"));
-                    Debug.Assert(!uniformityAnalyser.IsUniform(proc.Name));
+                    Debug.Assert(!UniformityAnalyser.IsUniform(proc.Name));
                     AddCandidateRequires(proc, Expr.Eq(
                         new IdentifierExpr(proc.tok, new LocalVariable(proc.tok, new TypedIdent(proc.tok, name + "$1", Microsoft.Boogie.Type.Bool))),
                         new IdentifierExpr(proc.tok, new LocalVariable(proc.tok, new TypedIdent(proc.tok, name + "$2", Microsoft.Boogie.Type.Bool)))));
                 }
                 else
                 {
-                    if (!uniformityAnalyser.IsUniform(proc.Name, name))
+                    if (!UniformityAnalyser.IsUniform(proc.Name, name))
                     {
-                        if (!uniformityAnalyser.IsUniform(proc.Name))
+                        if (!UniformityAnalyser.IsUniform(proc.Name))
                         {
                             AddPredicatedEqualityCandidateRequires(proc, new LocalVariable(proc.tok, new TypedIdent(proc.tok, name, Microsoft.Boogie.Type.Int)));
                         }
@@ -1162,8 +1181,8 @@ namespace GPUVerify
                         new IdentifierExpr(proc.tok, new LocalVariable(proc.tok, new TypedIdent(proc.tok, "_P$1", Microsoft.Boogie.Type.Bool))),
                         new IdentifierExpr(proc.tok, new LocalVariable(proc.tok, new TypedIdent(proc.tok, "_P$2", Microsoft.Boogie.Type.Bool)))),
                     Expr.Eq(
-                        new IdentifierExpr(proc.tok, new VariableDualiser(1, uniformityAnalyser, proc.Name).VisitVariable(v.Clone() as Variable)),
-                        new IdentifierExpr(proc.tok, new VariableDualiser(2, uniformityAnalyser, proc.Name).VisitVariable(v.Clone() as Variable)))));
+                        new IdentifierExpr(proc.tok, new VariableDualiser(1, this, proc.Name).VisitVariable(v.Clone() as Variable)),
+                        new IdentifierExpr(proc.tok, new VariableDualiser(2, this, proc.Name).VisitVariable(v.Clone() as Variable)))));
         }
 
         private void AddEqualityCandidateRequires(Procedure proc, Variable v)
@@ -1171,8 +1190,8 @@ namespace GPUVerify
             AddCandidateRequires(
                 proc,
                 Expr.Eq(
-                    new IdentifierExpr(proc.tok, new VariableDualiser(1, uniformityAnalyser, proc.Name).VisitVariable(v.Clone() as Variable)),
-                    new IdentifierExpr(proc.tok, new VariableDualiser(2, uniformityAnalyser, proc.Name).VisitVariable(v.Clone() as Variable))));
+                    new IdentifierExpr(proc.tok, new VariableDualiser(1, this, proc.Name).VisitVariable(v.Clone() as Variable)),
+                    new IdentifierExpr(proc.tok, new VariableDualiser(2, this, proc.Name).VisitVariable(v.Clone() as Variable))));
         }
 
         private void AddEqualityCandidateEnsures(Procedure proc, Variable v)
@@ -1180,8 +1199,8 @@ namespace GPUVerify
             AddCandidateEnsures(
                 proc,
                 Expr.Eq(
-                    new IdentifierExpr(proc.tok, new VariableDualiser(1, uniformityAnalyser, proc.Name).VisitVariable(v.Clone() as Variable)),
-                    new IdentifierExpr(proc.tok, new VariableDualiser(2, uniformityAnalyser, proc.Name).VisitVariable(v.Clone() as Variable))));
+                    new IdentifierExpr(proc.tok, new VariableDualiser(1, this, proc.Name).VisitVariable(v.Clone() as Variable)),
+                    new IdentifierExpr(proc.tok, new VariableDualiser(2, this, proc.Name).VisitVariable(v.Clone() as Variable))));
         }
 
         public void AddCandidateRequires(Procedure proc, Expr e)
@@ -1202,7 +1221,7 @@ namespace GPUVerify
         {
             foreach (Variable v in variables)
             {
-                if (GVUtil.StripThreadIdentifier(v.Name) == name)
+                if (Utilities.StripThreadIdentifier(v.Name) == name)
                     return true;
             }
 
@@ -1252,25 +1271,25 @@ namespace GPUVerify
                     (lv.Length > 5 && lv.Substring(0, 5).Equals("_temp"));
         }
 
-        public static Microsoft.Boogie.Type GetTypeOfIdX()
+        public Microsoft.Boogie.Type GetTypeOfIdX()
         {
-            Contract.Requires(_X != null);
-            return _X.TypedIdent.Type;
+            Contract.Requires(IdX != null);
+            return IdX.TypedIdent.Type;
         }
 
-        public static Microsoft.Boogie.Type GetTypeOfIdY()
+        public Microsoft.Boogie.Type GetTypeOfIdY()
         {
-            Contract.Requires(_Y != null);
-            return _Y.TypedIdent.Type;
+            Contract.Requires(IdY != null);
+            return IdY.TypedIdent.Type;
         }
 
-        public static Microsoft.Boogie.Type GetTypeOfIdZ()
+        public Microsoft.Boogie.Type GetTypeOfIdZ()
         {
-            Contract.Requires(_Z != null);
-            return _Z.TypedIdent.Type;
+            Contract.Requires(IdZ != null);
+            return IdZ.TypedIdent.Type;
         }
 
-        public static Microsoft.Boogie.Type GetTypeOfId(string dimension)
+        public Microsoft.Boogie.Type GetTypeOfId(string dimension)
         {
             Contract.Requires(dimension.Equals("X") || dimension.Equals("Y") || dimension.Equals("Z"));
             if (dimension.Equals("X"))
@@ -1285,62 +1304,62 @@ namespace GPUVerify
 
         public bool KernelHasIdX()
         {
-            return _X != null;
+            return IdX != null;
         }
 
         public bool KernelHasIdY()
         {
-            return _Y != null;
+            return IdY != null;
         }
 
         public bool KernelHasIdZ()
         {
-            return _Z != null;
+            return IdZ != null;
         }
 
         public bool KernelHasGroupIdX()
         {
-            return _GROUP_X != null;
+            return groupIdX != null;
         }
 
         public bool KernelHasGroupIdY()
         {
-            return _GROUP_Y != null;
+            return groupIdY != null;
         }
 
         public bool KernelHasGroupIdZ()
         {
-            return _GROUP_Z != null;
+            return groupIdZ != null;
         }
 
         public bool KernelHasNumGroupsX()
         {
-            return _NUM_GROUPS_X != null;
+            return numGroupsX != null;
         }
 
         public bool KernelHasNumGroupsY()
         {
-            return _NUM_GROUPS_Y != null;
+            return numGroupsY != null;
         }
 
         public bool KernelHasNumGroupsZ()
         {
-            return _NUM_GROUPS_Z != null;
+            return numGroupsZ != null;
         }
 
         public bool KernelHasGroupSizeX()
         {
-            return _GROUP_SIZE_X != null;
+            return groupSizeX != null;
         }
 
         public bool KernelHasGroupSizeY()
         {
-            return _GROUP_SIZE_Y != null;
+            return groupSizeY != null;
         }
 
         public bool KernelHasGroupSizeZ()
         {
-            return _GROUP_SIZE_Z != null;
+            return groupSizeZ != null;
         }
 
         private void GenerateStandardKernelContract()
@@ -1384,7 +1403,7 @@ namespace GPUVerify
                     int indexOfFirstNonUniformParameter;
                     for (indexOfFirstNonUniformParameter = 0; indexOfFirstNonUniformParameter < proc.InParams.Count(); indexOfFirstNonUniformParameter++)
                     {
-                        if (!uniformityAnalyser.IsUniform(proc.Name, GVUtil.StripThreadIdentifier(proc.InParams[indexOfFirstNonUniformParameter].Name)))
+                        if (!UniformityAnalyser.IsUniform(proc.Name, Utilities.StripThreadIdentifier(proc.InParams[indexOfFirstNonUniformParameter].Name)))
                         {
                             foundNonUniform = true;
                             break;
@@ -1420,13 +1439,13 @@ namespace GPUVerify
 
         public Expr ThreadsInSameWarp()
         {
-            Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv" + id_size_bits, new BvType(id_size_bits));
+            Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv" + IdSizeBits, new BvType(IdSizeBits));
             IEnumerable<Expr> tids = (new int[] { 1, 2 }).Select(x => FlattenedThreadId(x));
             Expr[] sides = tids.Select(x => IntRep.MakeDiv(x, warpsize)).ToArray();
             return Expr.Eq(sides[0], sides[1]);
         }
 
-        public static Expr ThreadsInSameGroup()
+        public Expr ThreadsInSameGroup()
         {
             if (GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
             {
@@ -1464,9 +1483,9 @@ namespace GPUVerify
                 if (proc == null || ProcedureIsInlined(proc) || ProcedureHasNoImplementation(proc))
                     continue;
 
-                Expr groupSizePositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), Zero(id_size_bits));
-                Expr numGroupsPositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), Zero(id_size_bits));
-                Expr groupIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), Zero(id_size_bits));
+                Expr groupSizePositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), Zero(IdSizeBits));
+                Expr numGroupsPositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), Zero(IdSizeBits));
+                Expr groupIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), Zero(IdSizeBits));
                 Expr groupIdLessThanNumGroups = IntRep.MakeSlt(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)));
 
                 proc.Requires.Add(new Requires(false, groupSizePositive));
@@ -1479,29 +1498,29 @@ namespace GPUVerify
                 }
                 else
                 {
-                    proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(groupIdNonNegative)));
-                    proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(groupIdNonNegative)));
-                    proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(groupIdLessThanNumGroups)));
-                    proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(groupIdLessThanNumGroups)));
+                    proc.Requires.Add(new Requires(false, new VariableDualiser(1, this, null).VisitExpr(groupIdNonNegative)));
+                    proc.Requires.Add(new Requires(false, new VariableDualiser(2, this, null).VisitExpr(groupIdNonNegative)));
+                    proc.Requires.Add(new Requires(false, new VariableDualiser(1, this, null).VisitExpr(groupIdLessThanNumGroups)));
+                    proc.Requires.Add(new Requires(false, new VariableDualiser(2, this, null).VisitExpr(groupIdLessThanNumGroups)));
                 }
 
                 Expr threadIdNonNegative = IntRep.MakeSge(
                     new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)),
-                    Zero(id_size_bits));
+                    Zero(IdSizeBits));
                 Expr threadIdLessThanGroupSize = IntRep.MakeSlt(
                     new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)),
                     new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)));
 
-                proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(threadIdNonNegative)));
-                proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(threadIdNonNegative)));
-                proc.Requires.Add(new Requires(false, new VariableDualiser(1, null, null).VisitExpr(threadIdLessThanGroupSize)));
-                proc.Requires.Add(new Requires(false, new VariableDualiser(2, null, null).VisitExpr(threadIdLessThanGroupSize)));
+                proc.Requires.Add(new Requires(false, new VariableDualiser(1, this, null).VisitExpr(threadIdNonNegative)));
+                proc.Requires.Add(new Requires(false, new VariableDualiser(2, this, null).VisitExpr(threadIdNonNegative)));
+                proc.Requires.Add(new Requires(false, new VariableDualiser(1, this, null).VisitExpr(threadIdLessThanGroupSize)));
+                proc.Requires.Add(new Requires(false, new VariableDualiser(2, this, null).VisitExpr(threadIdLessThanGroupSize)));
             }
         }
 
         public Function GetOrCreateBVFunction(string functionName, string smtName, Microsoft.Boogie.Type resultType, params Microsoft.Boogie.Type[] argTypes)
         {
-            Function f = (Function)ResContext.LookUpProcedure(functionName);
+            Function f = (Function)resContext.LookUpProcedure(functionName);
             if (f != null)
                 return f;
 
@@ -1512,13 +1531,13 @@ namespace GPUVerify
                 new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, resultType)));
             f.AddAttribute("bvbuiltin", smtName);
             Program.AddTopLevelDeclaration(f);
-            ResContext.AddProcedure(f);
+            resContext.AddProcedure(f);
             return f;
         }
 
         public Function GetOrCreateIntFunction(string functionName, BinaryOperator.Opcode infixOp, Microsoft.Boogie.Type resultType, Microsoft.Boogie.Type lhsType, Microsoft.Boogie.Type rhsType)
         {
-            Function f = (Function)ResContext.LookUpProcedure(functionName);
+            Function f = (Function)resContext.LookUpProcedure(functionName);
             if (f != null)
                 return f;
 
@@ -1534,25 +1553,25 @@ namespace GPUVerify
             f.Body = Expr.Binary(infixOp, new IdentifierExpr(Token.NoToken, lhs), new IdentifierExpr(Token.NoToken, rhs));
 
             Program.AddTopLevelDeclaration(f);
-            ResContext.AddProcedure(f);
+            resContext.AddProcedure(f);
             return f;
         }
 
         public Function GetOrCreateBinaryUF(string functionName, Microsoft.Boogie.Type resultType, Microsoft.Boogie.Type lhsType, Microsoft.Boogie.Type rhsType)
         {
-            Function f = (Function)ResContext.LookUpProcedure(functionName);
+            Function f = (Function)resContext.LookUpProcedure(functionName);
             if (f != null)
                 return f;
 
             var args = new List<Variable>
-                {
-                    new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, lhsType)),
-                    new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, rhsType))
-                };
+            {
+                new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, lhsType)),
+                new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, rhsType))
+            };
             f = new Function(
                 Token.NoToken, functionName, args, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, resultType)));
             Program.AddTopLevelDeclaration(f);
-            ResContext.AddProcedure(f);
+            resContext.AddProcedure(f);
             return f;
         }
 
@@ -1560,11 +1579,11 @@ namespace GPUVerify
         {
             Contract.Requires(dimension.Equals("X") || dimension.Equals("Y") || dimension.Equals("Z"));
             if (dimension.Equals("X"))
-                return _GROUP_SIZE_X;
+                return groupSizeX;
             if (dimension.Equals("Y"))
-                return _GROUP_SIZE_Y;
+                return groupSizeY;
             if (dimension.Equals("Z"))
-                return _GROUP_SIZE_Z;
+                return groupSizeZ;
             Debug.Assert(false);
             return null;
         }
@@ -1573,30 +1592,30 @@ namespace GPUVerify
         {
             Contract.Requires(dimension.Equals("X") || dimension.Equals("Y") || dimension.Equals("Z"));
             if (dimension.Equals("X"))
-                return _NUM_GROUPS_X;
+                return numGroupsX;
             if (dimension.Equals("Y"))
-                return _NUM_GROUPS_Y;
+                return numGroupsY;
             if (dimension.Equals("Z"))
-                return _NUM_GROUPS_Z;
+                return numGroupsZ;
             Debug.Assert(false);
             return null;
         }
 
-        public static Constant MakeThreadId(string dimension)
+        public Constant MakeThreadId(string dimension)
         {
             Contract.Requires(dimension.Equals("X") || dimension.Equals("Y") || dimension.Equals("Z"));
             string name = null;
             if (dimension.Equals("X"))
-                name = _X.Name;
+                name = IdX.Name;
             if (dimension.Equals("Y"))
-                name = _Y.Name;
+                name = IdY.Name;
             if (dimension.Equals("Z"))
-                name = _Z.Name;
+                name = IdZ.Name;
             Debug.Assert(name != null);
             return new Constant(Token.NoToken, new TypedIdent(Token.NoToken, name, GetTypeOfId(dimension)));
         }
 
-        public static Constant MakeThreadId(string dimension, int number)
+        public Constant MakeThreadId(string dimension, int number)
         {
             Constant resultWithoutThreadId = MakeThreadId(dimension);
             return new Constant(
@@ -1604,20 +1623,20 @@ namespace GPUVerify
                 new TypedIdent(Token.NoToken, resultWithoutThreadId.Name + "$" + number, GetTypeOfId(dimension)));
         }
 
-        public static Constant GetGroupId(string dimension)
+        public Constant GetGroupId(string dimension)
         {
             Contract.Requires(dimension.Equals("X") || dimension.Equals("Y") || dimension.Equals("Z"));
             if (dimension.Equals("X"))
-                return _GROUP_X;
+                return groupIdX;
             if (dimension.Equals("Y"))
-                return _GROUP_Y;
+                return groupIdY;
             if (dimension.Equals("Z"))
-                return _GROUP_Z;
+                return groupIdZ;
             Debug.Assert(false);
             return null;
         }
 
-        public static Constant MakeGroupId(string dimension, int number)
+        public Constant MakeGroupId(string dimension, int number)
         {
             Constant resultWithoutThreadId = GetGroupId(dimension);
             return new Constant(Token.NoToken, new TypedIdent(Token.NoToken, resultWithoutThreadId.Name + "$" + number, GetTypeOfId(dimension)));
@@ -1631,7 +1650,7 @@ namespace GPUVerify
 
             Expr p1 = null, p2 = null, localFence1 = null, localFence2 = null, globalFence1 = null, globalFence2 = null;
 
-            if (uniformityAnalyser.IsUniform(barrierProcedure.Name))
+            if (UniformityAnalyser.IsUniform(barrierProcedure.Name))
             {
                 p1 = Expr.True;
                 p2 = Expr.True;
@@ -1640,10 +1659,10 @@ namespace GPUVerify
             foreach (Formal f in barrierProcedure.InParams)
             {
                 int thread;
-                string name = GVUtil.StripThreadIdentifier(f.Name, out thread);
-                if (name.Equals(BarrierProcedureLocalFenceArgName))
+                string name = Utilities.StripThreadIdentifier(f.Name, out thread);
+                if (name.Equals(barrierProcedureLocalFenceArgName))
                 {
-                    if (uniformityAnalyser.IsUniform(barrierProcedure.Name, name))
+                    if (UniformityAnalyser.IsUniform(barrierProcedure.Name, name))
                     {
                         localFence1 = MakeFenceExpr(f);
                         localFence2 = MakeFenceExpr(f);
@@ -1661,9 +1680,9 @@ namespace GPUVerify
                         }
                     }
                 }
-                else if (name.Equals(BarrierProcedureGlobalFenceArgName))
+                else if (name.Equals(barrierProcedureGlobalFenceArgName))
                 {
-                    if (uniformityAnalyser.IsUniform(barrierProcedure.Name, name))
+                    if (UniformityAnalyser.IsUniform(barrierProcedure.Name, name))
                     {
                         globalFence1 = MakeFenceExpr(f);
                         globalFence2 = MakeFenceExpr(f);
@@ -1771,9 +1790,9 @@ namespace GPUVerify
             if (RaceInstrumentationUtil.RaceCheckingMethod != RaceCheckingMethod.ORIGINAL && !GPUVerifyVCGenCommandLineOptions.OnlyDivergence)
             {
                 var havocId = new List<IdentifierExpr>
-                    {
-                        new IdentifierExpr(Token.NoToken, new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_TRACKING", Microsoft.Boogie.Type.Bool)))
-                    };
+                {
+                    new IdentifierExpr(Token.NoToken, new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_TRACKING", Microsoft.Boogie.Type.Bool)))
+                };
                 var havoc = new HavocCmd(Token.NoToken, havocId);
                 bigblocks.Add(
                     new BigBlock(Token.NoToken, null, new List<Cmd> { havoc }, null, null));
@@ -1789,7 +1808,7 @@ namespace GPUVerify
                 new List<Variable>(),
                 statements);
 
-            barrierImplementation.Resolve(ResContext);
+            barrierImplementation.Resolve(resContext);
 
             AddInlineAttribute(barrierImplementation);
             AddInlineAttribute(barrierProcedure);
@@ -1957,7 +1976,7 @@ namespace GPUVerify
                     return g;
             }
 
-            Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, access, IntRep.GetIntType(size_t_bits));
+            Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, access, IntRep.GetIntType(SizeTBits));
             Program.AddTopLevelDeclaration(result);
             return result;
         }
@@ -1972,7 +1991,7 @@ namespace GPUVerify
             }
 
             LocalVariable result = new LocalVariable(
-                Token.NoToken, new TypedIdent(Token.NoToken, ghostName, IntRep.GetIntType(size_t_bits)));
+                Token.NoToken, new TypedIdent(Token.NoToken, ghostName, IntRep.GetIntType(SizeTBits)));
             impl.LocVars.Add(result);
             return result;
         }
@@ -2016,7 +2035,7 @@ namespace GPUVerify
                 }
             }
 
-            Variable result = RaceInstrumentationUtil.MakeAsyncHandleVariable(varName, access, IntRep.GetIntType(size_t_bits));
+            Variable result = RaceInstrumentationUtil.MakeAsyncHandleVariable(varName, access, IntRep.GetIntType(SizeTBits));
             Program.AddTopLevelDeclaration(result);
             return result;
         }
@@ -2025,7 +2044,7 @@ namespace GPUVerify
         {
             return new GlobalVariable(
                 Token.NoToken,
-                new TypedIdent(Token.NoToken, MakeArrayOffsetVariableName(varName), IntRep.GetIntType(size_t_bits)));
+                new TypedIdent(Token.NoToken, MakeArrayOffsetVariableName(varName), IntRep.GetIntType(SizeTBits)));
         }
 
         public static string MakeArrayOffsetVariableName(string varName)
@@ -2057,7 +2076,7 @@ namespace GPUVerify
 
         public Function FindOrCreateOther(int bvWidth)
         {
-            Function other = (Function)ResContext.LookUpProcedure("__other_bv" + bvWidth);
+            Function other = (Function)resContext.LookUpProcedure("__other_bv" + bvWidth);
             if (other == null)
             {
                 List<Variable> args = new List<Variable>();
@@ -2079,7 +2098,7 @@ namespace GPUVerify
 
         private void MakeKernelPredicated()
         {
-            SmartBlockPredicator.Predicate(Program, proc => true, uniformityAnalyser);
+            SmartBlockPredicator.Predicate(Program, proc => true, UniformityAnalyser);
         }
 
         private int Check()
@@ -2103,8 +2122,8 @@ namespace GPUVerify
 
             if (barrierProcedure.InParams.Count() == 2)
             {
-                BarrierProcedureLocalFenceArgName = barrierProcedure.InParams[0].Name;
-                BarrierProcedureGlobalFenceArgName = barrierProcedure.InParams[1].Name;
+                barrierProcedureLocalFenceArgName = barrierProcedure.InParams[0].Name;
+                barrierProcedureGlobalFenceArgName = barrierProcedure.InParams[1].Name;
             }
 
             KernelProcedures = GetKernelProcedures();
@@ -2141,20 +2160,20 @@ namespace GPUVerify
             return ErrorCount;
         }
 
-        public static bool IsThreadLocalIdConstant(Variable variable)
+        public bool IsThreadLocalIdConstant(Variable variable)
         {
-            return variable.Name.Equals(_X.Name) || variable.Name.Equals(_Y.Name) || variable.Name.Equals(_Z.Name);
+            return variable.Name.Equals(IdX.Name) || variable.Name.Equals(IdY.Name) || variable.Name.Equals(IdZ.Name);
         }
 
-        public static bool IsGroupIdConstant(Variable variable)
+        public bool IsGroupIdConstant(Variable variable)
         {
-            return variable.Name.Equals(_GROUP_X.Name) || variable.Name.Equals(_GROUP_Y.Name) || variable.Name.Equals(_GROUP_Z.Name);
+            return variable.Name.Equals(groupIdX.Name) || variable.Name.Equals(groupIdY.Name) || variable.Name.Equals(groupIdZ.Name);
         }
 
-        public static bool IsDualisedGroupIdConstant(Variable variable)
+        public bool IsDualisedGroupIdConstant(Variable variable)
         {
-            var name = GVUtil.StripThreadIdentifier(variable.Name);
-            return name.Equals(_GROUP_X.Name) || name.Equals(_GROUP_Y.Name) || name.Equals(_GROUP_Z.Name);
+            var name = Utilities.StripThreadIdentifier(variable.Name);
+            return name.Equals(groupIdX.Name) || name.Equals(groupIdY.Name) || name.Equals(groupIdZ.Name);
         }
 
         public void AddCandidateInvariant(IRegion region, Expr e, string tag, string attribute)
@@ -2242,7 +2261,7 @@ namespace GPUVerify
                 return false;
 
             var varName = ((IdentifierExpr)e).Decl.Name;
-            return GVUtil.StripThreadIdentifier(varName) == GVUtil.StripThreadIdentifier(c.Name);
+            return Utilities.StripThreadIdentifier(varName) == Utilities.StripThreadIdentifier(c.Name);
         }
 
         public bool SubstIsGivenConstant(Implementation impl, Expr e, Constant c)
@@ -2250,7 +2269,7 @@ namespace GPUVerify
             if (!(e is IdentifierExpr))
                 return false;
 
-            e = varDefAnalysesRegion[impl].SubstDefinitions(e, impl.Name);
+            e = VarDefAnalysesRegion[impl].SubstDefinitions(e, impl.Name);
             return IsGivenConstant(e, c);
         }
 
@@ -2259,11 +2278,11 @@ namespace GPUVerify
             switch (dim)
             {
                 case 0:
-                    return _X;
+                    return IdX;
                 case 1:
-                    return _Y;
+                    return IdY;
                 case 2:
-                    return _Z;
+                    return IdZ;
                 default:
                     Debug.Assert(false);
                     return null;
@@ -2275,11 +2294,11 @@ namespace GPUVerify
             switch (dim)
             {
                 case 0:
-                    return _GROUP_X;
+                    return groupIdX;
                 case 1:
-                    return _GROUP_Y;
+                    return groupIdY;
                 case 2:
-                    return _GROUP_Z;
+                    return groupIdZ;
                 default:
                     Debug.Assert(false);
                     return null;
@@ -2291,11 +2310,11 @@ namespace GPUVerify
             switch (dim)
             {
                 case 0:
-                    return _GROUP_SIZE_X;
+                    return groupSizeX;
                 case 1:
-                    return _GROUP_SIZE_Y;
+                    return groupSizeY;
                 case 2:
-                    return _GROUP_SIZE_Z;
+                    return groupSizeZ;
                 default:
                     Debug.Assert(false);
                     return null;
@@ -2309,9 +2328,9 @@ namespace GPUVerify
 
         public bool IsGlobalId(Expr e, int dim, Implementation impl)
         {
-            e = varDefAnalysesRegion[impl].SubstDefinitions(e, impl.Name);
+            e = VarDefAnalysesRegion[impl].SubstDefinitions(e, impl.Name);
 
-            if (e is NAryExpr && (e as NAryExpr).Fun.FunctionName.Equals("BV" + id_size_bits + "_ADD"))
+            if (e is NAryExpr && (e as NAryExpr).Fun.FunctionName.Equals("BV" + IdSizeBits + "_ADD"))
             {
                 NAryExpr nary = e as NAryExpr;
                 Constant localId = GetLocalIdConst(dim);
@@ -2332,7 +2351,7 @@ namespace GPUVerify
 
         private bool IsGroupIdTimesGroupSize(Expr expr, int dim)
         {
-            if (expr is NAryExpr && (expr as NAryExpr).Fun.FunctionName.Equals("BV" + id_size_bits + "_MUL"))
+            if (expr is NAryExpr && (expr as NAryExpr).Fun.FunctionName.Equals("BV" + IdSizeBits + "_MUL"))
             {
                 NAryExpr innerNary = expr as NAryExpr;
 
@@ -2361,7 +2380,7 @@ namespace GPUVerify
             if (id == 0 || e == null)
                 return e;
             else
-                return (Expr)new VariableDualiser(id, uniformityAnalyser, procName).Visit(e.Clone());
+                return (Expr)new VariableDualiser(id, this, procName).Visit(e.Clone());
         }
 
         public static bool IsConstantInCurrentRegion(IdentifierExpr expr)
@@ -2370,7 +2389,7 @@ namespace GPUVerify
                    (expr.Decl is Formal && ((Formal)expr.Decl).InComing);
         }
 
-        public static Expr GroupSharedIndexingExpr(int thread)
+        public Expr GroupSharedIndexingExpr(int thread)
         {
             if (thread == 1)
             {
@@ -2379,11 +2398,11 @@ namespace GPUVerify
             else
             {
                 var args = new List<Expr>
-                    {
-                        ThreadsInSameGroup(),
-                        new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1),
-                        new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 1)
-                    };
+                {
+                    ThreadsInSameGroup(),
+                    new LiteralExpr(Token.NoToken, BigNum.FromInt(1), 1),
+                    new LiteralExpr(Token.NoToken, BigNum.FromInt(0), 1)
+                };
                 return new NAryExpr(Token.NoToken, new IfThenElse(Token.NoToken), args);
             }
         }
@@ -2513,7 +2532,7 @@ namespace GPUVerify
             var mapType = new MapType(
                 Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { elementType }, Microsoft.Boogie.Type.Bool);
             mapType = new MapType(
-              Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { IntRep.GetIntType(size_t_bits) }, mapType);
+              Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { IntRep.GetIntType(SizeTBits) }, mapType);
 
             GlobalVariable usedMap = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, name, mapType));
             usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(new object[] { }), null);
@@ -2648,7 +2667,7 @@ namespace GPUVerify
                 Expr p1 = null;
                 Expr p2 = null;
 
-                if (uniformityAnalyser.IsUniform(syncProcedure.Name))
+                if (UniformityAnalyser.IsUniform(syncProcedure.Name))
                 {
                     p1 = Expr.True;
                     p2 = Expr.True;
@@ -2664,9 +2683,13 @@ namespace GPUVerify
                 List<Cmd> then = new List<Cmd>();
                 if (pre)
                 {
-                    var reset_needs = new[] { new { Kind = AccessType.READ,   Resets = new[] { AccessType.WRITE, AccessType.ATOMIC } },
-                                      new { Kind = AccessType.WRITE,  Resets = new[] { AccessType.READ, AccessType.WRITE, AccessType.ATOMIC } },
-                                      new { Kind = AccessType.ATOMIC, Resets = new[] { AccessType.READ, AccessType.WRITE } } };
+                    var reset_needs = new[]
+                    {
+                        new { Kind = AccessType.READ,   Resets = new[] { AccessType.WRITE, AccessType.ATOMIC } },
+                        new { Kind = AccessType.WRITE,  Resets = new[] { AccessType.READ, AccessType.WRITE, AccessType.ATOMIC } },
+                        new { Kind = AccessType.ATOMIC, Resets = new[] { AccessType.READ, AccessType.WRITE } }
+                    };
+
                     foreach (AccessType a in reset_needs.Where(x => x.Kind == kind).First().Resets)
                     {
                         Variable accessVariable = FindOrCreateAccessHasOccurredVariable(v.Name, a);
@@ -2763,12 +2786,12 @@ namespace GPUVerify
         public Variable FindOrCreateEnabledVariable()
         {
             string enabledVariableName = "__enabled";
-            Variable enabledVariable = (Variable)ResContext.LookUpVariable(enabledVariableName);
+            Variable enabledVariable = (Variable)resContext.LookUpVariable(enabledVariableName);
             if (enabledVariable == null)
             {
                 enabledVariable = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, enabledVariableName, Microsoft.Boogie.Type.Bool), false);
                 enabledVariable.AddAttribute("__enabled");
-                ResContext.AddVariable(enabledVariable, true);
+                resContext.AddVariable(enabledVariable, true);
             }
 
             return enabledVariable;
@@ -2784,8 +2807,8 @@ namespace GPUVerify
                 return Expr.Ident(candidates.First());
             }
 
-            Constant asyncNoHandleConstant = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, name, IntRep.GetIntType(size_t_bits)), false);
-            Axiom equalsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(asyncNoHandleConstant), Zero(size_t_bits)));
+            Constant asyncNoHandleConstant = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, name, IntRep.GetIntType(SizeTBits)), false);
+            Axiom equalsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(asyncNoHandleConstant), Zero(SizeTBits)));
             Program.AddTopLevelDeclarations(new Declaration[] { asyncNoHandleConstant, equalsZero });
             return Expr.Ident(asyncNoHandleConstant);
         }
@@ -2807,7 +2830,7 @@ namespace GPUVerify
                 var variablesToEliminate = new HashSet<Variable>();
                 foreach (var d in Program.TopLevelDeclarations)
                 {
-                    if (d is Variable && GVUtil.IsAccessHasOccurredVariable((Variable)d, v.Name))
+                    if (d is Variable && Utilities.IsAccessHasOccurredVariable((Variable)d, v.Name))
                     {
                         variablesToEliminate.Add((Variable)d);
                         continue;

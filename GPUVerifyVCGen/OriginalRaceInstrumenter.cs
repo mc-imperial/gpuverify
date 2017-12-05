@@ -14,9 +14,9 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    class OriginalRaceInstrumenter : RaceInstrumenter
+    public class OriginalRaceInstrumenter : RaceInstrumenter
     {
-        internal OriginalRaceInstrumenter(GPUVerifier verifier)
+        public OriginalRaceInstrumenter(GPUVerifier verifier)
             : base(verifier)
         {
         }
@@ -25,7 +25,7 @@ namespace GPUVerify
         {
             // This array should be included in the set of global or group shared arrays that
             // are *not* disabled
-            Debug.Assert(verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
+            Debug.Assert(Verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
 
             Procedure logAccessProcedure = MakeLogAccessProcedureHeader(v, access);
 
@@ -36,13 +36,13 @@ namespace GPUVerify
             Variable accessHasOccurredVariable =
                 GPUVerifier.MakeAccessHasOccurredVariable(v.Name, access);
             Variable accessOffsetVariable =
-                RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, verifier.IntRep.GetIntType(verifier.size_t_bits));
+                RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
             Variable accessValueVariable =
                 RaceInstrumentationUtil.MakeValueVariable(v.Name, access, mt.Result);
             Variable accessBenignFlagVariable =
                 GPUVerifier.MakeBenignFlagVariable(v.Name);
             Variable accessAsyncHandleVariable =
-                RaceInstrumentationUtil.MakeAsyncHandleVariable(v.Name, access, verifier.IntRep.GetIntType(verifier.size_t_bits));
+                RaceInstrumentationUtil.MakeAsyncHandleVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
 
             Variable predicateParameter =
                 new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_P", Type.Bool));
@@ -53,7 +53,7 @@ namespace GPUVerify
             Variable valueOldParameter =
                 new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value_old", mt.Result));
             Variable asyncHandleParameter =
-                new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", verifier.IntRep.GetIntType(verifier.size_t_bits)));
+                new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", Verifier.IntRep.GetIntType(Verifier.SizeTBits)));
 
             Debug.Assert(!(mt.Result is MapType));
 
@@ -73,9 +73,9 @@ namespace GPUVerify
                 new IdentifierExpr(v.tok, predicateParameter),
                 new IdentifierExpr(v.tok, trackVariable));
 
-            if (verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v))
+            if (Verifier.KernelArrayInfo.GetGroupSharedArrays(false).Contains(v))
             {
-                condition = Expr.And(GPUVerifier.ThreadsInSameGroup(), condition);
+                condition = Expr.And(Verifier.ThreadsInSameGroup(), condition);
             }
 
             simpleCmds.Add(MakeConditionalAssignment(
@@ -99,7 +99,7 @@ namespace GPUVerify
             }
 
             if ((access == AccessType.READ || access == AccessType.WRITE) &&
-              verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
+              Verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
             {
                 simpleCmds.Add(MakeConditionalAssignment(
                     accessAsyncHandleVariable, condition, Expr.Ident(asyncHandleParameter)));
@@ -119,8 +119,8 @@ namespace GPUVerify
 
             logAccessImplementation.Proc = logAccessProcedure;
 
-            verifier.Program.AddTopLevelDeclaration(logAccessProcedure);
-            verifier.Program.AddTopLevelDeclaration(logAccessImplementation);
+            Verifier.Program.AddTopLevelDeclaration(logAccessProcedure);
+            Verifier.Program.AddTopLevelDeclaration(logAccessImplementation);
         }
     }
 }

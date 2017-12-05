@@ -15,25 +15,30 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal abstract class BarrierInvariantDescriptor
+    public abstract class BarrierInvariantDescriptor
     {
-        protected Expr Predicate;
-        protected Expr BarrierInvariant;
-        protected QKeyValue SourceLocationInfo;
-        protected KernelDualiser Dualiser;
-        protected string ProcName;
-        protected List<Expr> AccessExprs;
-        protected GPUVerifier Verifier;
+        private QKeyValue sourceLocationInfo;
+        private List<Expr> accessExprs;
+
+        protected GPUVerifier Verifier { get; private set; }
+
+        protected Expr Predicate { get; private set; }
+
+        protected Expr BarrierInvariant { get; private set; }
+
+        protected KernelDualiser Dualiser { get; private set; }
+
+        protected string ProcName { get; private set; }
 
         public BarrierInvariantDescriptor(
             Expr predicate, Expr barrierInvariant, QKeyValue sourceLocationInfo, KernelDualiser dualiser, string procName, GPUVerifier verifier)
         {
             this.Predicate = predicate;
             this.BarrierInvariant = barrierInvariant;
-            this.SourceLocationInfo = sourceLocationInfo;
+            this.sourceLocationInfo = sourceLocationInfo;
             this.Dualiser = dualiser;
             this.ProcName = procName;
-            this.AccessExprs = new List<Expr>();
+            this.accessExprs = new List<Expr>();
             this.Verifier = verifier;
 
             if (GPUVerifyVCGenCommandLineOptions.BarrierAccessChecks)
@@ -45,7 +50,7 @@ namespace GPUVerify
                     var cond = pair.Item1;
                     var v = pair.Item2;
                     var index = pair.Item3;
-                    this.AccessExprs.Add(
+                    this.accessExprs.Add(
                         Expr.Imp(predicate, Expr.Imp(cond, BuildAccessedExpr(v.Name, index))));
                 }
             }
@@ -55,9 +60,8 @@ namespace GPUVerify
         {
             AssertCmd result = new AssertCmd(
               Token.NoToken,
-              new VariableDualiser(1, Dualiser.verifier.uniformityAnalyser, ProcName).VisitExpr(
-                Expr.Imp(Predicate, BarrierInvariant)),
-              Dualiser.MakeThreadSpecificAttributes(SourceLocationInfo, 1));
+              new VariableDualiser(1, Dualiser.Verifier, ProcName).VisitExpr(Expr.Imp(Predicate, BarrierInvariant)),
+              Dualiser.MakeThreadSpecificAttributes(sourceLocationInfo, 1));
             result.Attributes = new QKeyValue(Token.NoToken, "barrier_invariant", new List<object> { Expr.True }, result.Attributes);
             return result;
         }
@@ -66,56 +70,41 @@ namespace GPUVerify
 
         protected Expr NonNegative(Expr e)
         {
-            return Dualiser.verifier.IntRep.MakeSge(
-              e, Verifier.Zero(Verifier.size_t_bits));
+            return Dualiser.Verifier.IntRep.MakeSge(
+              e, Verifier.Zero(Verifier.SizeTBits));
         }
 
         protected Expr NotTooLarge(Expr e)
         {
-            return Dualiser.verifier.IntRep.MakeSlt(
-                e, new IdentifierExpr(Token.NoToken, Dualiser.verifier.GetGroupSize("X")));
+            return Dualiser.Verifier.IntRep.MakeSlt(
+                e, new IdentifierExpr(Token.NoToken, Dualiser.Verifier.GetGroupSize("X")));
         }
 
         private Expr BuildAccessedExpr(string name, Expr e)
         {
             return Expr.Neq(
-                new IdentifierExpr(Token.NoToken, Dualiser.verifier.FindOrCreateNotAccessedVariable(name, e.Type)), e);
+                new IdentifierExpr(Token.NoToken, Dualiser.Verifier.FindOrCreateNotAccessedVariable(name, e.Type)), e);
         }
 
         public QKeyValue GetSourceLocationInfo()
         {
-            return SourceLocationInfo;
+            return sourceLocationInfo;
         }
 
         public List<Expr> GetAccessedExprs()
         {
-            return AccessExprs;
+            return accessExprs;
         }
 
-        class SubExprVisitor : StandardVisitor
+        private class SubExprVisitor : StandardVisitor
         {
-            internal HashSet<Tuple<Expr, IdentifierExpr, Expr>> SubExprs;
-            internal List<Expr> Path;
+            private List<Expr> path = new List<Expr>();
 
-            internal SubExprVisitor()
-            {
-                this.SubExprs = new HashSet<Tuple<Expr, IdentifierExpr, Expr>>();
-                this.Path = new List<Expr>();
-            }
+            public HashSet<Tuple<Expr, IdentifierExpr, Expr>> SubExprs { get; } =
+                new HashSet<Tuple<Expr, IdentifierExpr, Expr>>();
 
-            internal void PushPath(Expr e)
+            public SubExprVisitor()
             {
-                Path.Add(e);
-            }
-
-            internal void PopPath()
-            {
-                Path.RemoveAt(Path.Count - 1);
-            }
-
-            internal Expr BuildPathCondition()
-            {
-                return Path.Aggregate(Expr.True as Expr, (e1, e2) => Expr.And(e1, e2));
             }
 
             public override Expr VisitNAryExpr(NAryExpr node)
@@ -138,9 +127,11 @@ namespace GPUVerify
                 {
                     var p = node.Args[0];
                     var q = node.Args[1];
+
                     PushPath(p);
                     VisitExpr(q);
                     PopPath();
+
                     return node; // stop recursing
                 }
                 else if (node.Fun is IfThenElse)
@@ -148,17 +139,36 @@ namespace GPUVerify
                     var p = node.Args[0];
                     var e1 = node.Args[1];
                     var e2 = node.Args[2];
+
                     VisitExpr(p);
+
                     PushPath(p);
                     VisitExpr(e1);
                     PopPath();
+
                     PushPath(Expr.Not(p));
                     VisitExpr(e2);
                     PopPath();
+
                     return node; // stop recursing
                 }
 
                 return base.VisitNAryExpr(node);
+            }
+
+            private void PushPath(Expr e)
+            {
+                path.Add(e);
+            }
+
+            private void PopPath()
+            {
+                path.RemoveAt(path.Count - 1);
+            }
+
+            private Expr BuildPathCondition()
+            {
+                return path.Aggregate(Expr.True as Expr, (e1, e2) => Expr.And(e1, e2));
             }
         }
     }

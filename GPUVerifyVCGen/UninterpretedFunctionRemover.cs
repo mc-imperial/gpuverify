@@ -15,7 +15,7 @@ namespace GPUVerify
 
     public class UninterpretedFunctionRemover
     {
-        internal void Eliminate(Program program)
+        public void Eliminate(Program program)
         {
             foreach (var impl in program.Implementations)
             {
@@ -28,24 +28,28 @@ namespace GPUVerify
                     if (visitor.UFTemps.Last().Count() > 0)
                     {
                         foreach (var p in cfg.Predecessors(b))
-                            p.Cmds.Add(new HavocCmd(Token.NoToken, visitor.UFTemps.Last().Select(item => new IdentifierExpr(Token.NoToken, item)).ToList()));
+                        {
+                            p.Cmds.Add(new HavocCmd(
+                                Token.NoToken,
+                                visitor.UFTemps.Last().Select(item => new IdentifierExpr(Token.NoToken, item)).ToList()));
+                        }
                     }
                 }
 
                 impl.LocVars.AddRange(visitor.UFTemps.SelectMany(item => item));
             }
 
-            var newDecls = program.TopLevelDeclarations.Where(
-              item => !(item is Function) || IsInterpreted(item as Function, program)).ToList();
+            var newDecls = program.TopLevelDeclarations
+                .Where(item => !(item is Function) || IsInterpreted(item as Function, program));
             program.ClearTopLevelDeclarations();
             program.AddTopLevelDeclarations(newDecls);
         }
 
-        internal static bool IsInterpreted(Function fun, Program prog)
+        private static bool IsInterpreted(Function fun, Program prog)
         {
-            if (fun.Body != null ||
-               QKeyValue.FindStringAttribute(fun.Attributes, "bvbuiltin") != null ||
-               QKeyValue.FindBoolAttribute(fun.Attributes, "constructor"))
+            if (fun.Body != null
+                || QKeyValue.FindStringAttribute(fun.Attributes, "bvbuiltin") != null
+                || QKeyValue.FindBoolAttribute(fun.Attributes, "constructor"))
             {
                 return true;
             }
@@ -62,67 +66,61 @@ namespace GPUVerify
         {
             var visitor = new FunctionIsReferencedVisitor(fun);
             visitor.VisitAxiom(axiom);
-            return visitor.Found();
-        }
-    }
-
-    internal class UFRemoverVisitor : Duplicator
-    {
-        private Program prog;
-
-        public UFRemoverVisitor(Program prog)
-        {
-            this.prog = prog;
+            return visitor.Found;
         }
 
-        public List<HashSet<LocalVariable>> UFTemps { get; private set; }
-            = new List<HashSet<LocalVariable>>();
-
-        private int counter = 0;
-
-        internal void NewBlock()
+        private class UFRemoverVisitor : Duplicator
         {
-            UFTemps.Add(new HashSet<LocalVariable>());
-        }
+            private Program prog;
+            private int counter = 0;
 
-        public override Expr VisitNAryExpr(NAryExpr node)
-        {
-            var funCall = node.Fun as FunctionCall;
-            if (funCall == null || UninterpretedFunctionRemover.IsInterpreted(funCall.Func, prog))
+            public List<HashSet<LocalVariable>> UFTemps { get; }
+                = new List<HashSet<LocalVariable>>();
+
+            public UFRemoverVisitor(Program prog)
             {
-                return base.VisitNAryExpr(node);
+                this.prog = prog;
             }
 
-            LocalVariable ufTemp = new LocalVariable(
-                Token.NoToken, new TypedIdent(Token.NoToken, "_UF_temp_" + counter, node.Type));
-            counter++;
-            UFTemps.Last().Add(ufTemp);
-            return new IdentifierExpr(Token.NoToken, ufTemp);
-        }
-    }
+            public void NewBlock()
+            {
+                UFTemps.Add(new HashSet<LocalVariable>());
+            }
 
-    internal class FunctionIsReferencedVisitor : StandardVisitor
-    {
-        private Function fun;
-        private bool found;
+            public override Expr VisitNAryExpr(NAryExpr node)
+            {
+                var funCall = node.Fun as FunctionCall;
+                if (funCall == null || IsInterpreted(funCall.Func, prog))
+                {
+                    return base.VisitNAryExpr(node);
+                }
 
-        public FunctionIsReferencedVisitor(Function fun)
-        {
-            this.fun = fun;
-            this.found = false;
-        }
-
-        internal bool Found()
-        {
-            return found;
+                LocalVariable ufTemp = new LocalVariable(
+                    Token.NoToken, new TypedIdent(Token.NoToken, "_UF_temp_" + counter, node.Type));
+                counter++;
+                UFTemps.Last().Add(ufTemp);
+                return new IdentifierExpr(Token.NoToken, ufTemp);
+            }
         }
 
-        public override Expr VisitNAryExpr(NAryExpr node)
+        private class FunctionIsReferencedVisitor : StandardVisitor
         {
-            if (node.Fun is FunctionCall && ((FunctionCall)node.Fun).Func.Name.Equals(fun.Name))
-                found = true;
+            private Function fun;
 
-            return base.VisitNAryExpr(node);
+            public bool Found { get; private set; } = false;
+
+            public FunctionIsReferencedVisitor(Function fun)
+            {
+                this.fun = fun;
+            }
+
+            public override Expr VisitNAryExpr(NAryExpr node)
+            {
+                if (node.Fun is FunctionCall && ((FunctionCall)node.Fun).Func.Name.Equals(fun.Name))
+                    Found = true;
+
+                return base.VisitNAryExpr(node);
+            }
         }
     }
 }

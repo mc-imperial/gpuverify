@@ -15,7 +15,7 @@ namespace GPUVerify
     using System.Text.RegularExpressions;
     using Microsoft.Boogie;
 
-    internal class RelationalPowerOfTwoAnalyser
+    public class RelationalPowerOfTwoAnalyser
     {
         private GPUVerifier verifier;
         private Dictionary<string, Dictionary<string, Kind>> mayBePowerOfTwoInfo;
@@ -61,7 +61,7 @@ namespace GPUVerify
             return mayBePowerOfTwoInfo[p][v] == Kind.Dec;
         }
 
-        internal void Analyse()
+        public void Analyse()
         {
             foreach (Declaration decl in verifier.Program.TopLevelDeclarations)
             {
@@ -70,9 +70,9 @@ namespace GPUVerify
                     Implementation impl = decl as Implementation;
                     mayBePowerOfTwoInfo.Add(impl.Name, new Dictionary<string, Kind>());
 
-                    SetNotPowerOfTwo(impl.Name, GPUVerifier._X.Name);
-                    SetNotPowerOfTwo(impl.Name, GPUVerifier._Y.Name);
-                    SetNotPowerOfTwo(impl.Name, GPUVerifier._Z.Name);
+                    SetNotPowerOfTwo(impl.Name, verifier.IdX.Name);
+                    SetNotPowerOfTwo(impl.Name, verifier.IdY.Name);
+                    SetNotPowerOfTwo(impl.Name, verifier.IdZ.Name);
 
                     foreach (Variable v in impl.LocVars)
                     {
@@ -140,7 +140,7 @@ namespace GPUVerify
                             {
                                 Expr expr = assign.Rhss[i];
                                 if (IsTempVariable(expr))
-                                    expr = verifier.varDefAnalysesRegion[impl].DefOfVariableName((expr as IdentifierExpr).Name);
+                                    expr = verifier.VarDefAnalysesRegion[impl].DefOfVariableName((expr as IdentifierExpr).Name);
 
                                 switch (IsPowerOfTwoOperation(v, expr))
                                 {

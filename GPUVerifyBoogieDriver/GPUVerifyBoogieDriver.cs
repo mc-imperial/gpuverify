@@ -37,7 +37,7 @@ namespace Microsoft.Boogie
 
                 if (CommandLineOptions.Clo.Files.Count == 0)
                 {
-                    GVUtil.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
+                    Utilities.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
                     Environment.Exit((int)GPUVerify.ToolExitCodes.OTHER_ERROR);
                 }
 
@@ -69,7 +69,7 @@ namespace Microsoft.Boogie
 
                     if (extension != ".bpl" && extension != ".cbpl")
                     {
-                        GVUtil.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .(c)bpl file", file);
+                        Utilities.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .(c)bpl file", file);
                         Environment.Exit((int)GPUVerify.ToolExitCodes.OTHER_ERROR);
                     }
                 }
@@ -86,7 +86,7 @@ namespace Microsoft.Boogie
                     throw e;
                 }
 
-                GVUtil.IO.DumpExceptionInformation(e);
+                Utilities.IO.DumpExceptionInformation(e);
                 Environment.Exit((int)GPUVerify.ToolExitCodes.INTERNAL_ERROR);
             }
         }
@@ -95,7 +95,7 @@ namespace Microsoft.Boogie
         {
             Contract.Requires(cce.NonNullElements(fileNames));
 
-            Program program = GVUtil.IO.ParseBoogieProgram(fileNames, false);
+            Program program = Utilities.IO.ParseBoogieProgram(fileNames, false);
             if (program == null)
                 return ResultCounter.GetNewCounterWithInputError();
 
@@ -129,7 +129,7 @@ namespace Microsoft.Boogie
             }
             catch (ProverException e)
             {
-                GVUtil.IO.ErrorWriteLine("Fatal Error: ProverException: {0}", e);
+                Utilities.IO.ErrorWriteLine("Fatal Error: ProverException: {0}", e);
                 return ResultCounter.GetNewCounterWithInternalError();
             }
 
@@ -164,13 +164,13 @@ namespace Microsoft.Boogie
                     }
                     catch (VCGenException e)
                     {
-                        GVUtil.IO.ReportBplError(impl, string.Format("Error BP5010: {0}  Encountered in implementation {1}.", e.Message, impl.Name), true, true);
+                        Utilities.IO.ReportBplError(impl, string.Format("Error BP5010: {0}  Encountered in implementation {1}.", e.Message, impl.Name), true, true);
                         errors = null;
                         outcome = VCGen.Outcome.Inconclusive;
                     }
                     catch (UnexpectedProverOutputException upo)
                     {
-                        GVUtil.IO.AdvisoryWriteLine("Advisory: {0} SKIPPED because of internal error: unexpected prover output: {1}", impl.Name, upo.Message);
+                        Utilities.IO.AdvisoryWriteLine("Advisory: {0} SKIPPED because of internal error: unexpected prover output: {1}", impl.Name, upo.Message);
                         errors = null;
                         outcome = VCGen.Outcome.Inconclusive;
                     }
@@ -200,7 +200,7 @@ namespace Microsoft.Boogie
             vcgen.Close();
             cce.NonNull(CommandLineOptions.Clo.TheProverFactory).Close();
 
-            GVUtil.IO.WriteTrailer(counters);
+            Utilities.IO.WriteTrailer(counters);
             return counters;
         }
 

@@ -15,7 +15,7 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.Houdini;
 
-    internal class AbstractHoudiniTransformation
+    public class AbstractHoudiniTransformation
     {
         private GPUVerifier verifier;
 
@@ -25,7 +25,7 @@ namespace GPUVerify
 
         private List<Declaration> existentialFunctions;
 
-        internal AbstractHoudiniTransformation(GPUVerifier verifier)
+        public AbstractHoudiniTransformation(GPUVerifier verifier)
         {
             this.verifier = verifier;
             this.candidates =
@@ -35,7 +35,7 @@ namespace GPUVerify
             this.existentialFunctions = new List<Declaration>();
         }
 
-        internal void DoAbstractHoudiniTransform()
+        public void DoAbstractHoudiniTransform()
         {
             foreach (var region in verifier.Program.Implementations
                 .Select(item => verifier.RootRegion(item).SubRegions()).SelectMany(item => item))
@@ -165,8 +165,8 @@ namespace GPUVerify
                             toRemove.Add(current);
                             toRemove.Add(p);
 
-                            Function implicationExistentialFunction = CreateExistentialFunction(new List<TypedIdent>
-                                { new TypedIdent(Token.NoToken, "x", Type.Bool), new TypedIdent(Token.NoToken, "y", Type.Bool) });
+                            Function implicationExistentialFunction = CreateExistentialFunction(
+                                new List<TypedIdent> { new TypedIdent(Token.NoToken, "x", Type.Bool), new TypedIdent(Token.NoToken, "y", Type.Bool) });
                             implicationExistentialFunction.AddAttribute("absdomain", new object[] { "ImplicationDomain" });
                             existentialFunctions.Add(implicationExistentialFunction);
 
@@ -201,8 +201,8 @@ namespace GPUVerify
                     oldCandidateInvariants.RemoveAll(item => TryGetPow2VariableFromCandidate(item)
                       != null && TryGetPow2VariableFromCandidate(item).Name.Equals(v.Name));
 
-                    Function pow2ExistentialFunction = CreateExistentialFunction(new List<TypedIdent>
-                        { new TypedIdent(Token.NoToken, "x", v.Type) });
+                    Function pow2ExistentialFunction = CreateExistentialFunction(
+                        new List<TypedIdent> { new TypedIdent(Token.NoToken, "x", v.Type) });
                     pow2ExistentialFunction.AddAttribute("absdomain", new object[] { "PowDomain" });
                     existentialFunctions.Add(pow2ExistentialFunction);
 

@@ -18,81 +18,6 @@ namespace GPUVerify
     using Microsoft.Boogie.GraphUtil;
     using Microsoft.Boogie.Houdini;
 
-    class UnhandledException : Exception
-    {
-        public UnhandledException(string message)
-             : base(message)
-        {
-        }
-    }
-
-    class TimeLimitException : Exception
-    {
-        public TimeLimitException(string message)
-             : base(message)
-        {
-        }
-    }
-
-    internal static class BinaryOps
-    {
-        public const string OR = "||";
-        public const string AND = "&&";
-        public const string IF = "==>";
-        public const string IFF = "<==>";
-        public const string GT = ">";
-        public const string GTE = ">=";
-        public const string LT = "<";
-        public const string LTE = "<=";
-        public const string ADD = "+";
-        public const string SUBTRACT = "-";
-        public const string MULTIPLY = "*";
-        public const string DIVIDE = "/";
-        public const string NEQ = "!=";
-        public const string EQ = "==";
-    }
-
-    internal static class RegularExpressions
-    {
-        public static readonly Regex INVARIANT_VARIABLE = new Regex("_[a-z][0-9]+");
-
-        // Case sensitive
-        public static readonly Regex WATCHDOG_VARIABLE = new Regex("_WATCHED_OFFSET", RegexOptions.IgnoreCase);
-        public static readonly Regex OFFSET_VARIABLE = new Regex("_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase);
-        public static readonly Regex TRACKING_VARIABLE = new Regex("_(WRITE|READ|ATOMIC)_HAS_OCCURRED_", RegexOptions.IgnoreCase);
-        public static readonly Regex LOG_READ = new Regex("_LOG_READ_", RegexOptions.IgnoreCase);
-        public static readonly Regex LOG_WRITE = new Regex("_LOG_WRITE_", RegexOptions.IgnoreCase);
-        public static readonly Regex LOG_ATOMIC = new Regex("_LOG_ATOMIC_", RegexOptions.IgnoreCase);
-        public static readonly Regex BUGLE_BARRIER = new Regex("bugle_barrier", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSLE = new Regex("BV[0-9]+_SLE", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSLT = new Regex("BV[0-9]+_SLT", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSGE = new Regex("BV[0-9]+_SGE", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSGT = new Regex("BV[0-9]+_SGT", RegexOptions.IgnoreCase);
-        public static readonly Regex BVULE = new Regex("BV[0-9]+_ULE", RegexOptions.IgnoreCase);
-        public static readonly Regex BVULT = new Regex("BV[0-9]+_ULT", RegexOptions.IgnoreCase);
-        public static readonly Regex BVUGE = new Regex("BV[0-9]+_UGE", RegexOptions.IgnoreCase);
-        public static readonly Regex BVUGT = new Regex("BV[0-9]+_UGT", RegexOptions.IgnoreCase);
-        public static readonly Regex BVASHR = new Regex("BV[0-9]+_ASHR", RegexOptions.IgnoreCase);
-        public static readonly Regex BVLSHR = new Regex("BV[0-9]+_LSHR", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSHL = new Regex("BV[0-9]+_SHL", RegexOptions.IgnoreCase);
-        public static readonly Regex BVADD = new Regex("BV[0-9]+_ADD", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSUB = new Regex("BV[0-9]+_SUB", RegexOptions.IgnoreCase);
-        public static readonly Regex BVMUL = new Regex("BV[0-9]+_MUL", RegexOptions.IgnoreCase);
-        public static readonly Regex BVDIV = new Regex("BV[0-9]+_DIV", RegexOptions.IgnoreCase);
-        public static readonly Regex BVAND = new Regex("BV[0-9]+_AND", RegexOptions.IgnoreCase);
-        public static readonly Regex BVOR = new Regex("BV[0-9]+_OR", RegexOptions.IgnoreCase);
-        public static readonly Regex BVXOR = new Regex("BV[0-9]+_XOR", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSREM = new Regex("BV[0-9]+_SREM", RegexOptions.IgnoreCase);
-        public static readonly Regex BVUREM = new Regex("BV[0-9]+_UREM", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSDIV = new Regex("BV[0-9]+_SDIV", RegexOptions.IgnoreCase);
-        public static readonly Regex BVUDIV = new Regex("BV[0-9]+_UDIV", RegexOptions.IgnoreCase);
-        public static readonly Regex BVZEXT = new Regex("BV[0-9]+_ZEXT", RegexOptions.IgnoreCase);
-        public static readonly Regex BVSEXT = new Regex("BV[0-9]+_SEXT", RegexOptions.IgnoreCase);
-        public static readonly Regex CAST_TO_FP = new Regex("(U|S)I[0-9]+_TO_FP[0-9]+", RegexOptions.IgnoreCase);
-        public static readonly Regex CAST_TO_INT = new Regex("FP[0-9]+_TO_(U|S)I[0-9]+", RegexOptions.IgnoreCase);
-        public static readonly Regex CAST_FP_TO_DOUBLE = new Regex("FP[0-9]+_CONV[0-9]+", RegexOptions.IgnoreCase);
-    }
-
     public class BoogieInterpreter
     {
         // The engine holding all the configuration options
@@ -237,6 +162,7 @@ namespace GPUVerify
                 while (globalHeaderCount < engine.LoopHeaderLimit &&
                        !AllBlocksCovered(impl) &&
                        executions < 5);
+
                 // The condition states: try to kill invariants while we have not exhausted a global loop header limit
                 // AND not every basic block has been covered
                 // AND the number of re-invocations of the kernel does not exceed 5
@@ -279,9 +205,9 @@ namespace GPUVerify
 
         private void SetLocalIDs()
         {
-            Tuple<BitVector, BitVector> dimX = GetID(gpu.blockDim[DIMENSION.X] - 1);
-            Tuple<BitVector, BitVector> dimY = GetID(gpu.blockDim[DIMENSION.Y] - 1);
-            Tuple<BitVector, BitVector> dimZ = GetID(gpu.blockDim[DIMENSION.Z] - 1);
+            Tuple<BitVector, BitVector> dimX = GetID(gpu.BlockDim[DIMENSION.X] - 1);
+            Tuple<BitVector, BitVector> dimY = GetID(gpu.BlockDim[DIMENSION.Y] - 1);
+            Tuple<BitVector, BitVector> dimZ = GetID(gpu.BlockDim[DIMENSION.Z] - 1);
             localID1[0] = dimX.Item1;
             localID2[0] = dimX.Item2;
             localID1[1] = dimY.Item1;
@@ -292,9 +218,9 @@ namespace GPUVerify
 
         private void SetGlobalIDs()
         {
-            Tuple<BitVector, BitVector> dimX = GetID(gpu.gridDim[DIMENSION.X] - 1);
-            Tuple<BitVector, BitVector> dimY = GetID(gpu.gridDim[DIMENSION.Y] - 1);
-            Tuple<BitVector, BitVector> dimZ = GetID(gpu.gridDim[DIMENSION.Z] - 1);
+            Tuple<BitVector, BitVector> dimX = GetID(gpu.GridDim[DIMENSION.X] - 1);
+            Tuple<BitVector, BitVector> dimY = GetID(gpu.GridDim[DIMENSION.Y] - 1);
+            Tuple<BitVector, BitVector> dimZ = GetID(gpu.GridDim[DIMENSION.Z] - 1);
             globalID1[0] = dimX.Item1;
             globalID2[0] = dimX.Item2;
             globalID1[1] = dimY.Item1;
@@ -325,7 +251,7 @@ namespace GPUVerify
                     if (node is BinaryNode)
                     {
                         BinaryNode binary = (BinaryNode)node;
-                        if (binary.op == "==")
+                        if (binary.Op == "==")
                         {
                             if (binary.GetChildren()[0] is ScalarSymbolNode && binary.GetChildren()[1] is LiteralNode)
                             {
@@ -335,52 +261,52 @@ namespace GPUVerify
                                 LiteralNode right = (LiteralNode)binary.GetChildren()[1];
                                 if (left.Symbol == "group_size_x")
                                 {
-                                    gpu.blockDim[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.blockDim[DIMENSION.X]));
+                                    gpu.BlockDim[DIMENSION.X] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.BlockDim[DIMENSION.X]));
                                 }
                                 else if (left.Symbol == "group_size_y")
                                 {
-                                    gpu.blockDim[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.blockDim[DIMENSION.Y]));
+                                    gpu.BlockDim[DIMENSION.Y] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.BlockDim[DIMENSION.Y]));
                                 }
                                 else if (left.Symbol == "group_size_z")
                                 {
-                                    gpu.blockDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.blockDim[DIMENSION.Z]));
+                                    gpu.BlockDim[DIMENSION.Z] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.BlockDim[DIMENSION.Z]));
                                 }
                                 else if (left.Symbol == "num_groups_x")
                                 {
-                                    gpu.gridDim[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.gridDim[DIMENSION.X]));
+                                    gpu.GridDim[DIMENSION.X] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.GridDim[DIMENSION.X]));
                                 }
                                 else if (left.Symbol == "num_groups_y")
                                 {
-                                    gpu.gridDim[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.gridDim[DIMENSION.Y]));
+                                    gpu.GridDim[DIMENSION.Y] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.GridDim[DIMENSION.Y]));
                                 }
                                 else if (left.Symbol == "num_groups_z")
                                 {
-                                    gpu.gridDim[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.gridDim[DIMENSION.Z]));
+                                    gpu.GridDim[DIMENSION.Z] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.GridDim[DIMENSION.Z]));
                                 }
                                 else if (left.Symbol == "global_offset_x")
                                 {
-                                    gpu.gridOffset[DIMENSION.X] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.gridOffset[DIMENSION.X]));
+                                    gpu.GridOffset[DIMENSION.X] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.GridOffset[DIMENSION.X]));
                                 }
                                 else if (left.Symbol == "global_offset_y")
                                 {
-                                    gpu.gridOffset[DIMENSION.Y] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.gridOffset[DIMENSION.Y]));
+                                    gpu.GridOffset[DIMENSION.Y] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.GridOffset[DIMENSION.Y]));
                                 }
                                 else if (left.Symbol == "global_offset_z")
                                 {
-                                    gpu.gridOffset[DIMENSION.Z] = right.evaluation.ConvertToInt32();
-                                    memory.Store(left.Symbol, new BitVector(gpu.gridOffset[DIMENSION.Z]));
+                                    gpu.GridOffset[DIMENSION.Z] = right.Evaluation.ConvertToInt32();
+                                    memory.Store(left.Symbol, new BitVector(gpu.GridOffset[DIMENSION.Z]));
                                 }
                                 else
                                 {
-                                    memory.Store(left.Symbol, right.evaluation);
+                                    memory.Store(left.Symbol, right.Evaluation);
                                 }
                             }
                         }
@@ -398,7 +324,7 @@ namespace GPUVerify
             {
                 if (decl.TypedIdent.Type is MapType)
                     memory.AddGlobalArray(decl.Name);
-                if (RegularExpressions.TRACKING_VARIABLE.IsMatch(decl.Name))
+                if (RegularExpressions.TrackingVariable.IsMatch(decl.Name))
                 {
                     int index = decl.Name.IndexOf('$');
                     string arrayName = decl.Name.Substring(index);
@@ -559,7 +485,7 @@ namespace GPUVerify
                     {
                         UnaryNode unary = node as UnaryNode;
                         ExprNode child = unary.GetChildren()[0] as ExprNode;
-                        if (unary.op == "!" && child is ScalarSymbolNode)
+                        if (unary.Op == "!" && child is ScalarSymbolNode)
                         {
                             ScalarSymbolNode scalarChild = child as ScalarSymbolNode;
                             if (scalarChild.Type.IsBv)
@@ -579,24 +505,24 @@ namespace GPUVerify
                     else if (node is BinaryNode)
                     {
                         BinaryNode binary = node as BinaryNode;
-                        if (binary.op == "==")
+                        if (binary.Op == "==")
                         {
                             ExprNode left = binary.GetChildren()[0] as ExprNode;
                             ExprNode right = binary.GetChildren()[1] as ExprNode;
-                            if (right.initialised)
+                            if (right.Initialised)
                             {
                                 if (left is ScalarSymbolNode)
                                 {
                                     ScalarSymbolNode leftScalar = left as ScalarSymbolNode;
-                                    memory.Store(leftScalar.Symbol, right.evaluation);
+                                    memory.Store(leftScalar.Symbol, right.Evaluation);
                                 }
                                 else if (left is MapSymbolNode)
                                 {
                                     MapSymbolNode leftMap = left as MapSymbolNode;
-                                    SubscriptExpr subscriptExpr = new SubscriptExpr();
+                                    Memory.SubscriptExpr subscriptExpr = new Memory.SubscriptExpr();
                                     foreach (ExprNode child in leftMap.GetChildren())
-                                        subscriptExpr.indices.Add(child.evaluation);
-                                    memory.Store(leftMap.basename, subscriptExpr, right.evaluation);
+                                        subscriptExpr.Indices.Add(child.Evaluation);
+                                    memory.Store(leftMap.Basename, subscriptExpr, right.Evaluation);
                                 }
                             }
                         }
@@ -686,41 +612,41 @@ namespace GPUVerify
                         if (lhsEval.Item1 is MapAssignLhs)
                         {
                             MapAssignLhs lhs = (MapAssignLhs)lhsEval.Item1;
-                            SubscriptExpr subscriptExpr = new SubscriptExpr();
+                            Memory.SubscriptExpr subscriptExpr = new Memory.SubscriptExpr();
                             foreach (Expr index in lhs.Indexes)
                             {
                                 ExprTree tree = GetExprTree(index);
                                 EvaluateExprTree(tree);
-                                if (tree.initialised)
-                                    subscriptExpr.indices.Add(tree.evaluation);
+                                if (tree.Initialised)
+                                    subscriptExpr.Indices.Add(tree.Evaluation);
                             }
 
-                            if (subscriptExpr.indices.Count > 0)
+                            if (subscriptExpr.Indices.Count > 0)
                             {
                                 ExprTree tree2 = lhsEval.Item2;
-                                if (tree2.initialised)
-                                    memory.Store(lhs.DeepAssignedVariable.Name, subscriptExpr, tree2.evaluation);
+                                if (tree2.Initialised)
+                                    memory.Store(lhs.DeepAssignedVariable.Name, subscriptExpr, tree2.Evaluation);
                             }
                         }
                         else
                         {
                             SimpleAssignLhs lhs = (SimpleAssignLhs)lhsEval.Item1;
                             ExprTree tree = lhsEval.Item2;
-                            if (tree.initialised)
-                                memory.Store(lhs.AssignedVariable.Name, tree.evaluation);
+                            if (tree.Initialised)
+                                memory.Store(lhs.AssignedVariable.Name, tree.Evaluation);
                         }
                     }
                 }
                 else if (cmd is CallCmd)
                 {
                     CallCmd call = cmd as CallCmd;
-                    if (RegularExpressions.LOG_READ.IsMatch(call.callee))
+                    if (RegularExpressions.LogRead.IsMatch(call.callee))
                         LogRead(call);
-                    else if (RegularExpressions.LOG_WRITE.IsMatch(call.callee))
+                    else if (RegularExpressions.LogWrite.IsMatch(call.callee))
                         LogWrite(call);
-                    else if (RegularExpressions.LOG_ATOMIC.IsMatch(call.callee))
+                    else if (RegularExpressions.LogAtomic.IsMatch(call.callee))
                         LogAtomic(call);
-                    else if (RegularExpressions.BUGLE_BARRIER.IsMatch(call.callee))
+                    else if (RegularExpressions.BugleBarrier.IsMatch(call.callee))
                         Barrier(call);
                 }
                 else if (cmd is AssertCmd)
@@ -731,7 +657,7 @@ namespace GPUVerify
                     string tag = QKeyValue.FindStringAttribute(assert.Attributes, "tag");
                     if (tag != null)
                     {
-                        MatchCollection matches = RegularExpressions.INVARIANT_VARIABLE.Matches(assert.ToString());
+                        MatchCollection matches = RegularExpressions.InvariantVariable.Matches(assert.ToString());
                         string assertBoolean = null;
                         foreach (Match match in matches)
                         {
@@ -751,7 +677,7 @@ namespace GPUVerify
                             if (assertStatus[assertBoolean].Equals(BitVector.True))
                             {
                                 // Does the expression tree have offset variables?
-                                if (tree.offsetVariables.Count > 0)
+                                if (tree.OffsetVariables.Count > 0)
                                 {
                                     // If so, evaluate the expression tree using the Cartesian product of all
                                     // distinct offset values
@@ -794,7 +720,7 @@ namespace GPUVerify
                     AssumeCmd assume = cmd as AssumeCmd;
                     ExprTree tree = GetExprTree(assume.Expr);
                     EvaluateExprTree(tree);
-                    if (tree.initialised && tree.evaluation.Equals(BitVector.False))
+                    if (tree.Initialised && tree.Evaluation.Equals(BitVector.False))
                         Console.WriteLine("ASSUME FALSIFIED: " + assume.Expr.ToString());
                 }
                 else
@@ -811,7 +737,7 @@ namespace GPUVerify
             List<int> indices = new List<int>();
             List<int> sizes = new List<int>();
             List<Tuple<string, List<BitVector>>> offsetVariableValues = new List<Tuple<string, List<BitVector>>>();
-            foreach (string offsetVariable in tree.offsetVariables)
+            foreach (string offsetVariable in tree.OffsetVariables)
             {
                 HashSet<BitVector> offsets = memory.GetRaceArrayOffsets(offsetVariable);
                 if (offsets.Count > 0)
@@ -864,13 +790,13 @@ namespace GPUVerify
         private void EvaluateAssert(Program program, Implementation impl, ExprTree tree, AssertCmd assert, string assertBoolean)
         {
             EvaluateExprTree(tree);
-            if (tree.initialised && tree.evaluation.Equals(BitVector.False))
+            if (tree.Initialised && tree.Evaluation.Equals(BitVector.False))
             {
                 Print.VerboseMessage("==========> FALSE " + assert.ToString());
                 assertStatus[assertBoolean] = BitVector.False;
 
                 // Tell Houdini about the killed assert
-                Houdini.RefutedAnnotation annotation = GPUVerify.GVUtil.GetRefutedAnnotation(program, assertBoolean, impl.Name);
+                Houdini.RefutedAnnotation annotation = GPUVerify.Utilities.GetRefutedAnnotation(program, assertBoolean, impl.Name);
                 ConcurrentHoudini.RefutedSharedAnnotations[assertBoolean] = annotation;
             }
         }
@@ -915,7 +841,7 @@ namespace GPUVerify
                         PredicateCmd predicateCmd = (PredicateCmd)succ.Cmds[0];
                         ExprTree exprTree = GetExprTree(predicateCmd.Expr);
                         EvaluateExprTree(exprTree);
-                        if (exprTree.evaluation.Equals(BitVector.True))
+                        if (exprTree.Evaluation.Equals(BitVector.True))
                             return succ;
                     }
 
@@ -932,24 +858,24 @@ namespace GPUVerify
 
         private bool IsBoolBinaryOp(BinaryNode binary)
         {
-            return binary.op.Equals(BinaryOps.IF) ||
-            binary.op.Equals(BinaryOps.IFF) ||
-            binary.op.Equals(BinaryOps.AND) ||
-            binary.op.Equals(BinaryOps.OR) ||
-            binary.op.Equals(BinaryOps.NEQ) ||
-            binary.op.Equals(BinaryOps.EQ) ||
-            binary.op.Equals(BinaryOps.LT) ||
-            binary.op.Equals(BinaryOps.LTE) ||
-            binary.op.Equals(BinaryOps.GT) ||
-            binary.op.Equals(BinaryOps.GTE) ||
-            RegularExpressions.BVSLT.IsMatch(binary.op) ||
-            RegularExpressions.BVSLE.IsMatch(binary.op) ||
-            RegularExpressions.BVSGT.IsMatch(binary.op) ||
-            RegularExpressions.BVSGE.IsMatch(binary.op) ||
-            RegularExpressions.BVULT.IsMatch(binary.op) ||
-            RegularExpressions.BVULE.IsMatch(binary.op) ||
-            RegularExpressions.BVUGT.IsMatch(binary.op) ||
-            RegularExpressions.BVUGE.IsMatch(binary.op);
+            return binary.Op.Equals(BinaryOps.IF) ||
+            binary.Op.Equals(BinaryOps.IFF) ||
+            binary.Op.Equals(BinaryOps.AND) ||
+            binary.Op.Equals(BinaryOps.OR) ||
+            binary.Op.Equals(BinaryOps.NEQ) ||
+            binary.Op.Equals(BinaryOps.EQ) ||
+            binary.Op.Equals(BinaryOps.LT) ||
+            binary.Op.Equals(BinaryOps.LTE) ||
+            binary.Op.Equals(BinaryOps.GT) ||
+            binary.Op.Equals(BinaryOps.GTE) ||
+            RegularExpressions.BvSLT.IsMatch(binary.Op) ||
+            RegularExpressions.BvSLE.IsMatch(binary.Op) ||
+            RegularExpressions.BvSGT.IsMatch(binary.Op) ||
+            RegularExpressions.BvSGE.IsMatch(binary.Op) ||
+            RegularExpressions.BvULT.IsMatch(binary.Op) ||
+            RegularExpressions.BvULE.IsMatch(binary.Op) ||
+            RegularExpressions.BvUGT.IsMatch(binary.Op) ||
+            RegularExpressions.BvUGE.IsMatch(binary.Op);
         }
 
         private void EvaluateBinaryBoolNode(BinaryNode binary)
@@ -957,147 +883,147 @@ namespace GPUVerify
             ExprNode left = binary.GetChildren()[0] as ExprNode;
             ExprNode right = binary.GetChildren()[1] as ExprNode;
 
-            binary.initialised = left.initialised && right.initialised;
-            if (binary.initialised)
+            binary.Initialised = left.Initialised && right.Initialised;
+            if (binary.Initialised)
             {
-                if (binary.op.Equals(BinaryOps.IF))
+                if (binary.Op.Equals(BinaryOps.IF))
                 {
-                    if (left.evaluation.Equals(BitVector.True) && right.evaluation.Equals(BitVector.False))
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation.Equals(BitVector.True) && right.Evaluation.Equals(BitVector.False))
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.EQ))
+                else if (binary.Op.Equals(BinaryOps.EQ))
                 {
-                    if (left.evaluation != right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation != right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.AND))
+                else if (binary.Op.Equals(BinaryOps.AND))
                 {
-                    if (!(left.evaluation.Equals(BitVector.True) && right.evaluation.Equals(BitVector.True)))
-                        binary.evaluation = BitVector.False;
+                    if (!(left.Evaluation.Equals(BitVector.True) && right.Evaluation.Equals(BitVector.True)))
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.OR))
+                else if (binary.Op.Equals(BinaryOps.OR))
                 {
-                    if (left.evaluation.Equals(BitVector.True) || right.evaluation.Equals(BitVector.True))
-                        binary.evaluation = BitVector.True;
+                    if (left.Evaluation.Equals(BitVector.True) || right.Evaluation.Equals(BitVector.True))
+                        binary.Evaluation = BitVector.True;
                     else
-                        binary.evaluation = BitVector.False;
+                        binary.Evaluation = BitVector.False;
                 }
-                else if (RegularExpressions.BVSLT.IsMatch(binary.op))
+                else if (RegularExpressions.BvSLT.IsMatch(binary.Op))
                 {
-                    if (left.evaluation >= right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation >= right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (RegularExpressions.BVSLE.IsMatch(binary.op))
+                else if (RegularExpressions.BvSLE.IsMatch(binary.Op))
                 {
-                    if (left.evaluation > right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation > right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.IFF))
+                else if (binary.Op.Equals(BinaryOps.IFF))
                 {
-                    if ((left.evaluation.Equals(BitVector.True) && right.evaluation.Equals(BitVector.False)) ||
-                        (left.evaluation.Equals(BitVector.False) && right.evaluation.Equals(BitVector.True)))
-                        binary.evaluation = BitVector.False;
+                    if ((left.Evaluation.Equals(BitVector.True) && right.Evaluation.Equals(BitVector.False)) ||
+                        (left.Evaluation.Equals(BitVector.False) && right.Evaluation.Equals(BitVector.True)))
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.LT))
+                else if (binary.Op.Equals(BinaryOps.LT))
                 {
-                    if (left.evaluation >= right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation >= right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.LTE))
+                else if (binary.Op.Equals(BinaryOps.LTE))
                 {
-                    if (left.evaluation > right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation > right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.GT))
+                else if (binary.Op.Equals(BinaryOps.GT))
                 {
-                    if (left.evaluation <= right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation <= right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.GTE))
+                else if (binary.Op.Equals(BinaryOps.GTE))
                 {
-                    if (left.evaluation < right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation < right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (binary.op.Equals(BinaryOps.NEQ))
+                else if (binary.Op.Equals(BinaryOps.NEQ))
                 {
-                    if (left.evaluation == right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation == right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (RegularExpressions.BVSGT.IsMatch(binary.op))
+                else if (RegularExpressions.BvSGT.IsMatch(binary.Op))
                 {
-                    if (left.evaluation <= right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation <= right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (RegularExpressions.BVSGE.IsMatch(binary.op))
+                else if (RegularExpressions.BvSGE.IsMatch(binary.Op))
                 {
-                    if (left.evaluation < right.evaluation)
-                        binary.evaluation = BitVector.False;
+                    if (left.Evaluation < right.Evaluation)
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (RegularExpressions.BVULT.IsMatch(binary.op))
+                else if (RegularExpressions.BvULT.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.evaluation >= BitVector.Zero(left.evaluation.Bits.Length) ? left.evaluation : left.evaluation & BitVector.Max(left.evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.evaluation >= BitVector.Zero(right.evaluation.Bits.Length) ? right.evaluation : right.evaluation & BitVector.Max(right.evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
                     if (lhsUnsigned >= rhsUnsigned)
-                        binary.evaluation = BitVector.False;
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (RegularExpressions.BVULE.IsMatch(binary.op))
+                else if (RegularExpressions.BvULE.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.evaluation >= BitVector.Zero(left.evaluation.Bits.Length) ? left.evaluation : left.evaluation & BitVector.Max(left.evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.evaluation >= BitVector.Zero(right.evaluation.Bits.Length) ? right.evaluation : right.evaluation & BitVector.Max(right.evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
                     if (lhsUnsigned > rhsUnsigned)
-                        binary.evaluation = BitVector.False;
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (RegularExpressions.BVUGT.IsMatch(binary.op))
+                else if (RegularExpressions.BvUGT.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.evaluation >= BitVector.Zero(left.evaluation.Bits.Length) ? left.evaluation : left.evaluation & BitVector.Max(left.evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.evaluation >= BitVector.Zero(right.evaluation.Bits.Length) ? right.evaluation : right.evaluation & BitVector.Max(right.evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
                     if (lhsUnsigned <= rhsUnsigned)
-                        binary.evaluation = BitVector.False;
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
-                else if (RegularExpressions.BVUGE.IsMatch(binary.op))
+                else if (RegularExpressions.BvUGE.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.evaluation >= BitVector.Zero(left.evaluation.Bits.Length) ? left.evaluation : left.evaluation & BitVector.Max(left.evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.evaluation >= BitVector.Zero(right.evaluation.Bits.Length) ? right.evaluation : right.evaluation & BitVector.Max(right.evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
                     if (lhsUnsigned < rhsUnsigned)
-                        binary.evaluation = BitVector.False;
+                        binary.Evaluation = BitVector.False;
                     else
-                        binary.evaluation = BitVector.True;
+                        binary.Evaluation = BitVector.True;
                 }
                 else
                 {
-                    throw new UnhandledException("Unhandled bv binary op: " + binary.op);
+                    throw new UnhandledException("Unhandled bv binary op: " + binary.Op);
                 }
             }
         }
@@ -1107,99 +1033,99 @@ namespace GPUVerify
             ExprNode left = binary.GetChildren()[0] as ExprNode;
             ExprNode right = binary.GetChildren()[1] as ExprNode;
 
-            binary.initialised = left.initialised && right.initialised;
-            if (binary.initialised)
+            binary.Initialised = left.Initialised && right.Initialised;
+            if (binary.Initialised)
             {
-                if (RegularExpressions.BVADD.IsMatch(binary.op))
+                if (RegularExpressions.BvADD.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation + right.evaluation;
+                    binary.Evaluation = left.Evaluation + right.Evaluation;
                 }
-                else if (RegularExpressions.BVSUB.IsMatch(binary.op))
+                else if (RegularExpressions.BvSUB.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation - right.evaluation;
+                    binary.Evaluation = left.Evaluation - right.Evaluation;
                 }
-                else if (RegularExpressions.BVMUL.IsMatch(binary.op))
+                else if (RegularExpressions.BvMUL.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation * right.evaluation;
+                    binary.Evaluation = left.Evaluation * right.Evaluation;
                 }
-                else if (RegularExpressions.BVAND.IsMatch(binary.op))
+                else if (RegularExpressions.BvAND.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation & right.evaluation;
+                    binary.Evaluation = left.Evaluation & right.Evaluation;
                 }
-                else if (RegularExpressions.BVOR.IsMatch(binary.op))
+                else if (RegularExpressions.BvOR.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation | right.evaluation;
+                    binary.Evaluation = left.Evaluation | right.Evaluation;
                 }
-                else if (binary.op.Equals(BinaryOps.ADD))
+                else if (binary.Op.Equals(BinaryOps.ADD))
                 {
-                    binary.evaluation = left.evaluation + right.evaluation;
+                    binary.Evaluation = left.Evaluation + right.Evaluation;
                 }
-                else if (binary.op.Equals(BinaryOps.SUBTRACT))
+                else if (binary.Op.Equals(BinaryOps.SUBTRACT))
                 {
-                    binary.evaluation = left.evaluation - right.evaluation;
+                    binary.Evaluation = left.Evaluation - right.Evaluation;
                 }
-                else if (binary.op.Equals(BinaryOps.MULTIPLY))
+                else if (binary.Op.Equals(BinaryOps.MULTIPLY))
                 {
-                    binary.evaluation = left.evaluation * right.evaluation;
+                    binary.Evaluation = left.Evaluation * right.Evaluation;
                 }
-                else if (binary.op.Equals(BinaryOps.DIVIDE))
+                else if (binary.Op.Equals(BinaryOps.DIVIDE))
                 {
-                    binary.evaluation = left.evaluation / right.evaluation;
+                    binary.Evaluation = left.Evaluation / right.Evaluation;
                 }
-                else if (RegularExpressions.BVASHR.IsMatch(binary.op))
+                else if (RegularExpressions.BvASHR.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation >> right.evaluation.ConvertToInt32();
+                    binary.Evaluation = left.Evaluation >> right.Evaluation.ConvertToInt32();
                 }
-                else if (RegularExpressions.BVLSHR.IsMatch(binary.op))
+                else if (RegularExpressions.BvLSHR.IsMatch(binary.Op))
                 {
-                    binary.evaluation = BitVector.LogicalShiftRight(left.evaluation, right.evaluation.ConvertToInt32());
+                    binary.Evaluation = BitVector.LogicalShiftRight(left.Evaluation, right.Evaluation.ConvertToInt32());
                 }
-                else if (RegularExpressions.BVSHL.IsMatch(binary.op))
+                else if (RegularExpressions.BvSHL.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation << right.evaluation.ConvertToInt32();
+                    binary.Evaluation = left.Evaluation << right.Evaluation.ConvertToInt32();
                 }
-                else if (RegularExpressions.BVDIV.IsMatch(binary.op))
+                else if (RegularExpressions.BvDIV.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation / right.evaluation;
+                    binary.Evaluation = left.Evaluation / right.Evaluation;
                 }
-                else if (RegularExpressions.BVXOR.IsMatch(binary.op))
+                else if (RegularExpressions.BvXOR.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation ^ right.evaluation;
+                    binary.Evaluation = left.Evaluation ^ right.Evaluation;
                 }
-                else if (RegularExpressions.BVSREM.IsMatch(binary.op))
+                else if (RegularExpressions.BvSREM.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation % right.evaluation;
+                    binary.Evaluation = left.Evaluation % right.Evaluation;
                 }
-                else if (RegularExpressions.BVUREM.IsMatch(binary.op))
+                else if (RegularExpressions.BvUREM.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.evaluation >= BitVector.Zero(left.evaluation.Bits.Length) ? left.evaluation : left.evaluation & BitVector.Max(left.evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.evaluation >= BitVector.Zero(right.evaluation.Bits.Length) ? right.evaluation : right.evaluation & BitVector.Max(right.evaluation.Bits.Length);
-                    binary.evaluation = lhsUnsigned % rhsUnsigned;
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+                    binary.Evaluation = lhsUnsigned % rhsUnsigned;
                 }
-                else if (RegularExpressions.BVSDIV.IsMatch(binary.op))
+                else if (RegularExpressions.BvSDIV.IsMatch(binary.Op))
                 {
-                    binary.evaluation = left.evaluation / right.evaluation;
+                    binary.Evaluation = left.Evaluation / right.Evaluation;
                 }
-                else if (RegularExpressions.BVUDIV.IsMatch(binary.op))
+                else if (RegularExpressions.BvUDIV.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.evaluation >= BitVector.Zero(left.evaluation.Bits.Length) ? left.evaluation : left.evaluation & BitVector.Max(left.evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.evaluation >= BitVector.Zero(right.evaluation.Bits.Length) ? right.evaluation : right.evaluation & BitVector.Max(right.evaluation.Bits.Length);
-                    binary.evaluation = lhsUnsigned / rhsUnsigned;
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+                    binary.Evaluation = lhsUnsigned / rhsUnsigned;
                 }
-                else if (binary.op.Equals("FEQ32") ||
-                                 binary.op.Equals("FEQ64") ||
-                                 binary.op.Equals("FGE32") ||
-                                 binary.op.Equals("FGE64") ||
-                                 binary.op.Equals("FGT32") ||
-                                 binary.op.Equals("FGT64") ||
-                                 binary.op.Equals("FLE32") ||
-                                 binary.op.Equals("FLE64") ||
-                                 binary.op.Equals("FLT32") ||
-                                 binary.op.Equals("FLT64") ||
-                                 binary.op.Equals("FUNO32") ||
-                                 binary.op.Equals("FUNO64"))
+                else if (binary.Op.Equals("FEQ32") ||
+                                 binary.Op.Equals("FEQ64") ||
+                                 binary.Op.Equals("FGE32") ||
+                                 binary.Op.Equals("FGE64") ||
+                                 binary.Op.Equals("FGT32") ||
+                                 binary.Op.Equals("FGT64") ||
+                                 binary.Op.Equals("FLE32") ||
+                                 binary.Op.Equals("FLE64") ||
+                                 binary.Op.Equals("FLT32") ||
+                                 binary.Op.Equals("FLT64") ||
+                                 binary.Op.Equals("FUNO32") ||
+                                 binary.Op.Equals("FUNO64"))
                 {
-                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.Evaluation, right.Evaluation, binary.Op);
                     if (!fpInterpretations.ContainsKey(fpTriple))
                     {
                         if (random.Next(0, 2) == 0)
@@ -1208,33 +1134,33 @@ namespace GPUVerify
                             fpInterpretations[fpTriple] = BitVector.True;
                     }
 
-                    binary.evaluation = fpInterpretations[fpTriple];
+                    binary.Evaluation = fpInterpretations[fpTriple];
                 }
-                else if (binary.op.Equals("FADD32") ||
-                                 binary.op.Equals("FSUB32") ||
-                                 binary.op.Equals("FMUL32") ||
-                                 binary.op.Equals("FDIV32") ||
-                                 binary.op.Equals("FPOW32"))
+                else if (binary.Op.Equals("FADD32") ||
+                                 binary.Op.Equals("FSUB32") ||
+                                 binary.Op.Equals("FMUL32") ||
+                                 binary.Op.Equals("FDIV32") ||
+                                 binary.Op.Equals("FPOW32"))
                 {
-                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.Evaluation, right.Evaluation, binary.Op);
                     if (!fpInterpretations.ContainsKey(fpTriple))
                         fpInterpretations[fpTriple] = new BitVector(random.Next(), 32);
-                    binary.evaluation = fpInterpretations[fpTriple];
+                    binary.Evaluation = fpInterpretations[fpTriple];
                 }
-                else if (binary.op.Equals("FADD64") ||
-                                 binary.op.Equals("FSUB64") ||
-                                 binary.op.Equals("FMUL64") ||
-                                 binary.op.Equals("FDIV64") ||
-                                 binary.op.Equals("FPOW64"))
+                else if (binary.Op.Equals("FADD64") ||
+                                 binary.Op.Equals("FSUB64") ||
+                                 binary.Op.Equals("FMUL64") ||
+                                 binary.Op.Equals("FDIV64") ||
+                                 binary.Op.Equals("FPOW64"))
                 {
-                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.evaluation, right.evaluation, binary.op);
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.Evaluation, right.Evaluation, binary.Op);
                     if (!fpInterpretations.ContainsKey(fpTriple))
                         fpInterpretations[fpTriple] = new BitVector(random.Next(), 64);
-                    binary.evaluation = fpInterpretations[fpTriple];
+                    binary.Evaluation = fpInterpretations[fpTriple];
                 }
                 else
                 {
-                    throw new UnhandledException("Unhandled bv binary op: " + binary.op);
+                    throw new UnhandledException("Unhandled bv binary op: " + binary.Op);
                 }
             }
         }
@@ -1242,98 +1168,98 @@ namespace GPUVerify
         private void EvaluateUnaryNode(UnaryNode unary)
         {
             ExprNode child = unary.GetChildren()[0] as ExprNode;
-            unary.initialised = child.initialised;
-            if (unary.initialised)
+            unary.Initialised = child.Initialised;
+            if (unary.Initialised)
             {
-                if (unary.op.Equals("!"))
+                if (unary.Op.Equals("!"))
                 {
-                    if (child.evaluation.Equals(BitVector.True))
-                        unary.evaluation = BitVector.False;
+                    if (child.Evaluation.Equals(BitVector.True))
+                        unary.Evaluation = BitVector.False;
                     else
-                        unary.evaluation = BitVector.True;
+                        unary.Evaluation = BitVector.True;
                 }
-                else if (unary.op.Equals("FABS32") ||
-                                 unary.op.Equals("FCOS32") ||
-                                 unary.op.Equals("FEXP32") ||
-                                 unary.op.Equals("FFLOOR32") ||
-                                 unary.op.Equals("FLOG32") ||
-                                 unary.op.Equals("FPOW32") ||
-                                 unary.op.Equals("FSIN32") ||
-                                 unary.op.Equals("FSQRT32"))
+                else if (unary.Op.Equals("FABS32") ||
+                                 unary.Op.Equals("FCOS32") ||
+                                 unary.Op.Equals("FEXP32") ||
+                                 unary.Op.Equals("FFLOOR32") ||
+                                 unary.Op.Equals("FLOG32") ||
+                                 unary.Op.Equals("FPOW32") ||
+                                 unary.Op.Equals("FSIN32") ||
+                                 unary.Op.Equals("FSQRT32"))
                 {
-                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(child.Evaluation, child.Evaluation, unary.Op);
                     if (!fpInterpretations.ContainsKey(fpTriple))
                         fpInterpretations[fpTriple] = new BitVector(random.Next(), 32);
-                    unary.evaluation = fpInterpretations[fpTriple];
+                    unary.Evaluation = fpInterpretations[fpTriple];
                 }
-                else if (unary.op.Equals("FABS64") ||
-                                 unary.op.Equals("FCOS64") ||
-                                 unary.op.Equals("FEXP64") ||
-                                 unary.op.Equals("FFLOOR64") ||
-                                 unary.op.Equals("FLOG64") ||
-                                 unary.op.Equals("FPOW64") ||
-                                 unary.op.Equals("FSIN64") ||
-                                 unary.op.Equals("FSQRT64"))
+                else if (unary.Op.Equals("FABS64") ||
+                                 unary.Op.Equals("FCOS64") ||
+                                 unary.Op.Equals("FEXP64") ||
+                                 unary.Op.Equals("FFLOOR64") ||
+                                 unary.Op.Equals("FLOG64") ||
+                                 unary.Op.Equals("FPOW64") ||
+                                 unary.Op.Equals("FSIN64") ||
+                                 unary.Op.Equals("FSQRT64"))
                 {
-                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(child.evaluation, child.evaluation, unary.op);
+                    Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(child.Evaluation, child.Evaluation, unary.Op);
                     if (!fpInterpretations.ContainsKey(fpTriple))
                         fpInterpretations[fpTriple] = new BitVector(random.Next(), 64);
-                    unary.evaluation = fpInterpretations[fpTriple];
+                    unary.Evaluation = fpInterpretations[fpTriple];
                 }
-                else if (RegularExpressions.BVZEXT.IsMatch(unary.op))
+                else if (RegularExpressions.BvZEXT.IsMatch(unary.Op))
                 {
                     int width = 32;
-                    MatchCollection matches = Regex.Matches(unary.op, @"\d+");
+                    MatchCollection matches = Regex.Matches(unary.Op, @"\d+");
                     if (matches.Count == 2)
                         width = Convert.ToInt32(matches[1].Value);
-                    unary.evaluation = BitVector.ZeroExtend(child.evaluation, width);
+                    unary.Evaluation = BitVector.ZeroExtend(child.Evaluation, width);
                 }
-                else if (RegularExpressions.BVSEXT.IsMatch(unary.op))
+                else if (RegularExpressions.BvSEXT.IsMatch(unary.Op))
                 {
                     int width = 32;
-                    MatchCollection matches = Regex.Matches(unary.op, @"\d+");
+                    MatchCollection matches = Regex.Matches(unary.Op, @"\d+");
                     if (matches.Count == 2)
                         width = Convert.ToInt32(matches[1].Value);
-                    unary.evaluation = BitVector.SignExtend(child.evaluation, width);
+                    unary.Evaluation = BitVector.SignExtend(child.Evaluation, width);
                 }
-                else if (RegularExpressions.CAST_TO_FP.IsMatch(unary.op))
+                else if (RegularExpressions.CastToFP.IsMatch(unary.Op))
                 {
-                    MatchCollection matches = Regex.Matches(unary.op, @"\d+");
+                    MatchCollection matches = Regex.Matches(unary.Op, @"\d+");
                     Debug.Assert(matches.Count == 2);
                     int sourceSize = Convert.ToInt32(matches[0].Value);
                     int destinationSize = Convert.ToInt32(matches[1].Value);
                     if (sourceSize == destinationSize)
-                        unary.evaluation = child.evaluation;
+                        unary.Evaluation = child.Evaluation;
                     else if (sourceSize > destinationSize)
-                        unary.evaluation = BitVector.Slice(child.evaluation, destinationSize, 0);
+                        unary.Evaluation = BitVector.Slice(child.Evaluation, destinationSize, 0);
                     else
-                        unary.evaluation = BitVector.ZeroExtend(child.evaluation, destinationSize);
+                        unary.Evaluation = BitVector.ZeroExtend(child.Evaluation, destinationSize);
                 }
-                else if (RegularExpressions.CAST_TO_INT.IsMatch(unary.op))
+                else if (RegularExpressions.CastToInt.IsMatch(unary.Op))
                 {
-                    MatchCollection matches = Regex.Matches(unary.op, @"\d+");
+                    MatchCollection matches = Regex.Matches(unary.Op, @"\d+");
                     Debug.Assert(matches.Count == 2);
                     int sourceSize = Convert.ToInt32(matches[0].Value);
                     int destinationSize = Convert.ToInt32(matches[1].Value);
                     if (sourceSize == destinationSize)
-                        unary.evaluation = child.evaluation;
+                        unary.Evaluation = child.Evaluation;
                     else if (sourceSize > destinationSize)
-                        unary.evaluation = BitVector.Slice(child.evaluation, destinationSize, 0);
+                        unary.Evaluation = BitVector.Slice(child.Evaluation, destinationSize, 0);
                     else
-                        unary.evaluation = BitVector.ZeroExtend(child.evaluation, destinationSize);
+                        unary.Evaluation = BitVector.ZeroExtend(child.Evaluation, destinationSize);
                 }
-                else if (RegularExpressions.CAST_FP_TO_DOUBLE.IsMatch(unary.op))
+                else if (RegularExpressions.CastFPToDouble.IsMatch(unary.Op))
                 {
-                    unary.evaluation = BitVector.ZeroExtend(child.evaluation, 32);
+                    unary.Evaluation = BitVector.ZeroExtend(child.Evaluation, 32);
                 }
-                else if (unary.op.Equals("FUNCPTR_TO_PTR") ||
-                         unary.op.Equals("PTR_TO_FUNCPTR"))
+                else if (unary.Op.Equals("FUNCPTR_TO_PTR") ||
+                         unary.Op.Equals("PTR_TO_FUNCPTR"))
                 {
-                    unary.evaluation = child.evaluation;
+                    unary.Evaluation = child.Evaluation;
                 }
                 else
                 {
-                    throw new UnhandledException("Unhandled bv unary op: " + unary.op);
+                    throw new UnhandledException("Unhandled bv unary op: " + unary.Op);
                 }
             }
         }
@@ -1348,48 +1274,48 @@ namespace GPUVerify
                     {
                         ScalarSymbolNode scalarNode = node as ScalarSymbolNode;
                         if (memory.Contains(scalarNode.Symbol))
-                            scalarNode.evaluation = memory.GetValue(scalarNode.Symbol);
+                            scalarNode.Evaluation = memory.GetValue(scalarNode.Symbol);
                         else
-                            scalarNode.initialised = false;
+                            scalarNode.Initialised = false;
                     }
                     else if (node is MapSymbolNode)
                     {
                         MapSymbolNode mapNode = node as MapSymbolNode;
-                        SubscriptExpr subscriptExpr = new SubscriptExpr();
+                        Memory.SubscriptExpr subscriptExpr = new Memory.SubscriptExpr();
                         foreach (ExprNode child in mapNode.GetChildren())
                         {
-                            if (child.initialised)
-                                subscriptExpr.indices.Add(child.evaluation);
+                            if (child.Initialised)
+                                subscriptExpr.Indices.Add(child.Evaluation);
                             else
-                                mapNode.initialised = false;
+                                mapNode.Initialised = false;
                         }
 
-                        if (node.initialised)
+                        if (node.Initialised)
                         {
-                            if (memory.Contains(mapNode.basename, subscriptExpr))
-                                mapNode.evaluation = memory.GetValue(mapNode.basename, subscriptExpr);
+                            if (memory.Contains(mapNode.Basename, subscriptExpr))
+                                mapNode.Evaluation = memory.GetValue(mapNode.Basename, subscriptExpr);
                             else
-                                mapNode.initialised = false;
+                                mapNode.Initialised = false;
                         }
                     }
                     else if (node is BVExtractNode)
                     {
                         BVExtractNode extractNode = node as BVExtractNode;
                         ExprNode child = (ExprNode)extractNode.GetChildren()[0];
-                        if (child.initialised)
-                            extractNode.evaluation = BitVector.Slice(child.evaluation, extractNode.high, extractNode.low);
+                        if (child.Initialised)
+                            extractNode.Evaluation = BitVector.Slice(child.Evaluation, extractNode.High, extractNode.Low);
                         else
-                            extractNode.initialised = false;
+                            extractNode.Initialised = false;
                     }
                     else if (node is BVConcatenationNode)
                     {
                         BVConcatenationNode concatNode = node as BVConcatenationNode;
                         ExprNode one = (ExprNode)concatNode.GetChildren()[0];
                         ExprNode two = (ExprNode)concatNode.GetChildren()[1];
-                        if (one.initialised && two.initialised)
-                            concatNode.evaluation = BitVector.Concatenate(one.evaluation, two.evaluation);
+                        if (one.Initialised && two.Initialised)
+                            concatNode.Evaluation = BitVector.Concatenate(one.Evaluation, two.Evaluation);
                         else
-                            concatNode.initialised = false;
+                            concatNode.Initialised = false;
                     }
                     else if (node is UnaryNode)
                     {
@@ -1410,25 +1336,25 @@ namespace GPUVerify
                         ExprNode one = (ExprNode)ternaryNode.GetChildren()[0];
                         ExprNode two = (ExprNode)ternaryNode.GetChildren()[1];
                         ExprNode three = (ExprNode)ternaryNode.GetChildren()[2];
-                        if (!one.initialised)
+                        if (!one.Initialised)
                         {
-                            ternaryNode.initialised = false;
+                            ternaryNode.Initialised = false;
                         }
                         else
                         {
-                            if (one.evaluation.Equals(BitVector.True))
+                            if (one.Evaluation.Equals(BitVector.True))
                             {
-                                if (two.initialised)
-                                    ternaryNode.evaluation = two.evaluation;
+                                if (two.Initialised)
+                                    ternaryNode.Evaluation = two.Evaluation;
                                 else
-                                    ternaryNode.initialised = false;
+                                    ternaryNode.Initialised = false;
                             }
                             else
                             {
-                                if (three.initialised)
-                                    ternaryNode.evaluation = three.evaluation;
+                                if (three.Initialised)
+                                    ternaryNode.Evaluation = three.Evaluation;
                                 else
-                                    ternaryNode.initialised = false;
+                                    ternaryNode.Initialised = false;
                             }
                         }
                     }
@@ -1436,8 +1362,8 @@ namespace GPUVerify
             }
 
             ExprNode root = tree.Root() as ExprNode;
-            tree.initialised = root.initialised;
-            tree.evaluation = root.evaluation;
+            tree.Initialised = root.Initialised;
+            tree.Evaluation = root.Evaluation;
         }
 
         private void Barrier(CallCmd call)
@@ -1451,8 +1377,8 @@ namespace GPUVerify
             {
                 int index = name.IndexOf('$');
                 string arrayName = name.Substring(index);
-                if ((memory.IsInGlobalMemory(arrayName) && globalTree.evaluation.Equals(BitVector.True)) ||
-                            (memory.IsInGroupSharedMemory(arrayName) && groupSharedTree.evaluation.Equals(BitVector.True)))
+                if ((memory.IsInGlobalMemory(arrayName) && globalTree.Evaluation.Equals(BitVector.True)) ||
+                            (memory.IsInGroupSharedMemory(arrayName) && groupSharedTree.Evaluation.Equals(BitVector.True)))
                 {
                     if (memory.GetRaceArrayOffsets(name).Count > 0)
                     {
@@ -1463,20 +1389,23 @@ namespace GPUVerify
                                 {
                                     string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName;
                                     memory.Store(accessTracker, BitVector.False);
-                                    break;
                                 }
+
+                                break;
                             case "_READ_OFFSET_":
                                 {
                                     string accessTracker = "_READ_HAS_OCCURRED_" + arrayName;
                                     memory.Store(accessTracker, BitVector.False);
-                                    break;
                                 }
+
+                                break;
                             case "_ATOMIC_OFFSET_":
                                 {
                                     string accessTracker = "_ATOMIC_HAS_OCCURRED_" + arrayName;
                                     memory.Store(accessTracker, BitVector.False);
-                                    break;
                                 }
+
+                                break;
                         }
                     }
 
@@ -1496,13 +1425,13 @@ namespace GPUVerify
             Print.ConditionalExitMessage(memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find offset variable: " + raceArrayOffsetName);
             ExprTree tree1 = GetExprTree(call.Ins[0]);
             EvaluateExprTree(tree1);
-            if (tree1.initialised && tree1.evaluation.Equals(BitVector.True))
+            if (tree1.Initialised && tree1.Evaluation.Equals(BitVector.True))
             {
                 ExprTree tree2 = GetExprTree(call.Ins[1]);
                 EvaluateExprTree(tree2);
-                if (tree2.initialised)
+                if (tree2.Initialised)
                 {
-                    memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
+                    memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.Evaluation);
                     string accessTracker = "_READ_HAS_OCCURRED_" + arrayName;
                     memory.Store(accessTracker, BitVector.True);
                 }
@@ -1520,13 +1449,13 @@ namespace GPUVerify
             Print.ConditionalExitMessage(memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find offset variable: " + raceArrayOffsetName);
             ExprTree tree1 = GetExprTree(call.Ins[0]);
             EvaluateExprTree(tree1);
-            if (tree1.initialised && tree1.evaluation.Equals(BitVector.True))
+            if (tree1.Initialised && tree1.Evaluation.Equals(BitVector.True))
             {
                 ExprTree tree2 = GetExprTree(call.Ins[1]);
                 EvaluateExprTree(tree2);
-                if (tree2.initialised)
+                if (tree2.Initialised)
                 {
-                    memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
+                    memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.Evaluation);
                     string accessTracker = "_WRITE_HAS_OCCURRED_" + arrayName;
                     memory.Store(accessTracker, BitVector.True);
                 }
@@ -1544,17 +1473,92 @@ namespace GPUVerify
             Print.ConditionalExitMessage(memory.HasRaceArrayVariable(raceArrayOffsetName), "Unable to find offset variable: " + raceArrayOffsetName);
             ExprTree tree1 = GetExprTree(call.Ins[0]);
             EvaluateExprTree(tree1);
-            if (tree1.initialised && tree1.evaluation.Equals(BitVector.True))
+            if (tree1.Initialised && tree1.Evaluation.Equals(BitVector.True))
             {
                 ExprTree tree2 = GetExprTree(call.Ins[1]);
                 EvaluateExprTree(tree2);
-                if (tree2.initialised)
+                if (tree2.Initialised)
                 {
-                    memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.evaluation);
+                    memory.AddRaceArrayOffset(raceArrayOffsetName, tree2.Evaluation);
                     string accessTracker = "_ATOMIC_HAS_OCCURRED_" + arrayName;
                     memory.Store(accessTracker, BitVector.True);
                 }
             }
+        }
+
+        public class UnhandledException : Exception
+        {
+            public UnhandledException(string message)
+                 : base(message)
+            {
+            }
+        }
+
+        public class TimeLimitException : Exception
+        {
+            public TimeLimitException(string message)
+                 : base(message)
+            {
+            }
+        }
+
+        public static class RegularExpressions
+        {
+            public static readonly Regex InvariantVariable = new Regex("_[a-z][0-9]+");
+
+            // Case sensitive
+            public static readonly Regex WatchdoVariable = new Regex("_WATCHED_OFFSET", RegexOptions.IgnoreCase);
+            public static readonly Regex OffsetVariable = new Regex("_(WRITE|READ|ATOMIC)_OFFSET_", RegexOptions.IgnoreCase);
+            public static readonly Regex TrackingVariable = new Regex("_(WRITE|READ|ATOMIC)_HAS_OCCURRED_", RegexOptions.IgnoreCase);
+            public static readonly Regex LogRead = new Regex("_LOG_READ_", RegexOptions.IgnoreCase);
+            public static readonly Regex LogWrite = new Regex("_LOG_WRITE_", RegexOptions.IgnoreCase);
+            public static readonly Regex LogAtomic = new Regex("_LOG_ATOMIC_", RegexOptions.IgnoreCase);
+            public static readonly Regex BugleBarrier = new Regex("bugle_barrier", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSLE = new Regex("BV[0-9]+_SLE", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSLT = new Regex("BV[0-9]+_SLT", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSGE = new Regex("BV[0-9]+_SGE", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSGT = new Regex("BV[0-9]+_SGT", RegexOptions.IgnoreCase);
+            public static readonly Regex BvULE = new Regex("BV[0-9]+_ULE", RegexOptions.IgnoreCase);
+            public static readonly Regex BvULT = new Regex("BV[0-9]+_ULT", RegexOptions.IgnoreCase);
+            public static readonly Regex BvUGE = new Regex("BV[0-9]+_UGE", RegexOptions.IgnoreCase);
+            public static readonly Regex BvUGT = new Regex("BV[0-9]+_UGT", RegexOptions.IgnoreCase);
+            public static readonly Regex BvASHR = new Regex("BV[0-9]+_ASHR", RegexOptions.IgnoreCase);
+            public static readonly Regex BvLSHR = new Regex("BV[0-9]+_LSHR", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSHL = new Regex("BV[0-9]+_SHL", RegexOptions.IgnoreCase);
+            public static readonly Regex BvADD = new Regex("BV[0-9]+_ADD", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSUB = new Regex("BV[0-9]+_SUB", RegexOptions.IgnoreCase);
+            public static readonly Regex BvMUL = new Regex("BV[0-9]+_MUL", RegexOptions.IgnoreCase);
+            public static readonly Regex BvDIV = new Regex("BV[0-9]+_DIV", RegexOptions.IgnoreCase);
+            public static readonly Regex BvAND = new Regex("BV[0-9]+_AND", RegexOptions.IgnoreCase);
+            public static readonly Regex BvOR = new Regex("BV[0-9]+_OR", RegexOptions.IgnoreCase);
+            public static readonly Regex BvXOR = new Regex("BV[0-9]+_XOR", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSREM = new Regex("BV[0-9]+_SREM", RegexOptions.IgnoreCase);
+            public static readonly Regex BvUREM = new Regex("BV[0-9]+_UREM", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSDIV = new Regex("BV[0-9]+_SDIV", RegexOptions.IgnoreCase);
+            public static readonly Regex BvUDIV = new Regex("BV[0-9]+_UDIV", RegexOptions.IgnoreCase);
+            public static readonly Regex BvZEXT = new Regex("BV[0-9]+_ZEXT", RegexOptions.IgnoreCase);
+            public static readonly Regex BvSEXT = new Regex("BV[0-9]+_SEXT", RegexOptions.IgnoreCase);
+            public static readonly Regex CastToFP = new Regex("(U|S)I[0-9]+_TO_FP[0-9]+", RegexOptions.IgnoreCase);
+            public static readonly Regex CastToInt = new Regex("FP[0-9]+_TO_(U|S)I[0-9]+", RegexOptions.IgnoreCase);
+            public static readonly Regex CastFPToDouble = new Regex("FP[0-9]+_CONV[0-9]+", RegexOptions.IgnoreCase);
+        }
+
+        private static class BinaryOps
+        {
+            public const string OR = "||";
+            public const string AND = "&&";
+            public const string IF = "==>";
+            public const string IFF = "<==>";
+            public const string GT = ">";
+            public const string GTE = ">=";
+            public const string LT = "<";
+            public const string LTE = "<=";
+            public const string ADD = "+";
+            public const string SUBTRACT = "-";
+            public const string MULTIPLY = "*";
+            public const string DIVIDE = "/";
+            public const string NEQ = "!=";
+            public const string EQ = "==";
         }
     }
 }

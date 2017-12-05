@@ -11,15 +11,16 @@ namespace GPUVerify
 {
     using Microsoft.Boogie;
 
-    internal class AccessRecord
+    public class AccessRecord
     {
-        public Variable v;
-        public Expr Index;
+        public Variable V { get; private set; }
+
+        public Expr Index { get; private set; }
 
         public AccessRecord(Variable v, Expr index)
         {
-            this.v = v;
-            this.Index = index;
+            V = v;
+            Index = index;
         }
     }
 }

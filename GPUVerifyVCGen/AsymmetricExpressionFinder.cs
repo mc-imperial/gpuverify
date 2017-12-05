@@ -12,7 +12,7 @@ namespace GPUVerify
     using System.Collections.Generic;
     using Microsoft.Boogie;
 
-    internal class AsymmetricExpressionFinder : StandardVisitor
+    public class AsymmetricExpressionFinder : StandardVisitor
     {
         private static readonly HashSet<string> AsymmetricNamePrefixes = new HashSet<string>
         {

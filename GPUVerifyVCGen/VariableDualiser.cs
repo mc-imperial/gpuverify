@@ -14,15 +14,25 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    class VariableDualiser : Duplicator
+    public class VariableDualiser : Duplicator
     {
         public static readonly HashSet<string> OtherFunctionNames =
           new HashSet<string>(new string[] { "__other_bool", "__other_bv32", "__other_bv64", "__other_arrayId" });
 
         private int id;
+        private GPUVerifier verifier;
         private UniformityAnalyser uniformityAnalyser;
         private string procName;
         private HashSet<Variable> quantifiedVars;
+
+        public VariableDualiser(int id, GPUVerifier verifier, string procName)
+        {
+            this.id = id;
+            this.verifier = verifier;
+            this.uniformityAnalyser = verifier.UniformityAnalyser;
+            this.procName = procName;
+            this.quantifiedVars = new HashSet<Variable>();
+        }
 
         private bool SkipDualiseVariable(Variable node)
         {
@@ -42,17 +52,6 @@ namespace GPUVerify
             return false;
         }
 
-        public VariableDualiser(int id, UniformityAnalyser uniformityAnalyser, string procName)
-        {
-            Debug.Assert((uniformityAnalyser == null && procName == null)
-                || (uniformityAnalyser != null && procName != null));
-
-            this.id = id;
-            this.uniformityAnalyser = uniformityAnalyser;
-            this.procName = procName;
-            this.quantifiedVars = new HashSet<Variable>();
-        }
-
         public override Expr VisitIdentifierExpr(IdentifierExpr node)
         {
             if (node.Decl is Formal)
@@ -66,12 +65,12 @@ namespace GPUVerify
                 return new IdentifierExpr(node.tok, new LocalVariable(node.tok, DualiseTypedIdent(node.Decl)));
             }
 
-            if (GPUVerifier.IsThreadLocalIdConstant(node.Decl))
+            if (verifier.IsThreadLocalIdConstant(node.Decl))
             {
                 return new IdentifierExpr(node.tok, new Constant(node.tok, DualiseTypedIdent(node.Decl)));
             }
 
-            if (GPUVerifier.IsGroupIdConstant(node.Decl))
+            if (verifier.IsGroupIdConstant(node.Decl))
             {
                 if (GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
                 {
@@ -92,7 +91,7 @@ namespace GPUVerify
                 return new TypedIdent(v.tok, v.Name, v.TypedIdent.Type);
             }
 
-            if (uniformityAnalyser != null && uniformityAnalyser.IsUniform(procName, v.Name))
+            if (procName != null && uniformityAnalyser.IsUniform(procName, v.Name))
             {
                 return new TypedIdent(v.tok, v.Name, v.TypedIdent.Type);
             }
@@ -102,9 +101,9 @@ namespace GPUVerify
 
         public override Variable VisitVariable(Variable node)
         {
-            if ((!(node is Constant) && !SkipDualiseVariable(node as Variable)) ||
-                GPUVerifier.IsThreadLocalIdConstant(node) ||
-                GPUVerifier.IsGroupIdConstant(node))
+            if ((!(node is Constant) && !SkipDualiseVariable(node as Variable))
+                || verifier.IsThreadLocalIdConstant(node)
+                || verifier.IsGroupIdConstant(node))
             {
                 node.TypedIdent = DualiseTypedIdent(node);
                 node.Name = node.Name + "$" + id;
@@ -132,11 +131,10 @@ namespace GPUVerify
                 var v = (node.Args[0] as IdentifierExpr).Decl;
                 if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
                 {
-
                     var arg0 = new NAryExpr(
                         Token.NoToken,
                         new MapSelect(Token.NoToken, 1),
-                        new List<Expr> { node.Args[0], GPUVerifier.GroupSharedIndexingExpr(id) });
+                        new List<Expr> { node.Args[0], verifier.GroupSharedIndexingExpr(id) });
                     var arg1 = VisitExpr(node.Args[1]);
                     return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { arg0, arg1 });
                 }
@@ -151,7 +149,7 @@ namespace GPUVerify
                 {
                     Debug.Assert(id == 1 || id == 2);
                     int otherId = id == 1 ? 2 : 1;
-                    return new VariableDualiser(otherId, uniformityAnalyser, procName).VisitExpr(
+                    return new VariableDualiser(otherId, verifier, procName).VisitExpr(
                         node.Args[0]);
                 }
             }
@@ -184,7 +182,7 @@ namespace GPUVerify
             {
                 return new MapAssignLhs(
                     Token.NoToken,
-                    new MapAssignLhs(Token.NoToken, node.Map, new List<Expr> { GPUVerifier.GroupSharedIndexingExpr(id) }),
+                    new MapAssignLhs(Token.NoToken, node.Map, new List<Expr> { verifier.GroupSharedIndexingExpr(id) }),
                     node.Indexes.Select(idx => VisitExpr(idx)).ToList());
             }
 

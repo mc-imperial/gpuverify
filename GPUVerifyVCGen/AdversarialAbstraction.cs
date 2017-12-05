@@ -14,7 +14,7 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal class AdversarialAbstraction
+    public class AdversarialAbstraction
     {
         private GPUVerifier verifier;
 
@@ -125,9 +125,9 @@ namespace GPUVerify
                         ReadCollector rc = new ReadCollector(verifier.KernelArrayInfo);
                         rc.Visit(call.Ins[i]);
                         bool foundAdversarial = false;
-                        foreach (AccessRecord ar in rc.nonPrivateAccesses)
+                        foreach (AccessRecord ar in rc.NonPrivateAccesses)
                         {
-                            if (verifier.ArrayModelledAdversarially(ar.v))
+                            if (verifier.ArrayModelledAdversarially(ar.V))
                             {
                                 foundAdversarial = true;
                                 break;
@@ -164,9 +164,9 @@ namespace GPUVerify
                         rc.Visit(rhs);
 
                         bool foundAdversarial = false;
-                        foreach (AccessRecord ar in rc.nonPrivateAccesses)
+                        foreach (AccessRecord ar in rc.NonPrivateAccesses)
                         {
-                            if (verifier.ArrayModelledAdversarially(ar.v))
+                            if (verifier.ArrayModelledAdversarially(ar.V))
                             {
                                 foundAdversarial = true;
                                 break;
@@ -184,7 +184,7 @@ namespace GPUVerify
                         wc.Visit(lhs);
                         if (wc.FoundNonPrivateWrite())
                         {
-                            if (verifier.ArrayModelledAdversarially(wc.GetAccess().v))
+                            if (verifier.ArrayModelledAdversarially(wc.GetAccess().V))
                             {
                                 continue; // Just remove the write
                             }

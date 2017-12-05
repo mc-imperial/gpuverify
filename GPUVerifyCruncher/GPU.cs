@@ -21,51 +21,47 @@ namespace GPUVerify
 
     public class GPU
     {
-        public Dictionary<DIMENSION, int> gridDim = new Dictionary<DIMENSION, int>();
-        public Dictionary<DIMENSION, int> blockDim = new Dictionary<DIMENSION, int>();
-        public Dictionary<DIMENSION, int> gridOffset = new Dictionary<DIMENSION, int>();
+        public Dictionary<DIMENSION, int> GridDim { get; private set; } = new Dictionary<DIMENSION, int>()
+            { { DIMENSION.X, -1 }, { DIMENSION.Y, -1 }, { DIMENSION.Z, -1 } };
+
+        public Dictionary<DIMENSION, int> BlockDim { get; private set; } = new Dictionary<DIMENSION, int>()
+            { { DIMENSION.X, -1 }, { DIMENSION.Y, -1 }, { DIMENSION.Z, -1 } };
+
+        public Dictionary<DIMENSION, int> GridOffset { get; private set; } = new Dictionary<DIMENSION, int>()
+            { { DIMENSION.X, -1 }, { DIMENSION.Y, -1 }, { DIMENSION.Z, -1 } };
 
         public GPU()
         {
-            gridDim[DIMENSION.X] = -1;
-            gridDim[DIMENSION.Y] = -1;
-            gridDim[DIMENSION.Z] = -1;
-            blockDim[DIMENSION.X] = -1;
-            blockDim[DIMENSION.Y] = -1;
-            blockDim[DIMENSION.Z] = -1;
-            gridOffset[DIMENSION.X] = -1;
-            gridOffset[DIMENSION.Y] = -1;
-            gridOffset[DIMENSION.Z] = -1;
         }
 
         public void SetBlockDim(Tuple<int, int, int> blockDim)
         {
-            this.blockDim[DIMENSION.X] = blockDim.Item1;
-            this.blockDim[DIMENSION.Y] = blockDim.Item2;
-            this.blockDim[DIMENSION.Z] = blockDim.Item3;
+            this.BlockDim[DIMENSION.X] = blockDim.Item1;
+            this.BlockDim[DIMENSION.Y] = blockDim.Item2;
+            this.BlockDim[DIMENSION.Z] = blockDim.Item3;
         }
 
         public void SetGridDim(Tuple<int, int, int> gridDim)
         {
-            this.gridDim[DIMENSION.X] = gridDim.Item1;
-            this.gridDim[DIMENSION.Y] = gridDim.Item2;
-            this.gridDim[DIMENSION.Z] = gridDim.Item3;
+            this.GridDim[DIMENSION.X] = gridDim.Item1;
+            this.GridDim[DIMENSION.Y] = gridDim.Item2;
+            this.GridDim[DIMENSION.Z] = gridDim.Item3;
         }
 
         public void SetGridOffset(Tuple<int, int, int> gridOffset)
         {
-            this.gridOffset[DIMENSION.X] = gridOffset.Item1;
-            this.gridOffset[DIMENSION.Y] = gridOffset.Item2;
-            this.gridOffset[DIMENSION.Z] = gridOffset.Item3;
+            this.GridOffset[DIMENSION.X] = gridOffset.Item1;
+            this.GridOffset[DIMENSION.Y] = gridOffset.Item2;
+            this.GridOffset[DIMENSION.Z] = gridOffset.Item3;
         }
 
         public override string ToString()
         {
             StringBuilder builder = new StringBuilder();
-            builder.Append(string.Format("blockDim=[{0},{1},{2}]", blockDim[DIMENSION.X], blockDim[DIMENSION.Y], blockDim[DIMENSION.Z]));
+            builder.Append(string.Format("blockDim=[{0},{1},{2}]", BlockDim[DIMENSION.X], BlockDim[DIMENSION.Y], BlockDim[DIMENSION.Z]));
             builder.Append("\n");
-            builder.Append(string.Format("gridDim =[{0},{1},{2}]", gridDim[DIMENSION.X], gridDim[DIMENSION.Y], gridDim[DIMENSION.Z]));
-            builder.Append(string.Format("gridOffset =[{0},{1},{2}]", gridOffset[DIMENSION.X], gridOffset[DIMENSION.Y], gridOffset[DIMENSION.Z]));
+            builder.Append(string.Format("gridDim =[{0},{1},{2}]", GridDim[DIMENSION.X], GridDim[DIMENSION.Y], GridDim[DIMENSION.Z]));
+            builder.Append(string.Format("gridOffset =[{0},{1},{2}]", GridOffset[DIMENSION.X], GridOffset[DIMENSION.Y], GridOffset[DIMENSION.Z]));
             return builder.ToString();
         }
 

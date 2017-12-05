@@ -14,7 +14,7 @@ namespace GPUVerify
     using System.Linq;
     using Microsoft.Boogie;
 
-    internal class LiteralIndexedArrayEliminator
+    public class LiteralIndexedArrayEliminator
     {
         private GPUVerifier verifier;
         private Dictionary<string, GlobalVariable> arrayCache = new Dictionary<string, GlobalVariable>();
@@ -62,7 +62,7 @@ namespace GPUVerify
             }
         }
 
-        internal GlobalVariable MakeVariableForArrayIndex(Variable array, string literal)
+        private GlobalVariable MakeVariableForArrayIndex(Variable array, string literal)
         {
             var arrayName = array.Name + "$" + literal;
             if (!arrayCache.ContainsKey(arrayName))
@@ -80,139 +80,138 @@ namespace GPUVerify
             collector.VisitProgram(program);
             return collector.LiteralIndexedArrays;
         }
-    }
 
-    internal class LiteralIndexVisitor : StandardVisitor
-    {
-        // Maps an array to a set of strings, each of which denotes a literal with which the array can be indexed.
-        internal readonly Dictionary<string, HashSet<string>> LiteralIndexedArrays;
-
-        internal LiteralIndexVisitor(GPUVerifier verifier)
+        private class LiteralIndexVisitor : StandardVisitor
         {
-            this.LiteralIndexedArrays = new Dictionary<string, HashSet<string>>();
-            foreach (var v in verifier.KernelArrayInfo.GetPrivateArrays())
-            {
-                this.LiteralIndexedArrays[v.Name] = new HashSet<string>();
-            }
-        }
+            // Maps an array to a set of strings, each of which denotes a literal with which the array can be indexed.
+            public Dictionary<string, HashSet<string>> LiteralIndexedArrays { get; } =
+                new Dictionary<string, HashSet<string>>();
 
-        public override Expr VisitNAryExpr(NAryExpr node)
-        {
-            if (node.Fun is MapSelect && node.Args.Count() == 2)
+            public LiteralIndexVisitor(GPUVerifier verifier)
             {
-                var map = node.Args[0] as IdentifierExpr;
-                if (map != null)
+                foreach (var v in verifier.KernelArrayInfo.GetPrivateArrays())
                 {
+                    this.LiteralIndexedArrays[v.Name] = new HashSet<string>();
+                }
+            }
+
+            public override Expr VisitNAryExpr(NAryExpr node)
+            {
+                if (node.Fun is MapSelect && node.Args.Count() == 2)
+                {
+                    var map = node.Args[0] as IdentifierExpr;
+                    if (map != null)
+                    {
+                        if (LiteralIndexedArrays.ContainsKey(map.Name))
+                        {
+                            UpdateIndexingInfo(node.Args[1], map.Name);
+                        }
+                    }
+                }
+
+                return base.VisitNAryExpr(node);
+            }
+
+            public override Cmd VisitAssignCmd(AssignCmd node)
+            {
+                foreach (var lhs in node.Lhss.OfType<MapAssignLhs>())
+                {
+                    if (!(lhs.Map is SimpleAssignLhs))
+                    {
+                        continue;
+                    }
+
+                    if (lhs.Indexes.Count() != 1)
+                    {
+                        continue;
+                    }
+
+                    var map = (lhs.Map as SimpleAssignLhs).AssignedVariable;
                     if (LiteralIndexedArrays.ContainsKey(map.Name))
                     {
-                        UpdateIndexingInfo(node.Args[1], map.Name);
+                        UpdateIndexingInfo(lhs.Indexes[0], map.Name);
                     }
                 }
+
+                return base.VisitAssignCmd(node);
             }
 
-            return base.VisitNAryExpr(node);
-        }
-
-        public override Cmd VisitAssignCmd(AssignCmd node)
-        {
-            foreach (var lhs in node.Lhss.OfType<MapAssignLhs>())
+            private void UpdateIndexingInfo(Expr maybeLiteral, string mapName)
             {
-                if (!(lhs.Map is SimpleAssignLhs))
+                if (maybeLiteral is LiteralExpr)
                 {
-                    continue;
+                    LiteralIndexedArrays[mapName].Add(maybeLiteral.ToString());
                 }
-
-                if (lhs.Indexes.Count() != 1)
+                else
                 {
-                    continue;
-                }
-
-                var map = (lhs.Map as SimpleAssignLhs).AssignedVariable;
-                if (LiteralIndexedArrays.ContainsKey(map.Name))
-                {
-                    UpdateIndexingInfo(lhs.Indexes[0], map.Name);
+                    // The array is not always indexed by a literal
+                    LiteralIndexedArrays.Remove(mapName);
                 }
             }
-
-            return base.VisitAssignCmd(node);
         }
 
-        private void UpdateIndexingInfo(Expr maybeLiteral, string mapName)
+        private class EliminatorVisitor : Duplicator
         {
-            if (maybeLiteral is LiteralExpr)
+            private Dictionary<string, HashSet<string>> arrays;
+            private LiteralIndexedArrayEliminator arrayEliminator;
+
+            public EliminatorVisitor(
+                Dictionary<string, HashSet<string>> arrays, LiteralIndexedArrayEliminator arrayEliminator)
             {
-                LiteralIndexedArrays[mapName].Add(maybeLiteral.ToString());
+                this.arrays = arrays;
+                this.arrayEliminator = arrayEliminator;
             }
-            else
+
+            public override Expr VisitNAryExpr(NAryExpr node)
             {
-                // The array is not always indexed by a literal
-                LiteralIndexedArrays.Remove(mapName);
-            }
-        }
-    }
-
-    internal class EliminatorVisitor : Duplicator
-    {
-        private Dictionary<string, HashSet<string>> arrays;
-        private LiteralIndexedArrayEliminator arrayEliminator;
-
-        public EliminatorVisitor(Dictionary<string, HashSet<string>> arrays, LiteralIndexedArrayEliminator arrayEliminator)
-        {
-            this.arrays = arrays;
-            this.arrayEliminator = arrayEliminator;
-        }
-
-        public override Expr VisitNAryExpr(NAryExpr node)
-        {
-            if (node.Fun is MapSelect && node.Args.Count() == 2)
-            {
-                var map = node.Args[0] as IdentifierExpr;
-                if (map != null)
+                if (node.Fun is MapSelect && node.Args.Count() == 2)
                 {
-                    if (arrays.ContainsKey(map.Name))
+                    var map = node.Args[0] as IdentifierExpr;
+                    if (map != null)
                     {
-                        Debug.Assert(node.Args[1] is LiteralExpr);
-                        return new IdentifierExpr(
-                            Token.NoToken,
-                            arrayEliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
+                        if (arrays.ContainsKey(map.Name))
+                        {
+                            Debug.Assert(node.Args[1] is LiteralExpr);
+                            return new IdentifierExpr(
+                                Token.NoToken,
+                                arrayEliminator.MakeVariableForArrayIndex(map.Decl, node.Args[1].ToString()));
+                        }
                     }
                 }
+
+                return base.VisitNAryExpr(node);
             }
 
-            return base.VisitNAryExpr(node);
-        }
-
-        private AssignLhs TransformLhs(AssignLhs lhs)
-        {
-            var mapLhs = lhs as MapAssignLhs;
-            if (mapLhs == null
-              || !(mapLhs.Map is SimpleAssignLhs)
-              || mapLhs.Indexes.Count() != 1)
+            private AssignLhs TransformLhs(AssignLhs lhs)
             {
-                return (AssignLhs)Visit(lhs);
+                var mapLhs = lhs as MapAssignLhs;
+                if (mapLhs == null || !(mapLhs.Map is SimpleAssignLhs) || mapLhs.Indexes.Count() != 1)
+                {
+                    return (AssignLhs)Visit(lhs);
+                }
+
+                var map = ((SimpleAssignLhs)mapLhs.Map).AssignedVariable;
+
+                if (!arrays.ContainsKey(map.Name))
+                {
+                    return (AssignLhs)Visit(lhs);
+                }
+
+                Debug.Assert(mapLhs.Indexes[0] is LiteralExpr);
+
+                var lhsId = new IdentifierExpr(
+                    Token.NoToken,
+                    arrayEliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString()));
+                return new SimpleAssignLhs(lhs.tok, lhsId);
             }
 
-            var map = (mapLhs.Map as SimpleAssignLhs).AssignedVariable;
-
-            if (!arrays.ContainsKey(map.Name))
+            public override Cmd VisitAssignCmd(AssignCmd node)
             {
-                return (AssignLhs)Visit(lhs);
+                return new AssignCmd(
+                    node.tok,
+                    node.Lhss.Select(item => TransformLhs(item)).ToList(),
+                    node.Rhss.Select(item => VisitExpr(item)).ToList());
             }
-
-            Debug.Assert(mapLhs.Indexes[0] is LiteralExpr);
-
-            var lhsId = new IdentifierExpr(
-                Token.NoToken,
-                arrayEliminator.MakeVariableForArrayIndex(map.Decl, mapLhs.Indexes[0].ToString()));
-            return new SimpleAssignLhs(lhs.tok, lhsId);
-        }
-
-        public override Cmd VisitAssignCmd(AssignCmd node)
-        {
-            return new AssignCmd(
-                node.tok,
-                node.Lhss.Select(item => TransformLhs(item)).ToList(),
-                node.Rhss.Select(item => VisitExpr(item)).ToList());
         }
     }
 }

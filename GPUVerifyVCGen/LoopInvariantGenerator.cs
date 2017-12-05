@@ -16,7 +16,7 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    internal class LoopInvariantGenerator
+    public class LoopInvariantGenerator
     {
         private GPUVerifier verifier;
         private Implementation impl;
@@ -59,7 +59,7 @@ namespace GPUVerify
         private static void GenerateCandidateForEnablednessWhenAccessingSharedArrays(GPUVerifier verifier, Implementation impl, IRegion region)
         {
             Block header = region.Header();
-            if (verifier.uniformityAnalyser.IsUniform(impl.Name, header))
+            if (verifier.UniformityAnalyser.IsUniform(impl.Name, header))
                 return;
 
             var cfg = Program.GraphFromImpl(impl);
@@ -143,7 +143,7 @@ namespace GPUVerify
         private static void GenerateCandidateForEnabledness(GPUVerifier verifier, Implementation impl, IRegion region)
         {
             Block header = region.Header();
-            if (verifier.uniformityAnalyser.IsUniform(impl.Name, header))
+            if (verifier.UniformityAnalyser.IsUniform(impl.Name, header))
                 return;
 
             var cfg = Program.GraphFromImpl(impl);
@@ -221,7 +221,7 @@ namespace GPUVerify
                 {
                     if (a.Expr is IdentifierExpr)
                     {
-                        return verifier.varDefAnalysesRegion[impl].DefOfVariableName(((IdentifierExpr)a.Expr).Name);
+                        return verifier.VarDefAnalysesRegion[impl].DefOfVariableName(((IdentifierExpr)a.Expr).Name);
                     }
                     else if (a.Expr is NAryExpr)
                     {
@@ -230,7 +230,7 @@ namespace GPUVerify
                             (nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&
                             nary.Args[0] is IdentifierExpr)
                         {
-                            var d = verifier.varDefAnalysesRegion[impl].DefOfVariableName(((IdentifierExpr)(a.Expr as NAryExpr).Args[0]).Name);
+                            var d = verifier.VarDefAnalysesRegion[impl].DefOfVariableName(((IdentifierExpr)(a.Expr as NAryExpr).Args[0]).Name);
                             if (d == null)
                                 return null;
                             else
@@ -255,7 +255,7 @@ namespace GPUVerify
             var modset = region.GetModifiedVariables().Select(x => x.Name);
             foreach (var v in partitionVars)
             {
-                Expr expr = verifier.varDefAnalysesRegion[impl].DefOfVariableName(v.Name);
+                Expr expr = verifier.VarDefAnalysesRegion[impl].DefOfVariableName(v.Name);
                 if (expr == null)
                     continue;
                 var visitor = new VariablesOccurringInExpressionVisitor();
@@ -264,7 +264,7 @@ namespace GPUVerify
                     visitor.GetVariables().Where(x =>
                         x.Name.StartsWith("$") && !formals.Contains(x.Name) &&
                         modset.Contains(x.Name) &&
-                        !verifier.uniformityAnalyser.IsUniform(impl.Name, x.Name) &&
+                        !verifier.UniformityAnalyser.IsUniform(impl.Name, x.Name) &&
                         x.TypedIdent.Type.IsBv &&
                         (x.TypedIdent.Type.BvBits % 8 == 0)));
             }
@@ -298,7 +298,7 @@ namespace GPUVerify
                             Function otherbv = verifier.FindOrCreateOther(sub.Type.BvBits);
                             var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv), args));
                             verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform");
-                            var groupInv = Expr.Imp(GPUVerifier.ThreadsInSameGroup(), inv);
+                            var groupInv = Expr.Imp(verifier.ThreadsInSameGroup(), inv);
                             verifier.AddCandidateInvariant(region, groupInv, "guardMinusInitialIsUniform");
                         }
                     }
@@ -316,7 +316,7 @@ namespace GPUVerify
             Regex pattern = new Regex(@"\bBV\d*_((SLE)|(SLT)|(SGE)|(SGT))\b");
             foreach (var v in partitionVars)
             {
-                var expr = verifier.varDefAnalysesRegion[impl].DefOfVariableName(v.Name);
+                var expr = verifier.VarDefAnalysesRegion[impl].DefOfVariableName(v.Name);
                 if (!(expr is NAryExpr))
                     continue;
                 var nary = expr as NAryExpr;
@@ -346,7 +346,7 @@ namespace GPUVerify
 
         private static void GenerateCandidateForReducedStrengthStrideVariables(GPUVerifier verifier, Implementation impl, IRegion region)
         {
-            var rsa = verifier.reducedStrengthAnalysesRegion[impl];
+            var rsa = verifier.ReducedStrengthAnalysesRegion[impl];
             var regionId = region.Identifier();
             foreach (string iv in rsa.StridedInductionVariables(regionId))
             {
@@ -374,7 +374,7 @@ namespace GPUVerify
                 // Find the expression which defines a particular partition variable.
                 // Visit the expression and select any variable in the mod set of the loop.
                 // We assume that any variable satisfying these conditions is a loop counter
-                Expr partitionDefExpr = verifier.varDefAnalysesRegion[impl].DefOfVariableName(v.Name);
+                Expr partitionDefExpr = verifier.VarDefAnalysesRegion[impl].DefOfVariableName(v.Name);
                 if (partitionDefExpr == null) // multiple definitions or no definition
                     continue;
                 var visitor = new VariablesOccurringInExpressionVisitor();
@@ -437,8 +437,8 @@ namespace GPUVerify
               new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, loopPredicate + "$1", Microsoft.Boogie.Type.Int))),
               new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, loopPredicate + "$2", Microsoft.Boogie.Type.Int)))),
              Expr.Eq(
-              new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier.uniformityAnalyser, impl.Name).VisitVariable(v.Clone() as Variable)),
-              new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier.uniformityAnalyser, impl.Name).VisitVariable(v.Clone() as Variable))));
+              new IdentifierExpr(Token.NoToken, new VariableDualiser(1, verifier, impl.Name).VisitVariable(v.Clone() as Variable)),
+              new IdentifierExpr(Token.NoToken, new VariableDualiser(2, verifier, impl.Name).VisitVariable(v.Clone() as Variable))));
 
             verifier.AddCandidateInvariant(region, inv, "predicatedEquality");
         }
@@ -457,7 +457,7 @@ namespace GPUVerify
                     {
                         if (a is SimpleAssignLhs)
                         {
-                            var v = GVUtil.StripThreadIdentifier(
+                            var v = Utilities.StripThreadIdentifier(
                                      ((SimpleAssignLhs)a).AssignedVariable.Name);
                             if (!alreadySeenInThisAssignment.Contains(v))
                             {
@@ -486,7 +486,7 @@ namespace GPUVerify
                 return;
 
             Expr guard = region.Guard();
-            if (guard != null && verifier.uniformityAnalyser.IsUniform(impl.Name, guard))
+            if (guard != null && verifier.UniformityAnalyser.IsUniform(impl.Name, guard))
                 return;
 
             if (IsDisjunctionOfPredicates(guard))
@@ -501,7 +501,7 @@ namespace GPUVerify
 
                 verifier.AddCandidateInvariant(region, uniformEnabledPredicate, "loopPredicateEquality");
 
-                verifier.AddCandidateInvariant(region, Expr.Imp(GPUVerifier.ThreadsInSameGroup(), uniformEnabledPredicate), "loopPredicateEquality");
+                verifier.AddCandidateInvariant(region, Expr.Imp(verifier.ThreadsInSameGroup(), uniformEnabledPredicate), "loopPredicateEquality");
 
                 Dictionary<string, int> assignmentCounts = GetAssignmentCounts(impl);
 
@@ -509,13 +509,13 @@ namespace GPUVerify
 
                 foreach (var v in localVars)
                 {
-                    string lv = GVUtil.StripThreadIdentifier(v.Name);
+                    string lv = Utilities.StripThreadIdentifier(v.Name);
                     if (alreadyConsidered.Contains(lv))
                         continue;
 
                     alreadyConsidered.Add(lv);
 
-                    if (verifier.uniformityAnalyser.IsUniform(impl.Name, v.Name))
+                    if (verifier.UniformityAnalyser.IsUniform(impl.Name, v.Name))
                         continue;
 
                     if (GPUVerifier.IsPredicate(lv))
@@ -545,9 +545,9 @@ namespace GPUVerify
             if (!(nary.Args[0] is IdentifierExpr && nary.Args[1] is IdentifierExpr))
                 return false;
 
-            return GPUVerifier.IsPredicate(GVUtil.StripThreadIdentifier(
+            return GPUVerifier.IsPredicate(Utilities.StripThreadIdentifier(
              ((IdentifierExpr)nary.Args[0]).Name)) &&
-            GPUVerifier.IsPredicate(GVUtil.StripThreadIdentifier(
+            GPUVerifier.IsPredicate(Utilities.StripThreadIdentifier(
              ((IdentifierExpr)nary.Args[1]).Name));
         }
 
@@ -614,13 +614,13 @@ namespace GPUVerify
                 ReadCollector rc = new ReadCollector(stateToCheck);
                 foreach (var rhs in assign.Rhss)
                     rc.Visit(rhs);
-                foreach (var access in rc.nonPrivateAccesses)
+                foreach (var access in rc.NonPrivateAccesses)
                 {
                     // Ignore disabled arrays
-                    if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(access.v))
+                    if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(access.V))
                     {
                         // Ignore read-only arrays (whether or not they are disabled)
-                        if (!stateToCheck.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(access.v))
+                        if (!stateToCheck.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(access.V))
                             return true;
                     }
                 }
@@ -632,7 +632,7 @@ namespace GPUVerify
                     if (wc.FoundNonPrivateWrite())
                     {
                         // Ignore disabled arrays
-                        if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().v))
+                        if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(wc.GetAccess().V))
                             return true;
                     }
                 }
@@ -644,7 +644,7 @@ namespace GPUVerify
                     if (cwc.FoundWrite())
                     {
                         // Ignore disabled arrays
-                        if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(cwc.GetAccess().v))
+                        if (stateToCheck.GetGlobalAndGroupSharedArrays(false).Contains(cwc.GetAccess().V))
                             return true;
                     }
                 }

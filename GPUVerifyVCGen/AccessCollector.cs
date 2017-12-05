@@ -12,7 +12,7 @@ namespace GPUVerify
     using System;
     using Microsoft.Boogie;
 
-    internal abstract class AccessCollector : StandardVisitor
+    public abstract class AccessCollector : StandardVisitor
     {
         public AccessCollector(IKernelArrayInfo state)
         {

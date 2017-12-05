@@ -12,7 +12,7 @@ namespace GPUVerify
     using System.Collections.Generic;
     using Microsoft.Boogie;
 
-    internal interface IKernelArrayInfo
+    public interface IKernelArrayInfo
     {
         IEnumerable<Variable> GetGlobalArrays(bool includeDisabled);
 

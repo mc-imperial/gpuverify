@@ -77,7 +77,7 @@ namespace GPUVerify
 
         private List<Record> records;
 
-        public class RecordComparison : IComparer<Record>
+        private class RecordComparison : IComparer<Record>
         {
             public int Compare(Record s1, Record s2)
             {
@@ -192,7 +192,7 @@ namespace GPUVerify
             return FetchCodeLine(Path.Combine(records[i].GetDirectory(), Path.GetFileName(records[i].GetFile())), records[i].GetLine());
         }
 
-        internal static string FetchCodeLine(string path, int lineNo)
+        private static string FetchCodeLine(string path, int lineNo)
         {
             try
             {
@@ -212,7 +212,7 @@ namespace GPUVerify
             }
         }
 
-        public int Count()
+        private int Count()
         {
             return records.Count();
         }
@@ -230,12 +230,12 @@ namespace GPUVerify
 
         public void PrintStackTrace()
         {
-            GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(0), 2));
+            Utilities.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(0), 2));
 
             for (int i = 1; i < Count(); i++)
             {
                 Console.Error.WriteLine("invoked from " + records[i] + ":");
-                GVUtil.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(i), 2));
+                Utilities.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(i), 2));
             }
 
             Console.Error.WriteLine();
