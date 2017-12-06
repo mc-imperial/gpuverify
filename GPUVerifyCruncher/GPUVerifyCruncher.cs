@@ -74,7 +74,7 @@ namespace GPUVerify
                 {
                     Console.Error.WriteLine("Exception thrown in GPUVerifyCruncher");
                     Console.Error.WriteLine(e);
-                    throw e;
+                    throw;
                 }
 
                 Utilities.IO.DumpExceptionInformation(e);

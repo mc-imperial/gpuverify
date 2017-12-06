@@ -53,7 +53,7 @@ namespace GPUVerify
                 {
                     Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
                     Console.Error.WriteLine(e);
-                    throw e;
+                    throw;
                 }
 
                 Utilities.IO.DumpExceptionInformation(e);

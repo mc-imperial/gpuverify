@@ -1590,6 +1590,7 @@ namespace GPUVerify
             }
         }
 
+        [Serializable]
         public class UnhandledException : Exception
         {
             public UnhandledException(string message)
@@ -1598,6 +1599,7 @@ namespace GPUVerify
             }
         }
 
+        [Serializable]
         public class TimeLimitException : Exception
         {
             public TimeLimitException(string message)

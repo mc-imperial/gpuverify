@@ -32,13 +32,13 @@ namespace Microsoft.Boogie
                 CommandLineOptions.Clo.RunningBoogieFromCommandLine = true;
                 if (!CommandLineOptions.Clo.Parse(args))
                 {
-                    Environment.Exit((int)GPUVerify.ToolExitCodes.OTHER_ERROR);
+                    Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
                 }
 
                 if (CommandLineOptions.Clo.Files.Count == 0)
                 {
                     Utilities.IO.ErrorWriteLine("GPUVerify: error: no input files were specified");
-                    Environment.Exit((int)GPUVerify.ToolExitCodes.OTHER_ERROR);
+                    Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
                 }
 
                 if (!CommandLineOptions.Clo.DontShowLogo)
@@ -70,7 +70,7 @@ namespace Microsoft.Boogie
                     if (extension != ".bpl" && extension != ".cbpl")
                     {
                         Utilities.IO.ErrorWriteLine("GPUVerify: error: {0} is not a .(c)bpl file", file);
-                        Environment.Exit((int)GPUVerify.ToolExitCodes.OTHER_ERROR);
+                        Environment.Exit((int)ToolExitCodes.OTHER_ERROR);
                     }
                 }
 
@@ -83,11 +83,11 @@ namespace Microsoft.Boogie
                 {
                     Console.Error.WriteLine("Exception thrown in GPUVerifyBoogieDriver");
                     Console.Error.WriteLine(e);
-                    throw e;
+                    throw;
                 }
 
                 Utilities.IO.DumpExceptionInformation(e);
-                Environment.Exit((int)GPUVerify.ToolExitCodes.INTERNAL_ERROR);
+                Environment.Exit((int)ToolExitCodes.INTERNAL_ERROR);
             }
         }
 

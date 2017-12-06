@@ -222,12 +222,6 @@ namespace GPUVerify
             return records[0];
         }
 
-        public override string ToString()
-        {
-            // We don't want this to be invoked
-            throw new NotImplementedException();
-        }
-
         public void PrintStackTrace()
         {
             Utilities.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(0), 2));

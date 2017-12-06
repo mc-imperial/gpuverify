@@ -259,6 +259,7 @@ namespace GPUVerify
             }
         }
 
+        [Serializable]
         public class UnitialisedException : Exception
         {
             public UnitialisedException(string message)

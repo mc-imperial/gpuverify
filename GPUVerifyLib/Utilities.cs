@@ -319,7 +319,6 @@ namespace GPUVerify
                     writer.Write("Exception ToString:");
                     writer.Write("===================");
                     writer.Write(e.ToString());
-                    writer.Close();
                 }
             }
         }
