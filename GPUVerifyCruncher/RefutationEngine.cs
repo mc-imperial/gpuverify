@@ -125,8 +125,8 @@ namespace Microsoft.Boogie
 
             foreach (string opt in CommandLineOptions.Clo.ProverOptions)
             {
-                if ((Solver.Equals(Z3) && !opt.Contains("LOGIC=")) ||
-                    (Solver.Equals(CVC4) && !opt.Contains("OPTIMIZE_FOR_BV=")))
+                if ((Solver.Equals(Z3) && !opt.Contains("LOGIC="))
+                    || (Solver.Equals(CVC4) && !opt.Contains("OPTIMIZE_FOR_BV=")))
                 {
                     CommandLineOptions.Clo.Cho[ID].ProverOptions.Add(opt);
                 }
@@ -137,8 +137,8 @@ namespace Microsoft.Boogie
         {
             if (Solver.Equals(CVC4))
             {
-                if (CommandLineOptions.Clo.Cho[ID].ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
-                    CheckForQuantifiersVisitor.Find(program))
+                if (CommandLineOptions.Clo.Cho[ID].ProverOptions.Contains("LOGIC=QF_ALL_SUPPORTED")
+                    && CheckForQuantifiersVisitor.Find(program))
                 {
                     CommandLineOptions.Clo.Cho[ID].ProverOptions.Remove("LOGIC=QF_ALL_SUPPORTED");
                     CommandLineOptions.Clo.Cho[ID].ProverOptions.Add("LOGIC=ALL_SUPPORTED");
@@ -727,8 +727,8 @@ namespace Microsoft.Boogie
                     foreach (Cmd cmd in block.Cmds)
                     {
                         AssertCmd assertion = cmd as AssertCmd;
-                        if (assertion != null &&
-                            QKeyValue.FindBoolAttribute(assertion.Attributes, "originated_from_invariant"))
+                        if (assertion != null
+                            && QKeyValue.FindBoolAttribute(assertion.Attributes, "originated_from_invariant"))
                         {
                             AssumeCmd assumption = new AssumeCmd(assertion.tok, assertion.Expr, assertion.Attributes);
                             newCmds.Add(assumption);

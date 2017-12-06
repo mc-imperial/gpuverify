@@ -64,8 +64,8 @@ namespace GPUVerify
                 if (other == null)
                     return false;
 
-                return line == other.line && column == other.column &&
-                    file == other.file && directory == other.directory;
+                return line == other.line && column == other.column
+                    && file == other.file && directory == other.directory;
             }
 
             public override int GetHashCode()

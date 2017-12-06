@@ -83,10 +83,11 @@ namespace GPUVerify
             foreach (var dominator in cfg.Nodes.Where(item => StartsWithUnconditionalBarrier(item, impl, specialExitBlock)))
             {
                 Block smallestBarrierIntervalEnd = null;
-                foreach (var postdominator in cfg.Nodes.Where(item => item != dominator &&
-                    StartsWithUnconditionalBarrier(item, impl, specialExitBlock) &&
-                    dom.DominatedBy(item, dominator) &&
-                    pdom.DominatedBy(dominator, item)))
+                foreach (var postdominator in cfg.Nodes
+                    .Where(item => item != dominator
+                        && StartsWithUnconditionalBarrier(item, impl, specialExitBlock)
+                        && dom.DominatedBy(item, dominator)
+                        && pdom.DominatedBy(dominator, item)))
                 {
                     if (smallestBarrierIntervalEnd == null || dom.DominatedBy(smallestBarrierIntervalEnd, postdominator))
                         smallestBarrierIntervalEnd = postdominator;

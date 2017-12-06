@@ -175,9 +175,8 @@ namespace GPUVerify
                 }
                 else
                 {
-                    Debug.Assert(
-                      RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE ||
-                      RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE);
+                    Debug.Assert(RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_SINGLE
+                      || RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.WATCHDOG_MULTIPLE);
                     this.RaceInstrumenter = new WatchdogRaceInstrumenter(this);
                 }
             }
@@ -436,16 +435,16 @@ namespace GPUVerify
             bool success = true;
             foreach (Declaration decl in Program.TopLevelDeclarations)
             {
-                if (decl is Variable &&
-                    (decl as Variable).IsMutable &&
-                    (decl as Variable).TypedIdent.Type is MapType &&
-                    !reservedNames.Contains((decl as Variable).Name))
+                if (decl is Variable
+                    && (decl as Variable).IsMutable
+                    && (decl as Variable).TypedIdent.Type is MapType
+                    && !reservedNames.Contains((decl as Variable).Name))
                 {
                     if (QKeyValue.FindBoolAttribute(decl.Attributes, "group_shared"))
                     {
                         KernelArrayInfo.AddGroupSharedArray(decl as Variable);
-                        if (GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null &&
-                           !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains(GlobalArraySourceNames[(decl as Variable).Name]))
+                        if (GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null
+                            && !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains(GlobalArraySourceNames[(decl as Variable).Name]))
                         {
                             KernelArrayInfo.DisableGlobalOrGroupSharedArray(decl as Variable);
                         }
@@ -453,8 +452,8 @@ namespace GPUVerify
                     else if (QKeyValue.FindBoolAttribute(decl.Attributes, "global"))
                     {
                         KernelArrayInfo.AddGlobalArray(decl as Variable);
-                        if (GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null &&
-                           !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains(GlobalArraySourceNames[(decl as Variable).Name]))
+                        if (GPUVerifyVCGenCommandLineOptions.ArraysToCheck != null
+                            && !GPUVerifyVCGenCommandLineOptions.ArraysToCheck.Contains(GlobalArraySourceNames[(decl as Variable).Name]))
                         {
                             KernelArrayInfo.DisableGlobalOrGroupSharedArray(decl as Variable);
                         }
@@ -1266,9 +1265,9 @@ namespace GPUVerify
             if (lv.Contains("_HAVOC_"))
                 return true;
 
-            return (lv.Length >= 2 && lv.Substring(0, 2).Equals("_P")) ||
-                    (lv.Length > 3 && lv.Substring(0, 3).Equals("_LC")) ||
-                    (lv.Length > 5 && lv.Substring(0, 5).Equals("_temp"));
+            return (lv.Length >= 2 && lv.Substring(0, 2).Equals("_P"))
+                || (lv.Length > 3 && lv.Substring(0, 3).Equals("_LC"))
+                || (lv.Length > 5 && lv.Substring(0, 5).Equals("_temp"));
         }
 
         public Microsoft.Boogie.Type GetTypeOfIdX()
@@ -2371,8 +2370,8 @@ namespace GPUVerify
 
         private bool IsGroupIdAndSize(int dim, Expr maybeGroupId, Expr maybeGroupSize)
         {
-            return IsGivenConstant(maybeGroupId, GetGroupIdConst(dim)) &&
-                   IsGivenConstant(maybeGroupSize, GetGroupSizeConst(dim));
+            return IsGivenConstant(maybeGroupId, GetGroupIdConst(dim))
+                && IsGivenConstant(maybeGroupSize, GetGroupSizeConst(dim));
         }
 
         public Expr MaybeDualise(Expr e, int id, string procName)
@@ -2385,8 +2384,8 @@ namespace GPUVerify
 
         public static bool IsConstantInCurrentRegion(IdentifierExpr expr)
         {
-            return (expr.Decl is Constant) ||
-                   (expr.Decl is Formal && ((Formal)expr.Decl).InComing);
+            return (expr.Decl is Constant)
+                || (expr.Decl is Formal && ((Formal)expr.Decl).InComing);
         }
 
         public Expr GroupSharedIndexingExpr(int thread)
@@ -2473,8 +2472,11 @@ namespace GPUVerify
             foreach (KeyValuePair<Variable, HashSet<string>> pair in funcs_used)
             {
                 // If it's a refinable function, and either has no arguments (is inc or dec), or has only 1 argument used with it and that argument is a non-zero constant
-                if (pair.Value.Count == 1 && monotonics.Any(x => pair.Value.ToArray()[0].StartsWith(x)) && (!args_used.ContainsKey(pair.Key) || (args_used[pair.Key].Count == 1 &&
-                      args_used[pair.Key].All(arg => (arg is LiteralExpr) && ((arg as LiteralExpr).Val is BvConst) && ((arg as LiteralExpr).Val as BvConst).Value != BigNum.FromInt(0)))))
+                if (pair.Value.Count == 1
+                    && monotonics.Any(x => pair.Value.First().StartsWith(x))
+                        && (!args_used.ContainsKey(pair.Key)
+                            || (args_used[pair.Key].Count == 1
+                                && args_used[pair.Key].All(arg => (arg is LiteralExpr) && ((arg as LiteralExpr).Val is BvConst) && ((arg as LiteralExpr).Val as BvConst).Value != BigNum.FromInt(0)))))
                 {
                     foreach (Block b in Program.Blocks())
                     {

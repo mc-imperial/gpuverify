@@ -97,8 +97,8 @@ namespace GPUVerify
                         if (assign.Lhss[i] is SimpleAssignLhs)
                         {
                             Variable lhs = (assign.Lhss[i] as SimpleAssignLhs).AssignedVariable.Decl;
-                            if (VariableHasPowerOfTwoType(lhs) &&
-                                mayBePowerOfTwoInfo[impl.Name].ContainsKey(lhs.Name))
+                            if (VariableHasPowerOfTwoType(lhs)
+                                && mayBePowerOfTwoInfo[impl.Name].ContainsKey(lhs.Name))
                             {
                                 Variable rhs = GetPowerOfTwoRhsVariable(assign.Rhss[i]);
                                 if (rhs != null)
@@ -115,11 +115,10 @@ namespace GPUVerify
 
         private bool VariableHasPowerOfTwoType(Variable v)
         {
-            return
-                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
-                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||
-                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32)) ||
-                v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(64));
+            return v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8))
+                || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16))
+                || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32))
+                || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(64));
         }
 
         private Variable GetPowerOfTwoRhsVariable(Expr expr)
@@ -136,8 +135,8 @@ namespace GPUVerify
                     return null;
             }
 
-            if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs) ||
-                IntegerRepresentationHelper.IsFun(expr, "SDIV", out lhs, out rhs))
+            if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs)
+                || IntegerRepresentationHelper.IsFun(expr, "SDIV", out lhs, out rhs))
             {
                 if (IsVariable(lhs) && IsConstant(rhs, 2))
                     return GetVariable(lhs);
@@ -145,9 +144,9 @@ namespace GPUVerify
                     return null;
             }
 
-            if (IntegerRepresentationHelper.IsFun(expr, "SHL", out lhs, out rhs) ||
-                IntegerRepresentationHelper.IsFun(expr, "ASHR", out lhs, out rhs) ||
-                IntegerRepresentationHelper.IsFun(expr, "LSHR", out lhs, out rhs))
+            if (IntegerRepresentationHelper.IsFun(expr, "SHL", out lhs, out rhs)
+                || IntegerRepresentationHelper.IsFun(expr, "ASHR", out lhs, out rhs)
+                || IntegerRepresentationHelper.IsFun(expr, "LSHR", out lhs, out rhs))
             {
                 if (IsVariable(lhs) && IsConstant(rhs))
                     return GetVariable(lhs);
@@ -167,8 +166,7 @@ namespace GPUVerify
 
             LiteralExpr lit = expr as LiteralExpr;
 
-            return (lit.Val is BvConst) ||
-                    (lit.Val is Microsoft.Basetypes.BigNum);
+            return (lit.Val is BvConst) || (lit.Val is Microsoft.Basetypes.BigNum);
         }
 
         private bool IsConstant(Expr expr, int x)

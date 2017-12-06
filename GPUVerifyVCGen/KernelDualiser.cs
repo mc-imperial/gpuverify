@@ -322,8 +322,8 @@ namespace GPUVerify
 
                 foreach (var pair in assign.Lhss.Zip(assign.Rhss))
                 {
-                    if (pair.Item1 is SimpleAssignLhs &&
-                        Verifier.UniformityAnalyser.IsUniform(
+                    if (pair.Item1 is SimpleAssignLhs
+                        && Verifier.UniformityAnalyser.IsUniform(
                             procName, (pair.Item1 as SimpleAssignLhs).AssignedVariable.Name))
                     {
                         lhss1.Add(pair.Item1);
@@ -616,8 +616,8 @@ namespace GPUVerify
                     continue;
                 }
 
-                if (d is Variable &&
-                    ((d as Variable).IsMutable
+                if (d is Variable
+                    && ((d as Variable).IsMutable
                         || Verifier.IsThreadLocalIdConstant(d as Variable)
                         || (Verifier.IsGroupIdConstant(d as Variable) && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)))
                 {

@@ -32,9 +32,9 @@ namespace GPUVerify
             foreach (Declaration d in verifier.Program.TopLevelDeclarations)
             {
                 // Note that we do still need to abstract arrays, even if we have disabled race checking for them
-                if (d is Variable &&
-                        verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray((Variable)d, true) &&
-                        verifier.ArrayModelledAdversarially((Variable)d))
+                if (d is Variable
+                    && verifier.KernelArrayInfo.ContainsGlobalOrGroupSharedArray((Variable)d, true)
+                    && verifier.ArrayModelledAdversarially((Variable)d))
                 {
                     continue;
                 }

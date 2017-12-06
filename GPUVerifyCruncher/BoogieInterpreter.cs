@@ -159,9 +159,8 @@ namespace GPUVerify
                     InterpretKernel(program, impl);
                     executions++;
                 }
-                while (globalHeaderCount < engine.LoopHeaderLimit &&
-                       !AllBlocksCovered(impl) &&
-                       executions < 5);
+                while (globalHeaderCount < engine.LoopHeaderLimit
+                    && !AllBlocksCovered(impl) && executions < 5);
 
                 // The condition states: try to kill invariants while we have not exhausted a global loop header limit
                 // AND not every basic block has been covered
@@ -430,9 +429,9 @@ namespace GPUVerify
                 // Continue until the exit basic block is reached or
                 // we exhaust the loop header count or
                 // we exhaust the time limit
-                while (block != null &&
-                       globalHeaderCount < engine.LoopHeaderLimit &&
-                       stopwatch.Elapsed.Seconds < engine.TimeLimit)
+                while (block != null
+                    && globalHeaderCount < engine.LoopHeaderLimit
+                    && stopwatch.Elapsed.Seconds < engine.TimeLimit)
                 {
                     if (theLoops.Headers.Contains(block))
                     {
@@ -858,24 +857,24 @@ namespace GPUVerify
 
         private bool IsBoolBinaryOp(BinaryNode binary)
         {
-            return binary.Op.Equals(BinaryOps.IF) ||
-            binary.Op.Equals(BinaryOps.IFF) ||
-            binary.Op.Equals(BinaryOps.AND) ||
-            binary.Op.Equals(BinaryOps.OR) ||
-            binary.Op.Equals(BinaryOps.NEQ) ||
-            binary.Op.Equals(BinaryOps.EQ) ||
-            binary.Op.Equals(BinaryOps.LT) ||
-            binary.Op.Equals(BinaryOps.LTE) ||
-            binary.Op.Equals(BinaryOps.GT) ||
-            binary.Op.Equals(BinaryOps.GTE) ||
-            RegularExpressions.BvSLT.IsMatch(binary.Op) ||
-            RegularExpressions.BvSLE.IsMatch(binary.Op) ||
-            RegularExpressions.BvSGT.IsMatch(binary.Op) ||
-            RegularExpressions.BvSGE.IsMatch(binary.Op) ||
-            RegularExpressions.BvULT.IsMatch(binary.Op) ||
-            RegularExpressions.BvULE.IsMatch(binary.Op) ||
-            RegularExpressions.BvUGT.IsMatch(binary.Op) ||
-            RegularExpressions.BvUGE.IsMatch(binary.Op);
+            return binary.Op.Equals(BinaryOps.IF)
+                || binary.Op.Equals(BinaryOps.IFF)
+                || binary.Op.Equals(BinaryOps.AND)
+                || binary.Op.Equals(BinaryOps.OR)
+                || binary.Op.Equals(BinaryOps.NEQ)
+                || binary.Op.Equals(BinaryOps.EQ)
+                || binary.Op.Equals(BinaryOps.LT)
+                || binary.Op.Equals(BinaryOps.LTE)
+                || binary.Op.Equals(BinaryOps.GT)
+                || binary.Op.Equals(BinaryOps.GTE)
+                || RegularExpressions.BvSLT.IsMatch(binary.Op)
+                || RegularExpressions.BvSLE.IsMatch(binary.Op)
+                || RegularExpressions.BvSGT.IsMatch(binary.Op)
+                || RegularExpressions.BvSGE.IsMatch(binary.Op)
+                || RegularExpressions.BvULT.IsMatch(binary.Op)
+                || RegularExpressions.BvULE.IsMatch(binary.Op)
+                || RegularExpressions.BvUGT.IsMatch(binary.Op)
+                || RegularExpressions.BvUGE.IsMatch(binary.Op);
         }
 
         private void EvaluateBinaryBoolNode(BinaryNode binary)
@@ -889,137 +888,221 @@ namespace GPUVerify
                 if (binary.Op.Equals(BinaryOps.IF))
                 {
                     if (left.Evaluation.Equals(BitVector.True) && right.Evaluation.Equals(BitVector.False))
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.EQ))
                 {
                     if (left.Evaluation != right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.AND))
                 {
                     if (!(left.Evaluation.Equals(BitVector.True) && right.Evaluation.Equals(BitVector.True)))
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.OR))
                 {
                     if (left.Evaluation.Equals(BitVector.True) || right.Evaluation.Equals(BitVector.True))
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                 }
                 else if (RegularExpressions.BvSLT.IsMatch(binary.Op))
                 {
                     if (left.Evaluation >= right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (RegularExpressions.BvSLE.IsMatch(binary.Op))
                 {
                     if (left.Evaluation > right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.IFF))
                 {
-                    if ((left.Evaluation.Equals(BitVector.True) && right.Evaluation.Equals(BitVector.False)) ||
-                        (left.Evaluation.Equals(BitVector.False) && right.Evaluation.Equals(BitVector.True)))
+                    if ((left.Evaluation.Equals(BitVector.True) && right.Evaluation.Equals(BitVector.False))
+                        || (left.Evaluation.Equals(BitVector.False) && right.Evaluation.Equals(BitVector.True)))
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.LT))
                 {
                     if (left.Evaluation >= right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.LTE))
                 {
                     if (left.Evaluation > right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.GT))
                 {
                     if (left.Evaluation <= right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.GTE))
                 {
                     if (left.Evaluation < right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (binary.Op.Equals(BinaryOps.NEQ))
                 {
                     if (left.Evaluation == right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (RegularExpressions.BvSGT.IsMatch(binary.Op))
                 {
                     if (left.Evaluation <= right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (RegularExpressions.BvSGE.IsMatch(binary.Op))
                 {
                     if (left.Evaluation < right.Evaluation)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (RegularExpressions.BvULT.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length)
+                        ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length)
+                        ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+
                     if (lhsUnsigned >= rhsUnsigned)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (RegularExpressions.BvULE.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length)
+                        ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length)
+                        ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+
                     if (lhsUnsigned > rhsUnsigned)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (RegularExpressions.BvUGT.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length)
+                        ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length)
+                        ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+
                     if (lhsUnsigned <= rhsUnsigned)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else if (RegularExpressions.BvUGE.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length)
+                        ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length)
+                        ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+
                     if (lhsUnsigned < rhsUnsigned)
+                    {
                         binary.Evaluation = BitVector.False;
+                    }
                     else
+                    {
                         binary.Evaluation = BitVector.True;
+                    }
                 }
                 else
                 {
@@ -1098,8 +1181,11 @@ namespace GPUVerify
                 }
                 else if (RegularExpressions.BvUREM.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length)
+                        ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length)
+                        ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+
                     binary.Evaluation = lhsUnsigned % rhsUnsigned;
                 }
                 else if (RegularExpressions.BvSDIV.IsMatch(binary.Op))
@@ -1108,24 +1194,28 @@ namespace GPUVerify
                 }
                 else if (RegularExpressions.BvUDIV.IsMatch(binary.Op))
                 {
-                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length) ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
-                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length) ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+                    BitVector lhsUnsigned = left.Evaluation >= BitVector.Zero(left.Evaluation.Bits.Length)
+                        ? left.Evaluation : left.Evaluation & BitVector.Max(left.Evaluation.Bits.Length);
+                    BitVector rhsUnsigned = right.Evaluation >= BitVector.Zero(right.Evaluation.Bits.Length)
+                        ? right.Evaluation : right.Evaluation & BitVector.Max(right.Evaluation.Bits.Length);
+
                     binary.Evaluation = lhsUnsigned / rhsUnsigned;
                 }
-                else if (binary.Op.Equals("FEQ32") ||
-                                 binary.Op.Equals("FEQ64") ||
-                                 binary.Op.Equals("FGE32") ||
-                                 binary.Op.Equals("FGE64") ||
-                                 binary.Op.Equals("FGT32") ||
-                                 binary.Op.Equals("FGT64") ||
-                                 binary.Op.Equals("FLE32") ||
-                                 binary.Op.Equals("FLE64") ||
-                                 binary.Op.Equals("FLT32") ||
-                                 binary.Op.Equals("FLT64") ||
-                                 binary.Op.Equals("FUNO32") ||
-                                 binary.Op.Equals("FUNO64"))
+                else if (binary.Op.Equals("FEQ32")
+                    || binary.Op.Equals("FEQ64")
+                    || binary.Op.Equals("FGE32")
+                    || binary.Op.Equals("FGE64")
+                    || binary.Op.Equals("FGT32")
+                    || binary.Op.Equals("FGT64")
+                    || binary.Op.Equals("FLE32")
+                    || binary.Op.Equals("FLE64")
+                    || binary.Op.Equals("FLT32")
+                    || binary.Op.Equals("FLT64")
+                    || binary.Op.Equals("FUNO32")
+                    || binary.Op.Equals("FUNO64"))
                 {
                     Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.Evaluation, right.Evaluation, binary.Op);
+
                     if (!fpInterpretations.ContainsKey(fpTriple))
                     {
                         if (random.Next(0, 2) == 0)
@@ -1136,26 +1226,30 @@ namespace GPUVerify
 
                     binary.Evaluation = fpInterpretations[fpTriple];
                 }
-                else if (binary.Op.Equals("FADD32") ||
-                                 binary.Op.Equals("FSUB32") ||
-                                 binary.Op.Equals("FMUL32") ||
-                                 binary.Op.Equals("FDIV32") ||
-                                 binary.Op.Equals("FPOW32"))
+                else if (binary.Op.Equals("FADD32")
+                    || binary.Op.Equals("FSUB32")
+                    || binary.Op.Equals("FMUL32")
+                    || binary.Op.Equals("FDIV32")
+                    || binary.Op.Equals("FPOW32"))
                 {
                     Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.Evaluation, right.Evaluation, binary.Op);
+
                     if (!fpInterpretations.ContainsKey(fpTriple))
                         fpInterpretations[fpTriple] = new BitVector(random.Next(), 32);
+
                     binary.Evaluation = fpInterpretations[fpTriple];
                 }
-                else if (binary.Op.Equals("FADD64") ||
-                                 binary.Op.Equals("FSUB64") ||
-                                 binary.Op.Equals("FMUL64") ||
-                                 binary.Op.Equals("FDIV64") ||
-                                 binary.Op.Equals("FPOW64"))
+                else if (binary.Op.Equals("FADD64")
+                    || binary.Op.Equals("FSUB64")
+                    || binary.Op.Equals("FMUL64")
+                    || binary.Op.Equals("FDIV64")
+                    || binary.Op.Equals("FPOW64"))
                 {
                     Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(left.Evaluation, right.Evaluation, binary.Op);
+
                     if (!fpInterpretations.ContainsKey(fpTriple))
                         fpInterpretations[fpTriple] = new BitVector(random.Next(), 64);
+
                     binary.Evaluation = fpInterpretations[fpTriple];
                 }
                 else
@@ -1178,48 +1272,56 @@ namespace GPUVerify
                     else
                         unary.Evaluation = BitVector.True;
                 }
-                else if (unary.Op.Equals("FABS32") ||
-                                 unary.Op.Equals("FCOS32") ||
-                                 unary.Op.Equals("FEXP32") ||
-                                 unary.Op.Equals("FFLOOR32") ||
-                                 unary.Op.Equals("FLOG32") ||
-                                 unary.Op.Equals("FPOW32") ||
-                                 unary.Op.Equals("FSIN32") ||
-                                 unary.Op.Equals("FSQRT32"))
+                else if (unary.Op.Equals("FABS32")
+                    || unary.Op.Equals("FCOS32")
+                    || unary.Op.Equals("FEXP32")
+                    || unary.Op.Equals("FFLOOR32")
+                    || unary.Op.Equals("FLOG32")
+                    || unary.Op.Equals("FPOW32")
+                    || unary.Op.Equals("FSIN32")
+                    || unary.Op.Equals("FSQRT32"))
                 {
                     Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(child.Evaluation, child.Evaluation, unary.Op);
+
                     if (!fpInterpretations.ContainsKey(fpTriple))
                         fpInterpretations[fpTriple] = new BitVector(random.Next(), 32);
+
                     unary.Evaluation = fpInterpretations[fpTriple];
                 }
-                else if (unary.Op.Equals("FABS64") ||
-                                 unary.Op.Equals("FCOS64") ||
-                                 unary.Op.Equals("FEXP64") ||
-                                 unary.Op.Equals("FFLOOR64") ||
-                                 unary.Op.Equals("FLOG64") ||
-                                 unary.Op.Equals("FPOW64") ||
-                                 unary.Op.Equals("FSIN64") ||
-                                 unary.Op.Equals("FSQRT64"))
+                else if (unary.Op.Equals("FABS64")
+                    || unary.Op.Equals("FCOS64")
+                    || unary.Op.Equals("FEXP64")
+                    || unary.Op.Equals("FFLOOR64")
+                    || unary.Op.Equals("FLOG64")
+                    || unary.Op.Equals("FPOW64")
+                    || unary.Op.Equals("FSIN64")
+                    || unary.Op.Equals("FSQRT64"))
                 {
                     Tuple<BitVector, BitVector, string> fpTriple = Tuple.Create(child.Evaluation, child.Evaluation, unary.Op);
+
                     if (!fpInterpretations.ContainsKey(fpTriple))
                         fpInterpretations[fpTriple] = new BitVector(random.Next(), 64);
+
                     unary.Evaluation = fpInterpretations[fpTriple];
                 }
                 else if (RegularExpressions.BvZEXT.IsMatch(unary.Op))
                 {
                     int width = 32;
                     MatchCollection matches = Regex.Matches(unary.Op, @"\d+");
+
                     if (matches.Count == 2)
                         width = Convert.ToInt32(matches[1].Value);
+
                     unary.Evaluation = BitVector.ZeroExtend(child.Evaluation, width);
                 }
                 else if (RegularExpressions.BvSEXT.IsMatch(unary.Op))
                 {
                     int width = 32;
                     MatchCollection matches = Regex.Matches(unary.Op, @"\d+");
+
                     if (matches.Count == 2)
                         width = Convert.ToInt32(matches[1].Value);
+
                     unary.Evaluation = BitVector.SignExtend(child.Evaluation, width);
                 }
                 else if (RegularExpressions.CastToFP.IsMatch(unary.Op))
@@ -1228,6 +1330,7 @@ namespace GPUVerify
                     Debug.Assert(matches.Count == 2);
                     int sourceSize = Convert.ToInt32(matches[0].Value);
                     int destinationSize = Convert.ToInt32(matches[1].Value);
+
                     if (sourceSize == destinationSize)
                         unary.Evaluation = child.Evaluation;
                     else if (sourceSize > destinationSize)
@@ -1241,6 +1344,7 @@ namespace GPUVerify
                     Debug.Assert(matches.Count == 2);
                     int sourceSize = Convert.ToInt32(matches[0].Value);
                     int destinationSize = Convert.ToInt32(matches[1].Value);
+
                     if (sourceSize == destinationSize)
                         unary.Evaluation = child.Evaluation;
                     else if (sourceSize > destinationSize)
@@ -1252,8 +1356,8 @@ namespace GPUVerify
                 {
                     unary.Evaluation = BitVector.ZeroExtend(child.Evaluation, 32);
                 }
-                else if (unary.Op.Equals("FUNCPTR_TO_PTR") ||
-                         unary.Op.Equals("PTR_TO_FUNCPTR"))
+                else if (unary.Op.Equals("FUNCPTR_TO_PTR")
+                    || unary.Op.Equals("PTR_TO_FUNCPTR"))
                 {
                     unary.Evaluation = child.Evaluation;
                 }
@@ -1377,8 +1481,8 @@ namespace GPUVerify
             {
                 int index = name.IndexOf('$');
                 string arrayName = name.Substring(index);
-                if ((memory.IsInGlobalMemory(arrayName) && globalTree.Evaluation.Equals(BitVector.True)) ||
-                            (memory.IsInGroupSharedMemory(arrayName) && groupSharedTree.Evaluation.Equals(BitVector.True)))
+                if ((memory.IsInGlobalMemory(arrayName) && globalTree.Evaluation.Equals(BitVector.True))
+                    || (memory.IsInGroupSharedMemory(arrayName) && groupSharedTree.Evaluation.Equals(BitVector.True)))
                 {
                     if (memory.GetRaceArrayOffsets(name).Count > 0)
                     {

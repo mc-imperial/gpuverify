@@ -651,10 +651,8 @@ namespace GPUVerify
             if (nary == null || !nary.Fun.FunctionName.Equals("BV32_ADD"))
                 return false;
 
-            return (SameIdentifierExpression(nary.Args[0], iLessThanC.Key) &&
-                IsLocalIdTimesConstant(nary.Args[1], iLessThanC.Value, impl)) ||
-                (SameIdentifierExpression(nary.Args[1], iLessThanC.Key) &&
-                IsLocalIdTimesConstant(nary.Args[0], iLessThanC.Value, impl));
+            return (SameIdentifierExpression(nary.Args[0], iLessThanC.Key) && IsLocalIdTimesConstant(nary.Args[1], iLessThanC.Value, impl))
+                || (SameIdentifierExpression(nary.Args[1], iLessThanC.Key) && IsLocalIdTimesConstant(nary.Args[0], iLessThanC.Value, impl));
         }
 
         private bool IsLocalIdTimesConstant(Expr maybeLocalIdTimesConstant, Expr constant, Implementation impl)
@@ -663,9 +661,8 @@ namespace GPUVerify
             if (nary == null || !nary.Fun.FunctionName.Equals("BV32_MUL"))
                 return false;
 
-            return
-                (SameConstant(nary.Args[0], constant) && Verifier.IsLocalId(nary.Args[1], 0, impl)) ||
-                (SameConstant(nary.Args[1], constant) && Verifier.IsLocalId(nary.Args[0], 0, impl));
+            return (SameConstant(nary.Args[0], constant) && Verifier.IsLocalId(nary.Args[1], 0, impl))
+                || (SameConstant(nary.Args[1], constant) && Verifier.IsLocalId(nary.Args[0], 0, impl));
         }
 
         private bool HasFormIPlusGlobalIdTimesC(Expr e, KeyValuePair<IdentifierExpr, Expr> iLessThanC, Implementation impl)
@@ -674,10 +671,8 @@ namespace GPUVerify
             if (nary == null || !nary.Fun.FunctionName.Equals("BV32_ADD"))
                 return false;
 
-            return (SameIdentifierExpression(nary.Args[0], iLessThanC.Key) &&
-                IsGlobalIdTimesConstant(nary.Args[1], iLessThanC.Value, impl)) ||
-                (SameIdentifierExpression(nary.Args[1], iLessThanC.Key) &&
-                IsGlobalIdTimesConstant(nary.Args[0], iLessThanC.Value, impl));
+            return (SameIdentifierExpression(nary.Args[0], iLessThanC.Key) && IsGlobalIdTimesConstant(nary.Args[1], iLessThanC.Value, impl))
+                || (SameIdentifierExpression(nary.Args[1], iLessThanC.Key) && IsGlobalIdTimesConstant(nary.Args[0], iLessThanC.Value, impl));
         }
 
         private bool IsGlobalIdTimesConstant(Expr maybeGlobalIdTimesConstant, Expr constant, Implementation impl)
@@ -686,9 +681,8 @@ namespace GPUVerify
             if (nary == null || !nary.Fun.FunctionName.Equals("BV32_MUL"))
                 return false;
 
-            return
-                (SameConstant(nary.Args[0], constant) && Verifier.IsGlobalId(nary.Args[1], 0, impl)) ||
-                (SameConstant(nary.Args[1], constant) && Verifier.IsGlobalId(nary.Args[0], 0, impl));
+            return (SameConstant(nary.Args[0], constant) && Verifier.IsGlobalId(nary.Args[1], 0, impl))
+                || (SameConstant(nary.Args[1], constant) && Verifier.IsGlobalId(nary.Args[0], 0, impl));
         }
 
         private bool SameConstant(Expr expr, Expr constant)
@@ -697,7 +691,9 @@ namespace GPUVerify
             {
                 IdentifierExpr identifierExpr = constant as IdentifierExpr;
                 Debug.Assert(identifierExpr.Decl is Constant);
-                return expr is IdentifierExpr && (expr as IdentifierExpr).Decl is Constant && (expr as IdentifierExpr).Decl.Name.Equals(identifierExpr.Decl.Name);
+                return expr is IdentifierExpr
+                    && (expr as IdentifierExpr).Decl is Constant
+                    && (expr as IdentifierExpr).Decl.Name.Equals(identifierExpr.Decl.Name);
             }
             else
             {
@@ -730,20 +726,20 @@ namespace GPUVerify
         private KeyValuePair<IdentifierExpr, Expr> GetILessThanC(Expr expr, Implementation impl)
         {
             bool guardHasOuterNot = false;
-            if (expr is NAryExpr &&
-                (expr as NAryExpr).Fun is BinaryOperator &&
-                ((expr as NAryExpr).Fun as BinaryOperator).Op == BinaryOperator.Opcode.And)
+            if (expr is NAryExpr
+                && (expr as NAryExpr).Fun is BinaryOperator
+                && ((expr as NAryExpr).Fun as BinaryOperator).Op == BinaryOperator.Opcode.And)
             {
                 Expr lhs = (expr as NAryExpr).Args[0];
                 Expr rhs = (expr as NAryExpr).Args[1];
 
                 // !v && !v
-                if (lhs is NAryExpr &&
-                      (lhs as NAryExpr).Fun is UnaryOperator &&
-                      ((lhs as NAryExpr).Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&
-                    rhs is NAryExpr &&
-                      (rhs as NAryExpr).Fun is UnaryOperator &&
-                      ((rhs as NAryExpr).Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not)
+                if (lhs is NAryExpr
+                    && (lhs as NAryExpr).Fun is UnaryOperator
+                    && ((lhs as NAryExpr).Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not
+                    && rhs is NAryExpr
+                    && (rhs as NAryExpr).Fun is UnaryOperator
+                    && ((rhs as NAryExpr).Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not)
                 {
                     lhs = (lhs as NAryExpr).Args[0];
                     rhs = (rhs as NAryExpr).Args[0];
@@ -770,8 +766,8 @@ namespace GPUVerify
 
             if (!guardHasOuterNot)
             {
-                if (!(nary.Fun.FunctionName.Equals("BV32_ULT") ||
-                      nary.Fun.FunctionName.Equals("BV32_SLT")))
+                if (!(nary.Fun.FunctionName.Equals("BV32_ULT")
+                    || nary.Fun.FunctionName.Equals("BV32_SLT")))
                 {
                     return new KeyValuePair<IdentifierExpr, Expr>(null, null);
                 }
@@ -790,8 +786,8 @@ namespace GPUVerify
             }
             else
             {
-                if (!(nary.Fun.FunctionName.Equals("BV32_UGT") ||
-                      nary.Fun.FunctionName.Equals("BV32_SGT")))
+                if (!(nary.Fun.FunctionName.Equals("BV32_UGT")
+                    || nary.Fun.FunctionName.Equals("BV32_SGT")))
                 {
                     return new KeyValuePair<IdentifierExpr, Expr>(null, null);
                 }
@@ -923,8 +919,8 @@ namespace GPUVerify
             if (!GPUVerifyVCGenCommandLineOptions.NoBenign && access == AccessType.WRITE)
                 inParams.Add(valueOldParameter);
 
-            if ((access == AccessType.READ || access == AccessType.WRITE) &&
-              Verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
+            if ((access == AccessType.READ || access == AccessType.WRITE)
+                && Verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
             {
                 inParams.Add(asyncHandleParameter);
             }
@@ -1047,8 +1043,8 @@ namespace GPUVerify
                         if (offset is NAryExpr)
                         {
                             var nExpr = (NAryExpr)offset;
-                            if (nExpr.Fun.FunctionName == "BV32_ADD" &&
-                                nExpr.Args[0] is NAryExpr)
+                            if (nExpr.Fun.FunctionName == "BV32_ADD"
+                                && nExpr.Args[0] is NAryExpr)
                             {
                                 var n0Expr = (NAryExpr)nExpr.Args[0];
                                 if (n0Expr.Fun.FunctionName.StartsWith("offset#"))
@@ -1244,8 +1240,8 @@ namespace GPUVerify
                 Verifier.FindOrCreateBenignFlagVariable(v.Name);
             }
 
-            if ((access == AccessType.READ || access == AccessType.WRITE) &&
-                 Verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
+            if ((access == AccessType.READ || access == AccessType.WRITE)
+                && Verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
             {
                 Verifier.FindOrCreateAsyncHandleVariable(v.Name, access);
             }

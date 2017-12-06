@@ -784,21 +784,21 @@ namespace GPUVerify
 
         private static AccessType GetAccessType(CallCounterexample err)
         {
-            if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write") ||
-                QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read") ||
-                QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic"))
+            if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write")
+                || QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read")
+                || QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_atomic"))
             {
                 return AccessType.WRITE;
             }
-            else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write") ||
-                     QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic"))
+            else if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_write")
+                || QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "read_atomic"))
             {
                 return AccessType.READ;
             }
             else
             {
-                Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read") ||
-                             QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
+                Debug.Assert(QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_read")
+                    || QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "atomic_write"));
                 return AccessType.ATOMIC;
             }
         }

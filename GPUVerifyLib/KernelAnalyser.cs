@@ -160,9 +160,10 @@ namespace GPUVerify
                 {
                     // TODO: refine into proper check
                     CallCmd callCmd = c as CallCmd;
-                    if (callCmd == null || !(callCmd.callee.Contains("_CHECK_READ") ||
-                                            callCmd.callee.Contains("_CHECK_WRITE") ||
-                                            callCmd.callee.Contains("_CHECK_ATOMIC")))
+                    if (callCmd == null
+                        || !(callCmd.callee.Contains("_CHECK_READ")
+                            || callCmd.callee.Contains("_CHECK_WRITE")
+                            || callCmd.callee.Contains("_CHECK_ATOMIC")))
                     {
                         newCmds.Add(c);
                     }
@@ -181,9 +182,10 @@ namespace GPUVerify
                 {
                     // TODO: refine into proper check
                     CallCmd callCmd = c as CallCmd;
-                    if (callCmd == null || !(callCmd.callee.Contains("_LOG_READ") ||
-                                             callCmd.callee.Contains("_LOG_WRITE") ||
-                                             callCmd.callee.Contains("_LOG_ATOMIC")))
+                    if (callCmd == null
+                        || !(callCmd.callee.Contains("_LOG_READ")
+                            || callCmd.callee.Contains("_LOG_WRITE")
+                            || callCmd.callee.Contains("_LOG_ATOMIC")))
                     {
                         newCmds.Add(c);
                     }
@@ -293,10 +295,9 @@ namespace GPUVerify
 
         private static bool UsingCVC4AndQuantifiersPresent(Program program, IEnumerable<string> proverOptions)
         {
-            return (proverOptions.Contains("SOLVER=cvc4") ||
-                        proverOptions.Contains("SOLVER=CVC4")) &&
-                        proverOptions.Contains("LOGIC=QF_ALL_SUPPORTED") &&
-                        CheckForQuantifiersVisitor.Find(program);
+            return (proverOptions.Contains("SOLVER=cvc4") || proverOptions.Contains("SOLVER=CVC4"))
+                && proverOptions.Contains("LOGIC=QF_ALL_SUPPORTED")
+                && CheckForQuantifiersVisitor.Find(program);
         }
 
         public static int GetExitCode(ResultCounter counter)

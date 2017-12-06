@@ -85,8 +85,8 @@ namespace GPUVerify
 
         private TypedIdent DualiseTypedIdent(Variable v)
         {
-            if (QKeyValue.FindBoolAttribute(v.Attributes, "global") ||
-                QKeyValue.FindBoolAttribute(v.Attributes, "group_shared"))
+            if (QKeyValue.FindBoolAttribute(v.Attributes, "global")
+                || QKeyValue.FindBoolAttribute(v.Attributes, "group_shared"))
             {
                 return new TypedIdent(v.tok, v.Name, v.TypedIdent.Type);
             }

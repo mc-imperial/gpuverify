@@ -114,16 +114,16 @@ namespace GPUVerify
                     Debug.Assert((node.Fun as MapSelect).Arity == 1);
                     Debug.Assert(node.Args[0] is IdentifierExpr);
                     IdentifierExpr v = node.Args[0] as IdentifierExpr;
-                    if (QKeyValue.FindBoolAttribute(v.Decl.Attributes, "group_shared") ||
-                        QKeyValue.FindBoolAttribute(v.Decl.Attributes, "global"))
+                    if (QKeyValue.FindBoolAttribute(v.Decl.Attributes, "group_shared")
+                        || QKeyValue.FindBoolAttribute(v.Decl.Attributes, "global"))
                     {
                         Expr cond = BuildPathCondition();
                         Expr index = node.Args[1];
                         SubExprs.Add(new Tuple<Expr, IdentifierExpr, Expr>(cond, v, index));
                     }
                 }
-                else if (node.Fun is BinaryOperator &&
-                         (node.Fun as BinaryOperator).Op == BinaryOperator.Opcode.Imp)
+                else if (node.Fun is BinaryOperator
+                    && (node.Fun as BinaryOperator).Op == BinaryOperator.Opcode.Imp)
                 {
                     var p = node.Args[0];
                     var q = node.Args[1];

@@ -188,8 +188,8 @@ namespace GPUVerify
 
             public static void WriteTrailer(KernelAnalyser.ResultCounter result)
             {
-                Contract.Requires(result.VerificationErrors >= 0 && result.Inconclusives >= 0 &&
-                    result.TimeOuts >= 0 && result.OutOfMemories >= 0);
+                Contract.Requires(result.VerificationErrors >= 0 && result.Inconclusives >= 0
+                    && result.TimeOuts >= 0 && result.OutOfMemories >= 0);
 
                 if (CommandLineOptions.Clo.vcVariety == CommandLineOptions.VCVariety.Doomed)
                 {

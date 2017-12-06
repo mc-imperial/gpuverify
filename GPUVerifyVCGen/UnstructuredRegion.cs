@@ -197,16 +197,20 @@ namespace GPUVerify
         {
             if (header == null)
                 return null;
+
             if (guard == null)
             {
                 var backedges = blockGraph.BackEdgeNodes(header);
                 if (backedges.Count() != 1)
                     return null;
-                var assumes = backedges.Single().Cmds.Cast<Cmd>().OfType<AssumeCmd>().Where(x =>
-                      QKeyValue.FindBoolAttribute(x.Attributes, "partition") ||
-                      QKeyValue.FindBoolAttribute(x.Attributes, "backedge"));
+
+                var assumes = backedges.Single().Cmds.Cast<Cmd>().OfType<AssumeCmd>()
+                    .Where(x => QKeyValue.FindBoolAttribute(x.Attributes, "partition")
+                        || QKeyValue.FindBoolAttribute(x.Attributes, "backedge"));
+
                 if (assumes.Count() != 1)
                     return null;
+
                 guard = assumes.Single().Expr;
             }
 

@@ -165,9 +165,9 @@ namespace GPUVerify
 
         private Kind IsPowerOfTwoOperation(Variable v, Expr expr)
         {
-            if (!(v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8)) ||
-                    v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16)) ||
-                    v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32))))
+            if (!(v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8))
+                || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16))
+                || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32))))
             {
                 return Kind.No;
             }
@@ -180,8 +180,8 @@ namespace GPUVerify
                     return Kind.Inc;
             }
 
-            if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs) ||
-                IntegerRepresentationHelper.IsFun(expr, "SDIV", out lhs, out rhs))
+            if (IntegerRepresentationHelper.IsFun(expr, "DIV", out lhs, out rhs)
+                || IntegerRepresentationHelper.IsFun(expr, "SDIV", out lhs, out rhs))
             {
                 if (IsVariable(lhs, v) && IsConstant(rhs, 2))
                     return Kind.Dec;

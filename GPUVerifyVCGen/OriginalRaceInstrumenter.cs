@@ -98,8 +98,8 @@ namespace GPUVerify
                         new IdentifierExpr(v.tok, valueOldParameter))));
             }
 
-            if ((access == AccessType.READ || access == AccessType.WRITE) &&
-              Verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
+            if ((access == AccessType.READ || access == AccessType.WRITE)
+                && Verifier.ArraysAccessedByAsyncWorkGroupCopy[access].Contains(v.Name))
             {
                 simpleCmds.Add(MakeConditionalAssignment(
                     accessAsyncHandleVariable, condition, Expr.Ident(asyncHandleParameter)));

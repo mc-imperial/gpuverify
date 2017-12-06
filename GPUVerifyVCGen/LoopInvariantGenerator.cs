@@ -226,9 +226,9 @@ namespace GPUVerify
                     else if (a.Expr is NAryExpr)
                     {
                         var nary = (NAryExpr)a.Expr;
-                        if (nary.Fun is UnaryOperator &&
-                            (nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not &&
-                            nary.Args[0] is IdentifierExpr)
+                        if (nary.Fun is UnaryOperator
+                            && (nary.Fun as UnaryOperator).Op == UnaryOperator.Opcode.Not
+                            && nary.Args[0] is IdentifierExpr)
                         {
                             var d = verifier.VarDefAnalysesRegion[impl].DefOfVariableName(((IdentifierExpr)(a.Expr as NAryExpr).Args[0]).Name);
                             if (d == null)
@@ -261,12 +261,10 @@ namespace GPUVerify
                 var visitor = new VariablesOccurringInExpressionVisitor();
                 visitor.Visit(expr);
                 guardVars.UnionWith(
-                    visitor.GetVariables().Where(x =>
-                        x.Name.StartsWith("$") && !formals.Contains(x.Name) &&
-                        modset.Contains(x.Name) &&
-                        !verifier.UniformityAnalyser.IsUniform(impl.Name, x.Name) &&
-                        x.TypedIdent.Type.IsBv &&
-                        (x.TypedIdent.Type.BvBits % 8 == 0)));
+                    visitor.GetVariables().Where(x => x.Name.StartsWith("$")
+                        && !formals.Contains(x.Name) && modset.Contains(x.Name)
+                        && !verifier.UniformityAnalyser.IsUniform(impl.Name, x.Name)
+                        && x.TypedIdent.Type.IsBv && (x.TypedIdent.Type.BvBits % 8 == 0)));
             }
 
             List<AssignCmd> assignments = new List<AssignCmd>();
@@ -325,11 +323,9 @@ namespace GPUVerify
                 var visitor = new VariablesOccurringInExpressionVisitor();
                 visitor.Visit(nary);
                 nonnegVars.UnionWith(
-                 visitor.GetVariables()
-                 .Where(x => x.Name.StartsWith("$") &&
-                    !formals.Contains(x.Name) &&
-                    modset.Contains(x.Name) &&
-                    x.TypedIdent.Type.IsBv));
+                    visitor.GetVariables().Where(x => x.Name.StartsWith("$")
+                        && !formals.Contains(x.Name) && modset.Contains(x.Name)
+                        && x.TypedIdent.Type.IsBv));
             }
 
             foreach (var v in nonnegVars)
@@ -545,10 +541,8 @@ namespace GPUVerify
             if (!(nary.Args[0] is IdentifierExpr && nary.Args[1] is IdentifierExpr))
                 return false;
 
-            return GPUVerifier.IsPredicate(Utilities.StripThreadIdentifier(
-             ((IdentifierExpr)nary.Args[0]).Name)) &&
-            GPUVerifier.IsPredicate(Utilities.StripThreadIdentifier(
-             ((IdentifierExpr)nary.Args[1]).Name));
+            return GPUVerifier.IsPredicate(Utilities.StripThreadIdentifier(((IdentifierExpr)nary.Args[0]).Name))
+                && GPUVerifier.IsPredicate(Utilities.StripThreadIdentifier(((IdentifierExpr)nary.Args[1]).Name));
         }
 
         private void AddCandidateInvariants(HashSet<Variable> localVars, Implementation impl)
@@ -587,9 +581,11 @@ namespace GPUVerify
 
                 // Speculate invariants if we see an unsafe barrier,
                 // which we need to check for barrier divergence
-                if (GPUVerifier.IsBarrier(call.Proc) &&
-                    !QKeyValue.FindBoolAttribute(call.Proc.Attributes, "safe_barrier"))
+                if (GPUVerifier.IsBarrier(call.Proc)
+                    && !QKeyValue.FindBoolAttribute(call.Proc.Attributes, "safe_barrier"))
+                {
                     return true;
+                }
 
                 // Speculate invariants if we see a call to a procedure that has a non-local array
                 // or constant array in its modset
@@ -655,10 +651,12 @@ namespace GPUVerify
             if (c is AssertCmd)
             {
                 AssertCmd assertion = c as AssertCmd;
-                if (!QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc") &&
-                    !QKeyValue.FindBoolAttribute(assertion.Attributes, "block_sourceloc") &&
-                    !assertion.Expr.Equals(Expr.True))
+                if (!QKeyValue.FindBoolAttribute(assertion.Attributes, "sourceloc")
+                    && !QKeyValue.FindBoolAttribute(assertion.Attributes, "block_sourceloc")
+                    && !assertion.Expr.Equals(Expr.True))
+                {
                     return true;
+                }
             }
 
             // Speculate invariants if we see an assume that is not a partition; such

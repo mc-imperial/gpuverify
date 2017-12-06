@@ -156,10 +156,12 @@ namespace GPUVerify
                     {
                         if (predVarDefs.ContainsKey(varDef.Key))
                         {
-                            if (predVarDefs[varDef.Key] != null &&
-                                predVarDefs[varDef.Key] != varDef.Value &&
-                                !predVarDefs[varDef.Key].Equals(varDef.Value))
+                            if (predVarDefs[varDef.Key] != null
+                                && predVarDefs[varDef.Key] != varDef.Value
+                                && !predVarDefs[varDef.Key].Equals(varDef.Value))
+                            {
                                 predVarDefs[varDef.Key] = null;
+                            }
                         }
                         else
                         {
@@ -173,8 +175,8 @@ namespace GPUVerify
 
             private void UpdateAssignment(Variable variable, Expr rhs, Dictionary<Variable, Expr> newVarDefs)
             {
-                if ((varDefs.ContainsKey(variable) && varDefs[variable] == null) ||
-                    rhs == null)
+                if ((varDefs.ContainsKey(variable) && varDefs[variable] == null)
+                    || rhs == null)
                 {
                     newVarDefs[variable] = null;
                     return;

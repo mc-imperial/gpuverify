@@ -103,8 +103,8 @@ namespace GPUVerify
 
             private bool InstantiationExprIsThreadId()
             {
-                return (instantiationExpr is IdentifierExpr) &&
-                  ((IdentifierExpr)instantiationExpr).Decl.Name.Equals(verifier.MakeThreadId("X", thread).Name);
+                return (instantiationExpr is IdentifierExpr)
+                    && ((IdentifierExpr)instantiationExpr).Decl.Name.Equals(verifier.MakeThreadId("X", thread).Name);
             }
         }
     }

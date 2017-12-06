@@ -188,8 +188,8 @@ namespace GPUVerify
                 {
                     CallCmd callCmd = c as CallCmd;
 
-                    if (QKeyValue.FindBoolAttribute(callCmd.Proc.Attributes, "barrier_invariant") ||
-                        QKeyValue.FindBoolAttribute(callCmd.Proc.Attributes, "binary_barrier_invariant"))
+                    if (QKeyValue.FindBoolAttribute(callCmd.Proc.Attributes, "barrier_invariant")
+                        || QKeyValue.FindBoolAttribute(callCmd.Proc.Attributes, "binary_barrier_invariant"))
                     {
                         foreach (Expr param in callCmd.Ins)
                             ExprMayAffectControlFlow(impl.Name, param);
