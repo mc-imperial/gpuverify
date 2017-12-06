@@ -369,7 +369,9 @@ drives.
       > git clone https://github.com/mc-imperial/gpuverify.git
       > cd ${BUILD_ROOT}\gpuverify
       > ${BUILD_ROOT}\nuget restore GPUVerify.sln
-      > msbuild /p:Configuration=Release GPUVerify.sln
+      > msbuild /p:Configuration=Release `
+                /p:CodeAnalysisRuleSet=$PWD\StyleCop.ruleset `
+                GPUVerify.sln
 
 #. Configure GPUVerify front end::
 
