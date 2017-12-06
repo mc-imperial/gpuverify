@@ -276,7 +276,7 @@ namespace GPUVerify
 
         public override int GetHashCode()
         {
-            // A naive hashcode function
+            // A naive hash code function
             int result = 0;
             foreach (var record in records)
             {

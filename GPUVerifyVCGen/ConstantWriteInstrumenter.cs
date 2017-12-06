@@ -79,8 +79,8 @@ namespace GPUVerify
                         if (cwc.FoundWrite())
                         {
                             AssertCmd constantAssert = new AssertCmd(Token.NoToken, Expr.False);
-                            constantAssert.Attributes
-                                = new QKeyValue(Token.NoToken, "constant_write", new List<object>(), null);
+                            constantAssert.Attributes =
+                                new QKeyValue(Token.NoToken, "constant_write", new List<object>(), null);
                             for (QKeyValue attr = sourceLocationAttributes; attr != null; attr = attr.Next)
                             {
                                 if (attr.Key != "sourceloc")

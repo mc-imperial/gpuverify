@@ -85,7 +85,6 @@
     <Compile Include="BinaryBarrierInvariantDescriptor.cs" />
     <Compile Include="CallSiteAnalyser.cs" />
     <Compile Include="IntegerRepresentation.cs" />
-    <Compile Include="IntraProceduralLiveVariableAnalysis.cs" />
     <Compile Include="OriginalRaceInstrumenter.cs" />
     <Compile Include="StrideConstraint.cs" />
     <Compile Include="UnaryBarrierInvariantDescriptor.cs" />

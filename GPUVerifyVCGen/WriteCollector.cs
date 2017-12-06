@@ -32,7 +32,7 @@ namespace GPUVerify
             Debug.Assert(NoWrittenVariable());
 
             if (!State.ContainsGlobalOrGroupSharedArray(node.DeepAssignedVariable, true)
-                  && !State.ContainsPrivateArray(node.DeepAssignedVariable))
+                && !State.ContainsPrivateArray(node.DeepAssignedVariable))
             {
                 return node;
             }

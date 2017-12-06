@@ -157,6 +157,7 @@ namespace GPUVerify
                         this,
                         procName,
                         Verifier);
+
                     for (var i = 1 + (Verifier.UniformityAnalyser.IsUniform(call.callee) ? 0 : 1); i < call.Ins.Count; i++)
                         biDescriptor.AddInstantiationExpr(call.Ins[i]);
 
@@ -272,6 +273,7 @@ namespace GPUVerify
                     QKeyValue curr = newCallCmd.Attributes;
                     if (curr.Key.StartsWith("arg"))
                         newCallCmd.Attributes = new QKeyValue(Token.NoToken, curr.Key, new List<object>(new object[] { Dualise(curr.Params[0] as Expr, 1) }), curr.Next);
+
                     for (curr = newCallCmd.Attributes; curr.Next != null; curr = curr.Next)
                     {
                         if (curr.Next.Key.StartsWith("arg"))
@@ -285,6 +287,7 @@ namespace GPUVerify
                     QKeyValue curr = newCallCmd.Attributes;
                     if (curr.Key.StartsWith("arg"))
                         newCallCmd.Attributes = new QKeyValue(Token.NoToken, curr.Key, new List<object>(new object[] { Dualise(curr.Params[0] as Expr, 2) }), curr.Next);
+
                     for (curr = newCallCmd.Attributes; curr.Next != null; curr = curr.Next)
                     {
                         if (curr.Next.Key.StartsWith("arg"))

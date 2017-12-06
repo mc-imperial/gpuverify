@@ -328,13 +328,8 @@ namespace GPUVerify
             public int InputErrors;
             public int InternalErrors; // Should only be used for caught exceptions
 
-            public int TotalErrors
-            {
-                get
-                {
-                    return VerificationErrors + Inconclusives + TimeOuts + OutOfMemories + InputErrors + InternalErrors;
-                }
-            }
+            public int TotalErrors =>
+                VerificationErrors + Inconclusives + TimeOuts + OutOfMemories + InputErrors + InternalErrors;
 
             public override string ToString()
             {

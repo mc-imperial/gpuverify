@@ -61,7 +61,7 @@ namespace GPUVerify
 
         public void CheckBounds(Program program)
         {
-            foreach (Implementation i in program.TopLevelDeclarations.ToList().Where(item => item.GetType() == typeof(Implementation)))
+            foreach (Implementation i in program.TopLevelDeclarations.ToList().Where(item => item is Implementation))
             {
                 foreach (Block b in i.Blocks)
                 {

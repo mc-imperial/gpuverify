@@ -91,7 +91,7 @@ namespace GPUVerify
             GetReadAndWrittenVariables(region, out readVariables, out writtenVariables);
 
             foreach (var v in readVariables.Where(item => verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(item)
-              && !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(item)))
+                && !verifier.KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(item)))
             {
                 foreach (var g in guards)
                 {
@@ -208,7 +208,8 @@ namespace GPUVerify
 
             if (guardIncludingLoopCondition != null)
             {
-                verifier.AddCandidateInvariant(region, Expr.Imp(guardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", "do_not_predicate");
+                verifier.AddCandidateInvariant(
+                    region, Expr.Imp(guardIncludingLoopCondition, Expr.Ident(verifier.FindOrCreateEnabledVariable())), "conditionsImplyingEnabledness", "do_not_predicate");
             }
         }
 

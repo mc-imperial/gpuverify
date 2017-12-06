@@ -685,9 +685,9 @@ namespace GPUVerify
 
                     Model.Boolean ahoValue = state.TryGet(accessHasOccurred) as Model.Boolean;
                     Model.BitVector aoValue =
-                      (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
-                      ? state.TryGet(accessOffset)
-                      : callCex.Model.TryGetFunc(accessOffset).GetConstant()) as Model.BitVector;
+                        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
+                        ? state.TryGet(accessOffset)
+                        : callCex.Model.TryGetFunc(accessOffset).GetConstant()) as Model.BitVector;
 
                     if (!ahoValue.Value)
                     {
@@ -769,7 +769,7 @@ namespace GPUVerify
         private static Variable ExtractAccessHasOccurredVar(CallCounterexample err)
         {
             var vfv = new VariableFinderVisitor(
-              RaceInstrumentationUtil.MakeHasOccurredVariableName(QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"), GetAccessType(err)));
+                RaceInstrumentationUtil.MakeHasOccurredVariableName(QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"), GetAccessType(err)));
             vfv.Visit(err.FailingRequires.Condition);
             return vfv.GetVariable();
         }
@@ -777,7 +777,7 @@ namespace GPUVerify
         private static Variable ExtractOffsetVar(CallCounterexample err)
         {
             var vfv = new VariableFinderVisitor(
-              RaceInstrumentationUtil.MakeOffsetVariableName(QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"), GetAccessType(err)));
+                RaceInstrumentationUtil.MakeOffsetVariableName(QKeyValue.FindStringAttribute(err.FailingRequires.Attributes, "array"), GetAccessType(err)));
             vfv.Visit(err.FailingRequires.Condition);
             return vfv.GetVariable();
         }

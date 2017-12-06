@@ -28,9 +28,9 @@ namespace GPUVerify
         public AbstractHoudiniTransformation(GPUVerifier verifier)
         {
             this.verifier = verifier;
-            this.candidates =
-                  verifier.Program.TopLevelDeclarations.OfType<Constant>().Where(item
-                    => QKeyValue.FindBoolAttribute(item.Attributes, "existential")).Select(item => item.Name);
+            this.candidates = verifier.Program.TopLevelDeclarations.OfType<Constant>()
+                  .Where(item => QKeyValue.FindBoolAttribute(item.Attributes, "existential"))
+                  .Select(item => item.Name);
             this.counter = 0;
             this.existentialFunctions = new List<Declaration>();
         }

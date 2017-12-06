@@ -119,9 +119,9 @@ namespace GPUVerify
             this.outputFilename = filename;
             this.Program = program;
             this.resContext = rc;
-            this.IntRep = GPUVerifyVCGenCommandLineOptions.MathInt ?
-                (IntegerRepresentation)new MathIntegerRepresentation(this) :
-                (IntegerRepresentation)new BVIntegerRepresentation(this);
+            this.IntRep = GPUVerifyVCGenCommandLineOptions.MathInt
+                ? (IntegerRepresentation)new MathIntegerRepresentation(this)
+                : (IntegerRepresentation)new BVIntegerRepresentation(this);
 
             this.SizeTBits = GetSizeTBits();
             this.IdSizeBits = GetIdSizeBits();
@@ -187,7 +187,10 @@ namespace GPUVerify
             int errorCount = Check();
             if (errorCount != 0)
             {
-                Console.WriteLine("{0} GPUVerify format errors detected in {1}", errorCount, GPUVerifyVCGenCommandLineOptions.InputFiles[GPUVerifyVCGenCommandLineOptions.InputFiles.Count - 1]);
+                Console.WriteLine(
+                    "{0} GPUVerify format errors detected in {1}",
+                    errorCount,
+                    GPUVerifyVCGenCommandLineOptions.InputFiles[GPUVerifyVCGenCommandLineOptions.InputFiles.Count - 1]);
                 Environment.Exit(1);
             }
 
@@ -898,6 +901,7 @@ namespace GPUVerify
             Program.RemoveTopLevelDeclarations(x => x == barrierProcedures.First());
             barrierProcedures = new HashSet<Procedure>();
             int barrierCounter = 0;
+
             foreach (Block b in Program.Blocks().ToList())
             {
                 List<Cmd> newCmds = new List<Cmd>();
@@ -1411,7 +1415,7 @@ namespace GPUVerify
 
                     if (foundNonUniform)
                     {
-                        // I have a feeling this will never be reachable!!!
+                        // I have a feeling this will never be reachable
                         int numberOfNonUniformParameters = (proc.InParams.Count() - indexOfFirstNonUniformParameter) / 2;
                         for (int i = indexOfFirstNonUniformParameter; i < numberOfNonUniformParameters; i++)
                         {
@@ -2431,10 +2435,10 @@ namespace GPUVerify
         }
 
         // This finds instances where the only atomic used on an array satisfy forall n,m f^n(x) != f^m(x)
-        // Technically unsound due to machine integers, but unlikely in practice due to, e.g., needing to callng atomic_inc >2^32 times
+        // Technically unsound due to machine integers, but unlikely in practice due to, e.g., the need to call atomic_inc >2^32 times
         private void RefineAtomicAbstraction()
         {
-            // First, pass over the the program looking for uses of atomics, recording (Array,Function) pairs
+            // First, pass over the program looking for uses of atomics, recording (Array,Function) pairs
             Dictionary<Variable, HashSet<string>> funcs_used = new Dictionary<Variable, HashSet<string>>();
             Dictionary<Variable, HashSet<Expr>> args_used = new Dictionary<Variable, HashSet<Expr>>();
             foreach (Block b in Program.Blocks())
@@ -2447,10 +2451,12 @@ namespace GPUVerify
                         if (QKeyValue.FindBoolAttribute(call.Attributes, "atomic"))
                         {
                             Variable v = (call.Ins[0] as IdentifierExpr).Decl;
+
                             if (funcs_used.ContainsKey(v))
                                 funcs_used[v].Add(QKeyValue.FindStringAttribute(call.Attributes, "atomic_function"));
                             else
                                 funcs_used.Add(v, new HashSet<string>(new string[] { QKeyValue.FindStringAttribute(call.Attributes, "atomic_function") }));
+
                             Expr arg = QKeyValue.FindExprAttribute(call.Attributes, "arg1");
                             if (arg != null)
                             {
@@ -2544,9 +2550,15 @@ namespace GPUVerify
 
         private Expr FlattenedThreadId(int thread)
         {
-            return IntRep.MakeAdd(Expr.Ident(MakeThreadId("X", thread)), IntRep.MakeAdd(
-                  IntRep.MakeMul(Expr.Ident(MakeThreadId("Y", thread)), Expr.Ident(GetGroupSize("X"))),
-                  IntRep.MakeMul(Expr.Ident(MakeThreadId("Z", thread)), IntRep.MakeMul(Expr.Ident(GetGroupSize("X")), Expr.Ident(GetGroupSize("Y"))))));
+            return IntRep.MakeAdd(
+                Expr.Ident(MakeThreadId("X", thread)),
+                IntRep.MakeAdd(
+                    IntRep.MakeMul(
+                        Expr.Ident(MakeThreadId("Y", thread)),
+                        Expr.Ident(GetGroupSize("X"))),
+                    IntRep.MakeMul(
+                        Expr.Ident(MakeThreadId("Z", thread)),
+                        IntRep.MakeMul(Expr.Ident(GetGroupSize("X")), Expr.Ident(GetGroupSize("Y"))))));
         }
 
         private void AddWarpSyncs()
@@ -2597,7 +2609,7 @@ namespace GPUVerify
                             array = call.callee.Substring(11); // "_LOG_WRITE_" is 13 characters
                         }
 
-                        // Manual resolving yaey!
+                        // Manual resolving
                         Variable arrayVar = KernelArrayInfo.GetAllArrays(true).Where(v => v.Name.Equals(array)).First();
                         Procedure proto = FindOrCreateWarpSync(arrayVar, kind, true);
                         CallCmd wsCall = new CallCmd(Token.NoToken, proto.Name, new List<Expr>(), new List<IdentifierExpr>());
@@ -2631,7 +2643,7 @@ namespace GPUVerify
                             array = call.callee.Substring(13); // "_CHECK_WRITE_" is 13 characters
                         }
 
-                        // Manual resolving yaey!
+                        // Manual resolving
                         Variable arrayVar = KernelArrayInfo.GetAllArrays(true).Where(v => v.Name.Equals(array)).First();
                         Procedure proto = FindOrCreateWarpSync(arrayVar, kind, false);
                         CallCmd wsCall = new CallCmd(Token.NoToken, proto.Name, new List<Expr>(), new List<IdentifierExpr>());
@@ -2650,7 +2662,15 @@ namespace GPUVerify
             Tuple<Variable, AccessType, bool> key = new Tuple<Variable, AccessType, bool>(array, kind, pre);
             if (!warpSyncs.ContainsKey(key))
             {
-                Procedure proto = new Procedure(Token.NoToken, (pre ? "_PRE" : "_POST") + "_WARP_SYNC_" + array.Name + "_" + kind, new List<TypeVariable>(), new List<Variable>(), new List<Variable>(), new List<Requires>(), new List<IdentifierExpr>(), new List<Ensures>());
+                Procedure proto = new Procedure(
+                    Token.NoToken,
+                    (pre ? "_PRE" : "_POST") + "_WARP_SYNC_" + array.Name + "_" + kind,
+                    new List<TypeVariable>(),
+                    new List<Variable>(),
+                    new List<Variable>(),
+                    new List<Requires>(),
+                    new List<IdentifierExpr>(),
+                    new List<Ensures>());
                 warpSyncs[key] = proto;
             }
 
@@ -2719,7 +2739,15 @@ namespace GPUVerify
                 List<BigBlock> blocks = new List<BigBlock>();
                 blocks.Add(new BigBlock(Token.NoToken, "entry", new List<Cmd>(), ifcmd, null));
 
-                Implementation method = new Implementation(Token.NoToken, syncProcedure.Name, new List<TypeVariable>(), syncProcedure.InParams, new List<Variable>(), new List<Variable>(), new StmtList(blocks, Token.NoToken));
+                Implementation method = new Implementation(
+                    Token.NoToken,
+                    syncProcedure.Name,
+                    new List<TypeVariable>(),
+                    syncProcedure.InParams,
+                    new List<Variable>(),
+                    new List<Variable>(),
+                    new StmtList(blocks, Token.NoToken));
+
                 AddInlineAttribute(method);
                 Program.AddTopLevelDeclaration(method);
             }
