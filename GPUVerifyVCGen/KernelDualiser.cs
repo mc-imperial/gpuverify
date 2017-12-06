@@ -418,21 +418,41 @@ namespace GPUVerify
                     Expr variable = QKeyValue.FindExprAttribute(ass.Attributes, "variable");
                     Expr offset = QKeyValue.FindExprAttribute(ass.Attributes, "offset");
 
-                    List<Expr> offsets = Enumerable.Range(1, 2).Select(x => new VariableDualiser(x, Verifier, procName).VisitExpr(offset.Clone() as Expr)).ToList();
-                    List<Expr> vars = Enumerable.Range(1, 2).Select(x => new VariableDualiser(x, Verifier, procName).VisitExpr(variable.Clone() as Expr)).ToList();
-                    IdentifierExpr arrayref = new IdentifierExpr(Token.NoToken, Verifier.FindOrCreateUsedMap(QKeyValue.FindStringAttribute(ass.Attributes, "arrayref"), vars[0].Type));
+                    List<Expr> offsets =
+                        Enumerable.Range(1, 2).Select(x => new VariableDualiser(x, Verifier, procName).VisitExpr(offset.Clone() as Expr)).ToList();
+                    List<Expr> vars =
+                        Enumerable.Range(1, 2).Select(x => new VariableDualiser(x, Verifier, procName).VisitExpr(variable.Clone() as Expr)).ToList();
+                    IdentifierExpr arrayRef =
+                        new IdentifierExpr(Token.NoToken, Verifier.FindOrCreateUsedMap(QKeyValue.FindStringAttribute(ass.Attributes, "arrayref"), vars[0].Type));
+                    bool isShared = QKeyValue.FindBoolAttribute(arrayRef.Decl.Attributes, "atomic_group_shared");
 
                     foreach (int i in Enumerable.Range(0, 2))
                     {
-                        var select = new NAryExpr(
-                            Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { arrayref, offsets[i] });
-                        select = new NAryExpr(
-                            Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { select, vars[i] });
-                        AssumeCmd newAss = new AssumeCmd(c.tok, Expr.Not(select));
-                        cs.Add(newAss);
+                        Expr assumeSelect = arrayRef;
 
-                        var lhs = new MapAssignLhs(
-                            Token.NoToken, new SimpleAssignLhs(Token.NoToken, arrayref), new List<Expr> { offsets[i] });
+                        if (isShared && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
+                        {
+                            assumeSelect = new NAryExpr(
+                                Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { assumeSelect, Verifier.GroupSharedIndexingExpr(i + 1) });
+                        }
+
+                        assumeSelect = new NAryExpr(
+                            Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { assumeSelect, offsets[i] });
+                        assumeSelect = new NAryExpr(
+                            Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { assumeSelect, vars[i] });
+                        AssumeCmd newAssume = new AssumeCmd(c.tok, Expr.Not(assumeSelect));
+                        cs.Add(newAssume);
+
+                        AssignLhs lhs = new SimpleAssignLhs(Token.NoToken, arrayRef);
+
+                        if (isShared && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
+                        {
+                            lhs = new MapAssignLhs(
+                                Token.NoToken, lhs, new List<Expr> { Verifier.GroupSharedIndexingExpr(i + 1) });
+                        }
+
+                        lhs = new MapAssignLhs(
+                            Token.NoToken, lhs, new List<Expr> { offsets[i] });
                         lhs = new MapAssignLhs(
                             Token.NoToken, lhs, new List<Expr> { vars[i] });
                         AssignCmd assign = new AssignCmd(
@@ -634,7 +654,24 @@ namespace GPUVerify
 
                     if (QKeyValue.FindBoolAttribute(v.Attributes, "atomic_usedmap"))
                     {
-                        newTopLevelDeclarations.Add(v);
+                        if (QKeyValue.FindBoolAttribute(v.Attributes, "atomic_group_shared")
+                            && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
+                        {
+                            var type = new MapType(
+                                Token.NoToken,
+                                new List<TypeVariable>(),
+                                new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.GetBvType(1) },
+                                v.TypedIdent.Type);
+                            var newV = new GlobalVariable(
+                                Token.NoToken, new TypedIdent(Token.NoToken, v.Name, type));
+                            newV.Attributes = v.Attributes;
+                            newTopLevelDeclarations.Add(newV);
+                        }
+                        else
+                        {
+                            newTopLevelDeclarations.Add(v);
+                        }
+
                         continue;
                     }
 
@@ -653,7 +690,7 @@ namespace GPUVerify
                                 new List<TypeVariable>(),
                                 new List<Microsoft.Boogie.Type> { Microsoft.Boogie.Type.GetBvType(1) },
                                 v.TypedIdent.Type);
-                            Variable newV = new GlobalVariable(
+                            var newV = new GlobalVariable(
                                 Token.NoToken, new TypedIdent(Token.NoToken, v.Name, type));
                             newV.Attributes = v.Attributes;
                             newTopLevelDeclarations.Add(newV);

@@ -124,19 +124,45 @@ namespace GPUVerify
                     Debug.Assert(inner.Fun is MapSelect);
                     Debug.Assert(inner.Args[0] is IdentifierExpr);
                     Debug.Assert(QKeyValue.FindBoolAttribute(((IdentifierExpr)inner.Args[0]).Decl.Attributes, "atomic_usedmap"));
-                    return base.VisitNAryExpr(node);
-                }
 
-                Debug.Assert(node.Args[0] is IdentifierExpr);
-                var v = (node.Args[0] as IdentifierExpr).Decl;
-                if (QKeyValue.FindBoolAttribute(v.Attributes, "group_shared") && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
-                {
-                    var arg0 = new NAryExpr(
+                    Expr mapSelect = inner.Args[0];
+
+                    if (QKeyValue.FindBoolAttribute(((IdentifierExpr)inner.Args[0]).Decl.Attributes, "atomic_group_shared")
+                        && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
+                    {
+                        mapSelect = new NAryExpr(
+                            Token.NoToken,
+                            new MapSelect(Token.NoToken, 1),
+                            new List<Expr> { mapSelect, verifier.GroupSharedIndexingExpr(id) });
+                    }
+
+                    mapSelect = new NAryExpr(
                         Token.NoToken,
                         new MapSelect(Token.NoToken, 1),
-                        new List<Expr> { node.Args[0], verifier.GroupSharedIndexingExpr(id) });
-                    var arg1 = VisitExpr(node.Args[1]);
-                    return new NAryExpr(Token.NoToken, new MapSelect(Token.NoToken, 1), new List<Expr> { arg0, arg1 });
+                        new List<Expr> { mapSelect, VisitExpr(inner.Args[1]) });
+                    return new NAryExpr(
+                        Token.NoToken,
+                        new MapSelect(Token.NoToken, 1),
+                        new List<Expr> { mapSelect, VisitExpr(node.Args[1]) });
+                }
+                else
+                {
+                    Debug.Assert(node.Args[0] is IdentifierExpr);
+
+                    if (QKeyValue.FindBoolAttribute((node.Args[0] as IdentifierExpr).Decl.Attributes, "group_shared")
+                        && !GPUVerifyVCGenCommandLineOptions.OnlyIntraGroupRaceChecking)
+                    {
+                        var mapSelect = new NAryExpr(
+                            Token.NoToken,
+                            new MapSelect(Token.NoToken, 1),
+                            new List<Expr> { node.Args[0], verifier.GroupSharedIndexingExpr(id) });
+                        return new NAryExpr(
+                            Token.NoToken,
+                            new MapSelect(Token.NoToken, 1),
+                            new List<Expr> { mapSelect, VisitExpr(node.Args[1]) });
+                    }
+
+                    return base.VisitNAryExpr(node);
                 }
             }
 
@@ -149,8 +175,8 @@ namespace GPUVerify
                 {
                     Debug.Assert(id == 1 || id == 2);
                     int otherId = id == 1 ? 2 : 1;
-                    return new VariableDualiser(otherId, verifier, procName).VisitExpr(
-                        node.Args[0]);
+                    return new VariableDualiser(otherId, verifier, procName)
+                        .VisitExpr(node.Args[0]);
                 }
             }
 
