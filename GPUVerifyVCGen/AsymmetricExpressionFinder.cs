@@ -23,7 +23,7 @@ namespace GPUVerify
             "_WRITE_READ_BENIGN_FLAG",
             "_READ_ASYNC_HANDLE",
             "_WRITE_ASYNC_HANDLE",
-            "_USED", "_ARRAY_OFFSET"
+            "_ARRAY_OFFSET"
         };
 
         private bool found = false;

@@ -2534,16 +2534,27 @@ namespace GPUVerify
             var candidateVariables = Program.TopLevelDeclarations.OfType<GlobalVariable>().Where(item => item.Name.Equals(name));
             if (candidateVariables.Count() > 0)
             {
+                Debug.Assert(candidateVariables.Count() == 1);
                 return candidateVariables.First();
             }
 
             var mapType = new MapType(
                 Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { elementType }, Microsoft.Boogie.Type.Bool);
             mapType = new MapType(
-              Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { IntRep.GetIntType(SizeTBits) }, mapType);
+                Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { IntRep.GetIntType(SizeTBits) }, mapType);
 
             GlobalVariable usedMap = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, name, mapType));
-            usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(new object[] { }), null);
+            usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(), null);
+
+            if (KernelArrayInfo.GetGlobalArrays(true).Any(item => item.Name.Equals(arrayName)))
+            {
+                usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_global", new List<object>(), usedMap.Attributes);
+            }
+            else if (KernelArrayInfo.GetGroupSharedArrays(true).Any(item => item.Name.Equals(arrayName)))
+            {
+                usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_group_shared", new List<object>(), usedMap.Attributes);
+            }
+
             Program.AddTopLevelDeclaration(usedMap);
             return usedMap;
         }
