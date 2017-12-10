@@ -167,7 +167,8 @@ namespace GPUVerify
         {
             if (!(v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(8))
                 || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(16))
-                || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32))))
+                || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(32))
+                || v.TypedIdent.Type.Equals(verifier.IntRep.GetIntType(64))))
             {
                 return Kind.No;
             }
