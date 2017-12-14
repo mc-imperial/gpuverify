@@ -49,7 +49,7 @@ namespace GPUVerify
                         }
                         else if (node.Args[1] is LiteralExpr)
                         {
-                            return node.Args[1] == Expr.True ? Expr.True : node.Args[0];
+                            return node.Args[1] == Expr.True ? Expr.True : Expr.Not(node.Args[0]);
                         }
                     }
                     else if (binOp.Op == BinaryOperator.Opcode.Neq)
