@@ -82,6 +82,14 @@ namespace GPUVerify
                         var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) ^ GetBigInt(node.Args[1]));
                         return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
                     }
+                    else if (node.Args[0] is LiteralExpr && GetBigInt(node.Args[0]) == 0)
+                    {
+                        return node.Args[1];
+                    }
+                    else if (node.Args[1] is LiteralExpr && GetBigInt(node.Args[1]) == 0)
+                    {
+                        return node.Args[0];
+                    }
                 }
                 else if (AndPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
                 {
@@ -90,6 +98,14 @@ namespace GPUVerify
                         var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) & GetBigInt(node.Args[1]));
                         return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
                     }
+                    else if (node.Args[0] is LiteralExpr && GetBigInt(node.Args[0]) == 0)
+                    {
+                        return node.Args[0];
+                    }
+                    else if (node.Args[1] is LiteralExpr && GetBigInt(node.Args[1]) == 0)
+                    {
+                        return node.Args[1];
+                    }
                 }
                 else if (OrPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
                 {
@@ -97,6 +113,14 @@ namespace GPUVerify
                     {
                         var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) | GetBigInt(node.Args[1]));
                         return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
+                    }
+                    else if (node.Args[0] is LiteralExpr && GetBigInt(node.Args[0]) == 0)
+                    {
+                        return node.Args[1];
+                    }
+                    else if (node.Args[1] is LiteralExpr && GetBigInt(node.Args[1]) == 0)
+                    {
+                        return node.Args[0];
                     }
                 }
                 else if (node.Fun is IfThenElse)
