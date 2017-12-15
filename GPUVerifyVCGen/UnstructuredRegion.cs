@@ -226,7 +226,7 @@ namespace GPUVerify
         {
             AssumeCmd assume = new AssumeCmd(Token.NoToken, Expr.True, null);
 
-            assume.Attributes = new QKeyValue(Token.NoToken, "invGenSkippedLoop", new List<object>() { }, assume.Attributes);
+            assume.Attributes = new QKeyValue(Token.NoToken, "invGenSkippedLoop", new List<object>(), assume.Attributes);
             header.Cmds.Insert(0, assume);
         }
 

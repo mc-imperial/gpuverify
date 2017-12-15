@@ -140,7 +140,7 @@ namespace GPUVerify
 
             var key = new QKeyValue(Token.NoToken, "captureState", new List<object> { "bounds_check_state_" + arraySourceID }, null);
             key = new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID }, key);
-            key = new QKeyValue(Token.NoToken, "do_not_predicate", new List<object> { }, key);
+            key = new QKeyValue(Token.NoToken, "do_not_predicate", new List<object>(), key);
             boundChecks.Add(new AssumeCmd(Token.NoToken, Expr.True, key));
             boundChecks.Add(GenBoundCheck(BOUND_TYPE.LOWER, ar, arrDim, arrayOffset));
 
@@ -166,7 +166,7 @@ namespace GPUVerify
             var key = new QKeyValue(Token.NoToken, "array_name", new List<object> { ar.V.Name }, null);
             key = new QKeyValue(Token.NoToken, "check_id", new List<object> { "bounds_check_state_" + arraySourceID }, key);
             key = new QKeyValue(Token.NoToken, "sourceloc_num", new List<object> { new LiteralExpr(Token.NoToken, Microsoft.Basetypes.BigNum.FromInt(currSourceLocNum)) }, key);
-            key = new QKeyValue(Token.NoToken, "array_bounds", new List<object> { }, key);
+            key = new QKeyValue(Token.NoToken, "array_bounds", new List<object>(), key);
             return new AssertCmd(Token.NoToken, boundExpr, key);
         }
     }

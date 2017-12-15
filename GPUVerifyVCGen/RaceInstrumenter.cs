@@ -1214,8 +1214,8 @@ namespace GPUVerify
 
             noAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, attribute, new List<object>(), null);
             noAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "race", new List<object>(), noAccessRaceRequires.Attributes);
-            noAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "array", new List<object>() { v.Name }, noAccessRaceRequires.Attributes);
-            noAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "source_name", new List<object>() { sourceName }, noAccessRaceRequires.Attributes);
+            noAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "array", new List<object> { v.Name }, noAccessRaceRequires.Attributes);
+            noAccessRaceRequires.Attributes = new QKeyValue(Token.NoToken, "source_name", new List<object> { sourceName }, noAccessRaceRequires.Attributes);
             checkAccessProcedure.Requires.Add(noAccessRaceRequires);
         }
 
@@ -1736,17 +1736,17 @@ namespace GPUVerify
                 AssumeCmd captureStateAssume = new AssumeCmd(Token.NoToken, Expr.True);
                 captureStateAssume.Attributes = sourceLocationAttributes.Clone() as QKeyValue;
                 captureStateAssume.Attributes = new QKeyValue(
-                    Token.NoToken, "captureState", new List<object>() { checkState }, captureStateAssume.Attributes);
+                    Token.NoToken, "captureState", new List<object> { checkState }, captureStateAssume.Attributes);
                 captureStateAssume.Attributes = new QKeyValue(
-                    Token.NoToken, "check_id", new List<object>() { checkState }, captureStateAssume.Attributes);
+                    Token.NoToken, "check_id", new List<object> { checkState }, captureStateAssume.Attributes);
                 captureStateAssume.Attributes = new QKeyValue(
-                    Token.NoToken, "do_not_predicate", new List<object>() { }, captureStateAssume.Attributes);
+                    Token.NoToken, "do_not_predicate", new List<object>(), captureStateAssume.Attributes);
 
                 result.Add(captureStateAssume);
                 CallCmd checkAccessCallCmd = new CallCmd(Token.NoToken, checkProcedure.Name, inParamsChk, new List<IdentifierExpr>());
                 checkAccessCallCmd.Proc = checkProcedure;
                 checkAccessCallCmd.Attributes = sourceLocationAttributes.Clone() as QKeyValue;
-                checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "check_id", new List<object>() { checkState }, checkAccessCallCmd.Attributes);
+                checkAccessCallCmd.Attributes = new QKeyValue(Token.NoToken, "check_id", new List<object> { checkState }, checkAccessCallCmd.Attributes);
                 return checkAccessCallCmd;
             }
 

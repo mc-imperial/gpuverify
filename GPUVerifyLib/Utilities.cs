@@ -93,7 +93,7 @@ namespace GPUVerify
                     int errorCount;
                     try
                     {
-                        var defines = new List<string>() { "FILE_" + fileId };
+                        var defines = new List<string> { "FILE_" + fileId };
                         errorCount = Parser.Parse(bplFileName, defines, out programSnippet);
                         if (programSnippet == null || errorCount != 0)
                         {

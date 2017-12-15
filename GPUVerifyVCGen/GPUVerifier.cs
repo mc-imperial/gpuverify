@@ -2181,7 +2181,7 @@ namespace GPUVerify
 
         public void AddCandidateInvariant(IRegion region, Expr e, string tag, string attribute)
         {
-            AddCandidateInvariant(region, e, tag, new QKeyValue(Token.NoToken, attribute, new List<object>() { }, null));
+            AddCandidateInvariant(region, e, tag, new QKeyValue(Token.NoToken, attribute, new List<object>(), null));
         }
 
         public void AddCandidateInvariant(IRegion region, Expr e, string tag, QKeyValue attributes = null)
