@@ -322,7 +322,7 @@ namespace GPUVerify
 
         public Expr MakeDiv(Expr lhs, Expr rhs)
         {
-            return MakeIntBinaryInt("MUL", BinaryOperator.Opcode.Div, lhs, rhs);
+            return MakeIntBinaryInt("DIV", BinaryOperator.Opcode.Div, lhs, rhs);
         }
 
         public Expr MakeAnd(Expr lhs, Expr rhs)
