@@ -31,19 +31,20 @@ namespace GPUVerify.InvariantGenerationRules
                 {
                     if (Verifier.ContainsNamedVariable(modset, basicName))
                     {
+                        var type = v.TypedIdent.Type;
                         var bitwiseInv = Expr.Or(
-                            Expr.Eq(new IdentifierExpr(v.tok, v), Verifier.Zero(32)),
+                            Expr.Eq(new IdentifierExpr(v.tok, v), Verifier.IntRep.GetZero(type)),
                             Expr.Eq(
                                 Verifier.IntRep.MakeAnd(
                                     new IdentifierExpr(v.tok, v),
                                     Verifier.IntRep.MakeSub(
-                                        new IdentifierExpr(v.tok, v), Verifier.IntRep.GetLiteral(1, 32))),
-                                Verifier.Zero(32)));
+                                        new IdentifierExpr(v.tok, v), Verifier.IntRep.GetLiteral(1, type))),
+                                Verifier.IntRep.GetZero(type)));
                         Verifier.AddCandidateInvariant(region, bitwiseInv, "pow2");
 
                         Verifier.AddCandidateInvariant(
                             region,
-                            Expr.Neq(new IdentifierExpr(v.tok, v), Verifier.Zero(32)),
+                            Expr.Neq(new IdentifierExpr(v.tok, v), Verifier.IntRep.GetZero(type)),
                             "pow2NotZero");
                     }
                 }
@@ -56,16 +57,25 @@ namespace GPUVerify.InvariantGenerationRules
             {
                 var inc = incs.Single();
                 var dec = decs.Single();
-                for (int i = 1 << 15; i > 0; i >>= 1)
+                var type = inc.TypedIdent.Type;
+
+                if (type.Equals(dec.TypedIdent.Type))
                 {
-                    var mulInv = Expr.Eq(Verifier.IntRep.MakeMul(new IdentifierExpr(inc.tok, inc), new IdentifierExpr(dec.tok, dec)), Verifier.IntRep.GetLiteral(i, 32));
-                    Verifier.AddCandidateInvariant(region, mulInv, "relationalPow2");
-                    var disjInv = Expr.Or(
-                      Expr.And(
-                          Expr.Eq(new IdentifierExpr(dec.tok, dec), Verifier.Zero(32)),
-                          Expr.Eq(new IdentifierExpr(inc.tok, inc), Verifier.IntRep.GetLiteral(2 * i, 32))),
-                      mulInv);
-                    Verifier.AddCandidateInvariant(region, disjInv, "relationalPow2");
+                    for (int i = 1 << 15; i > 0; i >>= 1)
+                    {
+                        var mulInv = Expr.Eq(
+                            Verifier.IntRep.MakeMul(
+                                new IdentifierExpr(inc.tok, inc),
+                                new IdentifierExpr(dec.tok, dec)),
+                            Verifier.IntRep.GetLiteral(i, type));
+                        Verifier.AddCandidateInvariant(region, mulInv, "relationalPow2");
+                        var disjInv = Expr.Or(
+                          Expr.And(
+                              Expr.Eq(new IdentifierExpr(dec.tok, dec), Verifier.IntRep.GetZero(type)),
+                              Expr.Eq(new IdentifierExpr(inc.tok, inc), Verifier.IntRep.GetLiteral(2 * i, type))),
+                          mulInv);
+                        Verifier.AddCandidateInvariant(region, disjInv, "relationalPow2");
+                    }
                 }
             }
         }

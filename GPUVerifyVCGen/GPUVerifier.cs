@@ -44,11 +44,11 @@ namespace GPUVerify
 
         private HashSet<string> reservedNames = new HashSet<string>();
 
-        public const string SizeTBitsType = "_SIZE_T_TYPE";
+        public const string SizeTBitsTypeString = "_SIZE_T_TYPE";
 
-        public int SizeTBits { get; }
+        public Microsoft.Boogie.Type SizeTType { get; }
 
-        public int IdSizeBits { get; }
+        public Microsoft.Boogie.Type IdType { get; }
 
         public HashSet<string> OnlyThread1 { get; } = new HashSet<string>();
 
@@ -123,14 +123,14 @@ namespace GPUVerify
                 ? (IntegerRepresentation)new MathIntegerRepresentation(this)
                 : (IntegerRepresentation)new BVIntegerRepresentation(this);
 
-            this.SizeTBits = GetSizeTBits();
-            this.IdSizeBits = GetIdSizeBits();
+            this.SizeTType = GetSizeTType();
+            this.IdType = GetIdType();
 
             this.ArraysAccessedByAsyncWorkGroupCopy = new Dictionary<AccessType, HashSet<string>>();
             this.ArraysAccessedByAsyncWorkGroupCopy[AccessType.READ] = new HashSet<string>();
             this.ArraysAccessedByAsyncWorkGroupCopy[AccessType.WRITE] = new HashSet<string>();
 
-            if (this.SizeTBits < this.IdSizeBits)
+            if (this.SizeTType.IsBv && this.SizeTType.BvBits < this.IdType.BvBits)
             {
                 Console.WriteLine("GPUVerify: error: _SIZE_T_TYPE size cannot be smaller than group_size_x size");
                 Environment.Exit(1);
@@ -222,39 +222,41 @@ namespace GPUVerify
             }
         }
 
-        private int GetSizeTBits()
+        private Microsoft.Boogie.Type GetSizeTType()
         {
             var candidates = Program.TopLevelDeclarations.OfType<TypeSynonymDecl>()
-                .Where(item => item.Name == SizeTBitsType);
-            if (candidates.Count() != 1 || !candidates.First().Body.IsBv)
+                .Where(item => item.Name == SizeTBitsTypeString);
+
+            if (candidates.Count() != 1 || !candidates.Single().Body.IsBv)
             {
                 Console.WriteLine("GPUVerify: error: exactly one _SIZE_T_TYPE bit-vector type must be specified");
                 Environment.Exit(1);
             }
 
-            return candidates.First().Body.BvBits;
+            // Do not use the size_t type directly, as we might be using
+            // mathematical integers as our integer representation, and
+            // as the size_t type is always a bitvector type.
+            return IntRep.GetIntType(candidates.Single().Body.BvBits);
         }
 
-        private int GetIdSizeBits()
+        private Microsoft.Boogie.Type GetIdType()
         {
             var candidates = Program.TopLevelDeclarations.OfType<Constant>()
                 .Where(item => item.Name == GroupSizeXString);
+
             if (candidates.Count() != 1)
             {
                 Console.WriteLine("GPUVerify: error: exactly one group_size_x must be specified");
                 Environment.Exit(1);
             }
 
-            if (candidates.First().TypedIdent.Type.IsInt)
-                return this.SizeTBits; // Number of bits is irrelevant
-
-            if (!candidates.First().TypedIdent.Type.IsBv)
+            if (!candidates.Single().TypedIdent.Type.IsBv && !candidates.Single().TypedIdent.Type.IsInt)
             {
                 Console.WriteLine("GPUVerify: error: group_size_x must be of type int or bv");
                 Environment.Exit(1);
             }
 
-            return candidates.First().TypedIdent.Type.BvBits;
+            return candidates.Single().TypedIdent.Type;
         }
 
         public bool IsKernelProcedure(Procedure proc)
@@ -347,8 +349,8 @@ namespace GPUVerify
             {
                 var inParams = new List<Variable>
                 {
-                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1", IntRep.GetIntType(SizeTBits)), true),
-                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", IntRep.GetIntType(SizeTBits)), true)
+                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1", SizeTType), true),
+                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", SizeTType), true)
                 };
                 p = new Procedure(
                     Token.NoToken,
@@ -427,7 +429,7 @@ namespace GPUVerify
             if (constFieldRef == null)
             {
                 constFieldRef = new Constant(
-                    Token.NoToken, new TypedIdent(Token.NoToken, attr, IntRep.GetIntType(IdSizeBits)), /*unique=*/false);
+                    Token.NoToken, new TypedIdent(Token.NoToken, attr, IdType), /*unique=*/false);
                 constFieldRef.AddAttribute(attr);
                 Program.AddTopLevelDeclaration(constFieldRef);
             }
@@ -867,7 +869,7 @@ namespace GPUVerify
                     val = val.Substring(2);
                     BigInteger arg = BigInteger.Parse(val, NumberStyles.HexNumber);
 
-                    Expr val_expr = IntRep.GetLiteral(arg, ((BvType)v.TypedIdent.Type).Bits);
+                    Expr val_expr = IntRep.GetLiteral(arg, v.TypedIdent.Type);
                     Expr v_eq_val = Expr.Eq(v_expr, val_expr);
                     proc.Requires.Add(new Requires(false, v_eq_val));
                 }
@@ -1442,7 +1444,7 @@ namespace GPUVerify
 
         public Expr ThreadsInSameWarp()
         {
-            Expr warpsize = Expr.Ident(GPUVerifyVCGenCommandLineOptions.WarpSize + "bv" + IdSizeBits, new BvType(IdSizeBits));
+            Expr warpsize = IntRep.GetLiteral(GPUVerifyVCGenCommandLineOptions.WarpSize, IdType);
             IEnumerable<Expr> tids = (new int[] { 1, 2 }).Select(x => FlattenedThreadId(x));
             Expr[] sides = tids.Select(x => IntRep.MakeDiv(x, warpsize)).ToArray();
             return Expr.Eq(sides[0], sides[1]);
@@ -1473,11 +1475,6 @@ namespace GPUVerify
             return int.Parse(p.Substring(p.IndexOf("$") + 1, p.Length - (p.IndexOf("$") + 1)));
         }
 
-        public LiteralExpr Zero(int bits)
-        {
-            return IntRep.GetLiteral(0, bits);
-        }
-
         private void GeneratePreconditionsForDimension(string dimension)
         {
             foreach (Declaration decl in Program.TopLevelDeclarations.ToList())
@@ -1486,9 +1483,9 @@ namespace GPUVerify
                 if (proc == null || ProcedureIsInlined(proc) || ProcedureHasNoImplementation(proc))
                     continue;
 
-                Expr groupSizePositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), Zero(IdSizeBits));
-                Expr numGroupsPositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), Zero(IdSizeBits));
-                Expr groupIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), Zero(IdSizeBits));
+                Expr groupSizePositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)), IntRep.GetZero(IdType));
+                Expr numGroupsPositive = IntRep.MakeSgt(new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)), IntRep.GetZero(IdType));
+                Expr groupIdNonNegative = IntRep.MakeSge(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), IntRep.GetZero(IdType));
                 Expr groupIdLessThanNumGroups = IntRep.MakeSlt(new IdentifierExpr(Token.NoToken, GetGroupId(dimension)), new IdentifierExpr(Token.NoToken, GetNumGroups(dimension)));
 
                 proc.Requires.Add(new Requires(false, groupSizePositive));
@@ -1509,7 +1506,7 @@ namespace GPUVerify
 
                 Expr threadIdNonNegative = IntRep.MakeSge(
                     new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)),
-                    Zero(IdSizeBits));
+                    IntRep.GetZero(IdType));
                 Expr threadIdLessThanGroupSize = IntRep.MakeSlt(
                     new IdentifierExpr(Token.NoToken, MakeThreadId(dimension)),
                     new IdentifierExpr(Token.NoToken, GetGroupSize(dimension)));
@@ -1825,7 +1822,7 @@ namespace GPUVerify
         {
             return Expr.Neq(
                 new IdentifierExpr(Token.NoToken, new LocalVariable(Token.NoToken, v.TypedIdent)),
-                IntRep.GetLiteral(0, 1));
+                IntRep.GetZero(IntRep.GetIntType(1)));
         }
 
         private List<BigBlock> MakeResetBlocks(Expr resetCondition, IEnumerable<Variable> variables)
@@ -1979,7 +1976,7 @@ namespace GPUVerify
                     return g;
             }
 
-            Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, access, IntRep.GetIntType(SizeTBits));
+            Variable result = RaceInstrumentationUtil.MakeOffsetVariable(varName, access, SizeTType);
             Program.AddTopLevelDeclaration(result);
             return result;
         }
@@ -1994,7 +1991,7 @@ namespace GPUVerify
             }
 
             LocalVariable result = new LocalVariable(
-                Token.NoToken, new TypedIdent(Token.NoToken, ghostName, IntRep.GetIntType(SizeTBits)));
+                Token.NoToken, new TypedIdent(Token.NoToken, ghostName, SizeTType));
             impl.LocVars.Add(result);
             return result;
         }
@@ -2038,7 +2035,7 @@ namespace GPUVerify
                 }
             }
 
-            Variable result = RaceInstrumentationUtil.MakeAsyncHandleVariable(varName, access, IntRep.GetIntType(SizeTBits));
+            Variable result = RaceInstrumentationUtil.MakeAsyncHandleVariable(varName, access, SizeTType);
             Program.AddTopLevelDeclaration(result);
             return result;
         }
@@ -2047,7 +2044,7 @@ namespace GPUVerify
         {
             return new GlobalVariable(
                 Token.NoToken,
-                new TypedIdent(Token.NoToken, MakeArrayOffsetVariableName(varName), IntRep.GetIntType(SizeTBits)));
+                new TypedIdent(Token.NoToken, MakeArrayOffsetVariableName(varName), SizeTType));
         }
 
         public static string MakeArrayOffsetVariableName(string varName)
@@ -2077,18 +2074,19 @@ namespace GPUVerify
             return new IdentifierExpr(Token.NoToken, MakeAccessHasOccurredVariable(varName, access));
         }
 
-        public Function FindOrCreateOther(int bvWidth)
+        public Function FindOrCreateOther(Microsoft.Boogie.Type type)
         {
-            Function other = (Function)resContext.LookUpProcedure("__other_bv" + bvWidth);
+            var otherFunctionName = type.IsBv ? "__other_bv" + type.BvBits : "__other_bv32";
+            Function other = (Function)resContext.LookUpProcedure(otherFunctionName);
             if (other == null)
             {
                 List<Variable> args = new List<Variable>();
-                args.Add(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, Microsoft.Boogie.Type.GetBvType(bvWidth))));
+                args.Add(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, type)));
                 other = new Function(
                     Token.NoToken,
-                    "__other_bv" + bvWidth,
+                    otherFunctionName,
                     args,
-                    new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, Microsoft.Boogie.Type.GetBvType(bvWidth))));
+                    new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, type)));
             }
 
             return other;
@@ -2333,19 +2331,19 @@ namespace GPUVerify
         {
             e = VarDefAnalysesRegion[impl].SubstDefinitions(e, impl.Name);
 
-            if (e is NAryExpr && (e as NAryExpr).Fun.FunctionName.Equals("BV" + IdSizeBits + "_ADD"))
+            Expr lhs, rhs;
+            if (IntRep.IsAdd(e, out lhs, out rhs) && e.Type.Equals(IdType))
             {
-                NAryExpr nary = e as NAryExpr;
                 Constant localId = GetLocalIdConst(dim);
 
-                if (IsGivenConstant(nary.Args[1], localId))
+                if (IsGivenConstant(rhs, localId))
                 {
-                    return IsGroupIdTimesGroupSize(nary.Args[0], dim);
+                    return IsGroupIdTimesGroupSize(lhs, dim);
                 }
 
-                if (IsGivenConstant(nary.Args[0], localId))
+                if (IsGivenConstant(lhs, localId))
                 {
-                    return IsGroupIdTimesGroupSize(nary.Args[1], dim);
+                    return IsGroupIdTimesGroupSize(rhs, dim);
                 }
             }
 
@@ -2354,16 +2352,15 @@ namespace GPUVerify
 
         private bool IsGroupIdTimesGroupSize(Expr expr, int dim)
         {
-            if (expr is NAryExpr && (expr as NAryExpr).Fun.FunctionName.Equals("BV" + IdSizeBits + "_MUL"))
+            Expr lhs, rhs;
+            if (IntRep.IsMul(expr, out lhs, out rhs) && expr.Type.Equals(IdType))
             {
-                NAryExpr innerNary = expr as NAryExpr;
-
-                if (IsGroupIdAndSize(dim, innerNary.Args[0], innerNary.Args[1]))
+                if (IsGroupIdAndSize(dim, lhs, rhs))
                 {
                     return true;
                 }
 
-                if (IsGroupIdAndSize(dim, innerNary.Args[1], innerNary.Args[0]))
+                if (IsGroupIdAndSize(dim, rhs, lhs))
                 {
                     return true;
                 }
@@ -2541,7 +2538,7 @@ namespace GPUVerify
             var mapType = new MapType(
                 Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { elementType }, Microsoft.Boogie.Type.Bool);
             mapType = new MapType(
-                Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { IntRep.GetIntType(SizeTBits) }, mapType);
+                Token.NoToken, new List<TypeVariable>(), new List<Microsoft.Boogie.Type> { SizeTType }, mapType);
 
             GlobalVariable usedMap = new GlobalVariable(Token.NoToken, new TypedIdent(Token.NoToken, name, mapType));
             usedMap.Attributes = new QKeyValue(Token.NoToken, "atomic_usedmap", new List<object>(), null);
@@ -2848,8 +2845,8 @@ namespace GPUVerify
                 return Expr.Ident(candidates.First());
             }
 
-            Constant asyncNoHandleConstant = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, name, IntRep.GetIntType(SizeTBits)), false);
-            Axiom equalsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(asyncNoHandleConstant), Zero(SizeTBits)));
+            Constant asyncNoHandleConstant = new Constant(Token.NoToken, new TypedIdent(Token.NoToken, name, SizeTType), false);
+            Axiom equalsZero = new Axiom(Token.NoToken, Expr.Eq(Expr.Ident(asyncNoHandleConstant), IntRep.GetZero(SizeTType)));
             Program.AddTopLevelDeclarations(new Declaration[] { asyncNoHandleConstant, equalsZero });
             return Expr.Ident(asyncNoHandleConstant);
         }

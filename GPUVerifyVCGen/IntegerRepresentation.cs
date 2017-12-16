@@ -10,6 +10,7 @@
 namespace GPUVerify
 {
     using System.Collections.Generic;
+    using System.Diagnostics;
     using System.Linq;
     using System.Numerics;
     using System.Text.RegularExpressions;
@@ -20,9 +21,11 @@ namespace GPUVerify
     {
         Type GetIntType(int width);
 
-        LiteralExpr GetLiteral(int value, int width);
+        LiteralExpr GetZero(Type resultType);
 
-        LiteralExpr GetLiteral(BigInteger value, int width);
+        LiteralExpr GetLiteral(int value, Type resultType);
+
+        LiteralExpr GetLiteral(BigInteger value, Type resultType);
 
         Expr MakeSub(Expr lhs, Expr rhs);
 
@@ -61,7 +64,7 @@ namespace GPUVerify
 
     public class IntegerRepresentationHelper
     {
-        public static bool IsFun(Expr e, string mneumonic, out Expr lhs, out Expr rhs)
+        public static bool IsFun(Expr e, string mnemonic, out Expr lhs, out Expr rhs)
         {
             lhs = rhs = null;
 
@@ -77,7 +80,7 @@ namespace GPUVerify
                 return false;
             }
 
-            if (!Regex.IsMatch(fc.FunctionName, "BV[0-9]+_" + mneumonic))
+            if (!Regex.IsMatch(fc.FunctionName, "BV[0-9]+_" + mnemonic))
             {
                 return false;
             }
@@ -102,17 +105,28 @@ namespace GPUVerify
             return Type.GetBvType(width);
         }
 
-        public LiteralExpr GetLiteral(int value, int width)
+        public LiteralExpr GetZero(Type resultType)
         {
-            return new LiteralExpr(Token.NoToken, BigNum.FromInt(value), width);
+            return GetLiteral(0, resultType);
         }
 
-        public LiteralExpr GetLiteral(BigInteger value, int width)
+        public LiteralExpr GetLiteral(int value, Type resultType)
         {
+            Debug.Assert(resultType.IsBv);
+            return new LiteralExpr(Token.NoToken, BigNum.FromInt(value), resultType.BvBits);
+        }
+
+        public LiteralExpr GetLiteral(BigInteger value, Type resultType)
+        {
+            Debug.Assert(resultType.IsBv);
             var v = value;
+
             if (v < 0)
-                v += BigInteger.Pow(2, width);
-            return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(v), width);
+            {
+                v += BigInteger.Pow(2, resultType.BvBits);
+            }
+
+            return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(v), resultType.BvBits);
         }
 
         private Expr MakeBitVectorBinaryBoolean(string suffix, string smtName, Expr lhs, Expr rhs)
@@ -206,11 +220,12 @@ namespace GPUVerify
         public Expr MakeModPow2(Expr lhs, Expr rhs)
         {
             var bvType = rhs.Type as BvType;
-            return MakeAnd(MakeSub(rhs, GetLiteral(1, bvType.Bits)), lhs);
+            return MakeAnd(MakeSub(rhs, GetLiteral(1, bvType)), lhs);
         }
 
         public Expr MakeZext(Expr expr, Type resultType)
         {
+            Debug.Assert(resultType.IsBv);
             if (expr.Type.BvBits == resultType.BvBits)
                 return expr;
             else
@@ -242,13 +257,20 @@ namespace GPUVerify
             return Type.Int;
         }
 
-        public LiteralExpr GetLiteral(int value, int width)
+        public LiteralExpr GetZero(Type resultType)
         {
+            return GetLiteral(0, resultType);
+        }
+
+        public LiteralExpr GetLiteral(int value, Type resultType)
+        {
+            Debug.Assert(resultType.IsInt);
             return new LiteralExpr(Token.NoToken, BigNum.FromInt(value));
         }
 
-        public LiteralExpr GetLiteral(BigInteger value, int width)
+        public LiteralExpr GetLiteral(BigInteger value, Type resultType)
         {
+            Debug.Assert(resultType.IsInt);
             return new LiteralExpr(Token.NoToken, BigNum.FromBigInt(value));
         }
 
@@ -355,6 +377,7 @@ namespace GPUVerify
 
         public Expr MakeZext(Expr expr, Type resultType)
         {
+            Debug.Assert(resultType.IsInt);
             return expr;
         }
 

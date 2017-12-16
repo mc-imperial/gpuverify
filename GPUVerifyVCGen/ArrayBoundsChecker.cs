@@ -158,9 +158,11 @@ namespace GPUVerify
             switch (btype)
             {
                 case BOUND_TYPE.LOWER:
-                    boundExpr = verifier.IntRep.MakeSge(offsetVarExpr, verifier.IntRep.GetLiteral(0, verifier.SizeTBits)); break;
+                    boundExpr = verifier.IntRep.MakeSge(offsetVarExpr, verifier.IntRep.GetZero(verifier.SizeTType));
+                    break;
                 case BOUND_TYPE.UPPER:
-                    boundExpr = verifier.IntRep.MakeSlt(offsetVarExpr, verifier.IntRep.GetLiteral(arrDim, verifier.SizeTBits)); break;
+                    boundExpr = verifier.IntRep.MakeSlt(offsetVarExpr, verifier.IntRep.GetLiteral(arrDim, verifier.SizeTType));
+                    break;
             }
 
             var key = new QKeyValue(Token.NoToken, "array_name", new List<object> { ar.V.Name }, null);

@@ -150,12 +150,12 @@ namespace GPUVerify
             Debug.Assert(c.Ins.Count() == 2);
             if (strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL)
             {
-                if (!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, 1)))
+                if (!c.Ins[0].Equals(verifier.IntRep.GetLiteral(1, verifier.IntRep.GetIntType(1))))
                     return false;
             }
             else if (strength == BarrierStrength.GLOBAL || strength == BarrierStrength.ALL)
             {
-                if (!c.Ins[1].Equals(verifier.IntRep.GetLiteral(1, 1)))
+                if (!c.Ins[1].Equals(verifier.IntRep.GetLiteral(1, verifier.IntRep.GetIntType(1))))
                     return false;
             }
             else

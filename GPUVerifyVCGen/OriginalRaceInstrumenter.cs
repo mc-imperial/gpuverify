@@ -36,13 +36,13 @@ namespace GPUVerify
             Variable accessHasOccurredVariable =
                 GPUVerifier.MakeAccessHasOccurredVariable(v.Name, access);
             Variable accessOffsetVariable =
-                RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
+                RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.SizeTType);
             Variable accessValueVariable =
                 RaceInstrumentationUtil.MakeValueVariable(v.Name, access, mt.Result);
             Variable accessBenignFlagVariable =
                 GPUVerifier.MakeBenignFlagVariable(v.Name);
             Variable accessAsyncHandleVariable =
-                RaceInstrumentationUtil.MakeAsyncHandleVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
+                RaceInstrumentationUtil.MakeAsyncHandleVariable(v.Name, access, Verifier.SizeTType);
 
             Variable predicateParameter =
                 new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_P", Type.Bool));
@@ -53,7 +53,7 @@ namespace GPUVerify
             Variable valueOldParameter =
                 new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value_old", mt.Result));
             Variable asyncHandleParameter =
-                new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", Verifier.IntRep.GetIntType(Verifier.SizeTBits)));
+                new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", Verifier.SizeTType));
 
             Debug.Assert(!(mt.Result is MapType));
 

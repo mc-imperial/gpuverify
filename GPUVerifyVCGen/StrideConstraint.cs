@@ -16,8 +16,8 @@ namespace GPUVerify
         public static StrideConstraint Bottom(GPUVerifier verifier, Expr e)
         {
             return new ModStrideConstraint(
-                verifier.IntRep.GetLiteral(1, e.Type is BvType ? e.Type.BvBits : verifier.SizeTBits),
-                verifier.Zero(e.Type is BvType ? e.Type.BvBits : verifier.SizeTBits));
+                verifier.IntRep.GetLiteral(1, e.Type),
+                verifier.IntRep.GetZero(e.Type));
         }
 
         public bool IsBottom()

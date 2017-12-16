@@ -152,7 +152,7 @@ namespace GPUVerify
                     Debug.Assert(call.Ins.Count >= (2 + (Verifier.UniformityAnalyser.IsUniform(call.callee) ? 0 : 1)));
                     var biDescriptor = new UnaryBarrierInvariantDescriptor(
                         Verifier.UniformityAnalyser.IsUniform(call.callee) ? Expr.True : call.Ins[0],
-                        Expr.Neq(call.Ins[Verifier.UniformityAnalyser.IsUniform(call.callee) ? 0 : 1], Verifier.Zero(1)),
+                        Expr.Neq(call.Ins[Verifier.UniformityAnalyser.IsUniform(call.callee) ? 0 : 1], Verifier.IntRep.GetZero(Verifier.IntRep.GetIntType(1))),
                         call.Attributes,
                         this,
                         procName,
@@ -172,7 +172,7 @@ namespace GPUVerify
                     Debug.Assert(call.Ins.Count >= (3 + (Verifier.UniformityAnalyser.IsUniform(call.callee) ? 0 : 1)));
                     var biDescriptor = new BinaryBarrierInvariantDescriptor(
                         Verifier.UniformityAnalyser.IsUniform(call.callee) ? Expr.True : call.Ins[0],
-                        Expr.Neq(call.Ins[Verifier.UniformityAnalyser.IsUniform(call.callee) ? 0 : 1], Verifier.Zero(1)),
+                        Expr.Neq(call.Ins[Verifier.UniformityAnalyser.IsUniform(call.callee) ? 0 : 1], Verifier.IntRep.GetZero(Verifier.IntRep.GetIntType(1))),
                         call.Attributes,
                         this,
                         procName,

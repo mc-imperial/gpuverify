@@ -367,13 +367,14 @@ namespace GPUVerify
             {
                 // Mixing of ids of type bv32 and offsets of type bv64 is
                 // possible with CUDA, and incompatible with the current code.
-                if (verifier.SizeTBits == 64)
+                if (verifier.SizeTType.IsBv && verifier.SizeTType.BvBits == 64)
                     return Enumerable.Empty<Expr>();
+
                 if (!canAccessBreak)
                     return Enumerable.Empty<Expr>();
 
                 var result = new List<Expr>();
-                var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, verifier.IntRep.GetIntType(verifier.SizeTBits));
+                var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, verifier.SizeTType);
                 foreach (var c in componentMap.Keys)
                 {
                     Expr invariant = new IdentifierExpr(Token.NoToken, offsetVar);
@@ -537,7 +538,7 @@ namespace GPUVerify
 
         private List<Expr> CollectOffsetPredicates(Implementation impl, IRegion region, Variable v, AccessType access)
         {
-            var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
+            var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.SizeTType);
             var offsetExpr = new IdentifierExpr(Token.NoToken, offsetVar);
             var offsetPreds = new List<Expr>();
 
@@ -608,7 +609,7 @@ namespace GPUVerify
                 // and upper bound for the access. i.e.,
                 //   constant <= access <= constant[group-id+1/group-id]
                 Variable groupId = groupIds.Single();
-                Expr groupIdPlusOne = Verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), Verifier.IntRep.GetLiteral(1, Verifier.IdSizeBits));
+                Expr groupIdPlusOne = Verifier.IntRep.MakeAdd(new IdentifierExpr(Token.NoToken, groupId), Verifier.IntRep.GetLiteral(1, Verifier.IdType));
                 Dictionary<Variable, Expr> substs = new Dictionary<Variable, Expr>();
                 substs.Add(groupId, groupIdPlusOne);
                 Substitution s = Substituter.SubstitutionFromHashtable(substs);
@@ -907,7 +908,7 @@ namespace GPUVerify
             Variable valueParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value", mt.Result));
             Variable valueOldParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_value_old", mt.Result));
 
-            Variable asyncHandleParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", Verifier.IntRep.GetIntType(Verifier.SizeTBits)));
+            Variable asyncHandleParameter = new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "_async_handle", Verifier.SizeTType));
 
             Debug.Assert(!(mt.Result is MapType));
 
@@ -1075,7 +1076,7 @@ namespace GPUVerify
             Debug.Assert(mt.Arguments.Count == 1);
 
             Variable accessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE);
-            Variable accessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, AccessType.WRITE, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
+            Variable accessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, AccessType.WRITE, Verifier.SizeTType);
             Variable accessBenignFlagVariable = GPUVerifier.MakeBenignFlagVariable(v.Name);
 
             Variable predicateParameter = new LocalVariable(v.tok, new TypedIdent(v.tok, "_P", Microsoft.Boogie.Type.Bool));
@@ -1192,7 +1193,7 @@ namespace GPUVerify
         {
             // Check atomic by thread 2 does not conflict with read by thread 1
             Variable accessHasOccurredVariable = GPUVerifier.MakeAccessHasOccurredVariable(v.Name, access);
-            Variable accessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits));
+            Variable accessOffsetVariable = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.SizeTType);
 
             Expr accessGuard = new IdentifierExpr(Token.NoToken, predicateParameter);
             accessGuard = Expr.And(accessGuard, new IdentifierExpr(Token.NoToken, accessHasOccurredVariable));
@@ -1319,7 +1320,7 @@ namespace GPUVerify
         private Expr AccessedOffsetIsThreadLocalIdExpr(Variable v, AccessType access)
         {
             Expr offsetVar =
-                new IdentifierExpr(v.tok, RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits)));
+                new IdentifierExpr(v.tok, RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.SizeTType));
             Expr offsetExpr =
                 Verifier.IntRep.MakeZext(new IdentifierExpr(v.tok, Verifier.MakeThreadId("X", 1)), offsetVar.Type);
             return Expr.Imp(
@@ -1361,7 +1362,7 @@ namespace GPUVerify
 
         private IdentifierExpr OffsetXExpr(Variable v, AccessType access, int thread)
         {
-            return new IdentifierExpr(v.tok, new VariableDualiser(thread, Verifier, null).VisitVariable(RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.IntRep.GetIntType(Verifier.SizeTBits))));
+            return new IdentifierExpr(v.tok, new VariableDualiser(thread, Verifier, null).VisitVariable(RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, Verifier.SizeTType)));
         }
 
         private void AddAccessedOffsetInRangeCTimesGlobalIdToCTimesGlobalIdPlusC(IRegion region, Variable v, Expr constant, AccessType access)
@@ -1509,7 +1510,7 @@ namespace GPUVerify
                                     // Set the handle associated with an array access to the "no handle"
                                     // value if it's current handle matches the given handle
                                     IdentifierExpr handleVariable =
-                                        Expr.Ident(RaceInstrumentationUtil.MakeAsyncHandleVariable(array, access, verifier.IntRep.GetIntType(verifier.SizeTBits)));
+                                        Expr.Ident(RaceInstrumentationUtil.MakeAsyncHandleVariable(array, access, verifier.SizeTType));
                                     var lhs = new SimpleAssignLhs(Token.NoToken, handleVariable);
                                     var rhs = new NAryExpr(
                                         Token.NoToken,
@@ -1582,23 +1583,23 @@ namespace GPUVerify
                 }
 
                 IdentifierExpr dstOffset =
-                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "DstOffset", verifier.IntRep.GetIntType(verifier.SizeTBits))));
+                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "DstOffset", verifier.SizeTType)));
                 IdentifierExpr srcOffset =
-                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "SrcOffset", verifier.IntRep.GetIntType(verifier.SizeTBits))));
+                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "SrcOffset", verifier.SizeTType)));
                 IdentifierExpr size =
-                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Size", verifier.IntRep.GetIntType(verifier.SizeTBits))));
+                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Size", verifier.SizeTType)));
                 IdentifierExpr handle =
-                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Handle", verifier.IntRep.GetIntType(verifier.SizeTBits))));
+                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Handle", verifier.SizeTType)));
                 List<Variable> inParams =
                     new List<Variable> { dstOffset.Decl, srcOffset.Decl, size.Decl, handle.Decl };
 
                 IdentifierExpr resultHandle =
-                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "ResultHandle", verifier.IntRep.GetIntType(verifier.SizeTBits))));
+                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "ResultHandle", verifier.SizeTType)));
                 List<Variable> outParams =
                     new List<Variable> { resultHandle.Decl };
 
                 IdentifierExpr index =
-                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Index", verifier.IntRep.GetIntType(verifier.SizeTBits))));
+                    Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "Index", verifier.SizeTType)));
                 IdentifierExpr idX =
                     Expr.Ident(new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, "IdX", verifier.IdX.TypedIdent.Type)));
                 IdentifierExpr idY =
@@ -1660,7 +1661,7 @@ namespace GPUVerify
                 Expr accessedValue = Expr.Select(Expr.Ident(srcArray), new Expr[] { verifier.IntRep.MakeAdd(srcOffset, index) });
                 accessedValue.Type = (srcArray.TypedIdent.Type as MapType).Result;
                 accessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, idsMatch, new QKeyValue(Token.NoToken, "partition", new List<object>(), null)));
-                accessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(index, verifier.Zero(verifier.SizeTBits))));
+                accessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUge(index, verifier.IntRep.GetZero(verifier.SizeTType))));
                 accessBlock.Cmds.Add(new AssumeCmd(Token.NoToken, verifier.IntRep.MakeUlt(index, size)));
                 accessBlock.Cmds.Add(MakeLogCall(new AccessRecord(dstArray, verifier.IntRep.MakeAdd(dstOffset, index)), AccessType.WRITE, accessedValue, resultHandle));
                 accessBlock.Cmds.Add(MakeCheckCall(accessBlock.Cmds, new AccessRecord(dstArray, verifier.IntRep.MakeAdd(dstOffset, index)), AccessType.WRITE, accessedValue));
@@ -1702,7 +1703,7 @@ namespace GPUVerify
             {
                 return Expr.Imp(
                     verifier.ThreadsInSameGroup(),
-                    Expr.Eq(e, new NAryExpr(Token.NoToken, new FunctionCall(verifier.FindOrCreateOther(verifier.SizeTBits)), new List<Expr> { e })));
+                    Expr.Eq(e, new NAryExpr(Token.NoToken, new FunctionCall(verifier.FindOrCreateOther(e.Type)), new List<Expr> { e })));
             }
 
             private void AddLogAndCheckCalls(List<Cmd> result, AccessRecord ar, AccessType access, Expr value)

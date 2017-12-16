@@ -71,7 +71,7 @@ namespace GPUVerify
         protected Expr NonNegative(Expr e)
         {
             return Dualiser.Verifier.IntRep.MakeSge(
-              e, Verifier.Zero(Verifier.SizeTBits));
+              e, Verifier.IntRep.GetZero(Verifier.SizeTType));
         }
 
         protected Expr NotTooLarge(Expr e)

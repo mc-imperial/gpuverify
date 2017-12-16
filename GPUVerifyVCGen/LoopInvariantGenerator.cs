@@ -294,7 +294,7 @@ namespace GPUVerify
                             var sub = verifier.IntRep.MakeSub(new IdentifierExpr(Token.NoToken, v), rhs as Expr);
                             List<Expr> args = new List<Expr>();
                             args.Add(sub);
-                            Function otherbv = verifier.FindOrCreateOther(sub.Type.BvBits);
+                            Function otherbv = verifier.FindOrCreateOther(sub.Type);
                             var inv = Expr.Eq(sub, new NAryExpr(Token.NoToken, new FunctionCall(otherbv), args));
                             verifier.AddCandidateInvariant(region, inv, "guardMinusInitialIsUniform");
                             var groupInv = Expr.Imp(verifier.ThreadsInSameGroup(), inv);
@@ -332,10 +332,10 @@ namespace GPUVerify
             foreach (var v in nonnegVars)
             {
                 // REVISIT: really we only want to guess for /integer/ variables.
-                int bvWidth = v.TypedIdent.Type.BvBits;
-                if (bvWidth >= 8)
+                var type = v.TypedIdent.Type;
+                if (type.BvBits >= 8)
                 {
-                    var inv = verifier.IntRep.MakeSle(verifier.Zero(bvWidth), new IdentifierExpr(v.tok, v));
+                    var inv = verifier.IntRep.MakeSle(verifier.IntRep.GetZero(type), new IdentifierExpr(v.tok, v));
                     verifier.AddCandidateInvariant(region, inv, "guardNonNeg");
                 }
             }
