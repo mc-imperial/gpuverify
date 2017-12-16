@@ -9,16 +9,16 @@
 
 namespace GPUVerify
 {
+    using System;
     using System.Numerics;
     using System.Text.RegularExpressions;
-    using Microsoft.Basetypes;
     using Microsoft.Boogie;
 
     public class ExpressionSimplifier
     {
-        public static void Simplify(Program program)
+        public static void Simplify(Program program, IntegerRepresentation intRep)
         {
-            var exprSimplify = new Simplifier();
+            var exprSimplify = new Simplifier(intRep);
             exprSimplify.Visit(program);
         }
 
@@ -28,6 +28,13 @@ namespace GPUVerify
             private static readonly Regex OrPattern = new Regex(@"^BV\d*_OR$");
             private static readonly Regex XorPattern = new Regex(@"^BV\d*_XOR$");
             private static readonly Regex ZextPattern = new Regex(@"^BV\d*_ZEXT\d*$");
+
+            private IntegerRepresentation intRep;
+
+            public Simplifier(IntegerRepresentation intRep)
+            {
+                this.intRep = intRep;
+            }
 
             public override Expr VisitNAryExpr(NAryExpr node)
             {
@@ -67,58 +74,58 @@ namespace GPUVerify
                         }
                     }
                 }
-                else if (ZextPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
+                else if (ZextPattern.Match(node.Fun.FunctionName).Success && node.Type.IsBv)
                 {
-                    if (node.Args[0] is LiteralExpr && node.Type is BvType)
+                    if (node.Args[0] is LiteralExpr)
                     {
-                        var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]));
-                        return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
+                        var newVal = GetVal(node.Args[0]);
+                        return intRep.GetLiteral(newVal, node.Type);
                     }
                 }
-                else if (XorPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
+                else if (XorPattern.Match(node.Fun.FunctionName).Success && node.Type.IsBv)
                 {
                     if (node.Args[0] is LiteralExpr && node.Args[1] is LiteralExpr)
                     {
-                        var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) ^ GetBigInt(node.Args[1]));
-                        return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
+                        var newVal = GetVal(node.Args[0]) ^ GetVal(node.Args[1]);
+                        return intRep.GetLiteral(newVal, node.Type);
                     }
-                    else if (node.Args[0] is LiteralExpr && GetBigInt(node.Args[0]) == 0)
+                    else if (node.Args[0] is LiteralExpr && GetVal(node.Args[0]) == 0)
                     {
                         return node.Args[1];
                     }
-                    else if (node.Args[1] is LiteralExpr && GetBigInt(node.Args[1]) == 0)
+                    else if (node.Args[1] is LiteralExpr && GetVal(node.Args[1]) == 0)
                     {
                         return node.Args[0];
                     }
                 }
-                else if (AndPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
+                else if (AndPattern.Match(node.Fun.FunctionName).Success && node.Type.IsBv)
                 {
                     if (node.Args[0] is LiteralExpr && node.Args[1] is LiteralExpr)
                     {
-                        var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) & GetBigInt(node.Args[1]));
-                        return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
+                        var newVal = GetVal(node.Args[0]) & GetVal(node.Args[1]);
+                        return intRep.GetLiteral(newVal, node.Type);
                     }
-                    else if (node.Args[0] is LiteralExpr && GetBigInt(node.Args[0]) == 0)
+                    else if (node.Args[0] is LiteralExpr && GetVal(node.Args[0]) == 0)
                     {
                         return node.Args[0];
                     }
-                    else if (node.Args[1] is LiteralExpr && GetBigInt(node.Args[1]) == 0)
+                    else if (node.Args[1] is LiteralExpr && GetVal(node.Args[1]) == 0)
                     {
                         return node.Args[1];
                     }
                 }
-                else if (OrPattern.Match(node.Fun.FunctionName).Success && node.Type is BvType)
+                else if (OrPattern.Match(node.Fun.FunctionName).Success && node.Type.IsBv)
                 {
                     if (node.Args[0] is LiteralExpr && node.Args[1] is LiteralExpr)
                     {
-                        var newVal = BigNum.FromBigInt(GetBigInt(node.Args[0]) | GetBigInt(node.Args[1]));
-                        return new LiteralExpr(Token.NoToken, newVal, GetBvBits(node));
+                        var newVal = GetVal(node.Args[0]) | GetVal(node.Args[1]);
+                        return intRep.GetLiteral(newVal, node.Type);
                     }
-                    else if (node.Args[0] is LiteralExpr && GetBigInt(node.Args[0]) == 0)
+                    else if (node.Args[0] is LiteralExpr && GetVal(node.Args[0]) == 0)
                     {
                         return node.Args[1];
                     }
-                    else if (node.Args[1] is LiteralExpr && GetBigInt(node.Args[1]) == 0)
+                    else if (node.Args[1] is LiteralExpr && GetVal(node.Args[1]) == 0)
                     {
                         return node.Args[0];
                     }
@@ -134,14 +141,21 @@ namespace GPUVerify
                 return node;
             }
 
-            private static int GetBvBits(Expr node)
+            private static BigInteger GetVal(Expr node)
             {
-                return ((BvType)node.Type).Bits;
-            }
-
-            private static BigInteger GetBigInt(Expr node)
-            {
-                return ((BvConst)((LiteralExpr)node).Val).Value.ToBigInteger;
+                var litExpr = (LiteralExpr)node;
+                if (litExpr.isBvConst)
+                {
+                    return litExpr.asBvConst.Value.ToBigInteger;
+                }
+                else if (litExpr.isBigNum)
+                {
+                    return litExpr.asBigNum.ToBigInteger;
+                }
+                else
+                {
+                    throw new NotSupportedException("Type not supported");
+                }
             }
         }
     }
