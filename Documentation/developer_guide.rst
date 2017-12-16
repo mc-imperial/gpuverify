@@ -87,7 +87,6 @@ Replace as appropriate or setup an environment variable.::
      $ cd ${BUILD_ROOT}/bugle/build
      $ cmake -D LLVM_CONFIG_EXECUTABLE=${BUILD_ROOT}/llvm_and_clang/build/bin/llvm-config \
              -D CMAKE_BUILD_TYPE=Release \
-             -D LIBCLC_DIR=${BUILD_ROOT}/libclc/install \
              ../src
 
    Compile Bugle::
@@ -328,7 +327,6 @@ drives.
               -D LLVM_SRC=$LLVM_SRC `
               -D LLVM_BUILD=$LLVM_BUILD `
               -D LLVM_BUILD_TYPE=Release `
-              -D LIBCLC_DIR=${BUILD_ROOT}\libclc\install `
               ..\src
 
    In case you have Visual Studio 2017, replace ``Visual Studio 14`` by
