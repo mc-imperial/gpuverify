@@ -2468,18 +2468,21 @@ namespace GPUVerify
             }
 
             // Then, for every array that only used a single monotonic atomic function, pass over the program again, logging offset constraints
-            string[] monotonics = new string[] { "__bugle_atomic_inc", "__bugle_atomic_dec", "__bugle_atomic_add", "__bugle_atomic_sub", "__atomicAdd", "__atomicSub" };
+            string[] monotonics = new string[]
+            {
+                "__bugle_atomic_inc", "__bugle_atomic_dec", "__bugle_atomic_add", "__bugle_atomic_sub", "__atomicAdd", "__atomicSub"
+            };
             Expr variables = null;
             Expr offset = null;
             int parts = 0;
             foreach (KeyValuePair<Variable, HashSet<string>> pair in funcs_used)
             {
-                // If it's a refinable function, and either has no arguments (is inc or dec), or has only 1 argument used with it and that argument is a non-zero constant
+                // If it's a refinable function, and either: (a) has no arguments (is inc or dec), or (b) has 1 argument and that argument is a non-zero constant
                 if (pair.Value.Count == 1
                     && monotonics.Any(x => pair.Value.First().StartsWith(x))
                         && (!args_used.ContainsKey(pair.Key)
                             || (args_used[pair.Key].Count == 1
-                                && args_used[pair.Key].All(arg => (arg is LiteralExpr) && ((arg as LiteralExpr).Val is BvConst) && ((arg as LiteralExpr).Val as BvConst).Value != BigNum.FromInt(0)))))
+                                && args_used[pair.Key].All(arg => (arg is LiteralExpr) && !arg.Equals(IntRep.GetZero(arg.Type))))))
                 {
                     foreach (Block b in Program.Blocks())
                     {

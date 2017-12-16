@@ -494,9 +494,9 @@ namespace GPUVerify
 
         private string ArrayOffsetString(Model model, string stateName, Variable accessHasOccurredVar, Variable accessOffsetVar, string raceyArraySourceName)
         {
-            Model.Number offsetElement = (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
+            Model.Element offsetElement = RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
               ? GetStateFromModel(stateName, model).TryGet(accessOffsetVar.Name)
-              : model.TryGetFunc(accessOffsetVar.Name).GetConstant()) as Model.Number;
+              : model.TryGetFunc(accessOffsetVar.Name).GetConstant();
 
             return GetArrayAccess(
                 ParseOffset(offsetElement),
@@ -661,10 +661,10 @@ namespace GPUVerify
             return Utilities.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
         }
 
-        private static AssumeCmd DetermineConflictingAction(CallCounterexample callCex, string raceyState, string accessHasOccurred, string accessOffset)
+        private AssumeCmd DetermineConflictingAction(CallCounterexample callCex, string raceyState, string accessHasOccurred, string accessOffset)
         {
             AssumeCmd lastLogAssume = null;
-            string lastOffsetValue = null;
+            BigInteger? lastOffsetValue = null;
 
             foreach (var b in callCex.Trace)
             {
@@ -684,20 +684,19 @@ namespace GPUVerify
                     }
 
                     Model.Boolean ahoValue = state.TryGet(accessHasOccurred) as Model.Boolean;
-                    Model.BitVector aoValue =
-                        (RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
+                    Model.Element aoValue = RaceInstrumentationUtil.RaceCheckingMethod == RaceCheckingMethod.ORIGINAL
                         ? state.TryGet(accessOffset)
-                        : callCex.Model.TryGetFunc(accessOffset).GetConstant()) as Model.BitVector;
+                        : callCex.Model.TryGetFunc(accessOffset).GetConstant();
 
                     if (!ahoValue.Value)
                     {
                         lastLogAssume = null;
                         lastOffsetValue = null;
                     }
-                    else if (lastLogAssume == null || !aoValue.Numeral.Equals(lastOffsetValue))
+                    else if (lastLogAssume == null || !ParseOffset(aoValue).Equals(lastOffsetValue))
                     {
                         lastLogAssume = c;
-                        lastOffsetValue = aoValue.Numeral;
+                        lastOffsetValue = ParseOffset(aoValue);
                     }
 
                     if (stateName.Equals(raceyState))
@@ -873,7 +872,7 @@ namespace GPUVerify
 
             string state = GetStateName(err);
             string arrayName = QKeyValue.FindStringAttribute(err.FailingAssert.Attributes, "array_name");
-            Model.Number arrayOffset = GetStateFromModel(state, err.Model).TryGet("_ARRAY_OFFSET_" + arrayName) as Model.Number;
+            Model.Element arrayOffset = GetStateFromModel(state, err.Model).TryGet("_ARRAY_OFFSET_" + arrayName);
             Axiom arrayInfo = GetOriginalProgram().Axioms.Where(item => QKeyValue.FindStringAttribute(item.Attributes, "array_info") == arrayName).First();
 
             string arrayAccess = GetArrayAccess(
@@ -892,20 +891,40 @@ namespace GPUVerify
             Console.Error.WriteLine();
         }
 
-        private long ParseOffset(Model.Number modelOffset)
+        private BigInteger ParseOffset(Model.Element modelOffset)
         {
-            ulong offset = Convert.ToUInt64(modelOffset.Numeral);
-            if (offset >= BigInteger.Pow(2, sizeTBits - 1))
+            BigInteger offset;
+            if (modelOffset is Model.Number)
             {
-                return (long)(offset - BigInteger.Pow(2, sizeTBits));
+                Model.Number numericOffset = (Model.Number)modelOffset;
+                offset = BigInteger.Parse(numericOffset.Numeral);
             }
             else
             {
-                return (long)offset;
+                Model.DatatypeValue datatypeOffset = (Model.DatatypeValue)modelOffset;
+                if (datatypeOffset.ConstructorName != "-" || datatypeOffset.Arguments.Length != 1)
+                {
+                    throw new NotSupportedException("Unexpected offset");
+                }
+
+                Model.Number numericOffset = (Model.Number)datatypeOffset.Arguments[0];
+                offset = -BigInteger.Parse(numericOffset.Numeral);
+
+                while (offset < -BigInteger.Pow(2, sizeTBits - 1))
+                {
+                    offset += BigInteger.Pow(2, sizeTBits);
+                }
             }
+
+            while (offset >= BigInteger.Pow(2, sizeTBits - 1))
+            {
+                offset -= BigInteger.Pow(2, sizeTBits);
+            }
+
+            return offset;
         }
 
-        private static string GetArrayAccess(long offset, string name, uint elWidth, uint srcElWidth, string[] dims)
+        private static string GetArrayAccess(BigInteger offset, string name, uint elWidth, uint srcElWidth, string[] dims)
         {
             Debug.Assert(elWidth != uint.MaxValue && elWidth % 8 == 0);
             Debug.Assert(srcElWidth != uint.MaxValue && srcElWidth % 8 == 0);
@@ -918,11 +937,11 @@ namespace GPUVerify
             for (int i = dims.Count() - 2; i >= 0; i--)
                 dimStrides[i] = dimStrides[i + 1] * Convert.ToUInt32(dims[i + 1]);
 
-            long offsetInBytes = offset * elWidth;
-            long leftoverBytes = offsetInBytes % srcElWidth;
+            BigInteger offsetInBytes = offset * elWidth;
+            BigInteger leftoverBytes = offsetInBytes % srcElWidth;
 
             string arrayAccess = name;
-            long remainder = offsetInBytes / srcElWidth;
+            BigInteger remainder = offsetInBytes / srcElWidth;
             foreach (uint stride in dimStrides)
             {
                 if (stride == 0)
