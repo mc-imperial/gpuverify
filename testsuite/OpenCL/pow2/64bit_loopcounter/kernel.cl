@@ -1,0 +1,9 @@
+//pass
+//--local_size=32 --num_groups=2
+
+__kernel void foo(__global double *A, int n)
+{
+  for(long i = n; i > 0; i >>= 1) {
+    A[get_global_id(0)] = 0.0;
+  }
+}
