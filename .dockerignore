@@ -1,6 +1,0 @@
-.git
-*.swp
-README.md
-Binaries/*.dll
-Binaries/*.exe
-*.pyc

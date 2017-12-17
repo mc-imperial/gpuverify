@@ -5,80 +5,9 @@ Installation
 Getting GPUVerify
 =================
 
-Prebuilt versions of GPUVerify are available in two different ways.
+Prebuilt versions of GPUVerify are available as:
 
-* :ref:`docker_containers`
 * :ref:`nightly_builds`
-
-.. _docker_containers:
-
-Docker containers
------------------
-
-`Docker <https://www.docker.com/>`_ is a technology for packaging entire applications into
-containers to provide a light-weight (compared to VMs) and portable way to run applications
-in an isolated and reproducable environment.
-
-We provide two different images (the difference is each one uses a different SMT solver)
-for building GPUVerify containers.
-
-Installing Docker
-^^^^^^^^^^^^^^^^^
-
-See this `guide on installing Docker <https://docs.docker.com/installation/#installation>`_ to
-learn how to install it.
-
-Z3 image
-^^^^^^^^
-
-This container uses Z3 as its SMT solver.
-
-To obtain the image run::
-
-    $ docker pull delcypher/gpuverify-docker:z3
-
-CVC4 image
-^^^^^^^^^^
-
-This container uses CVC4 as its SMT solver.
-
-To obtain the image run::
-
-    $ docker pull delcypher/gpuverify-docker:cvc4
-
-Running GPUVerify in a container
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The easiest way to get started is to create a new container from the GPUVerify image
-you obtained and run an interactive shell in it (replace ``cvc4`` with ``z3`` if you
-pulled the ``z3`` image instead of the ``cvc4`` image)::
-
-    $ docker run -ti --rm --entrypoint=/bin/bash delcypher/gpuverify-docker:cvc4
-
-The ``--rm`` flag will remove the container once you exit (don't use this flag if you
-want to keep the container).
-
-Inside the container the GPUVerify tool is in your ``PATH`` so you can run for example::
-
-    $ gpuverify --help
-
-The container will have some toy kernels that are part of its testsuite in
-``/home/gv/gpuverify/testsuite/`` but you probably want to verify some real
-kernels.
-
-To do that you will want to get some kernels into the container so you
-can verify them. To do this you can create a volume inside the container that
-mounts a directory on the underlying host machine. For example the following
-would make the ``/path/to/kernel`` directory visible inside the container as
-``/mnt``::
-
-    $ docker run -ti --rm -v /path/to/kernels:/mnt --entrypoint=/bin/bash delcypher/gpuverify-docker:cvc4
-
-Building the GPUVerify image from scratch
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The ``Dockerfile``\ s for building our Docker images can be found
-in `this GitHub repository <https://github.com/delcypher/gpuverify-docker>`_.
 
 .. _nightly_builds:
 
