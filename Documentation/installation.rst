@@ -21,12 +21,11 @@ Basic Prequisites
 ^^^^^^^^^^^^^^^^^
 
 GPUVerify requires python >= 2.7 and the python module `psutil <https://code.google.com/p/psutil/>`_.
-On Windows, we recommend installing psutil from a `prebuilt binary <https://pypi.python.org/pypi?:action=display&name=psutil#downloads>`_.
-On Linux/OSX, we recommend installing psutil with pip::
+We recommend installing psutil with pip::
 
      $ pip install psutil
 
-On Windows, the 32-bit version of the `Visual C++ Redistributable for Visual Studio 2012 <http://www.microsoft.com/en-gb/download/details.aspx?id=30679>`_ is also required. The redistributable will already be installed if a recent version of Visula Studio is present. If not, a version can be obtained for free from Microsoft through the above link. Not having the redistributable installed may lead to crashes.
+On Windows, the 32-bit version of the `Visual C++ Redistributable for Visual Studio 2012 <http://www.microsoft.com/en-gb/download/details.aspx?id=30679>`_ is also required. The redistributable will already be installed if a recent version of Visual Studio is present. If not, a version can be obtained for free from Microsoft through the above link. Not having the redistributable installed may lead to crashes.
 
 Linux/OSX
 ^^^^^^^^^
