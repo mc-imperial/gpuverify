@@ -34,27 +34,27 @@ libclcSrcDir = rootDir + "/libclc"
 libclcInstallDir = rootDir + "/libclc-install"
 
 # The path to the llvm Source directory.
-llvmSrcDir = rootDir + "/llvm_and_clang/src" # XXX
+llvmSrcDir = rootDir # Not relevant during build and test
 
 # The path to the directory containing the llvm binaries.
 # llvm-nm, clang and opt should be there
 llvmBinDir = rootDir
 
 # The path containing the llvm libraries
-llvmLibDir = rootDir + "/llvm_and_clang/build/lib" # XXX
+llvmLibDir = rootDir # Not relevant during build and test
 
 # The path to the directory containing the GPUVerify binaries.
 # GPUVerifyVCGen.exe, GPUVerifyCruncher.exe and GPUVerifyBoogieDriver.exe should be there
 gpuVerifyBinDir = os.environ["GPUVERIFY_DIR"] + "/Binaries"
 
 # The path to the z3 Source directory.
-z3SrcDir = rootDir + "/z3" # XXX
+z3SrcDir = rootDir # Not relevant during build and test
 
 # The path to the directory containing z3.exe
 z3BinDir = rootDir
 
 # The path to the cvc4 Source directory.
-cvc4SrcDir = rootDir + "/CVC4/src" # XXX
+cvc4SrcDir = rootDir # Not relevant during build and test
 
 # The path to the directory containing cvc4.exe
 cvc4BinDir = rootDir

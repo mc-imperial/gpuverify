@@ -5,4 +5,4 @@ cd ${GPUVERIFY_DIR}
 nuget restore GPUVerify.sln
 msbuild /m /p:Configuration=Release \
   /p:CodeAnalysisRuleSet=$PWD/StyleCop.ruleset GPUVerify.sln
-cp gvfindtools.templates/gvfindtools.travis.py gvfindtools.py
+cp .travis/gvfindtools.travis_build_and_test.py gvfindtools.py
