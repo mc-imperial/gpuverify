@@ -27,7 +27,7 @@ addons:
       - clang-5.0
       - clang-5.0-dev
 
-matrix:
+jobs:
   include:
     - os: linux
       dist: trusty
@@ -35,13 +35,15 @@ matrix:
       env:
         - DEFAULT_SOLVER=z3
         - Z3="z3-${Z3_VERSION}-x64-ubuntu-14.04"
+      script:
+        - export BUILD_ROOT=${TRAVIS_BUILD_DIR}
+        - ${BUILD_ROOT}/.travis/travis_build_and_test.sh
     - os: linux
       dist: trusty
       sudo: false
       env:
         - DEFAULT_SOLVER=cvc4
         - CVC4="cvc4-${CVC4_VERSION}-x86_64-linux-opt"
-
-script:
-  - export BUILD_ROOT=${TRAVIS_BUILD_DIR}
-  - ${BUILD_ROOT}/.travis/travis_build_and_test.sh
+      script:
+        - export BUILD_ROOT=${TRAVIS_BUILD_DIR}
+        - ${BUILD_ROOT}/.travis/travis_build_and_test.sh
