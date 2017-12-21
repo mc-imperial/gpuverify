@@ -12,18 +12,18 @@ import fileinput
 
 import getversion
 
-#Try to import the paths need for GPUVerify's tools
+# Try to import the paths need for GPUVerify's tools
 GPUVerifyRoot = sys.path[0]
 
-if os.path.isfile(sys.path[0] + os.sep + 'gvfindtools.py'):
+if os.path.isfile(os.path.join(GPUVerifyRoot, 'gvfindtools.py')):
   import gvfindtools
 else:
   sys.stderr.write('Error: Cannot find \'gvfindtools.py\'.'
                    'Did you forget to create it from a template?\n')
   sys.exit(1)
 
-#Import the deploy script
-sys.path.insert(0,GPUVerifyRoot + os.sep + 'gvfindtools.templates')
+# Import the deploy script
+sys.path.insert(0, os.path.join(GPUVerifyRoot, 'gvfindtools.templates'))
 import gvfindtoolsdeploy
 
 class DeployTask:
@@ -63,7 +63,7 @@ class FileCopy(DeployTask):
         destination : The directory to copy to file to
     """
     self.filename = filename
-    self.srcpath=srcdir + os.sep + filename
+    self.srcpath=os.path.join(srcdir, filename)
     self.destination=destination
 
   def run(self):
@@ -77,9 +77,9 @@ class FileCopy(DeployTask):
     shutil.copy(self.srcpath, self.destination)
 
   def getDestination(self):
-    return self.destination + os.sep + self.filename
+    return os.path.join(self.destination, self.filename)
 
-#This will copy the contents of srcdir into destdir
+# This will copy the contents of srcdir into destdir
 class DirCopy(DeployTask):
   """
   This Class copies the contents of srcdir into destdir. Note this
@@ -132,13 +132,13 @@ class DirCopy(DeployTask):
     logging.debug('Checking ' + path)
     filesToIgnore=[]
     for fileOrDirectory in filenames:
-      fullPath=path + os.sep + fileOrDirectory
+      fullPath=os.path.join(path, fileOrDirectory)
       if self.copyOnlyRegex.match(fullPath) == None:
-        if not os.path.isdir(path + os.sep + fileOrDirectory):
+        if not os.path.isdir(fullPath):
           #The item is a directory and it didn't match the regex
           #so we add it to the ignore list
           filesToIgnore.append(fileOrDirectory)
-          logging.debug('ignoring ' + path + os.sep + fileOrDirectory)
+          logging.debug('ignoring ' + fullPath)
       else:
         logging.info('Copying "' + fullPath + '"')
 
@@ -172,11 +172,11 @@ class RegexFileCopy(DeployTask):
 
     (root, dirs, filenames) = next(os.walk(self.srcdir))
 
-    #compile regex
+    # compile regex
     logging.info("Searching for files matching regex \"" + self.fileRegex + "\" in \"" + self.srcdir + "\"")
     regex = re.compile(self.fileRegex)
 
-    #loop over files in self.srcdir
+    # loop over files in self.srcdir
     for file in filenames:
       if regex.match(file) != None:
         logging.info("\"" + file + "\" matches")
@@ -253,7 +253,6 @@ class EmbedMonoRuntime(DeployTask):
   def run(self):
     workdir = os.path.dirname(self.exePath)
     cmdLine = ['mkbundle',
-               '-L', workdir, # Search for dlls in same directory as exe
                '--deps',
                '-o', self.outputPath
               ]
@@ -366,37 +365,37 @@ def main(argv):
   #Specify actions to perform
   deployActions = [
   # tutorial
-  FileCopy(GPUVerifyRoot + os.sep + "Documentation", "tutorial.rst", deployDir),
-  MoveFile(deployDir + os.sep + 'tutorial.rst', deployDir + os.sep + 'TUTORIAL.TXT'),
+  FileCopy(os.path.join(GPUVerifyRoot, "Documentation"), "tutorial.rst", deployDir),
+  MoveFile(os.path.join(deployDir, 'tutorial.rst'), os.path.join(deployDir, 'TUTORIAL.TXT')),
 
   # libclc
   DirCopy(gvfindtools.libclcInstallDir, gvfindtoolsdeploy.libclcInstallDir),
   FileCopy(gvfindtools.libclcSrcDir, 'LICENSE.TXT', licenseDest),
-  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'libclc.txt'),
+  MoveFile(os.path.join(licenseDest, 'LICENSE.TXT'), os.path.join(licenseDest, 'libclc.txt')),
   # bugle
-  DirCopy(gvfindtools.bugleSrcDir + os.sep + 'include-blang', gvfindtoolsdeploy.bugleSrcDir + os.sep + 'include-blang'),
+  DirCopy(os.path.join(gvfindtools.bugleSrcDir, 'include-blang'), os.path.join(gvfindtoolsdeploy.bugleSrcDir, 'include-blang')),
   FileCopy(gvfindtools.bugleSrcDir, 'LICENSE.TXT', licenseDest),
-  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'bugle.txt'),
+  MoveFile(os.path.join(licenseDest, 'LICENSE.TXT'), os.path.join(licenseDest, 'bugle.txt')),
   RegexFileCopy(gvfindtools.bugleBinDir, r'bugle(\.exe)?$', gvfindtoolsdeploy.bugleBinDir),
   RegexFileCopy(gvfindtools.bugleBinDir, r'libbugleInlineCheckPlugin\.(so|dylib)?$', gvfindtoolsdeploy.bugleBinDir),
   # GPUVerify
   FileCopy(GPUVerifyRoot, 'GPUVerify.py', deployDir),
   FileCopy(GPUVerifyRoot, 'getversion.py', deployDir),
   FileCopy(GPUVerifyRoot, 'LICENSE.TXT', licenseDest),
-  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'gpuverify-boogie.txt'),
+  MoveFile(os.path.join(licenseDest, 'LICENSE.TXT'), os.path.join(licenseDest, 'gpuverify-boogie.txt')),
   IfUsing('posix',FileCopy(GPUVerifyRoot, 'gpuverify', deployDir)),
   IfUsing('nt',FileCopy(GPUVerifyRoot, 'GPUVerify.bat', deployDir)),
-  FileCopy(GPUVerifyRoot + os.sep + 'gvfindtools.templates', 'gvfindtoolsdeploy.py', deployDir), # Note this will patched later
-  MoveFile(deployDir + os.sep + 'gvfindtoolsdeploy.py', deployDir + os.sep + 'gvfindtools.py'),
+  FileCopy(os.path.join(GPUVerifyRoot, 'gvfindtools.templates'), 'gvfindtoolsdeploy.py', deployDir), # Note this will patched later
+  MoveFile(os.path.join(deployDir, 'gvfindtoolsdeploy.py'), os.path.join(deployDir, 'gvfindtools.py')),
   RegexFileCopy(gvfindtools.gpuVerifyBinDir, r'^.+\.(dll|exe)$', gvfindtoolsdeploy.gpuVerifyBinDir),
   FileCopy(GPUVerifyRoot, 'gvtester.py', deployDir),
   DirCopy(os.path.join(GPUVerifyRoot ,'testsuite'), os.path.join(deployDir, 'testsuite')),
   DirCopy(os.path.join(GPUVerifyRoot ,'GPUVerifyScript'), os.path.join(deployDir, 'GPUVerifyScript'), copyOnlyRegex=r'^.+\.py$'),
   # llvm, clang
   FileCopy(gvfindtools.llvmSrcDir, 'LICENSE.TXT', licenseDest),
-  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'llvm.txt'),
-  FileCopy(os.path.join(gvfindtools.llvmSrcDir, 'tools' + os.sep + 'clang'), 'LICENSE.TXT', licenseDest),
-  MoveFile(licenseDest + os.sep + 'LICENSE.TXT', licenseDest + os.sep + 'clang.txt'),
+  MoveFile(os.path.join(licenseDest, 'LICENSE.TXT'), os.path.join(licenseDest, 'llvm.txt')),
+  FileCopy(os.path.join(gvfindtools.llvmSrcDir, 'tools', 'clang'), 'LICENSE.TXT', licenseDest),
+  MoveFile(os.path.join(licenseDest, 'LICENSE.TXT'), os.path.join(licenseDest, 'clang.txt')),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^clang(\.exe)?$', gvfindtoolsdeploy.llvmBinDir ),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^opt(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
   RegexFileCopy(gvfindtools.llvmBinDir, r'^llvm-nm(\.exe)?$', gvfindtoolsdeploy.llvmBinDir),
@@ -411,15 +410,15 @@ def main(argv):
   if args.solver in ['all','z3']:
     deployActions.extend([
       FileCopy(gvfindtools.z3SrcDir, 'LICENSE.txt', licenseDest),
-      MoveFile(licenseDest + os.sep + 'LICENSE.txt', licenseDest + os.sep + 'z3.txt'),
+      MoveFile(os.path.join(licenseDest, 'LICENSE.txt'), os.path.join(licenseDest, 'z3.txt')),
       FileCopy(gvfindtools.z3BinDir, 'z3.exe', gvfindtoolsdeploy.z3BinDir),
     ])
   if args.solver in ['all','cvc4']:
     deployActions.extend([
       FileCopy(gvfindtools.cvc4SrcDir, 'COPYING', licenseDest),
-      MoveFile(licenseDest + os.sep + 'COPYING', licenseDest + os.sep + 'cvc4.txt'),
+      MoveFile(os.path.join(licenseDest, 'COPYING'), os.path.join(licenseDest, 'cvc4.txt')),
       FileCopy(gvfindtools.cvc4BinDir, 'cvc4.exe', gvfindtoolsdeploy.cvc4BinDir),
-      IfUsing('posix', StripFile(gvfindtoolsdeploy.cvc4BinDir + os.sep + 'cvc4.exe'))
+      IfUsing('posix', StripFile(os.path.join(gvfindtoolsdeploy.cvc4BinDir, 'cvc4.exe')))
     ])
 
   # Embed mono runtime
@@ -434,35 +433,27 @@ def main(argv):
 
     for tool in gpuverifyExecutables:
       deployActions.append(
-        EmbedMonoRuntime(exePath = gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + tool,
-                         outputPath = gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + tool + ".mono",
-                         assemblies = assemblies
-                        )
-      )
+        EmbedMonoRuntime(exePath = os.path.join(gvfindtoolsdeploy.gpuVerifyBinDir, tool),
+                         outputPath = os.path.join(gvfindtoolsdeploy.gpuVerifyBinDir, tool + ".mono"),
+                         assemblies = map(lambda a: os.path.join(gvfindtoolsdeploy.gpuVerifyBinDir, a), assemblies)))
 
     # Delete the assemblies after creating the bundled executables
     for fileToRemove in assemblies + gpuverifyExecutables:
       deployActions.append(
-          RemoveFile(gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + fileToRemove)
-      )
+          RemoveFile(os.path.join(gvfindtoolsdeploy.gpuVerifyBinDir, fileToRemove)))
 
     # Finally rename the bundled executables (e.g. GPUVerifyVCGen.exe.mono -> GPUVerifyVCGen.exe)
     for executable in gpuverifyExecutables:
       deployActions.append(
-        MoveFile( srcpath = gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + executable + '.mono',
-                  destpath = gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + executable
-        )
-      )
-
-      deployActions.append(StripFile(gvfindtoolsdeploy.gpuVerifyBinDir + os.sep + executable))
+        MoveFile(srcpath = os.path.join(gvfindtoolsdeploy.gpuVerifyBinDir, executable + '.mono'),
+                 destpath = os.path.join(gvfindtoolsdeploy.gpuVerifyBinDir, executable)))
+      deployActions.append(StripFile(os.path.join(gvfindtoolsdeploy.gpuVerifyBinDir, executable)))
 
   substitutions = { 'USE_MONO': str((not args.embed_mono_runtime) and os.name == 'posix') }
 
   # Write out gvfindtools.py with any necessary substitutions
-  deployActions.append( InPlaceSubstitution(filePath= deployDir + os.sep + 'gvfindtools.py',
-                                            subs = substitutions
-                                           )
-                      )
+  deployActions.append(InPlaceSubstitution(filePath = os.path.join(deployDir, 'gvfindtools.py'),
+                                           subs = substitutions))
 
   for action in deployActions:
     action.run()
