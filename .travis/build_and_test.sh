@@ -40,14 +40,16 @@ if [ "${DEFAULT_SOLVER}" == "z3" ]; then
   if [ -z ${Z3+x} ]; then
     echo "Z3 not set"
     exit 1
+  else
+    ${GPUVERIFY_DIR}/.travis/download_and_symlink_z3.sh
   fi
-  ${GPUVERIFY_DIR}/.travis/download_and_symlink_z3.sh
 elif [ "${DEFAULT_SOLVER}" == "cvc4" ]; then
   if [ -z ${CVC4+x} ]; then
     echo "CVC4 not set"
     exit 1
+  else
+    ${GPUVERIFY_DIR}/.travis/download_and_symlink_cvc4.sh
   fi
-  ${GPUVERIFY_DIR}/.travis/download_and_symlink_cvc4.sh
 else
   echo "Unknown default solver: ${DEFAULT_SOLVER}"
   exit 1
