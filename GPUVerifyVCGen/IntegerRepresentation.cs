@@ -55,11 +55,15 @@ namespace GPUVerify
 
         Expr MakeModPow2(Expr lhs, Expr rhs);
 
+        Expr MakeSext(Expr expr, Type resultType);
+
         Expr MakeZext(Expr expr, Type resultType);
 
         bool IsAdd(Expr e, out Expr lhs, out Expr rhs);
 
         bool IsMul(Expr e, out Expr lhs, out Expr rhs);
+
+        bool IsSext(Expr e, out Expr subExpr);
     }
 
     public class IntegerRepresentationHelper
@@ -87,6 +91,31 @@ namespace GPUVerify
 
             lhs = ne.Args[0];
             rhs = ne.Args[1];
+            return true;
+        }
+
+        public static bool IsFun(Expr e, string mnemonic, out Expr subExpr)
+        {
+            subExpr = null;
+
+            var ne = e as NAryExpr;
+            if (ne == null)
+            {
+                return false;
+            }
+
+            var fc = ne.Fun as FunctionCall;
+            if (fc == null)
+            {
+                return false;
+            }
+
+            if (!Regex.IsMatch(fc.FunctionName, "BV[0-9]+_" + mnemonic))
+            {
+                return false;
+            }
+
+            subExpr = ne.Args[0];
             return true;
         }
     }
@@ -223,6 +252,15 @@ namespace GPUVerify
             return MakeAnd(MakeSub(rhs, GetLiteral(1, bvType)), lhs);
         }
 
+        public Expr MakeSext(Expr expr, Type resultType)
+        {
+            Debug.Assert(resultType.IsBv);
+            if (expr.Type.BvBits == resultType.BvBits)
+                return expr;
+            else
+                return MakeBitVectorUnaryBitVector("SEXT" + resultType.BvBits, "sign_extend " + (resultType.BvBits - expr.Type.BvBits), expr, resultType);
+        }
+
         public Expr MakeZext(Expr expr, Type resultType)
         {
             Debug.Assert(resultType.IsBv);
@@ -240,6 +278,11 @@ namespace GPUVerify
         public bool IsMul(Expr e, out Expr lhs, out Expr rhs)
         {
             return IntegerRepresentationHelper.IsFun(e, "MUL", out lhs, out rhs);
+        }
+
+        public bool IsSext(Expr e, out Expr subExpr)
+        {
+            return IntegerRepresentationHelper.IsFun(e, "SEXT[0-9]+", out subExpr);
         }
     }
 
@@ -388,6 +431,12 @@ namespace GPUVerify
             return Expr.Binary(BinaryOperator.Opcode.Mod, lhs, rhs);
         }
 
+        public Expr MakeSext(Expr expr, Type resultType)
+        {
+            Debug.Assert(resultType.IsInt);
+            return MakeIntUnaryIntUF("SEXT64", expr);
+        }
+
         public Expr MakeZext(Expr expr, Type resultType)
         {
             Debug.Assert(resultType.IsInt);
@@ -402,6 +451,11 @@ namespace GPUVerify
         public bool IsMul(Expr e, out Expr lhs, out Expr rhs)
         {
             return IntegerRepresentationHelper.IsFun(e, "MUL", out lhs, out rhs);
+        }
+
+        public bool IsSext(Expr e, out Expr subExpr)
+        {
+            return IntegerRepresentationHelper.IsFun(e, "SEXT[0-9]+", out subExpr);
         }
     }
 }
