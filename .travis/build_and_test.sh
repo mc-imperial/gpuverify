@@ -11,6 +11,18 @@ if [ -z ${LLVM_VERSION+x} ]; then
   exit 1
 fi
 
+if [ -z ${LLVM+x} ]; then
+  export LLVM_CONFIG="llvm-config-${LLVM_VERSION}"
+  ${GPUVERIFY_DIR}/.travis/symlink_llvm_tools.sh
+  cp ${GPUVERIFY_DIR}/.travis/gvfindtools.packaged_llvm.py \
+    ${GPUVERIFY_DIR}/gvfindtools.py
+else
+  export LLVM_CONFIG="${DOWNLOADS_DIR}/${LLVM}/bin/llvm-config"
+  ${GPUVERIFY_DIR}/.travis/download_llvm.sh
+  cp ${GPUVERIFY_DIR}/.travis/gvfindtools.downloaded_llvm.py \
+    ${GPUVERIFY_DIR}/gvfindtools.py
+fi
+
 if [ "${GPUVERIFY_DIR}" == "${BUILD_ROOT}" ]; then
   ${GPUVERIFY_DIR}/.travis/build_gpuverify.sh
   ${GPUVERIFY_DIR}/.travis/build_bugle.sh
@@ -41,5 +53,4 @@ else
   exit 1
 fi
 
-${GPUVERIFY_DIR}/.travis/symlink_llvm_tools.sh
 ${GPUVERIFY_DIR}/.travis/test_gpuverify.sh
