@@ -1575,6 +1575,23 @@ namespace GPUVerify
             return f;
         }
 
+        public Function GetOrCreateUnaryUF(string functionName, Microsoft.Boogie.Type resultType, Microsoft.Boogie.Type argType)
+        {
+            Function f = (Function)resContext.LookUpProcedure(functionName);
+            if (f != null)
+                return f;
+
+            var args = new List<Variable>
+            {
+                new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, argType))
+            };
+            f = new Function(
+                Token.NoToken, functionName, args, new LocalVariable(Token.NoToken, new TypedIdent(Token.NoToken, string.Empty, resultType)));
+            Program.AddTopLevelDeclaration(f);
+            resContext.AddProcedure(f);
+            return f;
+        }
+
         public Constant GetGroupSize(string dimension)
         {
             Contract.Requires(dimension.Equals("X") || dimension.Equals("Y") || dimension.Equals("Z"));
