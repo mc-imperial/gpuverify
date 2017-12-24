@@ -391,7 +391,7 @@ namespace GPUVerify
         public Expr MakeZext(Expr expr, Type resultType)
         {
             Debug.Assert(resultType.IsInt);
-            return expr;
+            return MakeIntUnaryIntUF("ZEXT64", expr);
         }
 
         public bool IsAdd(Expr e, out Expr lhs, out Expr rhs)
