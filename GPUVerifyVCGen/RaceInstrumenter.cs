@@ -257,7 +257,7 @@ namespace GPUVerify
             var rewrite = distribute.Visit(def);
             var component = new ComponentVisitor(Verifier);
             component.Visit(rewrite);
-            var invariants = component.GenerateCandidateInvariants(Verifier, v, access);
+            var invariants = component.GenerateCandidateInvariants(v, access);
             foreach (Expr inv in invariants)
             {
                 Verifier.AddCandidateInvariant(region, inv, "accessBreak");
@@ -316,12 +316,14 @@ namespace GPUVerify
          */
         private class ComponentVisitor : StandardVisitor
         {
+            private GPUVerifier verifier;
             private HashSet<string> allComponents;
             private Dictionary<Expr, HashSet<Expr>> componentMap;
             private bool canAccessBreak;
 
             public ComponentVisitor(GPUVerifier verifier)
             {
+                this.verifier = verifier;
                 componentMap = new Dictionary<Expr, HashSet<Expr>>();
                 allComponents = new HashSet<string>();
                 allComponents.Add(verifier.MakeThreadId("X", 1).Name);
@@ -363,7 +365,7 @@ namespace GPUVerify
              *      c = (access/xs) - (d*ys/xs)
              *      d = (access/ys) - (c*xs/ys)
              */
-            public IEnumerable<Expr> GenerateCandidateInvariants(GPUVerifier verifier, Variable v, AccessType access)
+            public IEnumerable<Expr> GenerateCandidateInvariants(Variable v, AccessType access)
             {
                 // Mixing of ids of type bv32 and offsets of type bv64 is
                 // possible with CUDA, and incompatible with the current code.
