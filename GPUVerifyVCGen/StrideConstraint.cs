@@ -9,6 +9,7 @@
 
 namespace GPUVerify
 {
+    using System;
     using Microsoft.Boogie;
 
     public class StrideConstraint
@@ -107,9 +108,10 @@ namespace GPUVerify
             if (ee != null)
             {
                 var sc = FromExpr(verifier, impl, ee.Bitvector);
-                var modsc = sc as ModStrideConstraint;
-                if (modsc != null)
+
+                if (sc is ModStrideConstraint)
                 {
+                    var modsc = (ModStrideConstraint)sc;
                     modsc = new ModStrideConstraint(
                         new BvExtractExpr(Token.NoToken, modsc.Mod, ee.End, ee.Start),
                         new BvExtractExpr(Token.NoToken, modsc.ModEq, ee.End, ee.Start));
@@ -117,9 +119,17 @@ namespace GPUVerify
                     modsc.ModEq.Type = e.Type;
                     return modsc;
                 }
+                else if (sc is EqStrideConstraint)
+                {
+                    var eqsc = (EqStrideConstraint)sc;
+                    eqsc = new EqStrideConstraint(
+                        new BvExtractExpr(Token.NoToken, eqsc.Eq, ee.End, ee.Start));
+                    eqsc.Eq.Type = e.Type;
+                    return eqsc;
+                }
                 else
                 {
-                    return sc;
+                    throw new NotSupportedException("Stride constraint not supported");
                 }
             }
 
@@ -131,9 +141,38 @@ namespace GPUVerify
 
                 var rsa = verifier.ReducedStrengthAnalysesRegion[impl];
                 var sc = rsa.GetStrideConstraint(ie.Decl.Name);
+
                 if (sc == null)
                     return Bottom(verifier, e);
+
                 return sc;
+            }
+
+            Expr subExpr;
+
+            if (verifier.IntRep.IsSext(e, out subExpr))
+            {
+                var sc = FromExpr(verifier, impl, subExpr);
+
+                if (sc is ModStrideConstraint)
+                {
+                    var modsc = (ModStrideConstraint)sc;
+                    modsc = new ModStrideConstraint(
+                        verifier.IntRep.MakeSext(modsc.Mod, e.Type),
+                        verifier.IntRep.MakeSext(modsc.ModEq, e.Type));
+                    return modsc;
+                }
+                else if (sc is EqStrideConstraint)
+                {
+                    var eqsc = (EqStrideConstraint)sc;
+                    eqsc = new EqStrideConstraint(
+                        verifier.IntRep.MakeSext(eqsc.Eq, e.Type));
+                    return eqsc;
+                }
+                else
+                {
+                    throw new NotSupportedException("Stride constraint not supported");
+                }
             }
 
             Expr lhs, rhs;

@@ -103,8 +103,6 @@ namespace GPUVerify
 
             public static StrideForm ComputeStrideForm(Variable v, Expr e, GPUVerifier verifier, HashSet<Variable> modSet)
             {
-                Expr lhs, rhs;
-
                 if (e is LiteralExpr)
                     return new StrideForm(StrideFormKind.Constant, e);
 
@@ -118,6 +116,41 @@ namespace GPUVerify
                     else if (!modSet.Contains(ie.Decl))
                         return new StrideForm(StrideFormKind.Constant, e);
                 }
+
+                var ee = e as BvExtractExpr;
+                if (ee != null)
+                {
+                    var subsf = ComputeStrideForm(v, ee.Bitvector, verifier, modSet);
+                    if (subsf.Op != null)
+                    {
+                        var newOp = new BvExtractExpr(Token.NoToken, subsf.Op, ee.End, ee.Start);
+                        newOp.Type = e.Type;
+                        return new StrideForm(subsf.Kind, newOp);
+                    }
+                    else
+                    {
+                        return subsf;
+                    }
+                }
+
+                Expr subExpr;
+
+                if (verifier.IntRep.IsSext(e, out subExpr))
+                {
+                    var subsf = ComputeStrideForm(v, subExpr, verifier, modSet);
+                    if (subsf.Op != null)
+                    {
+                        var newOp = verifier.IntRep.MakeSext(subsf.Op, e.Type);
+                        newOp.Type = e.Type;
+                        return new StrideForm(subsf.Kind, newOp);
+                    }
+                    else
+                    {
+                        return subsf;
+                    }
+                }
+
+                Expr lhs, rhs;
 
                 if (verifier.IntRep.IsAdd(e, out lhs, out rhs))
                 {
