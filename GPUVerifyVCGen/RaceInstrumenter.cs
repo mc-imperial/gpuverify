@@ -441,7 +441,7 @@ namespace GPUVerify
                         }
                         else if (components.Count() == 1)
                         {
-                            if (terms.All(t => !t.Type.IsBv || (t.Type as BvType).Bits == 32))
+                            if (terms.All(t => !t.Type.IsBv || t.Type.BvBits == 32))
                             {
                                 var c = components.Single();
                                 var termsExceptC = new HashSet<Expr>(terms.Where(t => t is LiteralExpr || t != c));
