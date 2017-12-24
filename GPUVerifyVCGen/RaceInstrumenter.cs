@@ -367,14 +367,14 @@ namespace GPUVerify
              */
             public IEnumerable<Expr> GenerateCandidateInvariants(Variable v, AccessType access)
             {
-                // Mixing of ids of type bv32 and offsets of type bv64 is
-                // possible with CUDA, and incompatible with the current code.
-                if (verifier.SizeTType.IsBv && verifier.SizeTType.BvBits == 64)
-                    return Enumerable.Empty<Expr>();
-
                 if (!canAccessBreak)
                     return Enumerable.Empty<Expr>();
 
+                // Construct the invariant. If components other than the offset are added to the
+                // invariant, we zext them. Although the current code only detects 32-bit access
+                // breaking patterns, the offset variable may still be a 64-bit value (this
+                // happens for CUDA kernels when 64-bit pointer bitwidths are used, because the
+                // thread and groups IDs used by CUDA are always 32 bits).
                 var result = new List<Expr>();
                 var offsetVar = RaceInstrumentationUtil.MakeOffsetVariable(v.Name, access, verifier.SizeTType);
                 foreach (var c in componentMap.Keys)
@@ -383,7 +383,7 @@ namespace GPUVerify
                     var xs = componentMap[c];
                     foreach (var x in xs)
                     {
-                        invariant = verifier.IntRep.MakeDiv(invariant, x);
+                        invariant = verifier.IntRep.MakeDiv(invariant, ZextExpr(x, invariant.Type));
                     }
 
                     foreach (var d in componentMap.Keys.Where(x => x != c))
@@ -400,15 +400,28 @@ namespace GPUVerify
                             subexpr = verifier.IntRep.MakeDiv(subexpr, x);
                         }
 
+                        subexpr = ZextExpr(subexpr, invariant.Type);
                         invariant = verifier.IntRep.MakeSub(invariant, subexpr);
                     }
 
-                    invariant = Expr.Eq(c, invariant);
+                    invariant = Expr.Eq(ZextExpr(c, invariant.Type), invariant);
                     invariant = Expr.Imp(new IdentifierExpr(Token.NoToken, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, access)), invariant);
                     result.Add(invariant);
                 }
 
                 return result;
+            }
+
+            private Expr ZextExpr(Expr e, Microsoft.Boogie.Type resultType)
+            {
+                if (resultType.IsBv && resultType.BvBits > e.Type.BvBits)
+                {
+                    return verifier.IntRep.MakeZext(e, resultType);
+                }
+                else
+                {
+                    return e;
+                }
             }
 
             private bool IsMultiplyExpr(Expr e)
