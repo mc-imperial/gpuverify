@@ -276,20 +276,20 @@ namespace GPUVerify
 
         private Expr MakeIntBinaryInt(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
         {
-            return MakeIntFunctionCall("BV32_" + suffix, infixOp, lhs.Type, lhs, rhs);
+            return MakeBinaryIntFunctionCall("BV32_" + suffix, infixOp, lhs.Type, lhs, rhs);
         }
 
         private Expr MakeIntBinaryIntUF(string suffix, Expr lhs, Expr rhs)
         {
-            return MakeIntUFFunctionCall("BV32_" + suffix, lhs.Type, lhs, rhs);
+            return MakeBinaryIntUFFunctionCall("BV32_" + suffix, lhs.Type, lhs, rhs);
         }
 
         private Expr MakeIntBinaryBool(string suffix, BinaryOperator.Opcode infixOp, Expr lhs, Expr rhs)
         {
-            return MakeIntFunctionCall("BV32_" + suffix, infixOp, Type.Bool, lhs, rhs);
+            return MakeBinaryIntFunctionCall("BV32_" + suffix, infixOp, Type.Bool, lhs, rhs);
         }
 
-        private Expr MakeIntFunctionCall(string functionName, BinaryOperator.Opcode infixOp, Type resultType, Expr lhs, Expr rhs)
+        private Expr MakeBinaryIntFunctionCall(string functionName, BinaryOperator.Opcode infixOp, Type resultType, Expr lhs, Expr rhs)
         {
             Function f = verifier.GetOrCreateIntFunction(functionName, infixOp, resultType, lhs.Type, rhs.Type);
             var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
@@ -297,7 +297,7 @@ namespace GPUVerify
             return e;
         }
 
-        private Expr MakeIntUFFunctionCall(string functionName, Type resultType, Expr lhs, Expr rhs)
+        private Expr MakeBinaryIntUFFunctionCall(string functionName, Type resultType, Expr lhs, Expr rhs)
         {
             Function f = verifier.GetOrCreateBinaryUF(functionName, resultType, lhs.Type, rhs.Type);
             var e = new NAryExpr(Token.NoToken, new FunctionCall(f), new List<Expr> { lhs, rhs });
