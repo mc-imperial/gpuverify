@@ -221,7 +221,7 @@ class GPUVerifyInstance (object):
     defines = ['__BUGLE_' + str(args.size_t) + '__']
 
     if args.source_language == SourceLanguage.CUDA:
-      defines += ["__" + str(len(args.group_size)) + "D_THREAD_BLOCK"]
+      defines.append("__" + str(len(args.group_size)) + "D_THREAD_BLOCK")
       defines.append("__" + str(len(args.num_groups)) + "D_GRID")
 
       for index, value in enumerate(args.group_size):
@@ -235,6 +235,11 @@ class GPUVerifyInstance (object):
           defines.append("__GRID_DIM_" + str(index) + "_FREE")
         else:
           defines.append("__GRID_DIM_" + str(index) + "=" + str(value))
+
+      if args.warp_sync:
+        defines.append("__WARP_SIZE=" + str(args.warp_sync))
+      else:
+        defines.append("__WARP_SIZE=32")
 
     elif args.source_language == SourceLanguage.OpenCL:
       defines += ["__OPENCL_VERSION__=120"]
