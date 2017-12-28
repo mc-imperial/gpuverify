@@ -92,6 +92,10 @@ namespace GPUVerify
         private Constant numGroupsY = null;
         private Constant numGroupsZ = null;
 
+        private const string SubGroupSizeString = "sub_group_size";
+
+        private Constant subGroupSize = null;
+
         public IRaceInstrumenter RaceInstrumenter { get; }
 
         public INoAccessInstrumenter NoAccessInstrumenter { get; }
@@ -494,6 +498,8 @@ namespace GPUVerify
                     success &= SetConstAttributeField(c, NumGroupsXString, ref numGroupsX);
                     success &= SetConstAttributeField(c, NumGroupsYString, ref numGroupsY);
                     success &= SetConstAttributeField(c, NumGroupsZString, ref numGroupsZ);
+
+                    success &= SetConstAttributeField(c, SubGroupSizeString, ref subGroupSize);
                 }
             }
 
