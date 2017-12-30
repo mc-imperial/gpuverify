@@ -13,7 +13,7 @@ Assertions
 
 You can write assertions in GPU kernels using the special function
 ``__assert``.  Such assertions will be checked by GPUVerify.  For
-example, consider the following CUDA kernel: 
+example, consider the following CUDA kernel:
 
 .. literalinclude:: examples/failing-assert.cu
 
@@ -136,7 +136,7 @@ Global assertions and pre-/post-conditions
 Reasoning about memory accesses
 -------------------------------
 
-.. todo:: ``__write_implies``, etc.  Be sure to comment on byte-level reasoning 
+.. todo:: ``__write_implies``, etc.  Be sure to comment on byte-level reasoning
           issue.
 
 
