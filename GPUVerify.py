@@ -298,7 +298,7 @@ class GPUVerifyInstance (object):
         options += [ "-target", "x86_64--" ] # gives nvptx64-nvidia-cuda
 
       options += ["--cuda-device-only", "-nocudainc", "-nocudalib"]
-      options += ["--cuda-gpu-arch=sm_30", "-x", "cuda"]
+      options += ["--cuda-gpu-arch=sm_35", "-x", "cuda"]
       options += ["-Xclang", "-fcuda-is-device", "-include", "cuda.h"]
     elif args.source_language == SourceLanguage.OpenCL:
       if (args.size_t == 32):
