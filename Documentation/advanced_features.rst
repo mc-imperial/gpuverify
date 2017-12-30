@@ -108,7 +108,8 @@ With this annotation, GPUVerify is able to verify race-freedom.
 **Rules for using ``__requires``**:
 .. todo:: Be careful with short-circuit evaluation
 
- 
+.. todo:: Need to describe ``__requires_fresh_array``
+
 Post-conditions
 ---------------
 
