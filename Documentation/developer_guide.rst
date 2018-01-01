@@ -97,7 +97,7 @@ Replace as appropriate or setup an environment variable.::
 
 #. Get the Z3 SMT Solver and build::
 
-    $ export Z3_RELEASE=z3-4.5.0
+    $ export Z3_RELEASE=z3-4.6.0
     $ cd ${BUILD_ROOT}
     $ git clone https://github.com/Z3Prover/z3.git
     $ cd ${BUILD_ROOT}/z3
@@ -340,7 +340,7 @@ drives.
 
 #. Get the Z3 SMT Solver and build::
 
-      > $Z3_RELEASE="z3-4.5.0"
+      > $Z3_RELEASE="z3-4.6.0"
       > cd ${BUILD_ROOT}
       > git clone https://github.com/Z3Prover/z3.git
       > cd ${BUILD_ROOT}\z3

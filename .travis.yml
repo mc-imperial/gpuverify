@@ -6,7 +6,7 @@ env:
   global:
     - LLVM_VERSION=5.0
     - LLVM_FULL_VERSION="${LLVM_VERSION}.0"
-    - Z3_VERSION=4.5.0
+    - Z3_VERSION=4.6.0
     - CVC4_VERSION=1.5
     - CLONE_DEPTH=50
     - BUILD_ROOT="${TRAVIS_BUILD_DIR}"
