@@ -1052,7 +1052,7 @@ namespace GPUVerify
                     if (call.callee == "_LOG_" + access + "_" + v.Name)
                     {
                         // Ins[0] is thread 1's predicate,
-                        // Ins[1] is the offset to be read
+                        // Ins[1] is the offset to be accessed
                         // If Ins[1] has the form BV32_ADD(offset#construct...(P), offset),
                         // we are looking for the second parameter to this BV32_ADD
                         Expr offset = call.Ins[1];
