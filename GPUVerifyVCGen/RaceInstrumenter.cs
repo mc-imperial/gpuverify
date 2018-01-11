@@ -70,6 +70,56 @@ namespace GPUVerify
             }
         }
 
+        private void AddBenignInvariants(IRegion region, Variable v)
+        {
+            if (!GPUVerifyVCGenCommandLineOptions.NoBenign)
+            {
+                if (Verifier.ContainsNamedVariable(
+                    region.GetModifiedVariables(), RaceInstrumentationUtil.MakeHasOccurredVariableName(v.Name, AccessType.WRITE)))
+                {
+                    var writtenValues = GetWrittenValues(region, v);
+                    if (writtenValues.Count() == 1 && writtenValues.Single() is LiteralExpr)
+                    {
+                        AddBenignInvariant(region, v, writtenValues.Single());
+                    }
+                }
+            }
+        }
+
+        private HashSet<Expr> GetWrittenValues(IRegion region, Variable v)
+        {
+            HashSet<Expr> result = new HashSet<Expr>();
+
+            foreach (Cmd c in region.Cmds())
+            {
+                if (c is CallCmd)
+                {
+                    CallCmd call = c as CallCmd;
+
+                    if (call.callee == "_LOG_" + AccessType.WRITE + "_" + v.Name)
+                    {
+                        // Ins[0] is thread 1's predicate,
+                        // Ins[1] is the offset to be written
+                        // Ins[2] is the value to be written
+                        result.Add(call.Ins[2]);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private void AddBenignInvariant(IRegion region, Variable v, Expr value)
+        {
+            var mt = (MapType)v.TypedIdent.Type;
+            var valueVar = new IdentifierExpr(Token.NoToken, Verifier.FindOrCreateValueVariable(v.Name, AccessType.WRITE, mt.Result));
+
+            var candidate = Expr.Imp(
+                new IdentifierExpr(Token.NoToken, GPUVerifier.MakeAccessHasOccurredVariable(v.Name, AccessType.WRITE)),
+                Expr.Eq(valueVar, value));
+            Verifier.AddCandidateInvariant(region, candidate, "accessValueMaintained");
+        }
+
         private void AddNoAccessCandidateInvariants(IRegion region, Variable v)
         {
             // Reasoning: if READ_HAS_OCCURRED_v is not in the modifies set for the
@@ -133,6 +183,7 @@ namespace GPUVerify
             foreach (Variable v in Verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false))
             {
                 AddNoAccessCandidateInvariants(region, v);
+                AddBenignInvariants(region, v);
                 AddSameWarpNoAccessCandidateInvariant(region, v, AccessType.READ);
                 AddSameWarpNoAccessCandidateInvariant(region, v, AccessType.WRITE);
                 /* Same group and same warp does *not* imply no atomic accesses */
