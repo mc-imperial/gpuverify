@@ -45,9 +45,9 @@ Replace as appropriate or setup an environment variable.::
 
 #. Obtain Mono from `<http://www.mono-project.com>`_ and install.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 4.0)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends on LLVM 6.0)::
 
-     $ export LLVM_RELEASE=40
+     $ export LLVM_RELEASE=60
      $ mkdir -p ${BUILD_ROOT}/llvm_and_clang
      $ cd ${BUILD_ROOT}/llvm_and_clang
      $ svn co http://llvm.org/svn/llvm-project/llvm/branches/release_${LLVM_RELEASE} src
@@ -270,11 +270,11 @@ drives.
    compiler is always available at the command-line.
 
    In case you have Visual Studio 2017, replace ``Microsoft Visual Studio 14.0``
-   by ``Microsoft Visual Studio 15.0``.
+   with ``Microsoft Visual Studio 15.0``.
 
-#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 4.0)::
+#. Get the LLVM and Clang sources (note that GPUVerify depends LLVM 6.0)::
 
-      > $LLVM_RELEASE=40
+      > $LLVM_RELEASE=60
       > mkdir ${BUILD_ROOT}\llvm_and_clang
       > cd ${BUILD_ROOT}\llvm_and_clang
       > svn co http://llvm.org/svn/llvm-project/llvm/branches/release_$LLVM_RELEASE src
@@ -289,7 +289,7 @@ drives.
               -D LLVM_TARGETS_TO_BUILD="X86;NVPTX" `
               ..\src
 
-   In case you have Visual Studio 2017, replace ``Visual Studio 14`` by
+   In case you have Visual Studio 2017, replace ``Visual Studio 14`` with
    ``Visual Studio 15``. This may require CMake version 3.7.2 or later.
 
    Compile LLVM and Clang. You can do this by opening ``LLVM.sln`` in Visual
@@ -329,7 +329,7 @@ drives.
               -D LLVM_BUILD_TYPE=Release `
               ..\src
 
-   In case you have Visual Studio 2017, replace ``Visual Studio 14`` by
+   In case you have Visual Studio 2017, replace ``Visual Studio 14`` with
    ``Visual Studio 15``. This may require CMake version 3.7.2 or later.
 
    Compile Bugle. You can do this by opening ``Bugle.sln`` in Visual
@@ -421,7 +421,8 @@ drives.
       cvc4BinDir = rootDir + r"\cvc4\build"
 
 #. (Optional) Build the documentation. This requires the Sphinx python module,
-   which you can install using ``pip``.::
+   which you can install using ``pip``.
+   ::
 
     $ pip install Sphinx
     $ cd ${BUILD_ROOT}\gpuverify\Documentation

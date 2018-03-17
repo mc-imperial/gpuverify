@@ -4,7 +4,7 @@ solution: GPUVerify.sln
 
 env:
   global:
-    - LLVM_VERSION=5.0
+    - LLVM_VERSION=6.0
     - LLVM_FULL_VERSION="${LLVM_VERSION}.0"
     - Z3_VERSION=4.6.0
     - CVC4_VERSION=1.5
@@ -18,15 +18,16 @@ cache:
 addons:
   apt:
     sources:
-      - llvm-toolchain-trusty-5.0
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-trusty-6.0
     packages:
-      - g++
+      - g++-4.9
       - ninja-build
       - python-psutil
       # From sources above
-      - llvm-5.0-dev
-      - clang-5.0
-      - clang-5.0-dev
+      - llvm-6.0-dev
+      - clang-6.0
+      - clang-6.0-dev
 
 jobs:
   include:
@@ -34,39 +35,39 @@ jobs:
       dist: trusty
       sudo: false
       env:
-        - CXX=g++
         - DEFAULT_SOLVER=z3
         - Z3="z3-${Z3_VERSION}-x64-ubuntu-14.04"
       script:
+        - export CXX=g++-4.9
         - ${BUILD_ROOT}/.travis/travis_build_and_test.sh
     - os: linux
       dist: trusty
       sudo: false
       env:
-        - CXX=g++
         - DEFAULT_SOLVER=cvc4
         - CVC4="cvc4-${CVC4_VERSION}-x86_64-linux-opt"
       script:
+        - export CXX=g++-4.9
         - ${BUILD_ROOT}/.travis/travis_build_and_test.sh
     - os: linux
       dist: trusty
       sudo: false
       if: branch = master AND type = push
       env:
-        - CXX="clang++-${LLVM_VERSION}"
         - DEFAULT_SOLVER=z3
         - Z3="z3-${Z3_VERSION}-x64-ubuntu-14.04"
-        - LLVM="clang+llvm-${LLVM_FULL_VERSION}-linux-x86_64-ubuntu14.04"
+        - LLVM="clang+llvm-${LLVM_FULL_VERSION}-x86_64-linux-gnu-ubuntu-14.04"
       script:
+        - export CXX="clang++-${LLVM_VERSION}"
         - ${BUILD_ROOT}/.travis/travis_build_and_test.sh
     - os: linux
       dist: trusty
       sudo: false
       if: branch = master AND type = push
       env:
-        - CXX="clang++-${LLVM_VERSION}"
         - DEFAULT_SOLVER=cvc4
         - CVC4="cvc4-${CVC4_VERSION}-x86_64-linux-opt"
-        - LLVM="clang+llvm-${LLVM_FULL_VERSION}-linux-x86_64-ubuntu14.04"
+        - LLVM="clang+llvm-${LLVM_FULL_VERSION}-x86_64-linux-gnu-ubuntu-14.04"
       script:
+        - export CXX="clang++-${LLVM_VERSION}"
         - ${BUILD_ROOT}/.travis/travis_build_and_test.sh
