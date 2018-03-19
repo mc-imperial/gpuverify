@@ -31,7 +31,8 @@ addons:
 
 jobs:
   include:
-    - os: linux
+    - stage: test
+      os: linux
       dist: trusty
       sudo: false
       env:
@@ -52,7 +53,7 @@ jobs:
     - os: linux
       dist: trusty
       sudo: false
-      if: branch = master AND type = push
+      if: (branch = master OR tag IS present) AND type = push
       env:
         - DEFAULT_SOLVER=z3
         - Z3="z3-${Z3_VERSION}-x64-ubuntu-14.04"
@@ -63,7 +64,7 @@ jobs:
     - os: linux
       dist: trusty
       sudo: false
-      if: branch = master AND type = push
+      if: (branch = master OR tag IS present) AND type = push
       env:
         - DEFAULT_SOLVER=cvc4
         - CVC4="cvc4-${CVC4_VERSION}-x86_64-linux-opt"
@@ -71,3 +72,31 @@ jobs:
       script:
         - export CXX="clang++-${LLVM_VERSION}"
         - ${BUILD_ROOT}/.travis/travis_build_and_test.sh
+    - stage: deploy
+      os: linux
+      dist: trusty
+      sudo: false
+      if: tag IS present AND type = push AND repo = mc-imperial/gpuverify
+      env:
+        - DEFAULT_SOLVER=z3
+        - Z3="z3-${Z3_VERSION}-x64-ubuntu-14.04"
+        - CVC4="cvc4-${CVC4_VERSION}-x86_64-linux-opt"
+        - LLVM="clang+llvm-${LLVM_FULL_VERSION}-x86_64-linux-gnu-ubuntu-14.04"
+        - DEPLOY_DIR="${TRAVIS_TAG}"
+      script:
+        - export CXX="clang++-${LLVM_VERSION}"
+        - ${BUILD_ROOT}/.travis/travis_build_and_deploy.sh
+      deploy:
+        provider: releases
+        api_key:
+          secure: b4qM1Gd+H8feKznDJuG+o6MUqNidRpr1QLMsEYp+yE4bxvLUxjKa02ZBTrGcyL70ODCY0N1UXzYD6wXxDP12osnQLq3gJrj8NTyEWhghy2V9tbGsZxzAFghike2OFS3ho4idR93wxhK2JcMD6ubR+S2ywJmXAhCqcONJTa4yMxb/JCFhQFvnU2auHAcD7/pOjdMhPotyPPjb7Vi19aV4UsHZ33rdt1Uiaq9BWJ44RV5MF/TQiY0XsGrO8lVGBX3aOfvObuPUOOzeSmIY3BKxC0FDMqTjpqB0uhpm3Afidx9IY9KEJRLUdl9SO4KDqg+8vG45I1TU3+sHcaUK5ySu2UNb6jVJrQ8YNYx0Ix9uQTFVulQfs1rG6uqVYGhgBV8XWeU3Y6giF0zg8vBFVMf5aMZIO4lSqg+WHXLzjvSfTK77UgrMEMgFpCSlLN/epZ6Kx6ed56yYkxwwOJpcy+iO2QMcVXvAzAzYB92yzoGMwcm2sPn/v7uHYzhc+fdnYLq2U62zb+km5B8NGMyiR/bENrUhZu5bbWheivVdSnm7QkJWOQc3Vp8PJQU50euKOCtr73NjETxfpboxl7omBaEacEGMxKlgk5T6KslfqWeYAoF4GsJOIeVPepuuCz+5LHZYVncB2oo+IAsATdcaoJnppf6RroOUl85nNPjVkp3I/0Y=
+        file:
+          - GPUVerifyLinux64.zip
+          - libclc.zip
+        skip_cleanup: true
+        on:
+          tags: true
+
+stages:
+  - test
+  - deploy
