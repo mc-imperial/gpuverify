@@ -84,14 +84,14 @@ def __check_array_argument(data):
       raise JSONError("Unknown value " + str(key))
 
 def __check_image_argument(data):
-  for key, value in data.items():
+  for key, _ in data.items():
     if key == "type":
       pass
     else:
       raise JSONError("Unknown value " + str(key))
 
 def __check_sampler_argument(data):
-  for key, value in data.items():
+  for key, _ in data.items():
     if key == "type":
       pass
     else:
@@ -148,7 +148,7 @@ def __check_host_api_calls(data):
 
 def __check_endianness(data):
   if data not in ["little", "big"]:
-    raiseJSONError("endinanness must be 'little' or 'big'")
+    raise JSONError("endinanness must be 'little' or 'big'")
 
 DefinesIncludes = \
   namedtuple("DefinesIncludes", ["defines", "includes", "original"])

@@ -8,7 +8,7 @@ def is_hex_string(string):
   try:
     int(string, 16)
     return True
-  except ValueError as e:
+  except ValueError as _:
     return False
 
 def is_positive_string(string):
@@ -16,7 +16,7 @@ def is_positive_string(string):
   try:
     val = int(string)
     return val > 0
-  except ValueError as e:
+  except ValueError as _:
     return False
 
 class GlobalSizeError(Exception):

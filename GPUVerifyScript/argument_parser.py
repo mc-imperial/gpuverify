@@ -361,7 +361,7 @@ def __need_dimensions(ext):
 
 def __get_source_language(args, parser, llvm_bin_dir):
   if args.source_language:
-    return source_language
+    return args.source_language
 
   if args.kernel_ext == ".cl":
     return SourceLanguage.OpenCL
@@ -433,7 +433,7 @@ def parse_arguments(argv, default_solver, llvm_bin_dir, version):
   else:
     if args.list_intercepted or args.verify_all_intercepted or \
        args.verify_intercepted != None or args.cache != None:
-      parser.error("JSON options require JSON mode");
+      parser.error("JSON options require JSON mode")
 
   if not args.stop:
     args.stop = "boogie"

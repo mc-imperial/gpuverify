@@ -845,7 +845,7 @@ def do_json_mode(args):
     base_path = os.path.dirname(args.kernel.name)
     for kernel in kernels:
       print("Verifying " + kernel.entry_point)
-      return_code, out_data = json_verify_kernel(args, base_path, kernel, success_cache)
+      _, out_data = json_verify_kernel(args, base_path, kernel, success_cache)
       print(out_data)
 
   if args.cache != None:

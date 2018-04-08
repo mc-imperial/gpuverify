@@ -155,7 +155,7 @@ class GPUVerifyTestKernel(object):
                     except re.error as e:
                         raise KernelParseError(lineCounter,self.path,"Invalid Regex (" + str(e.__class__) + " : " + str(e) + ")")
                 else:
-                    haveRegexLines=False; #Break out of loop
+                    haveRegexLines=False #Break out of loop
 
                 lineCounter+=1
 
@@ -578,7 +578,7 @@ class Worker(threading.Thread):
 
 class ThreadPool:
     def __init__(self, numberOfThreads, stopOnFail=False):
-        self.theQueue = Queue(0);
+        self.theQueue = Queue(0)
         self.stopOnFail = stopOnFail
 
         #Create the Threads
@@ -701,7 +701,7 @@ def getFileListMultipleFiles(recursionRootPath, args):
           # Maintain the list just for DEBUG output
           kernelFilesIgnored.append(kernelToIgnore)
           ignoredCounters.updateCountersWithFile(kernelToIgnore)
-        except ValueError as e:
+        except ValueError as _:
           # The kernel wasn't in list
           logging.warning('Could not ignore kernel "{}" because it was not in the list of found kernels'.format(kernelToIgnore))
 
