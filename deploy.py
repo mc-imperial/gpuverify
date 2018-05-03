@@ -360,7 +360,7 @@ def main(argv):
 
   #Determine version and create version string
   versionString = getversion.getVersionStringFromRepos()
-  versionString += "Deployed on " + datetime.datetime.utcnow().ctime() + " (UTC)"
+  versionString += "Deployed on " + datetime.datetime.utcnow().ctime() + " (UTC)\n"
 
   #Specify actions to perform
   deployActions = [
