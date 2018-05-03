@@ -284,7 +284,7 @@ class GPUVerifyInstance (object):
 
   def getClangOptions(self, args):
     options = ["-Wall", "-g", "-gcolumn-info", "-emit-llvm", "-c"]
-    options += ["-Xclang", "-disable-O0-optnone"]
+    options += ["-Xclang", "-disable-O0-optnone", "-fno-builtin"]
 
     if args.error_limit:
       options.append("-ferror-limit=" + str(args.error_limit))
@@ -307,8 +307,7 @@ class GPUVerifyInstance (object):
         options += [ "-target", "nvptx64--" ]
 
       options += ["-x", "cl"]
-      options += ["-Xclang", "-cl-std=CL1.2", "-O0", "-fno-builtin",
-        "-include", "opencl.h"]
+      options += ["-Xclang", "-cl-std=CL1.2", "-O0", "-include", "opencl.h"]
 
       if os.name == "posix":
         options += ["-Xclang", "-load", "-Xclang", bugleInlineCheckPlugin,
