@@ -298,27 +298,18 @@ namespace GPUVerify
                 Console.Error.WriteLine();
 
                 // Now try to give the user a specific hint if this looks like a common problem
-                try
-                {
-                    throw e;
-                }
-                catch (ProverException)
+                if (e is ProverException)
                 {
                     Console.Error.WriteLine("Hint: It looks like GPUVerify is having trouble invoking its");
                     Console.Error.WriteLine("supporting theorem prover, which by default is Z3.  Have you");
                     Console.Error.WriteLine("installed Z3?");
                 }
-                catch (Exception)
-                {
-                    // Nothing to say about this
-                }
 
                 // Write details of the exception to the dump file
                 using (TokenTextWriter writer = new TokenTextWriter(DUMP_FILE, false))
                 {
-                    writer.Write("Exception ToString:");
-                    writer.Write("===================");
-                    writer.Write(e.ToString());
+                    writer.WriteLine("An exception occured:");
+                    writer.WriteLine(e.ToString());
                 }
             }
         }
