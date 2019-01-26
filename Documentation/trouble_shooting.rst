@@ -22,6 +22,8 @@ We recommend installing this using pip::
 
 .. todo:: is z3 available?
 
+.. todo:: on Linux are all dynamic libraries installed that z3 and cvc4 were built against? Invoke each solver directly from the command line, or pass `--cruncher-opt=/proverOpt:VERBOSITY=100` to GPUVerify.
+
 .. todo:: correct python version?
 
 .. todo:: correct mono version if on Linux?
