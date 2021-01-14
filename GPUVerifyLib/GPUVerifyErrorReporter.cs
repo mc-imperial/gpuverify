@@ -534,10 +534,10 @@ namespace GPUVerify
 
         protected static void PopulateModelWithStatesIfNecessary(Counterexample cex)
         {
-            if (!cex.Model.ModelHasStatesAlready)
+            if (!cex.ModelHasStatesAlready)
             {
                 cex.PopulateModelWithStates();
-                cex.Model.ModelHasStatesAlready = true;
+                cex.ModelHasStatesAlready = true;
             }
         }
 
