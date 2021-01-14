@@ -1740,10 +1740,15 @@ namespace GPUVerify
 
             Debug.Assert(p1 != null);
             Debug.Assert(p2 != null);
-            Debug.Assert(localFence1 != null);
-            Debug.Assert(localFence2 != null);
-            Debug.Assert(globalFence1 != null);
-            Debug.Assert(globalFence2 != null);
+
+            // the assertions are applicable only to block-level barriers
+            if (IsBlockBarrier(barrierProcedure))
+            {
+                Debug.Assert(localFence1 != null);
+                Debug.Assert(localFence2 != null);
+                Debug.Assert(globalFence1 != null);
+                Debug.Assert(globalFence2 != null);
+            }
 
             if (!QKeyValue.FindBoolAttribute(barrierProcedure.Attributes, "safe_barrier"))
             {
@@ -1768,13 +1773,27 @@ namespace GPUVerify
             sharedArrays = sharedArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(x)).ToList();
             if (sharedArrays.ToList().Count > 0)
             {
-                bigblocks.AddRange(
-                      MakeResetBlocks(Expr.And(p1, localFence1), sharedArrays.Where(x => KernelArrayInfo.GetGroupSharedArrays(false).Contains(x))));
+                // for grid-level barriers, we don't need to consider the local fence variables
+                Expr reset = localFence1 == null ? Expr.True : Expr.And(p1, localFence1);
+                bigblocks.AddRange(MakeResetBlocks(
+                    reset,
+                    sharedArrays.Where(x => KernelArrayInfo.GetGroupSharedArrays(false).Contains(x)),
+                    IsGridBarrier(barrierProcedure)));
 
-                // This could be relaxed to take into account whether the threads are in different
-                // groups, but for now we keep it relatively simple
-                Expr atLeastOneEnabledWithLocalFence =
-                  Expr.Or(Expr.And(p1, localFence1), Expr.And(p2, localFence2));
+                Expr atLeastOneEnabledWithLocalFence;
+                if (IsGridBarrier(barrierProcedure))
+                {
+                    // local fence variables aren't applicable for grid-level barriers
+                    // the shared variables in the Boogie code can be havoced without checking anything
+                    atLeastOneEnabledWithLocalFence = Expr.True;
+                }
+                else
+                {
+                    // This could be relaxed to take into account whether the threads are in different
+                    // groups, but for now we keep it relatively simple
+                    atLeastOneEnabledWithLocalFence =
+                        Expr.Or(Expr.And(p1, localFence1), Expr.And(p2, localFence2));
+                }
 
                 if (SomeArrayModelledNonAdversarially(sharedArrays))
                 {
@@ -1792,11 +1811,25 @@ namespace GPUVerify
             globalArrays = globalArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(x)).ToList();
             if (globalArrays.ToList().Count > 0)
             {
-                bigblocks.AddRange(
-                      MakeResetBlocks(Expr.And(p1, globalFence1), globalArrays.Where(x => KernelArrayInfo.GetGlobalArrays(false).Contains(x))));
+                // for grid-level barriers, we don't need to consider the global fence variables
+                Expr reset = globalFence1 == null ? Expr.True : Expr.And(p1, globalFence1);
+                bigblocks.AddRange(MakeResetBlocks(
+                    reset,
+                    globalArrays.Where(x => KernelArrayInfo.GetGlobalArrays(false).Contains(x)),
+                    IsGridBarrier(barrierProcedure)));
 
-                Expr threadsInSameGroupBothEnabledAtLeastOneGlobalFence =
-                  Expr.And(Expr.And(ThreadsInSameGroup(), Expr.And(p1, p2)), Expr.Or(globalFence1, globalFence2));
+                Expr threadsInSameGroupBothEnabledAtLeastOneGlobalFence;
+                if (IsGridBarrier(barrierProcedure))
+                {
+                    // global fence variables aren't applicable for grid-level barriers
+                    // the shared variables in the Boogie code can be havoced without checking anything
+                    threadsInSameGroupBothEnabledAtLeastOneGlobalFence = Expr.True;
+                }
+                else
+                {
+                    threadsInSameGroupBothEnabledAtLeastOneGlobalFence =
+                        Expr.And(Expr.And(ThreadsInSameGroup(), Expr.And(p1, p2)), Expr.Or(globalFence1, globalFence2));
+                }
 
                 if (SomeArrayModelledNonAdversarially(globalArrays))
                 {
@@ -1848,13 +1881,13 @@ namespace GPUVerify
                 IntRep.GetZero(IntRep.GetIntType(1)));
         }
 
-        private List<BigBlock> MakeResetBlocks(Expr resetCondition, IEnumerable<Variable> variables)
+        private List<BigBlock> MakeResetBlocks(Expr resetCondition, IEnumerable<Variable> variables, bool gridBarrier)
         {
             Debug.Assert(variables.ToList().Count > 0);
             List<BigBlock> result = new List<BigBlock>();
             foreach (Variable v in variables)
             {
-                result.Add(RaceInstrumenter.MakeResetReadWriteSetStatements(v, resetCondition));
+                result.Add(RaceInstrumenter.MakeResetReadWriteSetStatements(v, resetCondition, gridBarrier));
             }
 
             Debug.Assert(result.Count > 0);
@@ -2247,9 +2280,19 @@ namespace GPUVerify
               && !QKeyValue.FindBoolAttribute(item.Proc.Attributes, "safe_barrier")).Count() > 0;
         }
 
-        public static bool IsBarrier(Procedure proc)
+        public static bool IsBlockBarrier(Procedure proc)
         {
             return QKeyValue.FindBoolAttribute(proc.Attributes, "barrier");
+        }
+
+        public static bool IsGridBarrier(Procedure proc)
+        {
+            return QKeyValue.FindBoolAttribute(proc.Attributes, "grid_barrier");
+        }
+
+        public static bool IsBarrier(Procedure proc)
+        {
+            return IsBlockBarrier(proc) || IsGridBarrier(proc);
         }
 
         public bool ArrayModelledAdversarially(Variable v)
