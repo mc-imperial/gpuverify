@@ -52,7 +52,7 @@ namespace GPUVerify
         {
             HashSet<BarrierInterval> result = new HashSet<BarrierInterval>();
 
-            ExtractCommandsIntoBlocks(impl, item => (item is CallCmd && GPUVerifier.IsBarrier(((CallCmd)item).Proc)));
+            ExtractCommandsIntoBlocks(impl, item => item is CallCmd && GPUVerifier.IsBarrier(((CallCmd)item).Proc));
             Graph<Block> cfg = Program.GraphFromImpl(impl);
 
             // If the CFG has no exit nodes, i.e. it cannot terminate,
@@ -146,6 +146,10 @@ namespace GPUVerify
                 // Also we may be able to do better in this case, but for now we conservatively say no
                 return false;
             }
+
+            // skip the barrier strength check for grid-level barriers
+            if (GPUVerifier.IsGridBarrier(c.Proc))
+                return true;
 
             Debug.Assert(c.Ins.Count() == 2);
             if (strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL)
