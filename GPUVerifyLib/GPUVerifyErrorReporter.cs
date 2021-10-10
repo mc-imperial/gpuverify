@@ -19,7 +19,7 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    internal class GPUVerifyErrorReporter
+    public class GPUVerifyErrorReporter
     {
         private enum ErrorMsgType
         {
@@ -517,7 +517,7 @@ namespace GPUVerify
                 "captureState");
         }
 
-        private static string GetStateName(CallCounterexample callCex)
+        protected static string GetStateName(CallCounterexample callCex)
         {
             return GetStateName(callCex.FailingCall.Attributes, callCex);
         }
@@ -527,12 +527,12 @@ namespace GPUVerify
             return GetStateName(assertCex.FailingAssert.Attributes, assertCex);
         }
 
-        private static string GetSourceFileName()
+        protected static string GetSourceFileName()
         {
             return CommandLineOptions.Clo.Files[CommandLineOptions.Clo.Files.Count() - 1];
         }
 
-        private static void PopulateModelWithStatesIfNecessary(Counterexample cex)
+        protected static void PopulateModelWithStatesIfNecessary(Counterexample cex)
         {
             if (!cex.ModelHasStatesAlready)
             {
@@ -541,7 +541,7 @@ namespace GPUVerify
             }
         }
 
-        private static void DetermineNatureOfRace(CallCounterexample callCex, out string raceName, out string access1, out string access2)
+        protected static void DetermineNatureOfRace(CallCounterexample callCex, out string raceName, out string access1, out string access2)
         {
             if (QKeyValue.FindBoolAttribute(callCex.FailingRequires.Attributes, "write_read"))
             {
@@ -594,7 +594,7 @@ namespace GPUVerify
             }
         }
 
-        private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample callCex, string arrayName, AccessType accessType, string raceyState)
+        protected IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample callCex, string arrayName, AccessType accessType, string raceyState)
         {
             string accessHasOccurred = RaceInstrumentationUtil.MakeHasOccurredVariableName(arrayName, accessType);
             string accessOffset = RaceInstrumentationUtil.MakeOffsetVariableName(arrayName, accessType);
@@ -802,7 +802,7 @@ namespace GPUVerify
             }
         }
 
-        private static QKeyValue GetAttributes(Absy a)
+        protected static QKeyValue GetAttributes(Absy a)
         {
             if (a is PredicateCmd)
                 return (a as PredicateCmd).Attributes;
@@ -1100,7 +1100,7 @@ namespace GPUVerify
             }
         }
 
-        private static string GetArrayName(Requires requires)
+        protected static string GetArrayName(Requires requires)
         {
             string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "array");
             Debug.Assert(arrName != null);
