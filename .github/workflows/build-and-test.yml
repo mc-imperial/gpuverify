@@ -1,0 +1,88 @@
+name: Build and test GPUVerify
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  BUILD_ROOT:           '${{ github.workspace }}'
+
+  BUGLE_DIR:            '${{ github.workspace }}/bugle'
+  GPUVERIFY_DIR:        '${{ github.workspace }}/gpuverify'
+  LLVM_PROJECT_DIR:     '${{ github.workspace }}/llvm-project'
+  LIBCLC_INSTALL_DIR:   '${{ github.workspace }}/libclc-install'
+  WORKFLOW_DIR:         '${{ github.workspace }}/gpuverify/.github/workflows'
+
+  CVC4_VERSION:         '1.8'
+  LLVM_PROJECT_VERSION: '58fdb3b09aae005c594ea66bfb85b395d7193636'
+  LLVM_VERSION:         '6.0'
+  Z3_VERSION:           '4.6.0'
+
+jobs:
+  Build-And-Test:
+    name: Build and test GPUVerify
+    strategy:
+      matrix:
+        cxx:    ['g++', 'clang++']
+        solver: ['z3'] # all downloadable binaries of cvc4 seem incompatible
+    runs-on: ubuntu-latest
+    env:
+      CXX:            '${{ matrix.cxx }}'
+      DEFAULT_SOLVER: '${{ matrix.solver}}'
+    steps:
+      - name: Set derived environment variables
+        run: |
+          echo "LLVM_CONFIG=llvm-config-${{ env.LLVM_VERSION }}" >> $GITHUB_ENV
+          echo "CVC4=cvc4-${{ env.CVC4_VERSION }}-x86_64-linux-opt" \
+            >> $GITHUB_ENV
+          echo "Z3=z3-${{ env.Z3_VERSION }}-x64-ubuntu-14.04" >> $GITHUB_ENV
+      - name: Get additional prerequisites
+        run: |
+          sudo apt-get install llvm-${{ env.LLVM_VERSION }}-dev \
+            clang-${{ env.LLVM_VERSION }}-dev \
+            clang-${{ env.LLVM_VERSION }} \
+            ninja-build
+          pip install psutil
+      - name: Checkout Bugle
+        uses: actions/checkout@v2
+        with:
+          repository: 'mc-imperial/bugle'
+          path:       '${{ env.BUGLE_DIR }}'
+      - name: Checkout GPUVerify
+        uses: actions/checkout@v2
+        with:
+          path:       '${{ env.GPUVERIFY_DIR }}'
+      - name: Checkout libclc as part of llvm-project
+        uses: actions/checkout@v2
+        with:
+          repository: 'llvm/llvm-project'
+          path:       '${{ env.LLVM_PROJECT_DIR }}'
+          ref:        '${{ env.LLVM_PROJECT_VERSION }}'
+      - name: Build Bugle
+        run: |
+          ${{ env.WORKFLOW_DIR }}/build_bugle.sh
+      - name: Build GPUVerify
+        run: |
+          ${{ env.WORKFLOW_DIR }}/build_gpuverify.sh 
+      - name: Build and install libclc
+        run: |
+          ${{ env.WORKFLOW_DIR }}/build_and_install_libclc.sh
+      - name: Download and symlink CVC4
+        if: ${{ matrix.solver == 'cvc4' }}
+        run: |
+          ${{ env.WORKFLOW_DIR }}/download_and_symlink_cvc4.sh
+      - name: Download and symlink Z3
+        if: ${{ matrix.solver == 'z3' }}
+        run: |
+          ${{ env.WORKFLOW_DIR }}/download_and_symlink_z3.sh
+      - name: Test GPUVerify
+        run: |
+          cp ${{ env.WORKFLOW_DIR }}/gvfindtools.py \
+            ${{ env.GPUVERIFY_DIR }}/gvfindtools.py
+          ${{ env.WORKFLOW_DIR }}/symlink_llvm_tools.sh
+          ${{ env.WORKFLOW_DIR }}/test_gpuverify.sh
+
