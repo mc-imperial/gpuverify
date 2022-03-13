@@ -2,7 +2,6 @@
 //--blockDim=32 --gridDim=1
 
 #include <cuda.h>
-#include <cooperative_groups.h>
 
 using namespace cooperative_groups;
 
