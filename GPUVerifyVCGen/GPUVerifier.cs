@@ -1754,7 +1754,7 @@ namespace GPUVerify
             if (!QKeyValue.FindBoolAttribute(barrierProcedure.Attributes, "safe_barrier"))
             {
                 Expr groupCheck = !IsGridBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
-                Expr divergenceCondition = Expr.Imp(ThreadsInSameGroup(), Expr.Eq(p1, p2));
+                Expr divergenceCondition = Expr.Imp(groupCheck, Expr.Eq(p1, p2));
 
                 Requires nonDivergenceRequires = new Requires(false, divergenceCondition);
                 nonDivergenceRequires.Attributes =
