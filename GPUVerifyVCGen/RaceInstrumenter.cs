@@ -942,7 +942,7 @@ namespace GPUVerify
                     resetCondition, Expr.Not(Expr.Ident(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind))));
 
                 // we don't need the group check for a grid-level barrier
-                Expr groupCheck = gridBarrier == false ? Verifier.ThreadsInSameGroup() : Expr.True;
+                Expr groupCheck = !gridBarrier ? Verifier.ThreadsInSameGroup() : Expr.True;
                 if (Verifier.KernelArrayInfo.GetGlobalArrays(false).Contains(v))
                     resetAssumeGuard = Expr.Imp(groupCheck, resetAssumeGuard);
 
