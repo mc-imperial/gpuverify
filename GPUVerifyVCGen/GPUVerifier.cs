@@ -298,6 +298,12 @@ namespace GPUVerify
             var p = CheckSingleInstanceOfAttributedProcedure("barrier");
             if (p == null)
             {
+                // the code can have a grid-level barrier without a thread-level barrier
+                p = CheckSingleInstanceOfAttributedProcedure("grid_barrier");
+            }
+
+            if (p == null)
+            {
                 var inParams = new List<Variable>
                 {
                     new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", IntRep.GetIntType(1)), true),
@@ -1740,15 +1746,10 @@ namespace GPUVerify
 
             Debug.Assert(p1 != null);
             Debug.Assert(p2 != null);
-
-            // the assertions are applicable only to block-level barriers
-            if (IsBlockBarrier(barrierProcedure))
-            {
-                Debug.Assert(localFence1 != null);
-                Debug.Assert(localFence2 != null);
-                Debug.Assert(globalFence1 != null);
-                Debug.Assert(globalFence2 != null);
-            }
+            Debug.Assert(localFence1 != null);
+            Debug.Assert(localFence2 != null);
+            Debug.Assert(globalFence1 != null);
+            Debug.Assert(globalFence2 != null);
 
             if (!QKeyValue.FindBoolAttribute(barrierProcedure.Attributes, "safe_barrier"))
             {
@@ -1773,27 +1774,15 @@ namespace GPUVerify
             sharedArrays = sharedArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(x)).ToList();
             if (sharedArrays.ToList().Count > 0)
             {
-                // for grid-level barriers, we don't need to consider the local fence variables
-                Expr reset = localFence1 == null ? Expr.True : Expr.And(p1, localFence1);
                 bigblocks.AddRange(MakeResetBlocks(
-                    reset,
+                    Expr.And(p1, localFence1),
                     sharedArrays.Where(x => KernelArrayInfo.GetGroupSharedArrays(false).Contains(x)),
                     IsGridBarrier(barrierProcedure)));
 
-                Expr atLeastOneEnabledWithLocalFence;
-                if (IsGridBarrier(barrierProcedure))
-                {
-                    // local fence variables aren't applicable for grid-level barriers
-                    // the shared variables in the Boogie code can be havoced without checking anything
-                    atLeastOneEnabledWithLocalFence = Expr.True;
-                }
-                else
-                {
-                    // This could be relaxed to take into account whether the threads are in different
-                    // groups, but for now we keep it relatively simple
-                    atLeastOneEnabledWithLocalFence =
-                        Expr.Or(Expr.And(p1, localFence1), Expr.And(p2, localFence2));
-                }
+                // This could be relaxed to take into account whether the threads are in different
+                // groups, but for now we keep it relatively simple
+                Expr atLeastOneEnabledWithLocalFence =
+                  Expr.Or(Expr.And(p1, localFence1), Expr.And(p2, localFence2));
 
                 if (SomeArrayModelledNonAdversarially(sharedArrays))
                 {
@@ -1811,25 +1800,15 @@ namespace GPUVerify
             globalArrays = globalArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(x)).ToList();
             if (globalArrays.ToList().Count > 0)
             {
-                // for grid-level barriers, we don't need to consider the global fence variables
-                Expr reset = globalFence1 == null ? Expr.True : Expr.And(p1, globalFence1);
                 bigblocks.AddRange(MakeResetBlocks(
-                    reset,
+                    Expr.And(p1, globalFence1),
                     globalArrays.Where(x => KernelArrayInfo.GetGlobalArrays(false).Contains(x)),
                     IsGridBarrier(barrierProcedure)));
 
-                Expr threadsInSameGroupBothEnabledAtLeastOneGlobalFence;
-                if (IsGridBarrier(barrierProcedure))
-                {
-                    // global fence variables aren't applicable for grid-level barriers
-                    // the shared variables in the Boogie code can be havoced without checking anything
-                    threadsInSameGroupBothEnabledAtLeastOneGlobalFence = Expr.True;
-                }
-                else
-                {
-                    threadsInSameGroupBothEnabledAtLeastOneGlobalFence =
-                        Expr.And(Expr.And(ThreadsInSameGroup(), Expr.And(p1, p2)), Expr.Or(globalFence1, globalFence2));
-                }
+                // we don't need the group check for a grid-level barrier
+                Expr groupCheck = IsGridBarrier(barrierProcedure) == false ? ThreadsInSameGroup() : Expr.True;
+                Expr threadsInSameGroupBothEnabledAtLeastOneGlobalFence =
+                  Expr.And(Expr.And(groupCheck, Expr.And(p1, p2)), Expr.Or(globalFence1, globalFence2));
 
                 if (SomeArrayModelledNonAdversarially(globalArrays))
                 {
