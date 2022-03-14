@@ -1753,7 +1753,9 @@ namespace GPUVerify
 
             if (!QKeyValue.FindBoolAttribute(barrierProcedure.Attributes, "safe_barrier"))
             {
-                Expr divergenceCondition = Expr.Imp(ThreadsInSameGroup(), Expr.Eq(p1, p2));
+                Expr groupCheck = !IsGridBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
+                Expr divergenceCondition = Expr.Imp(groupCheck, Expr.Eq(p1, p2));
+
                 Requires nonDivergenceRequires = new Requires(false, divergenceCondition);
                 nonDivergenceRequires.Attributes =
                     new QKeyValue(Token.NoToken, "barrier_divergence", new List<object>(new object[] { }), null);
@@ -1766,7 +1768,8 @@ namespace GPUVerify
                 returnbigblocks.Add(new BigBlock(Token.NoToken, "__Disabled", new List<Cmd>(), null, new ReturnCmd(Token.NoToken)));
                 StmtList returnstatement = new StmtList(returnbigblocks, barrierProcedure.tok);
 
-                Expr ifGuard = Expr.Or(Expr.And(Expr.Not(p1), Expr.Not(p2)), Expr.And(ThreadsInSameGroup(), Expr.Or(Expr.Not(p1), Expr.Not(p2))));
+                Expr groupCheck = !IsGridBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
+                Expr ifGuard = Expr.Or(Expr.And(Expr.Not(p1), Expr.Not(p2)), Expr.And(groupCheck, Expr.Or(Expr.Not(p1), Expr.Not(p2))));
                 barrierEntryBlock.ec = new IfCmd(Token.NoToken, ifGuard, returnstatement, null, null);
             }
 
