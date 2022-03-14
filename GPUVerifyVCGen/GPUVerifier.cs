@@ -1806,7 +1806,7 @@ namespace GPUVerify
                     IsGridBarrier(barrierProcedure)));
 
                 // we don't need the group check for a grid-level barrier
-                Expr groupCheck = IsGridBarrier(barrierProcedure) == false ? ThreadsInSameGroup() : Expr.True;
+                Expr groupCheck = !IsGridBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
                 Expr threadsInSameGroupBothEnabledAtLeastOneGlobalFence =
                   Expr.And(Expr.And(groupCheck, Expr.And(p1, p2)), Expr.Or(globalFence1, globalFence2));
 
