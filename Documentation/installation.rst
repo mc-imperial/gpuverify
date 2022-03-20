@@ -20,7 +20,7 @@ These can be found on the GPUVerify `Download <http://multicore.doc.ic.ac.uk/too
 Basic Prequisites
 ^^^^^^^^^^^^^^^^^
 
-GPUVerify requires python 3 and the python module `psutil <https://code.google.com/p/psutil/>`_.
+GPUVerify requires python 3 and the python module `psutil <https://github.com/giampaolo/psutil>`_.
 We recommend installing psutil with pip::
 
      $ pip install psutil
