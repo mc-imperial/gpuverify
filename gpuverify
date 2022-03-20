@@ -1,4 +1,4 @@
 #!/bin/bash
 
-python $(dirname $0)/GPUVerify.py $@
+python3 $(dirname $0)/GPUVerify.py $@
 

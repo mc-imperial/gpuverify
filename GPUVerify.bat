@@ -1,3 +1,3 @@
 @echo off
 
-python "%~dp0GPUVerify.py" %*
+python3 "%~dp0GPUVerify.py" %*
