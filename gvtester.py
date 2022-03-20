@@ -1,8 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # encoding: utf-8
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
-from __future__ import print_function
-
 from GPUVerifyScript.error_codes import ErrorCodes
 
 import os
@@ -94,7 +92,7 @@ class GPUVerifyTestKernel(object):
 
         #Use with so that if exception thrown file is still closed
         #Note need to use universal line endings to handle DOS format (groan) kernels
-        with open(self.path,'rU') as fileObject:
+        with open(self.path,'r') as fileObject:
 
             #Grab expected test outcome
             expectedOutcome=fileObject.readline()

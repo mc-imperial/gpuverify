@@ -1,7 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Utility for checking the validity of JSON files accepted by GPUVerify."""
-from __future__ import print_function
-
 import json
 import sys
 

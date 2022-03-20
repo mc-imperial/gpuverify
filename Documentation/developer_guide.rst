@@ -12,14 +12,14 @@ There are specific instructions for Linux, Mac OS X and Windows however they
 have a common set of prerequisites which are:
 
 * CMake >=3.4.3
-* Python 2.7
+* Python 3
 * Git
 * Subversion
 
 Basic Prequisites
 -----------------
 
-GPUVerify requires python >= 2.7 and the python module `psutil <https://github.com/giampaolo/psutil>`_.
+GPUVerify requires python 3 and the python module `psutil <https://github.com/giampaolo/psutil>`_.
 We recommend installing psutil with pip::
 
      $ pip install psutil

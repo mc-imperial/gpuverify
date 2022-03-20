@@ -1,7 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
-from __future__ import print_function
-
 import pickle
 import os
 import subprocess
