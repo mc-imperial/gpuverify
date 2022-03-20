@@ -1,4 +1,4 @@
-#!/usr/bin/env python2.7
+#!/usr/bin/env python3
 # vim: set shiftwidth=2 tabstop=2 expandtab softtabstop=2:
 import sys
 import os
