@@ -301,59 +301,6 @@ namespace GPUVerify
             return CheckSingleInstanceOfAttributedProcedure(barrierAttribute);
         }
 
-        private Procedure FindOrCreateBarrierInvariantProcedure()
-        {
-            var p = CheckSingleInstanceOfAttributedProcedure("barrier_invariant");
-            if (p == null)
-            {
-                var inParams = new List<Variable>
-                {
-                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__cond", Microsoft.Boogie.Type.Bool), true)
-                };
-                p = new Procedure(
-                    Token.NoToken,
-                    "barrier_invariant",
-                    new List<TypeVariable>(),
-                    inParams,
-                    new List<Variable>(),
-                    new List<Requires>(),
-                    new List<IdentifierExpr>(),
-                    new List<Ensures>(),
-                    new QKeyValue(Token.NoToken, "barrier_invariant", new List<object>(), null));
-                Program.AddTopLevelDeclaration(p);
-                resContext.AddProcedure(p);
-            }
-
-            return p;
-        }
-
-        private Procedure FindOrCreateBarrierInvariantInstantiationProcedure()
-        {
-            var p = CheckSingleInstanceOfAttributedProcedure("barrier_invariant_instantiation");
-            if (p == null)
-            {
-                var inParams = new List<Variable>
-                {
-                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t1", SizeTType), true),
-                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__t2", SizeTType), true)
-                };
-                p = new Procedure(
-                    Token.NoToken,
-                    "barrier_invariant_instantiation",
-                    new List<TypeVariable>(),
-                    inParams,
-                    new List<Variable>(),
-                    new List<Requires>(),
-                    new List<IdentifierExpr>(),
-                    new List<Ensures>(),
-                    new QKeyValue(Token.NoToken, "barrier_invariant_instantiation", new List<object>(), null));
-                Program.AddTopLevelDeclaration(p);
-                resContext.AddProcedure(p);
-            }
-
-            return p;
-        }
-
         private Procedure CheckSingleInstanceOfAttributedProcedure(string attribute)
         {
             Procedure attributedProcedure = null;
