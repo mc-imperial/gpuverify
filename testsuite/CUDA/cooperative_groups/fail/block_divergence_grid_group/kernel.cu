@@ -15,8 +15,8 @@ __global__ void race (int* A)
 
   if (bid % 2 == 0)
   {
-	  int temp = A[idx + 2];
-	  synchronize(g);
-	  A[idx] = temp;
+    int temp = A[idx + 2];
+    synchronize(g);
+    A[idx] = temp;
   }
 }
