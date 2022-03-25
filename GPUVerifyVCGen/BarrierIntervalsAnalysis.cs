@@ -147,10 +147,6 @@ namespace GPUVerify
                 return false;
             }
 
-            // skip the barrier strength check for grid-level barriers
-            if (GPUVerifier.IsGridBarrier(c.Proc))
-                return true;
-
             Debug.Assert(c.Ins.Count() == 2);
             if (strength == BarrierStrength.GROUP_SHARED || strength == BarrierStrength.ALL)
             {

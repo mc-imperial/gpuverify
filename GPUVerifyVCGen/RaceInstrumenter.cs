@@ -929,7 +929,7 @@ namespace GPUVerify
             return newProcedure;
         }
 
-        public BigBlock MakeResetReadWriteSetStatements(Variable v, Expr resetCondition, bool gridBarrier = false)
+        public BigBlock MakeResetReadWriteSetStatements(Variable v, Expr resetCondition, bool gridBarrier)
         {
             // We only want to do this reset for enabled arrays
             Debug.Assert(Verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
