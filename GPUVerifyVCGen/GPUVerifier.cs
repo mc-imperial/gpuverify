@@ -890,10 +890,11 @@ namespace GPUVerify
 
         private void IdentifySafeBarriers()
         {
-            var uni = DoUniformityAnalysis(new List<Variable> { IdX, IdY, IdZ });
+            var uniBlock = DoUniformityAnalysis(new List<Variable> { IdX, IdY, IdZ });
+            var uniGrid = DoUniformityAnalysis(new List<Variable> { IdX, IdY, IdZ, groupIdX, groupIdY, groupIdZ });
             foreach (var b in barrierProcedures)
             {
-                if (uni.IsUniform(b.Name))
+                if ((IsBlockBarrier(b) && uniBlock.IsUniform(b.Name)) || (IsGridBarrier(b) && uniGrid.IsUniform(b.Name)))
                 {
                     b.AddAttribute("safe_barrier", new object[] { });
                 }
