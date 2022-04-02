@@ -26,7 +26,7 @@ namespace GPUVerify
         {
         }
 
-        public Microsoft.Boogie.BigBlock MakeResetReadWriteSetStatements(Variable v, Expr resetCondition, bool gridBarrier)
+        public Microsoft.Boogie.BigBlock MakeResetReadWriteSetStatements(Variable v, Expr resetCondition, bool isBlockBarrier)
         {
             return new BigBlock(Token.NoToken, null, new List<Cmd>(), null, null);
         }
