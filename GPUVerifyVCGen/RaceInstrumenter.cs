@@ -929,7 +929,7 @@ namespace GPUVerify
             return newProcedure;
         }
 
-        public BigBlock MakeResetReadWriteSetStatements(Variable v, Expr resetCondition, bool gridBarrier)
+        public BigBlock MakeResetReadWriteSetStatements(Variable v, Expr resetCondition, bool isBlockBarrier)
         {
             // We only want to do this reset for enabled arrays
             Debug.Assert(Verifier.KernelArrayInfo.GetGlobalAndGroupSharedArrays(false).Contains(v));
@@ -942,7 +942,7 @@ namespace GPUVerify
                     resetCondition, Expr.Not(Expr.Ident(GPUVerifier.MakeAccessHasOccurredVariable(v.Name, kind))));
 
                 // we don't need the group check for a grid-level barrier
-                Expr groupCheck = !gridBarrier ? Verifier.ThreadsInSameGroup() : Expr.True;
+                Expr groupCheck = isBlockBarrier ? Verifier.ThreadsInSameGroup() : Expr.True;
                 if (Verifier.KernelArrayInfo.GetGlobalArrays(false).Contains(v))
                     resetAssumeGuard = Expr.Imp(groupCheck, resetAssumeGuard);
 

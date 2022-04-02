@@ -1728,7 +1728,7 @@ namespace GPUVerify
 
             if (!QKeyValue.FindBoolAttribute(barrierProcedure.Attributes, "safe_barrier"))
             {
-                Expr groupCheck = !IsGridBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
+                Expr groupCheck = IsBlockBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
                 Expr divergenceCondition = Expr.Imp(groupCheck, Expr.Eq(p1, p2));
 
                 Requires nonDivergenceRequires = new Requires(false, divergenceCondition);
@@ -1743,7 +1743,7 @@ namespace GPUVerify
                 returnbigblocks.Add(new BigBlock(Token.NoToken, "__Disabled", new List<Cmd>(), null, new ReturnCmd(Token.NoToken)));
                 StmtList returnstatement = new StmtList(returnbigblocks, barrierProcedure.tok);
 
-                Expr groupCheck = !IsGridBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
+                Expr groupCheck = IsBlockBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
                 Expr ifGuard = Expr.Or(Expr.And(Expr.Not(p1), Expr.Not(p2)), Expr.And(groupCheck, Expr.Or(Expr.Not(p1), Expr.Not(p2))));
                 barrierEntryBlock.ec = new IfCmd(Token.NoToken, ifGuard, returnstatement, null, null);
             }
@@ -1755,7 +1755,7 @@ namespace GPUVerify
                 bigblocks.AddRange(MakeResetBlocks(
                     Expr.And(p1, localFence1),
                     sharedArrays.Where(x => KernelArrayInfo.GetGroupSharedArrays(false).Contains(x)),
-                    IsGridBarrier(barrierProcedure)));
+                    IsBlockBarrier(barrierProcedure)));
 
                 // This could be relaxed to take into account whether the threads are in different
                 // groups, but for now we keep it relatively simple
@@ -1781,10 +1781,10 @@ namespace GPUVerify
                 bigblocks.AddRange(MakeResetBlocks(
                     Expr.And(p1, globalFence1),
                     globalArrays.Where(x => KernelArrayInfo.GetGlobalArrays(false).Contains(x)),
-                    IsGridBarrier(barrierProcedure)));
+                    IsBlockBarrier(barrierProcedure)));
 
                 // we don't need the group check for a grid-level barrier
-                Expr groupCheck = !IsGridBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
+                Expr groupCheck = IsBlockBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
                 Expr threadsInSameGroupBothEnabledAtLeastOneGlobalFence =
                   Expr.And(Expr.And(groupCheck, Expr.And(p1, p2)), Expr.Or(globalFence1, globalFence2));
 
@@ -1838,13 +1838,13 @@ namespace GPUVerify
                 IntRep.GetZero(IntRep.GetIntType(1)));
         }
 
-        private List<BigBlock> MakeResetBlocks(Expr resetCondition, IEnumerable<Variable> variables, bool gridBarrier)
+        private List<BigBlock> MakeResetBlocks(Expr resetCondition, IEnumerable<Variable> variables, bool isBlockBarrier)
         {
             Debug.Assert(variables.ToList().Count > 0);
             List<BigBlock> result = new List<BigBlock>();
             foreach (Variable v in variables)
             {
-                result.Add(RaceInstrumenter.MakeResetReadWriteSetStatements(v, resetCondition, gridBarrier));
+                result.Add(RaceInstrumenter.MakeResetReadWriteSetStatements(v, resetCondition, isBlockBarrier));
             }
 
             Debug.Assert(result.Count > 0);
