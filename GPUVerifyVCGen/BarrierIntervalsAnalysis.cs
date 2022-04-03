@@ -52,7 +52,7 @@ namespace GPUVerify
         {
             HashSet<BarrierInterval> result = new HashSet<BarrierInterval>();
 
-            ExtractCommandsIntoBlocks(impl, item => (item is CallCmd && GPUVerifier.IsBarrier(((CallCmd)item).Proc)));
+            ExtractCommandsIntoBlocks(impl, item => item is CallCmd && GPUVerifier.IsBarrier(((CallCmd)item).Proc));
             Graph<Block> cfg = Program.GraphFromImpl(impl);
 
             // If the CFG has no exit nodes, i.e. it cannot terminate,

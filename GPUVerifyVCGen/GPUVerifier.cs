@@ -38,6 +38,9 @@ namespace GPUVerify
         private string barrierProcedureLocalFenceArgName;
         private string barrierProcedureGlobalFenceArgName;
 
+        private const string BlockBarrierAttribute = "barrier";
+        private const string GridBarrierAttribute = "grid_barrier";
+
         private HashSet<object> regionsWithLoopInvariantsDisabled = new HashSet<object>();
 
         public IKernelArrayInfo KernelArrayInfo { get; } = new KernelArrayInfoLists();
@@ -293,31 +296,9 @@ namespace GPUVerify
             return result;
         }
 
-        private Procedure FindOrCreateBarrierProcedure()
+        private Procedure FindBarrierProcedure(string barrierAttribute)
         {
-            var p = CheckSingleInstanceOfAttributedProcedure("barrier");
-            if (p == null)
-            {
-                var inParams = new List<Variable>
-                {
-                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__local_fence", IntRep.GetIntType(1)), true),
-                    new Formal(Token.NoToken, new TypedIdent(Token.NoToken, "__global_fence", IntRep.GetIntType(1)), true)
-                };
-                p = new Procedure(
-                    Token.NoToken,
-                    "barrier",
-                    new List<TypeVariable>(),
-                    inParams,
-                    new List<Variable>(),
-                    new List<Requires>(),
-                    new List<IdentifierExpr>(),
-                    new List<Ensures>(),
-                    new QKeyValue(Token.NoToken, "barrier", new List<object>(), null));
-                Program.AddTopLevelDeclaration(p);
-                resContext.AddProcedure(p);
-            }
-
-            return p;
+            return CheckSingleInstanceOfAttributedProcedure(barrierAttribute);
         }
 
         private Procedure FindOrCreateBarrierInvariantProcedure()
@@ -884,10 +865,11 @@ namespace GPUVerify
 
         private void IdentifySafeBarriers()
         {
-            var uni = DoUniformityAnalysis(new List<Variable> { IdX, IdY, IdZ });
+            var uniBlock = DoUniformityAnalysis(new List<Variable> { IdX, IdY, IdZ });
+            var uniGrid = DoUniformityAnalysis(new List<Variable> { IdX, IdY, IdZ, groupIdX, groupIdY, groupIdZ });
             foreach (var b in barrierProcedures)
             {
-                if (uni.IsUniform(b.Name))
+                if ((IsBlockBarrier(b) && uniBlock.IsUniform(b.Name)) || (IsGridBarrier(b) && uniGrid.IsUniform(b.Name)))
                 {
                     b.AddAttribute("safe_barrier", new object[] { });
                 }
@@ -905,8 +887,7 @@ namespace GPUVerify
             // Make a separate barrier procedure for every barrier call.
             // This paves the way for barrier divergence optimisations
             // for specific barriers
-            Contract.Requires(barrierProcedures.Count() == 1);
-            Program.RemoveTopLevelDeclarations(x => x == barrierProcedures.First());
+            Program.RemoveTopLevelDeclarations(x => barrierProcedures.Contains(x));
             barrierProcedures = new HashSet<Procedure>();
             int barrierCounter = 0;
 
@@ -1747,7 +1728,9 @@ namespace GPUVerify
 
             if (!QKeyValue.FindBoolAttribute(barrierProcedure.Attributes, "safe_barrier"))
             {
-                Expr divergenceCondition = Expr.Imp(ThreadsInSameGroup(), Expr.Eq(p1, p2));
+                Expr groupCheck = IsBlockBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
+                Expr divergenceCondition = Expr.Imp(groupCheck, Expr.Eq(p1, p2));
+
                 Requires nonDivergenceRequires = new Requires(false, divergenceCondition);
                 nonDivergenceRequires.Attributes =
                     new QKeyValue(Token.NoToken, "barrier_divergence", new List<object>(new object[] { }), null);
@@ -1760,7 +1743,8 @@ namespace GPUVerify
                 returnbigblocks.Add(new BigBlock(Token.NoToken, "__Disabled", new List<Cmd>(), null, new ReturnCmd(Token.NoToken)));
                 StmtList returnstatement = new StmtList(returnbigblocks, barrierProcedure.tok);
 
-                Expr ifGuard = Expr.Or(Expr.And(Expr.Not(p1), Expr.Not(p2)), Expr.And(ThreadsInSameGroup(), Expr.Or(Expr.Not(p1), Expr.Not(p2))));
+                Expr groupCheck = IsBlockBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
+                Expr ifGuard = Expr.Or(Expr.And(Expr.Not(p1), Expr.Not(p2)), Expr.And(groupCheck, Expr.Or(Expr.Not(p1), Expr.Not(p2))));
                 barrierEntryBlock.ec = new IfCmd(Token.NoToken, ifGuard, returnstatement, null, null);
             }
 
@@ -1768,8 +1752,10 @@ namespace GPUVerify
             sharedArrays = sharedArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(x)).ToList();
             if (sharedArrays.ToList().Count > 0)
             {
-                bigblocks.AddRange(
-                      MakeResetBlocks(Expr.And(p1, localFence1), sharedArrays.Where(x => KernelArrayInfo.GetGroupSharedArrays(false).Contains(x))));
+                bigblocks.AddRange(MakeResetBlocks(
+                    Expr.And(p1, localFence1),
+                    sharedArrays.Where(x => KernelArrayInfo.GetGroupSharedArrays(false).Contains(x)),
+                    IsBlockBarrier(barrierProcedure)));
 
                 // This could be relaxed to take into account whether the threads are in different
                 // groups, but for now we keep it relatively simple
@@ -1792,11 +1778,15 @@ namespace GPUVerify
             globalArrays = globalArrays.Where(x => !KernelArrayInfo.GetReadOnlyGlobalAndGroupSharedArrays(true).Contains(x)).ToList();
             if (globalArrays.ToList().Count > 0)
             {
-                bigblocks.AddRange(
-                      MakeResetBlocks(Expr.And(p1, globalFence1), globalArrays.Where(x => KernelArrayInfo.GetGlobalArrays(false).Contains(x))));
+                bigblocks.AddRange(MakeResetBlocks(
+                    Expr.And(p1, globalFence1),
+                    globalArrays.Where(x => KernelArrayInfo.GetGlobalArrays(false).Contains(x)),
+                    IsBlockBarrier(barrierProcedure)));
 
+                // we don't need the group check for a grid-level barrier
+                Expr groupCheck = IsBlockBarrier(barrierProcedure) ? ThreadsInSameGroup() : Expr.True;
                 Expr threadsInSameGroupBothEnabledAtLeastOneGlobalFence =
-                  Expr.And(Expr.And(ThreadsInSameGroup(), Expr.And(p1, p2)), Expr.Or(globalFence1, globalFence2));
+                  Expr.And(Expr.And(groupCheck, Expr.And(p1, p2)), Expr.Or(globalFence1, globalFence2));
 
                 if (SomeArrayModelledNonAdversarially(globalArrays))
                 {
@@ -1848,13 +1838,13 @@ namespace GPUVerify
                 IntRep.GetZero(IntRep.GetIntType(1)));
         }
 
-        private List<BigBlock> MakeResetBlocks(Expr resetCondition, IEnumerable<Variable> variables)
+        private List<BigBlock> MakeResetBlocks(Expr resetCondition, IEnumerable<Variable> variables, bool isBlockBarrier)
         {
             Debug.Assert(variables.ToList().Count > 0);
             List<BigBlock> result = new List<BigBlock>();
             foreach (Variable v in variables)
             {
-                result.Add(RaceInstrumenter.MakeResetReadWriteSetStatements(v, resetCondition));
+                result.Add(RaceInstrumenter.MakeResetReadWriteSetStatements(v, resetCondition, isBlockBarrier));
             }
 
             Debug.Assert(result.Count > 0);
@@ -2127,27 +2117,40 @@ namespace GPUVerify
 
         private int Check()
         {
-            var barrierProcedure = FindOrCreateBarrierProcedure();
-
-            barrierProcedures.Add(barrierProcedure);
-
             if (ErrorCount > 0)
                 return ErrorCount;
 
-            if (barrierProcedure.InParams.Count() != 2)
-                Error(barrierProcedure, "Barrier procedure must take exactly two arguments");
-            else if (!barrierProcedure.InParams[0].TypedIdent.Type.Equals(IntRep.GetIntType(1)))
-                Error(barrierProcedure, "First argument to barrier procedure must have type bv1");
-            else if (!barrierProcedure.InParams[1].TypedIdent.Type.Equals(IntRep.GetIntType(1)))
-                Error(barrierProcedure, "Second argument to barrier procedure must have type bv1");
-
-            if (barrierProcedure.OutParams.Count() != 0)
-                Error(barrierProcedure, "Barrier procedure must not return any results");
-
-            if (barrierProcedure.InParams.Count() == 2)
+            foreach (var barrierAttribute in new string[] { BlockBarrierAttribute, GridBarrierAttribute })
             {
-                barrierProcedureLocalFenceArgName = barrierProcedure.InParams[0].Name;
-                barrierProcedureGlobalFenceArgName = barrierProcedure.InParams[1].Name;
+                var barrierProcedure = FindBarrierProcedure(barrierAttribute);
+
+                if (barrierProcedure == null)
+                    continue;
+
+                barrierProcedures.Add(barrierProcedure);
+
+                if (barrierProcedure.InParams.Count() != 2)
+                    Error(barrierProcedure, "Barrier procedure must take exactly two arguments");
+                else if (!barrierProcedure.InParams[0].TypedIdent.Type.Equals(IntRep.GetIntType(1)))
+                    Error(barrierProcedure, "First argument to barrier procedure must have type bv1");
+                else if (!barrierProcedure.InParams[1].TypedIdent.Type.Equals(IntRep.GetIntType(1)))
+                    Error(barrierProcedure, "Second argument to barrier procedure must have type bv1");
+
+                if (barrierProcedure.OutParams.Count() != 0)
+                    Error(barrierProcedure, "Barrier procedure must not return any results");
+
+                if (barrierProcedure.InParams.Count() == 2)
+                {
+                    if (barrierProcedureLocalFenceArgName != null && barrierProcedureLocalFenceArgName != barrierProcedure.InParams[0].Name)
+                        Error(barrierProcedure, "Naming of local fence arguments must be consistent between barriers");
+                    else
+                        barrierProcedureLocalFenceArgName = barrierProcedure.InParams[0].Name;
+
+                    if (barrierProcedureGlobalFenceArgName != null && barrierProcedureGlobalFenceArgName != barrierProcedure.InParams[1].Name)
+                        Error(barrierProcedure, "Naming of global fence arguments must be consistent between barriers");
+                    else
+                        barrierProcedureGlobalFenceArgName = barrierProcedure.InParams[1].Name;
+                }
             }
 
             KernelProcedures = GetKernelProcedures();
@@ -2247,9 +2250,19 @@ namespace GPUVerify
               && !QKeyValue.FindBoolAttribute(item.Proc.Attributes, "safe_barrier")).Count() > 0;
         }
 
+        public static bool IsBlockBarrier(Procedure proc)
+        {
+            return QKeyValue.FindBoolAttribute(proc.Attributes, BlockBarrierAttribute);
+        }
+
+        public static bool IsGridBarrier(Procedure proc)
+        {
+            return QKeyValue.FindBoolAttribute(proc.Attributes, GridBarrierAttribute);
+        }
+
         public static bool IsBarrier(Procedure proc)
         {
-            return QKeyValue.FindBoolAttribute(proc.Attributes, "barrier");
+            return IsBlockBarrier(proc) || IsGridBarrier(proc);
         }
 
         public bool ArrayModelledAdversarially(Variable v)
