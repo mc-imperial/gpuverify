@@ -719,7 +719,7 @@ namespace GPUVerify
 
         private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromCall(string checkProcedureName, string calleeName)
         {
-            Program originalProgram = Utilities.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
+            Program originalProgram = GetOriginalProgram();
             var bodies = originalProgram.Implementations.Where(item => item.Name.Equals(calleeName)).ToList();
             if (bodies.Count == 0)
             {
