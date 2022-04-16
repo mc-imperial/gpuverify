@@ -447,7 +447,7 @@ namespace GPUVerify
             IEnumerable<SourceLocationInfo> possibleSourcesForFirstAccess =
                 GetPossibleSourceLocationsForFirstAccessInRace(callCex, raceyArrayName, AccessType.Create(access1), GetStateName(callCex));
             SourceLocationInfo sourceInfoForSecondAccess =
-                new SourceLocationInfo(GetAttributes(callCex.FailingCall), GetSourceFileName(), callCex.FailingCall.tok);
+                new SourceLocationInfo(callCex.FailingCall.Attributes, GetSourceFileName(), callCex.FailingCall.tok);
 
             ErrorWriteLine(
                 "\n" + sourceInfoForSecondAccess.Top().GetFile() + ":",
@@ -802,28 +802,14 @@ namespace GPUVerify
             }
         }
 
-        private static QKeyValue GetAttributes(Absy a)
-        {
-            if (a is PredicateCmd)
-                return (a as PredicateCmd).Attributes;
-            else if (a is Requires)
-                return (a as Requires).Attributes;
-            else if (a is Ensures)
-                return (a as Ensures).Attributes;
-            else if (a is CallCmd)
-                return (a as CallCmd).Attributes;
-            else
-                return null;
-        }
-
         private static void ReportThreadSpecificFailure(AssertCounterexample err, string messagePrefix)
         {
             AssertCmd failingAssert = err.FailingAssert;
 
             Console.Error.WriteLine();
-            var sli = new SourceLocationInfo(GetAttributes(failingAssert), GetSourceFileName(), failingAssert.tok);
+            var sli = new SourceLocationInfo(failingAssert.Attributes, GetSourceFileName(), failingAssert.tok);
 
-            int relevantThread = QKeyValue.FindIntAttribute(GetAttributes(failingAssert), "thread", -1);
+            int relevantThread = QKeyValue.FindIntAttribute(failingAssert.Attributes, "thread", -1);
             Debug.Assert(relevantThread == 1 || relevantThread == 2);
 
             ErrorWriteLine(sli.Top() + ":", messagePrefix + " for " + ThreadDetails(err.Model, relevantThread, true), ErrorMsgType.Error);
@@ -882,7 +868,7 @@ namespace GPUVerify
                 Convert.ToUInt32(QKeyValue.FindIntAttribute(arrayInfo.Attributes, "source_elem_width", -1)),
                 QKeyValue.FindStringAttribute(arrayInfo.Attributes, "source_dimensions").Split(','));
 
-            var sli = new SourceLocationInfo(GetAttributes(err.FailingAssert), GetSourceFileName(), err.FailingAssert.tok);
+            var sli = new SourceLocationInfo(err.FailingAssert.Attributes, GetSourceFileName(), err.FailingAssert.tok);
             ErrorWriteLine(
                 sli.Top() + ":",
                 "possible array out-of-bounds access on array " + arrayAccess + " by " + ThreadDetails(err.Model, 2, false) + ":",
@@ -961,27 +947,27 @@ namespace GPUVerify
             return arrayAccess;
         }
 
-        private static void ReportEnsuresFailure(Absy node)
+        private static void ReportEnsuresFailure(Ensures ensures)
         {
             Console.Error.WriteLine();
-            var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
+            var sli = new SourceLocationInfo(ensures.Attributes, GetSourceFileName(), ensures.tok);
             ErrorWriteLine(sli.Top() + ":", "postcondition might not hold on all return paths", ErrorMsgType.Error);
             sli.PrintStackTrace();
         }
 
-        private static void ReportBarrierDivergence(Absy node)
+        private static void ReportBarrierDivergence(CallCmd call)
         {
             Console.Error.WriteLine();
-            var sli = new SourceLocationInfo(GetAttributes(node), GetSourceFileName(), node.tok);
+            var sli = new SourceLocationInfo(call.Attributes, GetSourceFileName(), call.tok);
             ErrorWriteLine(sli.Top() + ":", "barrier may be reached by non-uniform control flow", ErrorMsgType.Error);
             sli.PrintStackTrace();
         }
 
-        private static void ReportRequiresFailure(Absy callNode, Absy reqNode)
+        private static void ReportRequiresFailure(CallCmd call, Requires req)
         {
             Console.Error.WriteLine();
-            var callSLI = new SourceLocationInfo(GetAttributes(callNode), GetSourceFileName(), callNode.tok);
-            var requiresSLI = new SourceLocationInfo(GetAttributes(reqNode), GetSourceFileName(), reqNode.tok);
+            var callSLI = new SourceLocationInfo(call.Attributes, GetSourceFileName(), call.tok);
+            var requiresSLI = new SourceLocationInfo(req.Attributes, GetSourceFileName(), req.tok);
 
             ErrorWriteLine(callSLI.Top() + ":", "a precondition for this call might not hold", ErrorMsgType.Error);
             callSLI.PrintStackTrace();
