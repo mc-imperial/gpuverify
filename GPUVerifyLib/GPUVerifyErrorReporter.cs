@@ -433,21 +433,20 @@ namespace GPUVerify
 
         private void ReportRace(CallCounterexample callCex)
         {
-            string raceName, access1, access2;
-
-            DetermineNatureOfRace(callCex, out raceName, out access1, out access2);
-
             PopulateModelWithStatesIfNecessary(callCex);
 
             string raceyArrayName = GetArrayName(callCex.FailingRequires);
             Debug.Assert(raceyArrayName != null);
-            string raceyArraySourceName = GetArraySourceName(callCex.FailingRequires);
-            Debug.Assert(raceyArraySourceName != null);
 
             IEnumerable<SourceLocationInfo> possibleSourcesForFirstAccess =
-                GetPossibleSourceLocationsForFirstAccessInRace(callCex, raceyArrayName, AccessType.Create(access1), GetStateName(callCex));
+                GetPossibleSourceLocationsForFirstAccessInRace(callCex, raceyArrayName, GetAccessType(callCex), GetStateName(callCex));
             SourceLocationInfo sourceInfoForSecondAccess =
                 new SourceLocationInfo(callCex.FailingCall.Attributes, GetSourceFileName(), callCex.FailingCall.tok);
+
+            string raceName, access1, access2;
+            DetermineNatureOfRace(callCex, out raceName, out access1, out access2);
+            string raceyArraySourceName = GetArraySourceName(callCex.FailingRequires);
+            Debug.Assert(raceyArraySourceName != null);
 
             ErrorWriteLine(
                 "\n" + sourceInfoForSecondAccess.Top().GetFile() + ":",
