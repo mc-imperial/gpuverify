@@ -28,20 +28,6 @@ namespace GPUVerify
             this.name = name;
         }
 
-        public static AccessType Create(string access)
-        {
-            if (access.ToUpper() == "READ")
-                return READ;
-
-            if (access.ToUpper() == "WRITE")
-                return WRITE;
-
-            if (access.ToUpper() == "ATOMIC")
-                return ATOMIC;
-
-            throw new NotSupportedException("Unknown access type: " + access);
-        }
-
         public override string ToString()
         {
             return name;
