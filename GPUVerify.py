@@ -10,14 +10,7 @@ import tempfile
 from collections import namedtuple
 import copy
 import distutils.spawn
-
-if sys.version_info.major == 3:
-  import io
-else:
-  # In python2.7 importing io.StringIO() doesn't work
-  # very well because it expects unicode strings
-  # use StringIO instead
-  import StringIO as io
+import io
 
 from GPUVerifyScript.argument_parser import ArgumentParserError, parse_arguments
 from GPUVerifyScript.constants import AnalysisMode, SourceLanguage
