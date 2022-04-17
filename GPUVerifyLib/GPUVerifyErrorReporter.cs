@@ -723,7 +723,7 @@ namespace GPUVerify
             var bodies = originalProgram.Implementations.Where(item => item.Name.Equals(calleeName)).ToList();
             if (bodies.Count == 0)
             {
-                return new HashSet<SourceLocationInfo>();
+                return Enumerable.Empty<SourceLocationInfo>();
             }
 
             return GetSourceLocationsFromBlocks(checkProcedureName, bodies[0].Blocks);
@@ -740,10 +740,7 @@ namespace GPUVerify
                 }
                 else
                 {
-                    foreach (var sl in GetSourceLocationsFromCall(checkProcedureName, c.callee))
-                    {
-                        possibleSources.Add(sl);
-                    }
+                    possibleSources.UnionWith(GetSourceLocationsFromCall(checkProcedureName, c.callee));
                 }
             }
 
