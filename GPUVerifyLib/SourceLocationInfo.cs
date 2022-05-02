@@ -222,6 +222,11 @@ namespace GPUVerify
             return records[0];
         }
 
+        public List<Record> GetRecords()
+        {
+            return records;
+        }
+
         public void PrintStackTrace()
         {
             Utilities.IO.ErrorWriteLine(TrimLeadingSpaces(FetchCodeLine(0), 2));

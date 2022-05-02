@@ -19,7 +19,7 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    internal class GPUVerifyErrorReporter
+    public class GPUVerifyErrorReporter
     {
         private enum ErrorMsgType
         {
@@ -516,7 +516,7 @@ namespace GPUVerify
                 "captureState");
         }
 
-        private static string GetStateName(CallCounterexample callCex)
+        protected static string GetStateName(CallCounterexample callCex)
         {
             return GetStateName(callCex.FailingCall.Attributes, callCex);
         }
@@ -531,7 +531,7 @@ namespace GPUVerify
             return CommandLineOptions.Clo.Files[CommandLineOptions.Clo.Files.Count() - 1];
         }
 
-        private static void PopulateModelWithStatesIfNecessary(Counterexample cex)
+        protected static void PopulateModelWithStatesIfNecessary(Counterexample cex)
         {
             if (!cex.ModelHasStatesAlready)
             {
@@ -593,7 +593,7 @@ namespace GPUVerify
             }
         }
 
-        private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample callCex, string arrayName, AccessType accessType, string raceyState)
+        protected IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample callCex, string arrayName, AccessType accessType, string raceyState)
         {
             string accessHasOccurred = RaceInstrumentationUtil.MakeHasOccurredVariableName(arrayName, accessType);
             string accessOffset = RaceInstrumentationUtil.MakeOffsetVariableName(arrayName, accessType);
@@ -777,7 +777,7 @@ namespace GPUVerify
             return vfv.GetVariable();
         }
 
-        private static AccessType GetAccessType(CallCounterexample err)
+        protected static AccessType GetAccessType(CallCounterexample err)
         {
             if (QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_write")
                 || QKeyValue.FindBoolAttribute(err.FailingRequires.Attributes, "write_read")
@@ -1082,7 +1082,7 @@ namespace GPUVerify
             }
         }
 
-        private static string GetArrayName(Requires requires)
+        protected static string GetArrayName(Requires requires)
         {
             string arrName = QKeyValue.FindStringAttribute(requires.Attributes, "array");
             Debug.Assert(arrName != null);
