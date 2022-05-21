@@ -148,7 +148,7 @@ Replace as appropriate or setup an environment variable.::
      $ nuget restore GPUVerify.sln
      $ msbuild /m \
                /p:Configuration=Release \
-               /p:CodeAnalysisRuleSet=$PWD/StyleCop.ruleset
+               /p:CodeAnalysisRuleSet=$PWD/StyleCop.ruleset \
                GPUVerify.sln
 
 #. Configure GPUVerify front end.
