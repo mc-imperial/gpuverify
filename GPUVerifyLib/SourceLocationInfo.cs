@@ -148,6 +148,8 @@ namespace GPUVerify
                         throw new Exception();
                     }
 
+                    SourceLocation = number;
+
                     var info = sr.ReadLine().Split(new char[] { '\x1D' })[number];
                     var chain = info.Split(new char[] { '\x1E' });
                     Record blangRecord = null;
@@ -181,6 +183,8 @@ namespace GPUVerify
                 records.Add(new Record(fallBackToken.line, fallBackToken.col, fallBackToken.filename, string.Empty));
             }
         }
+
+        public int? SourceLocation;
 
         private string FetchCodeLine(int i)
         {
@@ -220,11 +224,6 @@ namespace GPUVerify
         public Record Top()
         {
             return records[0];
-        }
-
-        public List<Record> GetRecords()
-        {
-            return records;
         }
 
         public void PrintStackTrace()
