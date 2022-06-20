@@ -184,7 +184,7 @@ namespace GPUVerify
             }
         }
 
-        public int? SourceLocation { get; set; }
+        public int? SourceLocation { get; private set; }
 
         private string FetchCodeLine(int i)
         {
