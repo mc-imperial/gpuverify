@@ -148,7 +148,7 @@ namespace GPUVerify
                         throw new Exception();
                     }
 
-                    SourceLocation = number;
+                    SourceLocationNumber = number;
 
                     var info = sr.ReadLine().Split(new char[] { '\x1D' })[number];
                     var chain = info.Split(new char[] { '\x1E' });
@@ -184,7 +184,7 @@ namespace GPUVerify
             }
         }
 
-        public int? SourceLocation { get; private set; }
+        public int? SourceLocationNumber { get; private set; }
 
         private string FetchCodeLine(int i)
         {
