@@ -242,15 +242,7 @@ namespace GPUVerify
                 return s1;
             }
 
-            int index = 0;
-            while ((index + 1) < s1.Length && char.IsWhiteSpace(s1[index]))
-                ++index;
-
-            string returnString = s1.Substring(index);
-            for (int i = noOfSpaces; i > 0; --i)
-                returnString = " " + returnString;
-
-            return returnString;
+            return new string(' ', noOfSpaces) + s1.TrimStart();
         }
 
         public override bool Equals(object obj)
