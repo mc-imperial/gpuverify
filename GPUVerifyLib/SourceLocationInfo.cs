@@ -77,6 +77,8 @@ namespace GPUVerify
 
         private List<Record> records;
 
+        public int? SourceLocationNumber { get; private set; }
+
         private class RecordComparison : IComparer<Record>
         {
             public int Compare(Record s1, Record s2)
@@ -183,8 +185,6 @@ namespace GPUVerify
                 records.Add(new Record(fallBackToken.line, fallBackToken.col, fallBackToken.filename, string.Empty));
             }
         }
-
-        public int? SourceLocationNumber { get; private set; }
 
         private string FetchCodeLine(int i)
         {
