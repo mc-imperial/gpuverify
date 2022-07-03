@@ -19,7 +19,7 @@ namespace GPUVerify
     using Microsoft.Boogie;
     using Microsoft.Boogie.GraphUtil;
 
-    internal class GPUVerifyErrorReporter
+    public class GPUVerifyErrorReporter
     {
         private enum ErrorMsgType
         {
@@ -435,11 +435,8 @@ namespace GPUVerify
         {
             PopulateModelWithStatesIfNecessary(callCex);
 
-            string raceyArrayName = GetArrayName(callCex.FailingRequires);
-            Debug.Assert(raceyArrayName != null);
-
             IEnumerable<SourceLocationInfo> possibleSourcesForFirstAccess =
-                GetPossibleSourceLocationsForFirstAccessInRace(callCex, raceyArrayName, GetAccessType(callCex), GetStateName(callCex));
+                GetPossibleSourceLocationsForFirstAccessInRace(callCex);
             SourceLocationInfo sourceInfoForSecondAccess =
                 new SourceLocationInfo(callCex.FailingCall.Attributes, GetSourceFileName(), callCex.FailingCall.tok);
 
@@ -526,7 +523,7 @@ namespace GPUVerify
             return GetStateName(assertCex.FailingAssert.Attributes, assertCex);
         }
 
-        private static string GetSourceFileName()
+        protected virtual string GetSourceFileName()
         {
             return CommandLineOptions.Clo.Files[CommandLineOptions.Clo.Files.Count() - 1];
         }
@@ -593,8 +590,14 @@ namespace GPUVerify
             }
         }
 
-        private IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample callCex, string arrayName, AccessType accessType, string raceyState)
+        protected IEnumerable<SourceLocationInfo> GetPossibleSourceLocationsForFirstAccessInRace(CallCounterexample callCex)
         {
+            string arrayName = GetArrayName(callCex.FailingRequires);
+            Debug.Assert(arrayName != null);
+
+            AccessType accessType = GetAccessType(callCex);
+            string raceyState = GetStateName(callCex);
+
             string accessHasOccurred = RaceInstrumentationUtil.MakeHasOccurredVariableName(arrayName, accessType);
             string accessOffset = RaceInstrumentationUtil.MakeOffsetVariableName(arrayName, accessType);
 
@@ -655,7 +658,7 @@ namespace GPUVerify
             return prog.Implementations.Where(item => item.Name.Equals(impl.Name)).First();
         }
 
-        private static Program GetOriginalProgram()
+        protected virtual Program GetOriginalProgram()
         {
             return Utilities.GetFreshProgram(CommandLineOptions.Clo.Files, false, false);
         }
@@ -716,7 +719,7 @@ namespace GPUVerify
             return lastLogAssume;
         }
 
-        private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromCall(string checkProcedureName, string calleeName)
+        private IEnumerable<SourceLocationInfo> GetSourceLocationsFromCall(string checkProcedureName, string calleeName)
         {
             Program originalProgram = GetOriginalProgram();
             var bodies = originalProgram.Implementations.Where(item => item.Name.Equals(calleeName)).ToList();
@@ -728,7 +731,7 @@ namespace GPUVerify
             return GetSourceLocationsFromBlocks(checkProcedureName, bodies[0].Blocks);
         }
 
-        private static IEnumerable<SourceLocationInfo> GetSourceLocationsFromBlocks(string checkProcedureName, IEnumerable<Block> blocks)
+        private IEnumerable<SourceLocationInfo> GetSourceLocationsFromBlocks(string checkProcedureName, IEnumerable<Block> blocks)
         {
             HashSet<SourceLocationInfo> possibleSources = new HashSet<SourceLocationInfo>();
             foreach (var c in blocks.Select(item => item.Cmds).SelectMany(item => item).OfType<CallCmd>())
@@ -798,7 +801,7 @@ namespace GPUVerify
             }
         }
 
-        private static void ReportThreadSpecificFailure(AssertCounterexample err, string messagePrefix)
+        private void ReportThreadSpecificFailure(AssertCounterexample err, string messagePrefix)
         {
             AssertCmd failingAssert = err.FailingAssert;
 
@@ -813,37 +816,37 @@ namespace GPUVerify
             Console.Error.WriteLine();
         }
 
-        private static void ReportFailingAssert(AssertCounterexample err)
+        private void ReportFailingAssert(AssertCounterexample err)
         {
             ReportThreadSpecificFailure(err, "this assertion might not hold");
         }
 
-        private static void ReportInvariantMaintedFailure(AssertCounterexample err)
+        private void ReportInvariantMaintedFailure(AssertCounterexample err)
         {
             ReportThreadSpecificFailure(err, "loop invariant might not be maintained by the loop");
         }
 
-        private static void ReportInvariantEntryFailure(AssertCounterexample err)
+        private void ReportInvariantEntryFailure(AssertCounterexample err)
         {
             ReportThreadSpecificFailure(err, "loop invariant might not hold on entry");
         }
 
-        private static void ReportFailingBarrierInvariant(AssertCounterexample err)
+        private void ReportFailingBarrierInvariant(AssertCounterexample err)
         {
             ReportThreadSpecificFailure(err, "this barrier invariant might not hold");
         }
 
-        private static void ReportFailingBarrierInvariantAccessCheck(AssertCounterexample err)
+        private void ReportFailingBarrierInvariantAccessCheck(AssertCounterexample err)
         {
             ReportThreadSpecificFailure(err, "insufficient permission may be held for evaluation of this barrier invariant");
         }
 
-        private static void ReportFailingConstantWriteCheck(AssertCounterexample err)
+        private void ReportFailingConstantWriteCheck(AssertCounterexample err)
         {
             ReportThreadSpecificFailure(err, "possible attempt to modify constant memory");
         }
 
-        private static void ReportFailingBadPointerAccess(AssertCounterexample err)
+        private void ReportFailingBadPointerAccess(AssertCounterexample err)
         {
             ReportThreadSpecificFailure(err, "possible null pointer access");
         }
@@ -943,7 +946,7 @@ namespace GPUVerify
             return arrayAccess;
         }
 
-        private static void ReportEnsuresFailure(Ensures ensures)
+        private void ReportEnsuresFailure(Ensures ensures)
         {
             Console.Error.WriteLine();
             var sli = new SourceLocationInfo(ensures.Attributes, GetSourceFileName(), ensures.tok);
@@ -951,7 +954,7 @@ namespace GPUVerify
             sli.PrintStackTrace();
         }
 
-        private static void ReportBarrierDivergence(CallCmd call)
+        private void ReportBarrierDivergence(CallCmd call)
         {
             Console.Error.WriteLine();
             var sli = new SourceLocationInfo(call.Attributes, GetSourceFileName(), call.tok);
@@ -959,7 +962,7 @@ namespace GPUVerify
             sli.PrintStackTrace();
         }
 
-        private static void ReportRequiresFailure(CallCmd call, Requires req)
+        private void ReportRequiresFailure(CallCmd call, Requires req)
         {
             Console.Error.WriteLine();
             var callSLI = new SourceLocationInfo(call.Attributes, GetSourceFileName(), call.tok);
