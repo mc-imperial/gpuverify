@@ -60,9 +60,6 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Numerics" />
-    <Reference Include="Predication">
-      <HintPath>..\BoogieBinaries\BoogiePredication.dll</HintPath>
-    </Reference>
     <Reference Include="Provers.SMTLib">
       <HintPath>..\BoogieBinaries\Provers.SMTLib.dll</HintPath>
     </Reference>
