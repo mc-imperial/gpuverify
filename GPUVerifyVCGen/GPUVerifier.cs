@@ -535,7 +535,7 @@ namespace GPUVerify
             UniformityAnalyser = DoUniformityAnalysis(nonUniformVars);
 
             if (GPUVerifyVCGenCommandLineOptions.ShowUniformityAnalysis)
-                UniformityAnalyser.dump();
+                UniformityAnalyser.Dump();
 
             // We now do modset analysis here because the previous passes add new
             // global variables, and the following two passes depend on the modset

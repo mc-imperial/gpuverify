@@ -50,9 +50,6 @@
     <Reference Include="ParserHelper">
       <HintPath>..\BoogieBinaries\BoogieParserHelper.dll</HintPath>
     </Reference>
-    <Reference Include="Predication">
-      <HintPath>..\BoogieBinaries\BoogiePredication.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Windows.Forms" />
@@ -116,6 +113,8 @@
     <Compile Include="WriteCollector.cs" />
     <Compile Include="ConstantWriteCollector.cs" />
     <Compile Include="ExpressionSimplifier.cs" />
+    <Compile Include="UniformityAnalyser.cs" />
+    <Compile Include="SmartBlockPredicator.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

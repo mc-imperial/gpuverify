@@ -211,7 +211,7 @@ namespace GPUVerify
 
                 for (int i = 0; i < call.Ins.Count; i++)
                 {
-                    if (Verifier.UniformityAnalyser.knowsOf(call.callee)
+                    if (Verifier.UniformityAnalyser.KnowsOf(call.callee)
                         && Verifier.UniformityAnalyser.IsUniform(call.callee, Verifier.UniformityAnalyser.GetInParameter(call.callee, i)))
                     {
                         uniformNewIns.Add(call.Ins[i]);
@@ -224,7 +224,7 @@ namespace GPUVerify
 
                 for (int i = 0; i < call.Ins.Count; i++)
                 {
-                    if (!(Verifier.UniformityAnalyser.knowsOf(call.callee)
+                    if (!(Verifier.UniformityAnalyser.KnowsOf(call.callee)
                         && Verifier.UniformityAnalyser.IsUniform(call.callee, Verifier.UniformityAnalyser.GetInParameter(call.callee, i)))
                         && !Verifier.OnlyThread1.Contains(call.callee))
                     {
@@ -239,7 +239,7 @@ namespace GPUVerify
                 List<IdentifierExpr> nonUniformNewOuts = new List<IdentifierExpr>();
                 for (int i = 0; i < call.Outs.Count; i++)
                 {
-                    if (Verifier.UniformityAnalyser.knowsOf(call.callee)
+                    if (Verifier.UniformityAnalyser.KnowsOf(call.callee)
                         && Verifier.UniformityAnalyser.IsUniform(call.callee, Verifier.UniformityAnalyser.GetOutParameter(call.callee, i)))
                     {
                         uniformNewOuts.Add(call.Outs[i]);
@@ -252,7 +252,7 @@ namespace GPUVerify
 
                 for (int i = 0; i < call.Outs.Count; i++)
                 {
-                    if (!(Verifier.UniformityAnalyser.knowsOf(call.callee)
+                    if (!(Verifier.UniformityAnalyser.KnowsOf(call.callee)
                         && Verifier.UniformityAnalyser.IsUniform(call.callee, Verifier.UniformityAnalyser.GetOutParameter(call.callee, i))))
                     {
                         nonUniformNewOuts.Add(new VariableDualiser(2, Verifier, procName).VisitIdentifierExpr(call.Outs[i].Clone() as IdentifierExpr) as IdentifierExpr);
